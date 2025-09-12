@@ -18,9 +18,10 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QLabel, QPushButton,
                             QListWidget, QComboBox, QProgressBar, QMessageBox,
                             QDialog, QLineEdit, QGridLayout, QMenu, QFrame,
                             QSplitter, QStyleFactory, QToolButton, QListWidgetItem,
-                            QSizePolicy, QTabWidget, QInputDialog, QGraphicsDropShadowEffect)
+                            QSizePolicy, QTabWidget, QInputDialog, QGraphicsDropShadowEffect,
+                            QGroupBox, QCheckBox, QRadioButton, QMenuBar)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QPropertyAnimation, QEasingCurve, QRect, QSettings, QPoint, QTimer
-from PyQt6.QtGui import QPixmap, QIcon, QColor, QPalette, QFont, QCursor, QLinearGradient, QPainter, QPainterPath
+from PyQt6.QtGui import QPixmap, QIcon, QColor, QPalette, QFont, QCursor, QLinearGradient, QPainter, QPainterPath, QAction
 
 # Importar estilos y bibliotecas para la interfaz moderna
 import qdarkstyle
@@ -126,17 +127,123 @@ QProgressBar::chunk {
 }
 """
 
+class ThumbnailConfigDialog(QDialog):
+    """Diálogo para configurar opciones de thumbnail antes de generar videos."""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Configuración de Thumbnails")
+        self.setModal(True)
+        self.setFixedSize(400, 350)
+        
+        # Layout principal
+        layout = QVBoxLayout()
+        
+        # Grupo de estilo de thumbnail
+        style_group = QGroupBox("Estilo de Thumbnail")
+        style_layout = QVBoxLayout()
+        
+        self.letterbox_radio = QRadioButton("Letterbox (con barras negras)")
+        self.letterbox_radio.setChecked(True)  # Por defecto
+        self.fullscreen_radio = QRadioButton("Pantalla completa")
+        
+        style_layout.addWidget(self.letterbox_radio)
+        style_layout.addWidget(self.fullscreen_radio)
+        style_group.setLayout(style_layout)
+        
+        # Grupo de texto
+        text_group = QGroupBox("Opciones de Texto")
+        text_layout = QVBoxLayout()
+        
+        self.show_text_checkbox = QCheckBox("Mostrar texto en thumbnail")
+        self.show_text_checkbox.setChecked(True)  # Por defecto
+        
+        text_layout.addWidget(self.show_text_checkbox)
+        text_group.setLayout(text_layout)
+        
+        # Grupo de overlay personalizado
+        overlay_group = QGroupBox("Overlay Personalizado")
+        overlay_layout = QVBoxLayout()
+        
+        self.use_custom_overlay_checkbox = QCheckBox("Usar overlay personalizado")
+        
+        # Layout horizontal para el selector de archivo
+        file_layout = QHBoxLayout()
+        self.overlay_path_edit = QLineEdit()
+        self.overlay_path_edit.setPlaceholderText("Seleccionar archivo de overlay...")
+        self.overlay_path_edit.setEnabled(False)
+        
+        self.browse_button = QPushButton("Examinar")
+        self.browse_button.setEnabled(False)
+        self.browse_button.clicked.connect(self.browse_overlay_file)
+        
+        file_layout.addWidget(self.overlay_path_edit)
+        file_layout.addWidget(self.browse_button)
+        
+        overlay_layout.addWidget(self.use_custom_overlay_checkbox)
+        overlay_layout.addLayout(file_layout)
+        overlay_group.setLayout(overlay_layout)
+        
+        # Conectar señal para habilitar/deshabilitar controles
+        self.use_custom_overlay_checkbox.toggled.connect(self.on_custom_overlay_toggled)
+        
+        # Botones
+        button_layout = QHBoxLayout()
+        self.ok_button = QPushButton("Aceptar")
+        self.cancel_button = QPushButton("Cancelar")
+        
+        self.ok_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
+        
+        button_layout.addWidget(self.ok_button)
+        button_layout.addWidget(self.cancel_button)
+        
+        # Agregar todo al layout principal
+        layout.addWidget(style_group)
+        layout.addWidget(text_group)
+        layout.addWidget(overlay_group)
+        layout.addLayout(button_layout)
+        
+        self.setLayout(layout)
+    
+    def on_custom_overlay_toggled(self, checked):
+        """Habilita o deshabilita controles de overlay personalizado."""
+        self.overlay_path_edit.setEnabled(checked)
+        self.browse_button.setEnabled(checked)
+    
+    def browse_overlay_file(self):
+        """Abre diálogo para seleccionar archivo de overlay."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Seleccionar Overlay",
+            "",
+            "Imágenes (*.png *.jpg *.jpeg *.bmp *.gif)"
+        )
+        if file_path:
+            self.overlay_path_edit.setText(file_path)
+    
+    def get_config(self):
+        """Retorna la configuración seleccionada."""
+        return {
+            'letterbox_style': self.letterbox_radio.isChecked(),
+            'show_text': self.show_text_checkbox.isChecked(),
+            'use_custom_overlay': self.use_custom_overlay_checkbox.isChecked(),
+            'custom_overlay_path': self.overlay_path_edit.text() if self.use_custom_overlay_checkbox.isChecked() else None
+        }
+
+
 class VideoGeneratorWorker(QThread):
     """Clase para procesar la generación de videos en un hilo separado."""
     progress_updated = pyqtSignal(int, str)
     finished = pyqtSignal(bool, str)
     
-    def __init__(self, beats_folder, images_folder, output_folder, beats_info):
+    def __init__(self, beats_folder, images_folder, output_folder, beats_info, thumbnail_config=None):
         super().__init__()
         self.beats_folder = beats_folder
         self.images_folder = images_folder
         self.output_folder = output_folder
         self.beats_info = beats_info
+        self.thumbnail_config = thumbnail_config or {}
         self.stop_processing = False
     
     def run(self):
@@ -218,6 +325,10 @@ class VideoGeneratorWorker(QThread):
                 except Exception as e:
                     print(f"No se pudo copiar la imagen: {str(e)}")
                 
+                # Generar thumbnail automático si está configurado
+                if self.thumbnail_config.get('letterbox_style', True) or self.thumbnail_config.get('show_text', True):
+                    self._generate_thumbnail(image, audio_file, channel, group_output_folder, base_output_name)
+                
             # Mensaje final actualizado
             self.progress_updated.emit(100, "Proceso completado!")
             self.finished.emit(True, f"Se generaron {total_beats} videos exitosamente. Para cada video, se guardó también la imagen utilizada.")
@@ -268,6 +379,184 @@ class VideoGeneratorWorker(QThread):
         
         if process.returncode != 0:
             raise Exception(f"Error al generar el video para {os.path.basename(audio_path)}")
+    
+    def _generate_thumbnail(self, image_path, audio_file, channel, output_folder, base_name):
+        """Genera un thumbnail automático para YouTube usando la imagen del video."""
+        try:
+            from PIL import Image, ImageDraw, ImageFont
+            
+            # Abrir la imagen base
+            background = Image.open(image_path)
+            background = background.convert('RGB')
+            
+            # Redimensionar y centrar la imagen para YouTube (1280x720)
+            target_width, target_height = 1280, 720
+            
+            # Verificar si usar estilo letterbox (por defecto) o pantalla completa
+            use_letterbox = self.thumbnail_config.get('letterbox_style', True)
+            
+            if use_letterbox:
+                # Estilo letterbox con barras negras para type beats
+                content_width = int(target_width * 0.75)  # 75% del ancho
+                content_height = int(target_height * 0.8)  # 80% de la altura
+                
+                # Calcular el escalado manteniendo proporción
+                scale_x = content_width / background.width
+                scale_y = content_height / background.height
+                scale = min(scale_x, scale_y)  # Usar el menor para que quepa completa
+                
+                new_width = int(background.width * scale)
+                new_height = int(background.height * scale)
+            else:
+                # Estilo pantalla completa
+                img_ratio = background.width / background.height
+                target_ratio = target_width / target_height
+                
+                if img_ratio > target_ratio:
+                    new_height = target_height
+                    new_width = int(new_height * img_ratio)
+                else:
+                    new_width = target_width
+                    new_height = int(new_width / img_ratio)
+            
+            # Redimensionar imagen
+            background = background.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Crear canvas YouTube con fondo negro
+            thumbnail = Image.new('RGB', (target_width, target_height), (0, 0, 0))
+            
+            # Centrar imagen en el canvas
+            paste_x = (target_width - new_width) // 2
+            paste_y = (target_height - new_height) // 2
+            thumbnail.paste(background, (paste_x, paste_y))
+            
+            # Verificar si usar overlay personalizado
+            use_custom_overlay = self.thumbnail_config.get('use_custom_overlay', False)
+            custom_overlay_path = self.thumbnail_config.get('custom_overlay_path', None)
+            
+            if use_custom_overlay and custom_overlay_path and os.path.exists(custom_overlay_path):
+                try:
+                    # Cargar overlay personalizado
+                    overlay_img = Image.open(custom_overlay_path).convert('RGBA')
+                    # Redimensionar overlay al tamaño del thumbnail
+                    overlay_img = overlay_img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+                    
+                    # Aplicar overlay usando canal alpha
+                    thumbnail_rgba = thumbnail.convert('RGBA')
+                    thumbnail = Image.alpha_composite(thumbnail_rgba, overlay_img).convert('RGB')
+                except Exception as e:
+                    print(f"Warning: No se pudo aplicar overlay personalizado: {e}")
+                    # Aplicar overlay semitransparente por defecto
+                    thumbnail = self._apply_default_overlay(thumbnail, paste_x, paste_y, new_width, new_height)
+            else:
+                # Aplicar overlay semitransparente por defecto
+                thumbnail = self._apply_default_overlay(thumbnail, paste_x, paste_y, new_width, new_height)
+            
+            draw = ImageDraw.Draw(thumbnail)
+            
+            # Preparar texto del beat
+            beat_name = os.path.splitext(audio_file)[0]
+            
+            # Intentar cargar fuente
+            try:
+                title_font = ImageFont.truetype("arial.ttf", 72)
+                subtitle_font = ImageFont.truetype("arial.ttf", 48)
+                small_font = ImageFont.truetype("arial.ttf", 36)
+            except:
+                title_font = ImageFont.load_default()
+                subtitle_font = ImageFont.load_default()
+                small_font = ImageFont.load_default()
+            
+            # Texto principal: "[Beat Name] TYPE BEAT"
+            main_text = f"{beat_name.upper()}"
+            type_beat_text = "TYPE BEAT"
+            channel_text = f"by {channel}"
+            
+            # Función para dibujar texto con borde
+            def draw_text_with_border(draw, pos, text, font, fill_color, border_color, border_width=3):
+                x, y = pos
+                # Dibujar borde
+                for adj_x in range(-border_width, border_width + 1):
+                    for adj_y in range(-border_width, border_width + 1):
+                        if adj_x != 0 or adj_y != 0:
+                            draw.text((x + adj_x, y + adj_y), text, font=font, fill=border_color)
+                # Dibujar texto principal
+                draw.text((x, y), text, font=font, fill=fill_color)
+            
+            # Verificar si mostrar texto (opción de configuración)
+            show_text = self.thumbnail_config.get('show_text', True)
+            
+            if show_text:
+                # Calcular posiciones del texto
+                title_bbox = draw.textbbox((0, 0), main_text, font=title_font)
+                title_width = title_bbox[2] - title_bbox[0]
+                title_x = (target_width - title_width) // 2
+                title_y = target_height // 2 - 80
+                
+                # "TYPE BEAT" debajo del título
+                type_bbox = draw.textbbox((0, 0), type_beat_text, font=subtitle_font)
+                type_width = type_bbox[2] - type_bbox[0]
+                type_x = (target_width - type_width) // 2
+                type_y = title_y + 90
+                
+                # Canal en la parte inferior
+                channel_bbox = draw.textbbox((0, 0), channel_text, font=small_font)
+                channel_width = channel_bbox[2] - channel_bbox[0]
+                channel_x = (target_width - channel_width) // 2
+                channel_y = target_height - 80
+                
+                # Dibujar textos con bordes
+                draw_text_with_border(draw, (title_x, title_y), main_text, title_font, 
+                                    (255, 255, 255), (0, 0, 0), 4)
+                draw_text_with_border(draw, (type_x, type_y), type_beat_text, subtitle_font, 
+                                    (255, 215, 0), (0, 0, 0), 3)  # Dorado
+                draw_text_with_border(draw, (channel_x, channel_y), channel_text, small_font, 
+                                    (200, 200, 200), (0, 0, 0), 2)
+                
+                # Agregar elementos gráficos opcionales
+                # Líneas decorativas
+                line_width = 5
+                
+                # Líneas horizontales arriba y abajo del texto principal
+                line_y1 = title_y - 20
+                line_y2 = type_y + 60
+                line_margin = 200
+                
+                draw.rectangle([line_margin, line_y1, target_width - line_margin, line_y1 + line_width], 
+                             fill=(255, 215, 0))
+                draw.rectangle([line_margin, line_y2, target_width - line_margin, line_y2 + line_width], 
+                             fill=(255, 215, 0))
+            
+            # Guardar thumbnail
+            thumbnail_name = f"{base_name}_thumbnail.png"
+            thumbnail_path = os.path.join(output_folder, thumbnail_name)
+            thumbnail.save(thumbnail_path, "PNG", quality=95)
+            
+            print(f"✓ Thumbnail generado: {thumbnail_name}")
+            
+        except Exception as e:
+            print(f"Error generando thumbnail para {audio_file}: {e}")
+    
+    def _apply_default_overlay(self, thumbnail, paste_x, paste_y, img_width, img_height):
+        """Aplica el overlay semitransparente por defecto solo en la imagen."""
+        from PIL import Image, ImageDraw
+        
+        target_width, target_height = thumbnail.size
+        
+        # Aplicar overlay semitransparente solo en la imagen, no en las barras negras
+        thumbnail_rgba = thumbnail.convert('RGBA')
+        
+        # Crear máscara para aplicar overlay solo en la imagen
+        mask = Image.new('L', (target_width, target_height), 0)
+        mask_draw = ImageDraw.Draw(mask)
+        mask_draw.rectangle([paste_x, paste_y, paste_x + img_width, paste_y + img_height], fill=255)
+        
+        # Aplicar overlay usando la máscara
+        overlay_full = Image.new('RGBA', (target_width, target_height), (0, 0, 0, 40))
+        result = Image.composite(overlay_full, thumbnail_rgba, mask)
+        
+        # Retornar la imagen resultante
+        return result.convert('RGB')
     
     def stop(self):
         """Detiene el proceso."""
@@ -511,6 +800,59 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(footer)
         self.worker = None
     
+    def _setup_menu(self):
+        """Configura la barra de menú de la aplicación."""
+        menubar = self.menuBar()
+        
+        # Menú Archivo
+        file_menu = menubar.addMenu('&Archivo')
+        
+        # Cargar Beats
+        load_action = QAction('&Cargar Beats...', self)
+        load_action.setShortcut('Ctrl+O')
+        load_action.triggered.connect(self._load_beats)
+        file_menu.addAction(load_action)
+        
+        file_menu.addSeparator()
+        
+        # Salir
+        exit_action = QAction('&Salir', self)
+        exit_action.setShortcut('Ctrl+Q')
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
+        
+        # Menú Herramientas
+        tools_menu = menubar.addMenu('&Herramientas')
+        
+        # Editor de Thumbnails
+        thumbnail_action = QAction('&Editor de Thumbnails', self)
+        thumbnail_action.triggered.connect(self._open_thumbnail_editor)
+        tools_menu.addAction(thumbnail_action)
+        
+        # Menú Ayuda
+        help_menu = menubar.addMenu('&Ayuda')
+        
+        # Acerca de
+        about_action = QAction('&Acerca de...', self)
+        about_action.triggered.connect(self._show_about)
+        help_menu.addAction(about_action)
+    
+    def _show_about(self):
+        """Muestra información sobre la aplicación."""
+        QMessageBox.about(
+            self,
+            "Acerca de Type Beat Video Generator",
+            "Type Beat Video Generator v2.0\n\n"
+            "Generador automático de videos para Type Beats\n"
+            "con sistema integrado de thumbnails.\n\n"
+            "Características:\n"
+            "• Generación automática de videos\n"
+            "• Editor de thumbnails integrado\n"
+            "• Configuración de estilos letterbox\n"
+            "• Soporte para overlays personalizados\n"
+            "• Gestión de canales y grupos"
+        )
+
     # === MÉTODOS DE CONFIGURACIÓN ===
     def _load_config(self):
         """Carga la configuración desde el archivo JSON."""
@@ -1063,6 +1405,13 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Lista vacía", "No hay beats para procesar. Asigne canales y grupos a los beats primero.")
             return
         
+        # Mostrar diálogo de configuración de thumbnails
+        config_dialog = ThumbnailConfigDialog(self)
+        if config_dialog.exec() != QDialog.DialogCode.Accepted:
+            return  # Usuario canceló
+        
+        thumbnail_config = config_dialog.get_config()
+        
         if not os.path.exists(self.output_folder):
             try:
                 os.makedirs(self.output_folder, exist_ok=True)
@@ -1076,7 +1425,8 @@ class MainWindow(QMainWindow):
             self.beats_folder,
             self.images_folder,
             self.output_folder,
-            self.beats_info
+            self.beats_info,
+            thumbnail_config  # Pasar la configuración al worker
         )
         
         self.worker.progress_updated.connect(self._update_progress)
