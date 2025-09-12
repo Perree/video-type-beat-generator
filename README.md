@@ -2,361 +2,717 @@
 
 Una aplicación de escritorio profesional para automatizar la generación de videos de type beats para YouTube en formato horizontal 16:9. Permite procesar hasta 30 beats de forma automática, organizados por canales y grupos de imágenes.
 
-![Version](https://img.shields.io/badge/version-1.0-blue.svg)
-![Python](https://img.shields.io/badge/python-3.x-blue.svg)
-![PyQt5](https://img.shields.io/badge/PyQt5-5.15.9-green.svg)
+![Version](https://img.shields.io/badge/version-2.0-blue.svg)
+![Python](https://img.shields.io/badge/python-3.13+-blue.svg)
+![PyQt6](https://img.shields.io/badge/PyQt6-6.9+-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 ## ✨ Características Principales
 
 ### 🎶 Gestión de Audio
-- Carga masiva de beats (archivos .wav, .mp3, .flac)
-- Soporte para 15-30 archivos simultáneos
-- Vista previa de archivos con información detallada
-- Edición de nombres personalizados para videos
+- **Carga masiva de beats**: Soporte para archivos .wav, .mp3, .flac
+- **Procesamiento batch**: Hasta 30 archivos simultáneos
+- **Vista previa detallada**: Información completa de archivos con duración y formato
+- **Edición de nombres**: Personalización de nombres para videos finales
+- **Gestión inteligente**: Organización automática en carpeta `beats/`
 
-### 📺 Sistema de Canales y Grupos
-- Gestión avanzada de canales de YouTube
-- Organización por grupos dentro de cada canal (ej: "mattwyyre" → "Principal", "Trap", "Guitarra")
-- Asignación inteligente de beats a canales específicos
-- Sistema de carpetas automático por canal/grupo
+### 📺 Sistema Avanzado de Canales y Grupos
+- **Gestión multichannel**: Creación y administración de múltiples canales de YouTube
+- **Organización por grupos**: Clasificación dentro de cada canal (ej: "mattwyyre" → "Principal", "Trap", "Guitarra", "R&B")
+- **Asignación inteligente**: Vinculación de beats específicos a canales y grupos
+- **Estructura automática**: Sistema de carpetas organizadas por canal/grupo
+- **Configuración persistente**: Guardado automático de configuraciones de canales
 
 ### 🖼️ Gestión Inteligente de Imágenes
-- Organización automática por canal y grupo
-- Selección aleatoria sin repeticiones en cada procesamiento
-- Soporte para múltiples formatos (JPG, PNG, JPEG)
-- Gestión visual de imágenes por categoría
-- Backup automático de imágenes utilizadas
+- **Organización jerárquica**: Estructura `images/{canal}/{grupo}/`
+- **Selección sin repetición**: Algoritmo que evita duplicados en cada procesamiento
+- **Formatos soportados**: JPG, PNG, JPEG con resoluciones flexibles
+- **Gestión visual**: Interface para administrar imágenes por categoría
+- **Backup automático**: Copia de imágenes utilizadas junto a videos generados
+- **Escalado inteligente**: Adaptación automática a 1920x1080 manteniendo proporción
 
-### 🎬 Generación de Videos
-- Videos en formato profesional MP4 (1920x1080, 16:9)
-- Procesamiento automático con FFmpeg integrado
-- Escala inteligente de imágenes (centrado, relleno negro)
-- Calidad de audio optimizada (AAC, 192k)
-- Progreso en tiempo real con información detallada
-- **Soporte para videos de fondo en loop**: Puedes usar un video corto como fondo, que se repetirá automáticamente hasta cubrir la duración del beat.
+### 🎬 Generación Profesional de Videos
+- **Formato optimizado**: MP4 (1920x1080, 16:9) compatible con YouTube
+- **Procesamiento FFmpeg**: Integración nativa con FFmpeg 8.0 incluido
+- **Escalado inteligente**: Centrado automático con relleno negro para cualquier proporción
+- **Calidad premium**: Video H.264 con audio AAC 192kbps
+- **Progreso en tiempo real**: Monitoreo detallado del procesamiento
+- **Organización automática**: Videos exportados en estructura `canal/grupo/`
+- **Nombres personalizables**: Formato automático o nombres custom
 
-### 🖼️ Generación Automática de Miniaturas (Thumbnails)
-- La aplicación genera automáticamente una miniatura para cada beat, adaptada a 1280x720 píxeles (recomendado para YouTube).
-- Usa la imagen de fondo del beat o una imagen personalizada por canal/grupo.
-- Permite agregar overlays PNG (transparente) y texto personalizado.
-- Todo el proceso es automático, sin necesidad de Photoshop.
-
-### 🎨 Interfaz Moderna
-- Diseño limpio y profesional con tema oscuro
-- Layout responsivo de 3 columnas
-- Indicadores visuales de estado
-- Menús contextuales intuitivos
-- Mensajes informativos claros
+### 🖱️ Interfaz Moderna y Profesional
+- **Diseño PyQt6**: Interface nativa con tema oscuro profesional
+- **Layout de 3 columnas**: Organización intuitiva del flujo de trabajo
+- **Indicadores visuales**: Estados claros de progreso y procesamiento
+- **Menús contextuales**: Acceso rápido a funciones avanzadas
+- **Responsive**: Adaptable a diferentes tamaños de pantalla
+- **Iconografía QtAwesome**: Iconos vectoriales profesionales
 
 ## 📋 Requisitos del Sistema
 
 ### Software Requerido
-- **Python 3.x** (3.7 o superior)
-- **Windows 10/11** (recomendado), macOS, o Linux
-- **4GB RAM** mínimo, 8GB recomendado
-- **500MB** de espacio libre en disco
+- **Python 3.13+** (recomendado, compatible con 3.8+)
+- **Windows 10/11** (principal), macOS, o Linux
+- **4GB RAM** mínimo, 8GB recomendado para procesamiento batch
+- **1GB** de espacio libre en disco (sin incluir contenido)
 
-### Dependencias
-- `PyQt5==5.15.9` - Interfaz gráfica
-- `qdarkstyle` - Tema oscuro moderno
+### Dependencias Principales
+- `PyQt6==6.9.1` - Interfaz gráfica moderna
+- `qdarkstyle` - Tema oscuro profesional  
 - `qtawesome` - Iconos vectoriales
-- `Pillow` - Manipulación de imágenes y generación de miniaturas
-- `ffmpeg-python` - Manejo avanzado de archivos multimedia
-- `FFmpeg` - Procesamiento multimedia (incluido)
+- `Pillow` - Manipulación de imágenes
+- `FFmpeg 8.0` - Procesamiento multimedia (incluido)
 
 ## 🚀 Instalación y Configuración
 
-### Instalación Automática (Windows)
+### ⚡ Instalación Rápida (Windows)
 ```batch
 # Clona el repositorio
 git clone https://github.com/Perree/video-type-beat-generator.git
 cd video-type-beat-generator
 
-# Ejecuta el instalador automático
+# Opción 1: Ejecuta el instalador automático
 start_app.bat
+
+# Opción 2: Ejecuta el nuevo launcher (recomendado)
+run_app.bat
 ```
 
-### Instalación Manual
+### 🔧 Instalación Manual Paso a Paso
 ```bash
-# Clona el repositorio
+# 1. Clona el repositorio
 git clone https://github.com/Perree/video-type-beat-generator.git
 cd video-type-beat-generator
 
-# Instala dependencias
-pip install -r requirements.txt
+# 2. Crea entorno virtual (IMPORTANTE)
+python -m venv .venv
 
-# Ejecuta la aplicación
+# 3. Activa el entorno virtual
+# Windows PowerShell:
+.venv\Scripts\Activate.ps1
+# Windows CMD:
+.venv\Scripts\activate.bat
+# Linux/Mac:
+source .venv/bin/activate
+
+# 4. Actualiza pip e instala dependencias
+python -m pip install --upgrade pip
+pip install PyQt6 qdarkstyle qtawesome Pillow
+
+# 5. Ejecuta la aplicación
 python main.py
 ```
 
+### 🎯 Formas de Ejecutar la Aplicación
+
+**🟢 Método Recomendado (Windows):**
+```batch
+# Usa el launcher inteligente que detecta el entorno virtual
+run_app.bat
+```
+
+**🟢 Método Manual (Todas las plataformas):**
+```bash
+# Activa el entorno virtual y ejecuta
+.venv\Scripts\Activate.ps1  # Windows PowerShell
+python main.py
+
+# O ejecuta directamente con el Python del entorno virtual
+.venv\Scripts\python.exe main.py  # Windows
+.venv/bin/python main.py          # Linux/Mac
+```
+
+### 🚨 Solución a Error Común: "No module named 'PyQt6'"
+
+Si obtienes el error `ModuleNotFoundError: No module named 'PyQt6'`, es porque no estás usando el entorno virtual:
+
+**❌ INCORRECTO:**
+```bash
+python main.py  # Usa Python del sistema (sin dependencias)
+```
+
+**✅ CORRECTO:**
+```bash
+# Opción 1: Usa el launcher automático (Windows)
+run_app.bat
+
+# Opción 2: Activar entorno virtual primero
+.venv\Scripts\Activate.ps1  # Windows PowerShell
+python main.py
+
+# Opción 3: Usar Python del entorno directamente
+.venv\Scripts\python.exe main.py  # Windows
+.venv/bin/python main.py          # Linux/Mac
+```
+
+### 🔍 Verificación de Instalación
+```bash
+# Verifica que PyQt6 esté instalado correctamente
+.venv\Scripts\python.exe -c "import PyQt6; print('PyQt6 instalado correctamente')"
+
+# Verifica todas las dependencias
+.venv\Scripts\python.exe -c "import PyQt6, qdarkstyle, qtawesome; print('Todas las dependencias OK')"
+```
+
 ### Configuración Inicial
-La aplicación creará automáticamente las siguientes carpetas:
+La aplicación creará automáticamente la siguiente estructura de carpetas:
 ```
 video-type-beat-generator/
-├── beats/                  # Archivos de audio
-├── images/                 # Imágenes organizadas por canal
-│   ├── mattwyyre/
-│   │   ├── Principal/
-│   │   └── Trap/
-│   └── wyrelatinbeatz/
+├── beats/                  # Archivos de audio (.wav, .mp3, .flac)
+├── images/                 # Imágenes organizadas por canal/grupo
+│   ├── {canal1}/
+│   │   ├── Principal/     # Grupo principal del canal
+│   │   ├── Trap/          # Grupo específico (ejemplo)
+│   │   └── R&B/           # Otro grupo específico
+│   └── {canal2}/
 │       └── Principal/
-├── videos/                 # Videos cortos para fondo por canal/grupo (opcional)
-├── exported_videos/        # Videos generados
-├── thumbnails/             # Miniaturas generadas automáticamente
-├── config/                 # Configuración de la app
-└── bin/                    # FFmpeg incluido
+├── exported_videos/        # Videos generados con estructura organizativa
+│   ├── {canal1}/
+│   │   ├── Principal/
+│   │   │   ├── beat1_{canal1}_Principal.mp4
+│   │   │   └── beat1_{canal1}_Principal_imagen.jpg
+│   │   └── Trap/
+│   └── {canal2}/
+├── config/                 # Configuración automática de la aplicación
+├── bin/                    # FFmpeg 8.0 incluido (Windows)
+└── .venv/                  # Entorno virtual Python
 ```
 
 ## 📖 Guía de Uso Completa
 
-### 1. 🎵 Cargar Beats
-1. Haz clic en **"Cargar Beats"** en la columna izquierda
-2. Selecciona entre 1-30 archivos de audio (.wav, .mp3, .flac)
-3. Los archivos se copiarán automáticamente a la carpeta `/beats`
-4. Verifica la lista de beats cargados
+### 1. 🎵 Cargar y Gestionar Beats
+1. **Carga inicial**: Haz clic en **"Cargar Beats"** en la columna izquierda
+2. **Selección múltiple**: Selecciona entre 1-30 archivos de audio (.wav, .mp3, .flac)
+3. **Copia automática**: Los archivos se copiarán a la carpeta `/beats` con validación
+4. **Vista previa**: Revisa la lista de beats cargados con información detallada
+5. **Gestión**: Usa clic derecho para opciones adicionales (eliminar, renombrar)
 
-### 2. 📺 Configurar Canales
-1. Ve a la columna central **"Configuración"**
-2. Selecciona un canal existente o haz clic en **"Gestionar Canales"**
-3. Para agregar nuevo canal:
+### 2. 📺 Configuración Avanzada de Canales
+1. **Acceso**: Ve a la columna central **"Configuración de Canales"**
+2. **Gestión de canales**: Haz clic en **"Gestionar Canales"** para configuración avanzada
+3. **Crear canal nuevo**:
    - Haz clic en **"➕ Agregar nuevo canal..."**
-   - Ingresa el nombre del canal
-   - Agrega grupos (ej: "Principal", "Trap", "Guitarra")
-4. Agrega imágenes a cada grupo:
-   - Selecciona el grupo deseado
-   - Haz clic en **"Editar Imágenes"**
-   - Agrega 10-30 imágenes por grupo
-5. (Opcional) Agrega videos cortos de fondo para cada grupo en la carpeta `/videos/{canal}/{grupo}`
+   - Ingresa nombre único del canal (validación automática)
+   - Define grupos específicos (ej: "Principal", "Trap", "Guitarra", "R&B")
+4. **Gestión de imágenes por grupo**:
+   - Selecciona canal y grupo específico
+   - Usa **"Editar Imágenes"** para gestión visual
+   - Agrega 10-50 imágenes por grupo para variedad máxima
+5. **Configuración automática**: Las configuraciones se guardan automáticamente
 
-### 3. 🎯 Asignar Beats a Canales
-1. Selecciona uno o varios beats de la lista izquierda
-2. Elige el canal y grupo en la configuración central
-3. Haz clic en **"Asignar Canal"**
-4. Los beats aparecerán en la columna derecha **"Procesamiento"**
+### 3. 🎯 Asignación Inteligente de Beats
+1. **Selección**: Selecciona uno o múltiples beats de la lista izquierda
+2. **Configuración**: Elige canal y grupo específico en configuración central
+3. **Asignación**: Haz clic en **"Asignar Canal"** para vincular
+4. **Verificación**: Los beats aparecen en la columna derecha **"Lista de Procesamiento"**
+5. **Edición**: Modifica asignaciones en cualquier momento
 
-### 4. ✏️ Personalizar Nombres (Opcional)
-1. En la lista de procesamiento, doble clic en un beat
-2. Ingresa un nombre personalizado para el video
-3. Si se deja vacío, usa formato: `nombre_beat_canal_grupo`
+### 4. ✏️ Personalización de Nombres
+1. **Acceso**: Doble clic en cualquier beat de la lista de procesamiento
+2. **Editor**: Se abre el diálogo de edición de nombres personalizado
+3. **Formato automático**: Si se deja vacío, usa formato `nombre_beat_canal_grupo`
+4. **Personalización**: Ingresa nombres únicos para optimización SEO
+5. **Validación**: Verifica que no existan nombres duplicados
 
-### 5. 🎬 Generar Videos y Miniaturas
-1. Verifica que todos los beats tengan canal asignado
-2. Selecciona carpeta de salida (opcional)
-3. Haz clic en **"▶ GENERAR VIDEOS"**
-4. Monitorea el progreso en tiempo real
-5. Los videos y sus miniaturas se organizarán automáticamente:
-   ```
-   exported_videos/
-   ├── mattwyyre/
-   │   ├── Principal/
-   │   │   ├── beat1_mattwyyre_Principal.mp4
-   │   │   └── beat1_mattwyyre_Principal_thumbnail.jpg
-   │   └── Trap/
-   │       ├── beat2_mattwyyre_Trap.mp4
-   │       └── beat2_mattwyyre_Trap_thumbnail.jpg
-   thumbnails/
-   ├── beat1_mattwyyre_Principal_thumbnail.jpg
-   └── beat2_mattwyyre_Trap_thumbnail.jpg
-   ```
+### 5. 🎬 Generación de Videos
+1. **Verificación previa**: Confirma que todos los beats tienen canal y grupo asignado
+2. **Carpeta de salida**: Opcionalmente selecciona carpeta personalizada
+3. **Inicio**: Haz clic en **"▶ GENERAR VIDEOS"** para comenzar procesamiento
+4. **Monitoreo**: Observa progreso en tiempo real con información detallada
+5. **Resultado**: Videos organizados automáticamente en estructura `canal/grupo/`
 
-#### Ejemplo de generación automática de miniatura (Python)
-```python
-from PIL import Image, ImageDraw, ImageFont
-
-def generate_thumbnail(bg_image_path, overlay_path=None, text=None, output_path="thumbnail.jpg"):
-    base = Image.open(bg_image_path).convert("RGBA").resize((1280, 720), Image.ANTIALIAS)
-    if overlay_path:
-        overlay = Image.open(overlay_path).convert("RGBA").resize((1280, 720), Image.ANTIALIAS)
-        base = Image.alpha_composite(base, overlay)
-    if text:
-        draw = ImageDraw.Draw(base)
-        font = ImageFont.truetype("arial.ttf", 60)
-        text_width, text_height = draw.textsize(text, font=font)
-        x = (1280 - text_width) // 2
-        y = 720 - text_height - 40
-        draw.text((x, y), text, font=font, fill=(255,255,255,255))
-    base.convert("RGB").save(output_path, "JPEG")
-    print(f"Miniatura generada: {output_path}")
+#### Estructura de Salida Final:
+```
+exported_videos/
+├── mattwyyre/
+│   ├── Principal/
+│   │   ├── beat1_mattwyyre_Principal.mp4
+│   │   └── beat1_mattwyyre_Principal_imagen.jpg
+│   ├── Trap/
+│   │   ├── beat2_mattwyyre_Trap.mp4
+│   │   └── beat2_mattwyyre_Trap_imagen.jpg
+│   └── R&B/
+└── wyrelatinbeatz/
+    └── Principal/
+        ├── beat3_wyrelatinbeatz_Principal.mp4
+        └── beat3_wyrelatinbeatz_Principal_imagen.jpg
 ```
 
-#### Ejemplo de video en loop como fondo (Python + FFmpeg)
-```python
-import subprocess
-import ffmpeg
-
-def loop_video_to_audio(video_path, audio_path, output_path):
-    audio_info = ffmpeg.probe(audio_path)
-    video_info = ffmpeg.probe(video_path)
-    audio_duration = float(audio_info['format']['duration'])
-    video_duration = float(video_info['format']['duration'])
-    loops = int(audio_duration // video_duration) + 2
-    cmd = [
-        'ffmpeg',
-        '-stream_loop', str(loops),
-        '-i', video_path,
-        '-i', audio_path,
-        '-shortest',
-        '-c:v', 'libx264',
-        '-c:a', 'aac',
-        '-b:a', '192k',
-        output_path
-    ]
-    subprocess.run(cmd, check=True)
-```
+### 6. 🔄 Gestión de Procesamiento
+- **Cancelación**: Usa **"Cancelar"** para detener procesamiento en cualquier momento
+- **Progreso**: Monitorea estado actual y tiempo estimado
+- **Errores**: Manejo automático de errores con mensajes informativos
+- **Backup**: Cada video incluye copia de la imagen utilizada
 
 ## 🎯 Flujo de Trabajo Recomendado
 
 ```mermaid
 graph TD
     A[Abrir Aplicación] --> B[Cargar Beats]
-    B --> C[Configurar Canales]
-    C --> D[Agregar Imágenes/Videos por Grupo]
+    B --> C[Configurar Canales y Grupos]
+    C --> D[Agregar Imágenes por Canal/Grupo]
     D --> E[Asignar Beats a Canales]
-    E --> F[Personalizar Nombres]
-    F --> G[Generar Videos/Miniaturas]
-    G --> H[Videos y Miniaturas Listos para Upload]
+    E --> F[Personalizar Nombres - Opcional]
+    F --> G[Generar Videos]
+    G --> H[Videos Listos para Upload]
+    
+    subgraph "Configuración Inicial"
+    C --> C1[Crear Canales]
+    C1 --> C2[Definir Grupos por Canal]
+    C2 --> C3[Configurar Estructura]
+    end
+    
+    subgraph "Procesamiento"
+    G --> G1[Selección Aleatoria de Imágenes]
+    G1 --> G2[Generación con FFmpeg]
+    G2 --> G3[Organización Automática]
+    end
 ```
 
 ### Para Productores Principiantes
-1. Carga 5-10 beats inicialmente
-2. Crea un canal con grupo "Principal"
-3. Agrega 15-20 imágenes variadas
-4. Procesa y revisa resultados
+1. **Inicio simple**: Carga 5-10 beats para familiarizarte
+2. **Un canal básico**: Crea un canal con grupo "Principal"
+3. **Imágenes variadas**: Agrega 15-25 imágenes de diferentes estilos
+4. **Procesa y aprende**: Genera videos y analiza resultados
+5. **Optimiza**: Ajusta nombres y organización según resultados
 
-### Para Productores Avanzados
-1. Organiza beats por género/estilo
-2. Crea múltiples canales con grupos específicos
-3. Usa nombres personalizados estratégicos
-4. Procesa hasta 30 beats simultáneamente
+### Para Productores Experimentados
+1. **Organización estratégica**: Estructura beats por género/estilo desde inicio
+2. **Múltiples canales**: Crea canales especializados con grupos específicos
+3. **Biblioteca extensa**: Mantén 30-50 imágenes por grupo para máxima variedad
+4. **Nomenclatura SEO**: Usa nombres personalizados optimizados para búsqueda
+5. **Procesamiento masivo**: Aprovecha capacidad de hasta 30 beats simultáneos
+6. **Automatización**: Configura una vez y reutiliza configuraciones
+
+### Para Productores Profesionales
+1. **Gestión de marca**: Canales diferenciados por marca/nicho musical
+2. **Categorización granular**: Grupos específicos por subgéneros musicales
+3. **Consistencia visual**: Bibliotecas de imágenes curadas por estilo
+4. **Flujo optimizado**: Procesamiento batch regular con nomenclatura sistemática
+5. **Distribución organizada**: Estructura lista para upload directo a plataformas
 
 ## 🔧 Configuración Avanzada
 
-### Formatos de Video Soportados
+### Especificaciones Técnicas de Video
 - **Resolución**: 1920x1080 (Full HD)
-- **Aspecto**: 16:9 (YouTube estándar)
-- **Codec Video**: H.264 (máxima compatibilidad)
-- **Codec Audio**: AAC, 192 kbps
-- **Formato**: MP4
-- **Video de fondo en loop**: Puedes usar un video corto como fondo, que se repetirá automáticamente hasta cubrir la duración de cada beat.
+- **Relación de aspecto**: 16:9 (estándar YouTube)
+- **Codec de video**: H.264 (máxima compatibilidad)
+- **Codec de audio**: AAC, 192 kbps (calidad premium)
+- **Formato contenedor**: MP4
+- **Escalado**: Automático con relleno negro para mantener proporción
+- **Frame rate**: Variable según duración del audio
+
+### Algoritmo de Procesamiento de Imágenes
+```python
+# Ejemplo del escalado inteligente implementado
+def scale_image_to_video(image_path):
+    """
+    Escala imagen a 1920x1080 manteniendo proporción
+    - Centra la imagen
+    - Rellena con negro los espacios vacíos
+    - Optimiza para cualquier resolución de entrada
+    """
+    cmd = [
+        'ffmpeg',
+        '-loop', '1',
+        '-i', image_path,
+        '-vf', 'scale=-1:1080,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black',
+        '-c:v', 'libx264',
+        '-preset', 'fast',
+        '-tune', 'stillimage',
+        '-shortest'
+    ]
+```
 
 ### Formatos de Audio Soportados
-- **WAV** (recomendado para máxima calidad)
-- **MP3** (320 kbps recomendado)
-- **FLAC** (para audio sin pérdida)
+- **WAV**: Calidad sin pérdida (recomendado para masters)
+- **MP3**: 128-320 kbps (balance calidad/tamaño)
+- **FLAC**: Sin pérdida, menor compatibilidad
+- **Duración**: Sin límite específico, optimizado para 2-5 minutos
 
 ### Formatos de Imagen Soportados
-- **JPG/JPEG** (recomendado)
-- **PNG** (con transparencia y overlays)
-- **Resolución recomendada**: 1920x1080 o superior
+- **JPG/JPEG**: Formato principal recomendado
+- **PNG**: Soporte completo, ideal para imágenes con transparencia
+- **Resolución mínima**: 720p (1280x720)
+- **Resolución recomendada**: 1080p+ (1920x1080 o superior)
+- **Proporción**: Cualquier ratio (se adapta automáticamente)
+
+### Optimizaciones de Rendimiento
+- **Procesamiento secuencial**: Un video a la vez para estabilidad
+- **Gestión de memoria**: Liberación automática de recursos
+- **Cache inteligente**: Reutilización de configuraciones
+- **Validación previa**: Verificación de archivos antes de procesamiento
+
+### Configuración de FFmpeg
+```bash
+# Comando FFmpeg utilizado internamente
+ffmpeg -loop 1 -i imagen.jpg -i audio.wav \
+  -vf "scale=-1:1080,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black" \
+  -c:v libx264 -preset fast -tune stillimage \
+  -c:a aac -b:a 192k -shortest -y output.mp4
+```
 
 ## 🛠️ Solución de Problemas
 
-### Problemas Comunes
+### Problemas Frecuentes y Soluciones
 
-**❌ Error: "No hay imágenes para el canal"**
-- **Solución**: Agrega imágenes al grupo específico usando "Gestionar Canales"
+**❌ Error: "ModuleNotFoundError: No module named 'PyQt6'"**
+- **Causa más común**: No estás usando el entorno virtual donde están instaladas las dependencias
+- **Solución**:
+  ```bash
+  # Verifica que el entorno virtual esté activado
+  .venv\Scripts\Activate.ps1  # Windows PowerShell
+  
+  # O ejecuta directamente con el Python del entorno virtual
+  .venv\Scripts\python.exe main.py  # Windows
+  .venv/bin/python main.py          # Linux/Mac
+  
+  # Si PyQt6 no está instalado en el entorno virtual:
+  .venv\Scripts\python.exe -m pip install PyQt6 qdarkstyle qtawesome Pillow
+  ```
+
+**❌ Error: "No hay imágenes para el canal '{canal}', grupo '{grupo}'"**
+- **Causa**: Carpeta de grupo vacía o inexistente
+- **Solución**: 
+  1. Usa "Gestionar Canales" → "Editar Imágenes"
+  2. Agrega mínimo 5-10 imágenes al grupo específico
+  3. Verifica que las imágenes estén en formato JPG/PNG
 
 **❌ Error: "FFmpeg no encontrado"**
-- **Solución**: Verifica que `bin/ffmpeg.exe` existe en la carpeta del proyecto
+- **Causa**: FFmpeg no está disponible en el sistema
+- **Solución Windows**: 
+  1. Verifica que `bin/ffmpeg.exe` existe en carpeta del proyecto
+  2. Descarga FFmpeg 8.0 si falta
+- **Solución Linux/Mac**: Instala FFmpeg: `sudo apt install ffmpeg` / `brew install ffmpeg`
 
-**❌ Videos con calidad baja**
-- **Solución**: Usa archivos de audio WAV y imágenes de alta resolución
+**❌ Videos con calidad degradada**
+- **Causa**: Archivos fuente de baja calidad
+- **Solución**:
+  1. Usa archivos WAV en lugar de MP3 comprimido
+  2. Utiliza imágenes de resolución 1920x1080 o superior
+  3. Verifica que imágenes no estén sobre-comprimidas
 
-**❌ Aplicación lenta**
-- **Solución**: Procesa menos beats simultáneamente, cierra otras aplicaciones
+**❌ Aplicación lenta o se congela**
+- **Causa**: Recursos insuficientes o archivos muy pesados
+- **Solución**:
+  1. Procesa menos beats simultáneamente (10-15 en lugar de 30)
+  2. Cierra otras aplicaciones para liberar RAM
+  3. Usa imágenes de tamaño moderado (2-5MB máximo)
+  4. Verifica espacio disponible en disco
 
-### Logs y Debugging
-Los errores se muestran en tiempo real en la interfaz. Para debugging avanzado:
+**❌ Error: "Archivo en uso" o "Acceso denegado"**
+- **Causa**: Archivos bloqueados por otro proceso
+- **Solución**:
+  1. Cierra reproductores de audio que puedan usar los beats
+  2. Verifica permisos de escritura en carpetas de salida
+  3. Ejecuta como administrador si es necesario (Windows)
+
+**❌ Nombres de archivos duplicados**
+- **Causa**: Nomenclatura automática genera nombres idénticos
+- **Solución**:
+  1. Usa nombres personalizados únicos
+  2. Verifica que beats tengan nombres originales diferentes
+  3. Revisa configuración de canales/grupos
+
+### Optimización de Rendimiento
+
+**🚀 Para mejorar velocidad de procesamiento:**
+1. **SSD recomendado**: Usa disco SSD para carpetas de trabajo
+2. **RAM suficiente**: Mínimo 8GB para procesamiento fluido
+3. **Archivos optimizados**: Imágenes 2-5MB, audio comprimido moderadamente
+4. **Lotes pequeños**: Procesa 10-15 beats por vez para estabilidad
+
+**🔍 Para debugging avanzado:**
 ```bash
+# Windows (PowerShell)
+python main.py > debug.log 2>&1
+
+# Linux/Mac
 python main.py 2>&1 | tee debug.log
 ```
+
+### Mensajes de Estado de la Aplicación
+- **"Procesando: {beat} ({n}/{total})"**: Progreso normal
+- **"Generando video para: {beat}"**: Procesando con FFmpeg
+- **"Proceso completado!"**: Finalización exitosa
+- **"Proceso cancelado por el usuario"**: Cancelación manual
+- **"Error: {detalle}"**: Problema específico requiere atención
 
 ## 📁 Estructura del Proyecto
 
 ```
 video-type-beat-generator/
-├── 📄 main.py                    # Aplicación principal
-├── 📄 edit_beat_dialog.py        # Diálogo de edición de nombres
-├── 📄 start_app.bat             # Launcher para Windows
-├── 📄 requirements.txt          # Dependencias Python
-├── 📁 beats/                    # Archivos de audio
-├── 📁 images/                   # Imágenes por canal/grupo
-├── 📁 videos/                   # Videos de fondo por canal/grupo
-├── 📁 exported_videos/          # Videos generados
-├── 📁 thumbnails/               # Miniaturas generadas automáticamente
-├── 📁 config/                   # Configuración JSON
-├── 📁 bin/                      # FFmpeg incluido
-└── 📁 .venv/                    # Entorno virtual Python
+├── 📄 main.py                    # Aplicación principal con interfaz PyQt6
+├── 📄 edit_beat_dialog.py        # Diálogo para edición de nombres de beats
+├── 📄 start_app.bat              # Launcher automático para Windows (legacy)
+├── 📄 run_app.bat                # Launcher inteligente con verificación de entorno virtual
+├── 📄 requirements.txt           # Dependencias del proyecto (legacy)
+├── 📄 README.md                  # Documentación completa del proyecto
+├── 📄 PROJECT_PLAN_Version3.md   # Plan técnico y especificaciones
+├── � GESTION_CANALES_GUIDE.md   # Guía específica de gestión de canales
+├── �📁 beats/                     # 🎵 Archivos de audio para procesamiento
+│   ├── beat1.wav
+│   ├── beat2.mp3
+│   └── ...
+├── 📁 images/                    # 🖼️ Biblioteca de imágenes organizadas
+│   ├── canal1/
+│   │   ├── Principal/
+│   │   │   ├── imagen1.jpg
+│   │   │   └── imagen2.png
+│   │   ├── Trap/
+│   │   └── R&B/
+│   └── canal2/
+│       └── Principal/
+├── 📁 exported_videos/           # 🎬 Videos generados organizados por canal/grupo
+│   ├── canal1/
+│   │   ├── Principal/
+│   │   │   ├── beat1_canal1_Principal.mp4
+│   │   │   └── beat1_canal1_Principal_imagen.jpg
+│   │   └── Trap/
+│   └── canal2/
+├── 📁 demo_images/               # 🎨 Imágenes de demostración incluidas
+├── 📁 config/                    # ⚙️ Configuración automática de la aplicación
+│   └── app_config.json          # Configuraciones de canales y preferencias
+├── 📁 bin/                       # 🔧 Herramientas binarias (Windows)
+│   └── ffmpeg.exe               # FFmpeg 8.0 incluido
+├── 📁 ffmpeg-8.0/                # 📦 Distribución completa de FFmpeg
+│   ├── bin/
+│   ├── doc/
+│   └── ...
+├── 📁 .venv/                     # 🐍 Entorno virtual de Python
+│   ├── Scripts/                 # (Windows)
+│   ├── bin/                     # (Linux/Mac)
+│   └── lib/
+└── 📁 __pycache__/               # 🗂️ Archivos Python compilados
 ```
 
-## 🔄 Actualizaciones y Mantenimiento
+### Componentes Principales
 
-### Características Futuras Planeadas
-- [ ] Procesamiento en paralelo para mayor velocidad
-- [ ] Plantillas de nombres personalizables
-- [ ] Integración con APIs de YouTube
-- [ ] Efectos visuales para imágenes
-- [ ] Soporte para formatos de video adicionales
-- [ ] Modo batch para múltiples proyectos
-- [ ] Custom overlays para miniaturas
+#### **Código Fuente**
+- **`main.py`**: Aplicación principal (1,267 líneas)
+  - Interfaz PyQt6 con tema oscuro
+  - Worker thread para procesamiento
+  - Gestión de canales y configuración
+  - Integración con FFmpeg
 
-### Versionado
-- **v1.0** - Versión estable actual
-- **v0.9** - Beta con optimizaciones (pausada)
-- **v0.8** - Versión inicial funcional
+- **`edit_beat_dialog.py`**: Diálogo de edición (160 líneas)  
+  - Interface para personalizar nombres de beats
+  - Validación de entrada
+  - Integración con ventana principal
 
-## 🤝 Contribución
+#### **Estructura de Datos**
+- **`beats/`**: Almacén centralizado de archivos de audio
+- **`images/{canal}/{grupo}/`**: Biblioteca organizada jerárquicamente
+- **`exported_videos/{canal}/{grupo}/`**: Salida estructurada para upload
+- **`config/app_config.json`**: Configuración persistente
 
-### Reportar Problemas
-1. Abre un issue en GitHub
-2. Incluye información del sistema
-3. Describe pasos para reproducir
-4. Adjunta logs si es posible
+#### **Herramientas**
+- **`bin/ffmpeg.exe`**: Procesador multimedia portable (Windows)
+- **`ffmpeg-8.0/`**: Distribución completa con documentación
+- **`.venv/`**: Entorno aislado con dependencias específicas
 
-### Desarrollo
+## 🔄 Versionado y Actualizaciones
+
+### Versión Actual: v2.0 (Septiembre 2025)
+**Migración a PyQt6 y Optimizaciones**
+
+#### ✨ Nuevas Características v2.0:
+- **🔧 PyQt6**: Migración completa desde PyQt5
+  - Eliminación de warnings de deprecación  
+  - Compatibilidad con Python 3.13+
+  - Mejor rendimiento y estabilidad
+- **🧹 Simplificación**: Eliminación de sistemas no esenciales
+  - Removido sistema de miniaturas automáticas (enfoque en video)
+  - Removido sistema de overlays (simplificación workflow)
+  - Core optimizado para generación de videos únicamente
+- **🎯 Enfoque**: Especialización en generación de videos de alta calidad
+- **🚀 Performance**: Optimizaciones de memoria y procesamiento
+
+#### 📋 Cambios Técnicos v2.0:
+```diff
++ PyQt6 6.9.1 (reemplaza PyQt5 5.15.9)
++ Python 3.13+ soporte nativo
++ Eliminación de warnings de deprecación sipPyTypeDict()
++ Estructura de código simplificada y optimizada
+- Sistema de thumbnails automático removido
+- Sistema de overlays PNG removido  
+- Dependencias reducidas para mejor portabilidad
+```
+
+### Historial de Versiones
+
+#### **v2.0** (Septiembre 2025) - **Versión Actual**
+- Migración PyQt5 → PyQt6
+- Eliminación de sistemas de miniaturas y overlays
+- Optimización para Python 3.13+
+- Simplificación del workflow
+
+#### **v1.0** (Enero 2024) - **Versión Estable Legacy**
+- Primera versión estable completa
+- Sistema de miniaturas automático
+- Sistema de overlays PNG
+- PyQt5 + Python 3.8+
+
+#### **v0.9** (Diciembre 2023) - **Beta Avanzada**
+- Optimizaciones de rendimiento
+- Interface mejorada
+- Sistema de canales robusto
+
+#### **v0.8** (Noviembre 2023) - **MVP Funcional**
+- Funcionalidad básica de generación
+- Gestión inicial de canales
+- Procesamiento batch básico
+
+### Roadmap Futuro
+
+#### **v2.1** (Planeado Q4 2025)
+- [ ] Procesamiento paralelo multi-thread
+- [ ] Presets de configuración exportables  
+- [ ] Integración con API de YouTube para metadata
+- [ ] Sistema de plantillas de nombres avanzado
+
+#### **v2.2** (Planeado Q1 2026)
+- [ ] Soporte para videos de fondo en loop
+- [ ] Efectos visuales básicos para imágenes
+- [ ] Exportación en múltiples formatos (4K, vertical, etc.)
+- [ ] Dashboard de analíticas de producción
+
+#### **v3.0** (Visión a largo plazo)
+- [ ] Interfaz web complementaria
+- [ ] Integración con servicios cloud
+- [ ] IA para selección automática de imágenes
+- [ ] Sistema de colaboración multi-usuario
+
+### Política de Soporte
+- **v2.x**: Soporte activo y actualizaciones
+- **v1.x**: Soporte legacy hasta Diciembre 2025
+- **v0.x**: Deprecado, sin soporte
+
+## 👨‍💻 Información Técnica y Créditos
+
+### Arquitectura del Software
+- **Framework GUI**: PyQt6 6.9.1 (multiplataforma)
+- **Procesamiento multimedia**: FFmpeg 8.0 (incluido)
+- **Lenguaje**: Python 3.13+ (compatible desde 3.8+)
+- **Gestión de imágenes**: Pillow (PIL) para manipulación
+- **Threading**: QThread para procesamiento no-bloqueante
+- **Persistencia**: JSON para configuración ligera
+
+### Dependencias Actuales
+```python
+# requirements.txt actualizado
+PyQt6>=6.9.1          # Interfaz gráfica moderna
+qdarkstyle>=3.2.3      # Tema oscuro profesional  
+qtawesome>=1.4.0       # Iconos vectoriales
+Pillow>=9.0.0          # Manipulación de imágenes
+```
+
+### Métricas del Proyecto
+- **Líneas de código**: ~1,430 líneas Python
+- **Archivos principales**: 2 módulos Python
+- **Funcionalidades**: 25+ métodos principales
+- **Formatos soportados**: 6 tipos de archivo (audio + imagen)
+- **Capacidad**: Hasta 30 beats simultáneos
+- **Tiempo desarrollo**: 12+ meses de iteración
+
+### Desarrollado por
+**[Perree](https://github.com/Perree)** - Desarrollador Principal
+- Arquitectura y diseño de la aplicación
+- Implementación de interfaz PyQt6
+- Integración con FFmpeg y procesamiento multimedia
+- Sistema de gestión de canales y organización
+
+### Tecnologías y Herramientas
+- **🐍 Python**: Lenguaje principal con tipado dinámico
+- **🖼️ PyQt6**: Framework GUI nativo multiplataforma
+- **🎬 FFmpeg**: Procesamiento multimedia de nivel profesional
+- **🎨 QDarkStyle**: Tema oscuro para interfaces profesionales
+- **📁 Pillow**: Biblioteca de manipulación de imágenes
+- **⚡ QtAwesome**: Iconografía vectorial escalable
+
+### Inspiración y Propósito
+Este proyecto nació de la necesidad de automatizar la producción de contenido visual para type beats, eliminando el trabajo manual repetitivo y permitiendo a los productores enfocarse en la creación musical. 
+
+**Filosofía del proyecto:**
+- **Automatización inteligente**: Reduce trabajo manual manteniendo control creativo
+- **Organización sistemática**: Estructura que escala con el crecimiento del productor
+- **Calidad profesional**: Resultados aptos para monetización en plataformas
+- **Simplicidad de uso**: Interface intuitiva sin sacrificar funcionalidad avanzada
+
+### Contribuciones y Agradecimientos
+- **Comunidad FFmpeg**: Por la herramienta de procesamiento multimedia
+- **Qt Project**: Por el framework de interfaz gráfica
+- **Python Software Foundation**: Por el ecosistema de desarrollo
+- **Productores musicales**: Por feedback y casos de uso reales
+
+---
+
+## 📞 Soporte y Comunidad
+
+### Canales de Soporte
+- **🐛 Issues GitHub**: [Reportar problemas](https://github.com/Perree/video-type-beat-generator/issues)
+- **📚 Wiki**: [Documentación extendida](https://github.com/Perree/video-type-beat-generator/wiki)
+- **💬 Discussions**: [Preguntas y sugerencias](https://github.com/Perree/video-type-beat-generator/discussions)
+
+### Cómo Reportar Problemas
+1. **Revisa issues existentes** para evitar duplicados
+2. **Incluye información del sistema** (OS, Python version, etc.)
+3. **Describe pasos exactos** para reproducir el problema
+4. **Adjunta logs de error** si están disponibles
+5. **Especifica comportamiento esperado** vs. actual
+
+### Contribuir al Proyecto
 ```bash
-# Fork del repositorio
+# Fork y clonar el repositorio
 git clone https://github.com/tu-usuario/video-type-beat-generator.git
+cd video-type-beat-generator
 
-# Crea una rama para tu feature
+# Crear rama para nueva funcionalidad
 git checkout -b feature/nueva-caracteristica
 
-# Realiza tus cambios y commit
-git commit -m "Add: nueva característica"
+# Configurar entorno de desarrollo
+python -m venv .venv
+.venv/Scripts/activate  # Windows
+pip install PyQt6 qdarkstyle qtawesome Pillow
 
-# Push y crea Pull Request
+# Realizar cambios y testing
+python main.py  # Probar cambios
+
+# Commit y push
+git add .
+git commit -m "Add: descripción de la nueva característica"
 git push origin feature/nueva-caracteristica
+
+# Crear Pull Request en GitHub
 ```
+
+### Tipos de Contribuciones Bienvenidas
+- **🐛 Bug fixes**: Corrección de errores existentes
+- **✨ New features**: Funcionalidades nuevas (discutir antes en Issues)
+- **📝 Documentation**: Mejoras en documentación y guías
+- **🎨 UI/UX**: Mejoras en interfaz y experiencia de usuario
+- **🔧 Performance**: Optimizaciones de rendimiento y memoria
+- **🌐 Translations**: Internacionalización y traducciones
+
+---
 
 ## 📜 Licencia
 
-Este proyecto está licenciado bajo **MIT License**. Ver [LICENSE](LICENSE) para más detalles.
+Este proyecto está licenciado bajo **MIT License**. Ver [LICENSE](LICENSE) para detalles completos.
 
-### Permisos
-- ✅ Uso comercial
-- ✅ Modificación
-- ✅ Distribución
-- ✅ Uso privado
+### Resumen de Permisos
+- ✅ **Uso comercial**: Puedes usar la aplicación para proyectos comerciales
+- ✅ **Modificación**: Puedes modificar el código fuente libremente  
+- ✅ **Distribución**: Puedes distribuir copias originales o modificadas
+- ✅ **Uso privado**: Uso personal sin restricciones
 
 ### Limitaciones
-- ❌ Sin garantía
-- ❌ Sin responsabilidad
-
-## 👨‍💻 Créditos
-
-**Desarrollado por**: [Perree](https://github.com/Perree)
-**Tecnologías**: Python, PyQt5, FFmpeg, Pillow, ffmpeg-python
-**Inspirado en**: La necesidad de automatizar la producción de contenido para type beats
+- ❌ **Sin garantía**: Software proporcionado "as-is" sin garantías
+- ❌ **Sin responsabilidad**: Desarrolladores no son responsables por daños
+- ⚠️ **Atribución requerida**: Mantener copyright en copias/modificaciones
 
 ---
 
-## 📞 Soporte
+*¿Te gusta el proyecto? Dale una ⭐ en GitHub y compártelo con otros productores musicales!*
 
-- **GitHub Issues**: [Reportar problemas](https://github.com/Perree/video-type-beat-generator/issues)
-- **Documentación**: [Wiki del proyecto](https://github.com/Perree/video-type-beat-generator/wiki)
-- **Discord**: Comunidad de productores (próximamente)
-
----
-
-*¿Te gusta el proyecto? Dale una ⭐ en GitHub y compártelo con otros productores!*
+**Estadísticas del proyecto**: ![GitHub stars](https://img.shields.io/github/stars/Perree/video-type-beat-generator) ![GitHub forks](https://img.shields.io/github/forks/Perree/video-type-beat-generator) ![GitHub issues](https://img.shields.io/github/issues/Perree/video-type-beat-generator)
