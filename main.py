@@ -6,6 +6,12 @@ Type Beat Video Generator - Versión Simplificada
 Aplicación para generar automáticamente videos para Type Beats.
 Combina beats de audio con imágenes según género y exporta videos en formato MP4.
 """
+
+# Suprimir warnings de deprecación de PyQt5
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, module=".*PyQt5.*")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="sip")
+
 import os
 import sys
 import random
@@ -31,6 +37,7 @@ from edit_beat_dialog import EditBeatNameDialog
 # Importar sistema de miniaturas
 from thumbnail_generator import ThumbnailGenerator
 from thumbnail_config_dialog import ThumbnailConfigDialog
+from thumbnail_preview_dialog import ThumbnailPreviewDialog
 
 # Constantes
 CONFIG_FILE = os.path.join('config', 'app_config.json')
@@ -331,7 +338,6 @@ class MainWindow(QMainWindow):
         self.images_folder = os.path.abspath("images")
         self.output_folder = os.path.abspath("exported_videos")
         self.thumbnails_folder = os.path.abspath("thumbnails")
-        self.overlays_folder = os.path.abspath("overlays")
         self.videos_folder = os.path.abspath("videos")
         self.config_folder = os.path.abspath("config")
         self.loaded_beats = []
@@ -344,7 +350,6 @@ class MainWindow(QMainWindow):
             self.images_folder, 
             self.output_folder,
             self.thumbnails_folder,
-            self.overlays_folder,
             self.videos_folder,
             self.config_folder
         ]
@@ -445,6 +450,11 @@ class MainWindow(QMainWindow):
         self.btn_manage_channels.clicked.connect(self._manage_channels)
         config_layout.addWidget(self.btn_manage_channels)
         
+        # Subir imágenes al canal
+        self.btn_upload_images = QPushButton("📁 Subir Imágenes")
+        self.btn_upload_images.clicked.connect(self._upload_images_to_channel)
+        config_layout.addWidget(self.btn_upload_images)
+        
         # Espaciado
         config_layout.addStretch()
         
@@ -535,6 +545,12 @@ class MainWindow(QMainWindow):
         self.btn_cancel.setEnabled(False)
         self.btn_cancel.setStyleSheet("background-color: #E74C3C; font-size: 14px; padding: 8px; font-weight: bold;")
         buttons_layout.addWidget(self.btn_cancel)
+        
+        # Botón de cerrar aplicación
+        self.btn_close_app = QPushButton("❌ CERRAR TODO")
+        self.btn_close_app.clicked.connect(self._close_application)
+        self.btn_close_app.setStyleSheet("background-color: #95A5A6; font-size: 12px; padding: 6px; font-weight: bold;")
+        buttons_layout.addWidget(self.btn_close_app)
         
         export_layout.addLayout(buttons_layout)
         
@@ -722,6 +738,11 @@ class MainWindow(QMainWindow):
         if not hasattr(self, 'group_combo') or not channel:
             return
         
+        # Verificar si se seleccionó "Agregar nuevo canal..."
+        if channel == "➕ Agregar nuevo canal...":
+            self._create_new_channel()
+            return
+        
         self.group_combo.clear()
         
         channel_folder = os.path.join(self.images_folder, channel)
@@ -732,7 +753,229 @@ class MainWindow(QMainWindow):
     
     def _manage_channels(self):
         """Abre el diálogo para gestionar canales de YouTube."""
-        QMessageBox.information(self, "Gestión de Canales", "Funcionalidad de gestión de canales simplificada.")
+        
+        # Crear diálogo personalizado para gestión de canales
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Gestión de Canales")
+        dialog.setModal(True)
+        dialog.resize(500, 400)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Título
+        title_label = QLabel("Gestión de Canales de YouTube")
+        title_label.setProperty("heading", True)
+        layout.addWidget(title_label)
+        
+        # Lista de canales existentes
+        channels_label = QLabel("Canales existentes:")
+        layout.addWidget(channels_label)
+        
+        channels_list = QListWidget()
+        
+        # Cargar canales existentes
+        if os.path.exists(self.images_folder):
+            existing_channels = [d for d in os.listdir(self.images_folder) 
+                               if os.path.isdir(os.path.join(self.images_folder, d))]
+            for channel in existing_channels:
+                channels_list.addItem(channel)
+        
+        layout.addWidget(channels_list)
+        
+        # Botones de acción
+        buttons_layout = QHBoxLayout()
+        
+        btn_create = QPushButton("➕ Crear Nuevo Canal")
+        btn_create.clicked.connect(lambda: self._create_new_channel_from_dialog(dialog))
+        buttons_layout.addWidget(btn_create)
+        
+        btn_open_folder = QPushButton("📁 Abrir Carpeta")
+        btn_open_folder.clicked.connect(lambda: self._open_channel_folder(channels_list))
+        buttons_layout.addWidget(btn_open_folder)
+        
+        btn_delete = QPushButton("🗑️ Eliminar Canal")
+        btn_delete.clicked.connect(lambda: self._delete_channel(channels_list))
+        buttons_layout.addWidget(btn_delete)
+        
+        layout.addWidget(QWidget())  # Spacer
+        layout.addLayout(buttons_layout)
+        
+        # Botón cerrar
+        btn_close = QPushButton("Cerrar")
+        btn_close.clicked.connect(dialog.accept)
+        layout.addWidget(btn_close)
+        
+        dialog.exec_()
+        
+        # Actualizar lista después de cerrar el diálogo
+        self._update_channels_combo()
+    
+    def _create_new_channel(self):
+        """Crear un nuevo canal de YouTube."""
+        channel_name, ok = QInputDialog.getText(
+            self, 
+            "Nuevo Canal", 
+            "Ingrese el nombre del nuevo canal de YouTube:",
+            QLineEdit.Normal,
+            ""
+        )
+        
+        if not ok or not channel_name.strip():
+            # Usuario canceló o no ingresó nombre, volver al canal anterior
+            self._update_channels_combo()
+            return
+        
+        channel_name = channel_name.strip()
+        
+        # Validar nombre del canal
+        if not self._validate_channel_name(channel_name):
+            QMessageBox.warning(
+                self, 
+                "Nombre inválido", 
+                "El nombre del canal contiene caracteres no válidos.\n"
+                "Use solo letras, números, guiones y espacios."
+            )
+            self._update_channels_combo()
+            return
+        
+        # Verificar si el canal ya existe
+        channel_folder = os.path.join(self.images_folder, channel_name)
+        if os.path.exists(channel_folder):
+            QMessageBox.warning(
+                self, 
+                "Canal existente", 
+                f"El canal '{channel_name}' ya existe."
+            )
+            self._update_channels_combo()
+            return
+        
+        try:
+            # Crear carpeta del canal
+            os.makedirs(channel_folder, exist_ok=True)
+            
+            # Crear grupo por defecto "Principal"
+            default_group_folder = os.path.join(channel_folder, "Principal")
+            os.makedirs(default_group_folder, exist_ok=True)
+            
+            # Crear archivo README con instrucciones
+            readme_path = os.path.join(channel_folder, "README.txt")
+            with open(readme_path, 'w', encoding='utf-8') as f:
+                f.write(f"Canal: {channel_name}\n")
+                f.write("=" * (len(channel_name) + 7) + "\n\n")
+                f.write("Instrucciones:\n")
+                f.write("1. Agregue las imágenes para este canal en las subcarpetas correspondientes\n")
+                f.write("2. Cada subcarpeta representa un 'grupo' de imágenes (ej: Principal, Covers, etc.)\n")
+                f.write("3. Use imágenes en formato JPG, PNG o BMP\n\n")
+                f.write("Estructura recomendada:\n")
+                f.write("├── Principal/       (imágenes generales del canal)\n")
+                f.write("├── Covers/          (portadas de álbumes)\n")
+                f.write("├── Artistas/        (imágenes de artistas)\n")
+                f.write("└── Especiales/      (imágenes para eventos especiales)\n")
+            
+            QMessageBox.information(
+                self, 
+                "Canal creado", 
+                f"Canal '{channel_name}' creado exitosamente.\n\n"
+                f"Se creó la carpeta: {channel_folder}\n"
+                f"Grupo por defecto: Principal\n\n"
+                f"Agregue imágenes en las subcarpetas para usar con este canal."
+            )
+            
+            # Actualizar lista de canales y seleccionar el nuevo
+            self._update_channels_combo()
+            
+            # Seleccionar el nuevo canal creado
+            index = self.channel_combo.findText(channel_name)
+            if index >= 0:
+                self.channel_combo.setCurrentIndex(index)
+            
+        except Exception as e:
+            QMessageBox.critical(
+                self, 
+                "Error", 
+                f"Error al crear el canal '{channel_name}':\n{str(e)}"
+            )
+            self._update_channels_combo()
+    
+    def _validate_channel_name(self, name):
+        """Valida que el nombre del canal sea seguro para usar como nombre de carpeta."""
+        import re
+        # Permitir letras, números, espacios, guiones y algunos caracteres especiales seguros
+        pattern = r'^[a-zA-Z0-9\s\-_\.()]+$'
+        return bool(re.match(pattern, name)) and len(name) <= 50
+    
+    def _create_new_channel_from_dialog(self, parent_dialog):
+        """Crear nuevo canal desde el diálogo de gestión."""
+        self._create_new_channel()
+        parent_dialog.accept()  # Cerrar diálogo de gestión
+    
+    def _open_channel_folder(self, channels_list):
+        """Abrir la carpeta del canal seleccionado en el explorador."""
+        current_item = channels_list.currentItem()
+        if not current_item:
+            QMessageBox.warning(self, "Selección vacía", "Seleccione un canal de la lista.")
+            return
+        
+        channel_name = current_item.text()
+        channel_folder = os.path.join(self.images_folder, channel_name)
+        
+        if os.path.exists(channel_folder):
+            import platform
+            if platform.system() == "Windows":
+                os.startfile(channel_folder)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.Popen(["open", channel_folder])
+            else:  # Linux
+                subprocess.Popen(["xdg-open", channel_folder])
+        else:
+            QMessageBox.warning(self, "Carpeta no encontrada", f"La carpeta del canal '{channel_name}' no existe.")
+    
+    def _delete_channel(self, channels_list):
+        """Eliminar canal seleccionado (solo si está vacío)."""
+        current_item = channels_list.currentItem()
+        if not current_item:
+            QMessageBox.warning(self, "Selección vacía", "Seleccione un canal de la lista.")
+            return
+        
+        channel_name = current_item.text()
+        channel_folder = os.path.join(self.images_folder, channel_name)
+        
+        # Confirmar eliminación
+        reply = QMessageBox.question(
+            self, 
+            "Confirmar eliminación", 
+            f"¿Está seguro de que desea eliminar el canal '{channel_name}'?\n\n"
+            f"ADVERTENCIA: Esto eliminará permanentemente la carpeta:\n{channel_folder}\n\n"
+            f"Solo se puede eliminar si la carpeta está vacía o contiene solo archivos README.",
+            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            try:
+                # Verificar si está vacío o solo tiene README
+                if os.path.exists(channel_folder):
+                    contents = os.listdir(channel_folder)
+                    non_readme_files = [f for f in contents if not f.lower().startswith('readme')]
+                    
+                    if non_readme_files:
+                        QMessageBox.warning(
+                            self, 
+                            "Canal no vacío", 
+                            f"El canal '{channel_name}' contiene archivos o subcarpetas.\n"
+                            f"Elimine todo el contenido primero antes de eliminar el canal."
+                        )
+                        return
+                    
+                    # Eliminar carpeta
+                    shutil.rmtree(channel_folder)
+                    QMessageBox.information(self, "Canal eliminado", f"Canal '{channel_name}' eliminado exitosamente.")
+                    
+                    # Actualizar lista
+                    channels_list.takeItem(channels_list.currentRow())
+                    
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Error al eliminar el canal:\n{str(e)}")
     
     def _assign_channel_and_group(self):
         """Asigna un canal y grupo a los beats seleccionados."""
@@ -929,6 +1172,7 @@ class MainWindow(QMainWindow):
         self.btn_delete_beats.setEnabled(not is_processing)
         self.btn_assign_channel.setEnabled(not is_processing)
         self.btn_manage_channels.setEnabled(not is_processing)
+        self.btn_upload_images.setEnabled(not is_processing)
         self.btn_browse_output.setEnabled(not is_processing)
         self.btn_thumbnail_config.setEnabled(not is_processing)
         self.btn_generate.setEnabled(not is_processing)
@@ -939,7 +1183,7 @@ class MainWindow(QMainWindow):
         self.btn_remove_beat.setEnabled(not is_processing)
     
     def _configure_thumbnails(self):
-        """Abre el diálogo de configuración de miniaturas."""
+        """Abre el diálogo de configuración de miniaturas con vista previa."""
         if not self.beats_info:
             QMessageBox.information(
                 self, 
@@ -948,16 +1192,174 @@ class MainWindow(QMainWindow):
             )
             return
         
-        beats_dict = {beat['audio']: beat for beat in self.beats_info}
-        thumbnail_dialog = ThumbnailConfigDialog(beats_dict, self)
+        # Crear diccionario de canales desde beats_info
+        channels_dict = {}
+        for beat in self.beats_info:
+            channel = beat.get('channel', '')
+            if channel and channel not in channels_dict:
+                channels_dict[channel] = []
+            if channel:
+                channels_dict[channel].append(beat)
         
-        if thumbnail_dialog.exec_() == QDialog.Accepted:
+        # Abrir el nuevo diálogo con vista previa
+        preview_dialog = ThumbnailPreviewDialog(channels_dict, self)
+        
+        if preview_dialog.exec_() == QDialog.Accepted:
             QMessageBox.information(
                 self,
                 "Configuración guardada",
                 "La configuración de miniaturas se ha guardado correctamente.\n"
-                "Se aplicará en la próxima generación de videos."
+                "Se aplicará en la próxima generación de videos con vista previa en tiempo real."
             )
+    
+    def _upload_images_to_channel(self):
+        """Permite subir imágenes al canal seleccionado."""
+        current_channel = self.channel_combo.currentText()
+        
+        # Validar que hay un canal seleccionado
+        if not current_channel or current_channel == "➕ Agregar nuevo canal...":
+            QMessageBox.warning(
+                self, 
+                "Sin canal seleccionado", 
+                "Por favor, seleccione un canal válido antes de subir imágenes."
+            )
+            return
+        
+        # Verificar que el canal existe
+        channel_folder = os.path.join(self.images_folder, current_channel)
+        if not os.path.exists(channel_folder):
+            reply = QMessageBox.question(
+                self,
+                "Canal no encontrado",
+                f"La carpeta del canal '{current_channel}' no existe.\n"
+                f"¿Desea crearla ahora?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+            
+            if reply == QMessageBox.Yes:
+                try:
+                    os.makedirs(channel_folder, exist_ok=True)
+                    os.makedirs(os.path.join(channel_folder, "Principal"), exist_ok=True)
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Error al crear la carpeta del canal:\n{str(e)}")
+                    return
+            else:
+                return
+        
+        # Obtener grupos disponibles
+        groups = []
+        if os.path.exists(channel_folder):
+            groups = [d for d in os.listdir(channel_folder) 
+                     if os.path.isdir(os.path.join(channel_folder, d))]
+        
+        if not groups:
+            groups = ["Principal"]
+            os.makedirs(os.path.join(channel_folder, "Principal"), exist_ok=True)
+        
+        # Seleccionar grupo
+        group, ok = QInputDialog.getItem(
+            self,
+            "Seleccionar Grupo",
+            f"Seleccione el grupo dentro del canal '{current_channel}':",
+            groups,
+            0,
+            False
+        )
+        
+        if not ok:
+            return
+        
+        group_folder = os.path.join(channel_folder, group)
+        
+        # Seleccionar archivos de imagen
+        file_dialog = QFileDialog()
+        file_dialog.setFileMode(QFileDialog.ExistingFiles)
+        file_dialog.setNameFilter("Imágenes (*.jpg *.jpeg *.png *.bmp *.gif *.tiff)")
+        file_dialog.setViewMode(QFileDialog.Detail)
+        
+        if file_dialog.exec_():
+            selected_files = file_dialog.selectedFiles()
+            
+            if not selected_files:
+                return
+            
+            # Confirmar subida
+            reply = QMessageBox.question(
+                self,
+                "Confirmar subida",
+                f"¿Subir {len(selected_files)} imagen(es) a:\n"
+                f"Canal: {current_channel}\n"
+                f"Grupo: {group}\n\n"
+                f"Carpeta destino: {group_folder}",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+            
+            if reply == QMessageBox.Yes:
+                try:
+                    copied_files = 0
+                    errors = []
+                    
+                    for source_file in selected_files:
+                        filename = os.path.basename(source_file)
+                        destination = os.path.join(group_folder, filename)
+                        
+                        # Verificar si el archivo ya existe
+                        if os.path.exists(destination):
+                            reply = QMessageBox.question(
+                                self,
+                                "Archivo existente",
+                                f"El archivo '{filename}' ya existe.\n¿Desea reemplazarlo?",
+                                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+                                QMessageBox.No
+                            )
+                            
+                            if reply == QMessageBox.Cancel:
+                                break
+                            elif reply == QMessageBox.No:
+                                continue
+                        
+                        try:
+                            shutil.copy2(source_file, destination)
+                            copied_files += 1
+                        except Exception as e:
+                            errors.append(f"{filename}: {str(e)}")
+                    
+                    # Mostrar resultado
+                    message = f"Subida completada:\n✅ {copied_files} archivo(s) copiado(s)"
+                    if errors:
+                        message += f"\n❌ {len(errors)} error(es):\n" + "\n".join(errors[:3])
+                        if len(errors) > 3:
+                            message += f"\n... y {len(errors) - 3} error(es) más"
+                    
+                    QMessageBox.information(self, "Subida de imágenes", message)
+                    
+                    # Actualizar la lista de grupos si es necesario
+                    self._update_groups_for_channel(current_channel)
+                    
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Error durante la subida:\n{str(e)}")
+    
+    def _close_application(self):
+        """Cierra la aplicación completamente."""
+        reply = QMessageBox.question(
+            self,
+            "Cerrar aplicación",
+            "¿Está seguro de que desea cerrar la aplicación?\n\n"
+            "Se perderán los datos no guardados.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            # Cancelar cualquier proceso en curso
+            if hasattr(self, 'worker') and self.worker and self.worker.isRunning():
+                self.worker.terminate()
+                self.worker.wait(3000)  # Esperar máximo 3 segundos
+            
+            # Cerrar aplicación
+            QApplication.quit()
 
 
 if __name__ == "__main__":
