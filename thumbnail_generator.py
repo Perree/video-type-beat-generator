@@ -4,7 +4,7 @@
 Thumbnail Generator - Sistema de Generación de Miniaturas
 ---------------------------------------------------------
 Módulo para generar miniaturas automáticamente con diferentes templates y estilos.
-Soporte para overlays personalizados y adaptación por canal.
+Soporte para configuración personalizada por canal.
 """
 
 import os
@@ -83,89 +83,6 @@ class CenteredImageTemplate(ThumbnailTemplate):
             print(f"Error generando miniatura centrada: {e}")
             return False
 
-class OverlayTemplate(ThumbnailTemplate):
-    """Template con overlay personalizado."""
-    
-    def __init__(self):
-        super().__init__(
-            "overlay_template", 
-            "Imagen de fondo con overlay PNG personalizado"
-        )
-    
-    def generate(self, bg_image_path: str, output_path: str, 
-                overlay_path: Optional[str] = None, 
-                text: Optional[str] = None,
-                text_color: Tuple[int, int, int, int] = (255, 255, 255, 255),
-                text_size: int = 60,
-                text_position: str = "bottom_center",
-                **kwargs) -> bool:
-        """
-        Genera miniatura con overlay y texto opcional.
-        
-        Args:
-            bg_image_path: Ruta de la imagen de fondo
-            output_path: Ruta donde guardar la miniatura  
-            overlay_path: Ruta del overlay PNG (opcional)
-            text: Texto a agregar (opcional)
-            text_color: Color del texto (R, G, B, A)
-            text_size: Tamaño de la fuente
-            text_position: Posición del texto ('bottom_center', 'top_center', etc.)
-        """
-        try:
-            # Cargar y redimensionar imagen de fondo
-            bg_img = Image.open(bg_image_path).convert('RGBA')
-            bg_img = bg_img.resize((self.width, self.height), Image.Resampling.LANCZOS)
-            
-            # Aplicar overlay si existe
-            if overlay_path and os.path.exists(overlay_path):
-                overlay = Image.open(overlay_path).convert('RGBA')
-                overlay = overlay.resize((self.width, self.height), Image.Resampling.LANCZOS)
-                bg_img = Image.alpha_composite(bg_img, overlay)
-            
-            # Agregar texto si existe
-            if text:
-                draw = ImageDraw.Draw(bg_img)
-                
-                # Intentar cargar fuente, usar default si falla
-                try:
-                    font = ImageFont.truetype("arial.ttf", text_size)
-                except:
-                    try:
-                        font = ImageFont.truetype("calibri.ttf", text_size)
-                    except:
-                        font = ImageFont.load_default()
-                
-                # Calcular posición del texto
-                bbox = draw.textbbox((0, 0), text, font=font)
-                text_width = bbox[2] - bbox[0]
-                text_height = bbox[3] - bbox[1]
-                
-                if text_position == "bottom_center":
-                    x = (self.width - text_width) // 2
-                    y = self.height - text_height - 40
-                elif text_position == "top_center":
-                    x = (self.width - text_width) // 2
-                    y = 40
-                elif text_position == "center":
-                    x = (self.width - text_width) // 2
-                    y = (self.height - text_height) // 2
-                else:
-                    x = (self.width - text_width) // 2
-                    y = self.height - text_height - 40
-                
-                # Dibujar texto con sombra
-                draw.text((x + 2, y + 2), text, font=font, fill=(0, 0, 0, 200))  # Sombra
-                draw.text((x, y), text, font=font, fill=text_color)  # Texto principal
-            
-            # Convertir a RGB y guardar
-            final_img = bg_img.convert('RGB')
-            final_img.save(output_path, 'JPEG', quality=95)
-            return True
-            
-        except Exception as e:
-            print(f"Error generando miniatura con overlay: {e}")
-            return False
-
 class FullCoverTemplate(ThumbnailTemplate):
     """Template que usa la imagen completa como fondo."""
     
@@ -228,7 +145,6 @@ class ThumbnailGenerator:
     def __init__(self):
         self.templates = {
             'centered_image': CenteredImageTemplate(),
-            'overlay_template': OverlayTemplate(), 
             'full_cover': FullCoverTemplate()
         }
         
@@ -247,6 +163,47 @@ class ThumbnailGenerator:
                 print(f"Error cargando configuración de miniaturas: {e}")
                 self.channel_configs = {}
     
+    def generate_thumbnail(self, template_type, bg_image_path, output_path, **kwargs):
+        """
+        Genera una miniatura usando el template especificado.
+        
+        Args:
+            template_type: Tipo de template ('centered_image', 'full_cover')
+            bg_image_path: Ruta de la imagen de fondo
+            output_path: Ruta donde guardar la miniatura
+            **kwargs: Argumentos adicionales para el template
+        """
+        # Validar parámetros
+        if not bg_image_path or not bg_image_path.strip():
+            print("Error: bg_image_path está vacío")
+            return False
+            
+        if not output_path or not output_path.strip():
+            print("Error: output_path está vacío")
+            return False
+            
+        if not os.path.exists(bg_image_path):
+            print(f"Error: Archivo de imagen no encontrado: {bg_image_path}")
+            return False
+        
+        if template_type not in self.templates:
+            print(f"Error: Template '{template_type}' no encontrado")
+            print(f"Templates disponibles: {list(self.templates.keys())}")
+            return False
+        
+        template = self.templates[template_type]
+        return template.generate(bg_image_path, output_path, **kwargs)
+    
+    def save_channel_configs(self):
+        """Guarda las configuraciones de miniaturas por canal."""
+        os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
+        try:
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(self.channel_configs, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"Error guardando configuración de miniaturas: {e}")
+        """Guarda las configuraciones de miniaturas por canal."""
+        os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
     def save_channel_configs(self):
         """Guarda las configuraciones de miniaturas por canal."""
         os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
@@ -301,8 +258,10 @@ class ThumbnailGenerator:
             print(f"Template '{template_name}' no encontrado")
             return False
         
-        # Crear directorio de salida si no existe
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        # Crear directorio de salida si no existe (solo si hay un directorio)
+        output_dir = os.path.dirname(output_path)
+        if output_dir:  # Solo crear directorios si hay una ruta
+            os.makedirs(output_dir, exist_ok=True)
         
         # Generar miniatura
         template = self.templates[template_name]
@@ -321,7 +280,7 @@ def generate_thumbnail(bg_image_path: str, output_path: str,
     Args:
         bg_image_path: Ruta de la imagen de fondo
         output_path: Ruta donde guardar la miniatura
-        template: Template a usar ('centered_image', 'overlay_template', 'full_cover')
+        template: Template a usar ('centered_image', 'full_cover')
         **kwargs: Parámetros específicos del template
     """
     generator = ThumbnailGenerator()
