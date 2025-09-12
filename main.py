@@ -7,25 +7,20 @@ Aplicación para generar automáticamente videos para Type Beats.
 Combina beats de audio con imágenes según género y exporta videos en formato MP4.
 """
 
-# Suprimir warnings de deprecación de PyQt5
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning, module=".*PyQt5.*")
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="sip")
-
 import os
 import sys
 import random
 import subprocess
 import json
 import shutil
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QPushButton, 
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QLabel, QPushButton, 
                             QVBoxLayout, QHBoxLayout, QWidget, QFileDialog, 
                             QListWidget, QComboBox, QProgressBar, QMessageBox,
                             QDialog, QLineEdit, QGridLayout, QMenu, QFrame,
                             QSplitter, QStyleFactory, QToolButton, QListWidgetItem,
                             QSizePolicy, QTabWidget, QInputDialog, QGraphicsDropShadowEffect)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize, QPropertyAnimation, QEasingCurve, QRect, QSettings, QPoint, QTimer
-from PyQt5.QtGui import QPixmap, QIcon, QColor, QPalette, QFont, QCursor, QLinearGradient, QPainter, QPainterPath
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QPropertyAnimation, QEasingCurve, QRect, QSettings, QPoint, QTimer
+from PyQt6.QtGui import QPixmap, QIcon, QColor, QPalette, QFont, QCursor, QLinearGradient, QPainter, QPainterPath
 
 # Importar estilos y bibliotecas para la interfaz moderna
 import qdarkstyle
@@ -323,6 +318,9 @@ class MainWindow(QMainWindow):
         # Aplicar estilo
         self.setStyleSheet(STYLESHEET)
         
+        # Configurar menú
+        self._setup_menu()
+        
         # Widget central y layout principal
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -489,6 +487,12 @@ class MainWindow(QMainWindow):
         self.btn_cancel.setEnabled(False)
         self.btn_cancel.setStyleSheet("background-color: #E74C3C; font-size: 14px; padding: 8px; font-weight: bold;")
         buttons_layout.addWidget(self.btn_cancel)
+        
+        # Botón del editor de thumbnails
+        self.btn_thumbnail_editor = QPushButton("🎨 EDITOR THUMBNAILS")
+        self.btn_thumbnail_editor.clicked.connect(self._open_thumbnail_editor)
+        self.btn_thumbnail_editor.setStyleSheet("background-color: #3498DB; font-size: 14px; padding: 8px; font-weight: bold;")
+        buttons_layout.addWidget(self.btn_thumbnail_editor)
         
         # Botón de cerrar aplicación
         self.btn_close_app = QPushButton("❌ CERRAR TODO")
@@ -1095,7 +1099,19 @@ class MainWindow(QMainWindow):
         self._set_ui_processing(False)
         
         if success:
-            QMessageBox.information(self, "Proceso completado", message)
+            # Preguntar si quiere crear thumbnails automáticamente
+            reply = QMessageBox.question(
+                self, 
+                "Proceso completado", 
+                f"{message}\\n\\n¿Quieres abrir el editor de thumbnails para crear thumbnails para los videos generados?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                self._open_thumbnail_editor()
+            else:
+                QMessageBox.information(self, "Completado", "Videos generados exitosamente")
         else:
             QMessageBox.warning(self, "Error", message)
     
@@ -1109,10 +1125,44 @@ class MainWindow(QMainWindow):
         self.btn_browse_output.setEnabled(not is_processing)
         self.btn_generate.setEnabled(not is_processing)
         self.btn_cancel.setEnabled(is_processing)
+        self.btn_thumbnail_editor.setEnabled(not is_processing)
         self.beats_list.setEnabled(not is_processing)
         self.process_list.setEnabled(not is_processing)
         self.btn_edit_name.setEnabled(not is_processing)
         self.btn_remove_beat.setEnabled(not is_processing)
+    
+    def _open_thumbnail_editor(self):
+        """Abre el editor de thumbnails en una ventana separada."""
+        try:
+            # Importar el editor de thumbnails
+            from thumbnail_editor import ThumbnailEditor
+            
+            # Crear y mostrar la ventana del editor
+            self.thumbnail_editor_window = ThumbnailEditor()
+            
+            # Configurar el canal actual si hay uno seleccionado
+            current_channel = self.channel_combo.currentText()
+            if current_channel and current_channel != "➕ Agregar nuevo canal...":
+                self.thumbnail_editor_window.channel_combo.setCurrentText(current_channel)
+                
+            # Mostrar la ventana
+            self.thumbnail_editor_window.show()
+            
+            # Actualizar el status
+            self.status_label.setText("Editor de thumbnails abierto")
+            
+        except ImportError as e:
+            QMessageBox.critical(
+                self, 
+                "Error", 
+                f"No se pudo cargar el editor de thumbnails: {e}\\n\\nAsegúrate de que thumbnail_editor.py existe."
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self, 
+                "Error", 
+                f"Error inesperado al abrir el editor de thumbnails: {e}"
+            )
     
     def _upload_images_to_channel(self):
         """Permite subir imágenes al canal seleccionado."""
