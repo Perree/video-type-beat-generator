@@ -34,11 +34,6 @@ import qtawesome as qta
 # Importar el diálogo para editar nombres de beat
 from edit_beat_dialog import EditBeatNameDialog
 
-# Importar sistema de miniaturas
-from thumbnail_generator import ThumbnailGenerator
-from thumbnail_config_dialog import ThumbnailConfigDialog
-from thumbnail_preview_dialog import ThumbnailPreviewDialog
-
 # Constantes
 CONFIG_FILE = os.path.join('config', 'app_config.json')
 DEFAULT_CONFIG = {
@@ -141,15 +136,13 @@ class VideoGeneratorWorker(QThread):
     progress_updated = pyqtSignal(int, str)
     finished = pyqtSignal(bool, str)
     
-    def __init__(self, beats_folder, images_folder, output_folder, beats_info, thumbnail_settings=None):
+    def __init__(self, beats_folder, images_folder, output_folder, beats_info):
         super().__init__()
         self.beats_folder = beats_folder
         self.images_folder = images_folder
         self.output_folder = output_folder
         self.beats_info = beats_info
         self.stop_processing = False
-        self.thumbnail_settings = thumbnail_settings or {}
-        self.thumbnail_generator = ThumbnailGenerator() if self.thumbnail_settings.get('generate_thumbnails', False) else None
     
     def run(self):
         """Ejecuta el proceso de generación de videos."""
@@ -220,14 +213,6 @@ class VideoGeneratorWorker(QThread):
                 )
                 self._generate_video(audio_path, image, output_path)
                 
-                # Generar miniatura si está habilitado
-                if self.thumbnail_generator:
-                    self.progress_updated.emit(
-                        int((i / total_beats) * 100),
-                        f"Generando miniatura para: {audio_file}"
-                    )
-                    self._generate_thumbnail(image, base_output_name, group_output_folder, channel)
-                
                 # Copiar la imagen utilizada junto al video
                 image_extension = os.path.splitext(image)[1]
                 image_output_name = f"{base_output_name}_imagen{image_extension}"
@@ -239,9 +224,8 @@ class VideoGeneratorWorker(QThread):
                     print(f"No se pudo copiar la imagen: {str(e)}")
                 
             # Mensaje final actualizado
-            thumbnail_msg = " y miniaturas" if self.thumbnail_generator else ""
             self.progress_updated.emit(100, "Proceso completado!")
-            self.finished.emit(True, f"Se generaron {total_beats} videos{thumbnail_msg} exitosamente. Para cada video, se guardó también la imagen utilizada.")
+            self.finished.emit(True, f"Se generaron {total_beats} videos exitosamente. Para cada video, se guardó también la imagen utilizada.")
             
         except Exception as e:
             self.finished.emit(False, f"Error: {str(e)}")
@@ -290,38 +274,6 @@ class VideoGeneratorWorker(QThread):
         if process.returncode != 0:
             raise Exception(f"Error al generar el video para {os.path.basename(audio_path)}")
     
-    def _generate_thumbnail(self, image_path, base_name, output_folder, channel):
-        """Genera miniatura usando el sistema de templates."""
-        try:
-            # Definir rutas de salida
-            thumbnail_name = f"{base_name}_thumbnail.jpg"
-            thumbnail_path = os.path.join(output_folder, thumbnail_name)
-            
-            # Crear también carpeta de miniaturas global
-            global_thumbnails_folder = os.path.join(os.path.dirname(self.output_folder), "thumbnails")
-            os.makedirs(global_thumbnails_folder, exist_ok=True)
-            global_thumbnail_path = os.path.join(global_thumbnails_folder, thumbnail_name)
-            
-            # Generar miniatura usando configuración del canal
-            success = self.thumbnail_generator.generate_thumbnail(
-                bg_image_path=image_path,
-                output_path=thumbnail_path,
-                channel=channel
-            )
-            
-            if success:
-                # Copiar también a la carpeta global de miniaturas
-                try:
-                    shutil.copy2(thumbnail_path, global_thumbnail_path)
-                except Exception as e:
-                    print(f"No se pudo copiar miniatura a carpeta global: {e}")
-            
-            return success
-            
-        except Exception as e:
-            print(f"Error generando miniatura: {e}")
-            return False
-    
     def stop(self):
         """Detiene el proceso."""
         self.stop_processing = True
@@ -337,7 +289,6 @@ class MainWindow(QMainWindow):
         self.beats_folder = os.path.abspath("beats")
         self.images_folder = os.path.abspath("images")
         self.output_folder = os.path.abspath("exported_videos")
-        self.thumbnails_folder = os.path.abspath("thumbnails")
         self.videos_folder = os.path.abspath("videos")
         self.config_folder = os.path.abspath("config")
         self.loaded_beats = []
@@ -349,7 +300,6 @@ class MainWindow(QMainWindow):
             self.beats_folder, 
             self.images_folder, 
             self.output_folder,
-            self.thumbnails_folder,
             self.videos_folder,
             self.config_folder
         ]
@@ -528,12 +478,6 @@ class MainWindow(QMainWindow):
         
         # Botones principales
         buttons_layout = QHBoxLayout()
-        
-        # Botón configurar miniaturas
-        self.btn_thumbnail_config = QPushButton("🖼️ CONFIGURAR MINIATURAS")
-        self.btn_thumbnail_config.clicked.connect(self._configure_thumbnails)
-        self.btn_thumbnail_config.setStyleSheet("background-color: #9B59B6; font-size: 12px; padding: 6px; font-weight: bold;")
-        buttons_layout.addWidget(self.btn_thumbnail_config)
         
         self.btn_generate = QPushButton("▶ GENERAR VIDEOS")
         self.btn_generate.clicked.connect(self._generate_videos)
@@ -1122,24 +1066,13 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "Error", f"No se pudo crear la carpeta de salida: {str(e)}")
                 return
         
-        # Mostrar diálogo de configuración de miniaturas
-        beats_dict = {beat['audio']: beat for beat in self.beats_info}
-        thumbnail_dialog = ThumbnailConfigDialog(beats_dict, self)
-        
-        if thumbnail_dialog.exec_() != QDialog.Accepted:
-            return
-        
-        # Obtener configuración de miniaturas
-        thumbnail_settings = thumbnail_dialog.get_generation_settings()
-        
         self._set_ui_processing(True)
         
         self.worker = VideoGeneratorWorker(
             self.beats_folder,
             self.images_folder,
             self.output_folder,
-            self.beats_info,
-            thumbnail_settings
+            self.beats_info
         )
         
         self.worker.progress_updated.connect(self._update_progress)
@@ -1174,43 +1107,12 @@ class MainWindow(QMainWindow):
         self.btn_manage_channels.setEnabled(not is_processing)
         self.btn_upload_images.setEnabled(not is_processing)
         self.btn_browse_output.setEnabled(not is_processing)
-        self.btn_thumbnail_config.setEnabled(not is_processing)
         self.btn_generate.setEnabled(not is_processing)
         self.btn_cancel.setEnabled(is_processing)
         self.beats_list.setEnabled(not is_processing)
         self.process_list.setEnabled(not is_processing)
         self.btn_edit_name.setEnabled(not is_processing)
         self.btn_remove_beat.setEnabled(not is_processing)
-    
-    def _configure_thumbnails(self):
-        """Abre el diálogo de configuración de miniaturas con vista previa."""
-        if not self.beats_info:
-            QMessageBox.information(
-                self, 
-                "Sin beats asignados", 
-                "Primero debe asignar beats a canales para configurar las miniaturas."
-            )
-            return
-        
-        # Crear diccionario de canales desde beats_info
-        channels_dict = {}
-        for beat in self.beats_info:
-            channel = beat.get('channel', '')
-            if channel and channel not in channels_dict:
-                channels_dict[channel] = []
-            if channel:
-                channels_dict[channel].append(beat)
-        
-        # Abrir el nuevo diálogo con vista previa
-        preview_dialog = ThumbnailPreviewDialog(channels_dict, self)
-        
-        if preview_dialog.exec_() == QDialog.Accepted:
-            QMessageBox.information(
-                self,
-                "Configuración guardada",
-                "La configuración de miniaturas se ha guardado correctamente.\n"
-                "Se aplicará en la próxima generación de videos con vista previa en tiempo real."
-            )
     
     def _upload_images_to_channel(self):
         """Permite subir imágenes al canal seleccionado."""
