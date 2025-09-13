@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Type Beat Video Generator - Versión Simplificada
+Type Beat Video Generator - Versión Completa
 ------------------------------------------------
 Aplicación para generar automáticamente videos para Type Beats.
 Combina beats de audio con imágenes según género y exporta videos en formato MP4.
@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QLabel, QPushButton,
                             QDialog, QLineEdit, QGridLayout, QMenu, QFrame,
                             QSplitter, QStyleFactory, QToolButton, QListWidgetItem,
                             QSizePolicy, QTabWidget, QInputDialog, QGraphicsDropShadowEffect,
-                            QGroupBox, QCheckBox, QRadioButton, QMenuBar)
+                            QMenuBar, QGroupBox, QCheckBox, QRadioButton)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QPropertyAnimation, QEasingCurve, QRect, QSettings, QPoint, QTimer
 from PyQt6.QtGui import QPixmap, QIcon, QColor, QPalette, QFont, QCursor, QLinearGradient, QPainter, QPainterPath, QAction
 
@@ -37,10 +37,10 @@ DEFAULT_CONFIG = {
     'channels': []  # Lista de canales de YouTube conocidos
 }
 
-# Estilos simples y limpios
+# Estilos profesionales
 STYLESHEET = """
 QMainWindow {
-    background-color: #303030;
+    background-color: #2b2b2b;
     color: white;
 }
 
@@ -50,75 +50,51 @@ QLabel {
     padding: 2px;
 }
 
-QLabel[heading=true] {
-    color: #5DADE2;
-    font-size: 14px;
-    font-weight: bold;
-    padding: 5px;
-    margin: 3px 0px;
-}
-
 QPushButton {
-    background-color: #3498DB;
+    background-color: #404040;
     color: white;
-    border: none;
-    border-radius: 3px;
-    padding: 6px 12px;
-    min-height: 25px;
-    font-size: 11px;
+    border: 1px solid #555;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 12px;
 }
 
 QPushButton:hover {
-    background-color: #5DADE2;
+    background-color: #505050;
 }
 
-QPushButton:disabled {
-    background-color: #7F8C8D;
+QPushButton:pressed {
+    background-color: #606060;
 }
 
 QFrame {
-    background-color: #404040;
-    border: 1px solid #555555;
-    border-radius: 3px;
-    padding: 8px;
-    margin: 3px;
+    background-color: #353535;
+    border: 1px solid #555;
+    border-radius: 8px;
+    margin: 2px;
 }
 
 QListWidget {
     background-color: #404040;
-    border: 1px solid #555555;
     color: white;
-    padding: 3px;
-}
-
-QListWidget::item {
-    padding: 3px;
-    border-bottom: 1px solid #555555;
-}
-
-QListWidget::item:selected {
-    background-color: #3498DB;
+    border: 1px solid #555;
+    selection-background-color: #0078D4;
+    padding: 4px;
 }
 
 QComboBox {
     background-color: #404040;
-    border: 1px solid #555555;
     color: white;
-    padding: 3px;
-    min-height: 20px;
-}
-
-QLineEdit {
-    background-color: #404040;
-    border: 1px solid #555555;
-    color: white;
-    padding: 3px;
+    border: 1px solid #555;
+    padding: 4px;
+    border-radius: 4px;
 }
 
 QProgressBar {
-    border: 1px solid #555555;
-    background-color: #404040;
+    border: 1px solid #555;
+    border-radius: 4px;
     text-align: center;
+    background-color: #404040;
     color: white;
 }
 
@@ -127,440 +103,392 @@ QProgressBar::chunk {
 }
 """
 
-class ThumbnailConfigDialog(QDialog):
-    """Diálogo para configurar opciones de thumbnail antes de generar videos."""
-    
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Configuración de Thumbnails")
-        self.setModal(True)
-        self.setFixedSize(400, 350)
-        
-        # Layout principal
-        layout = QVBoxLayout()
-        
-        # Grupo de estilo de thumbnail
-        style_group = QGroupBox("Estilo de Thumbnail")
-        style_layout = QVBoxLayout()
-        
-        self.letterbox_radio = QRadioButton("Letterbox (con barras negras)")
-        self.letterbox_radio.setChecked(True)  # Por defecto
-        self.fullscreen_radio = QRadioButton("Pantalla completa")
-        
-        style_layout.addWidget(self.letterbox_radio)
-        style_layout.addWidget(self.fullscreen_radio)
-        style_group.setLayout(style_layout)
-        
-        # Grupo de texto
-        text_group = QGroupBox("Opciones de Texto")
-        text_layout = QVBoxLayout()
-        
-        self.show_text_checkbox = QCheckBox("Mostrar texto en thumbnail")
-        self.show_text_checkbox.setChecked(True)  # Por defecto
-        
-        text_layout.addWidget(self.show_text_checkbox)
-        text_group.setLayout(text_layout)
-        
-        # Grupo de overlay personalizado
-        overlay_group = QGroupBox("Overlay Personalizado")
-        overlay_layout = QVBoxLayout()
-        
-        self.use_custom_overlay_checkbox = QCheckBox("Usar overlay personalizado")
-        
-        # Layout horizontal para el selector de archivo
-        file_layout = QHBoxLayout()
-        self.overlay_path_edit = QLineEdit()
-        self.overlay_path_edit.setPlaceholderText("Seleccionar archivo de overlay...")
-        self.overlay_path_edit.setEnabled(False)
-        
-        self.browse_button = QPushButton("Examinar")
-        self.browse_button.setEnabled(False)
-        self.browse_button.clicked.connect(self.browse_overlay_file)
-        
-        file_layout.addWidget(self.overlay_path_edit)
-        file_layout.addWidget(self.browse_button)
-        
-        overlay_layout.addWidget(self.use_custom_overlay_checkbox)
-        overlay_layout.addLayout(file_layout)
-        overlay_group.setLayout(overlay_layout)
-        
-        # Conectar señal para habilitar/deshabilitar controles
-        self.use_custom_overlay_checkbox.toggled.connect(self.on_custom_overlay_toggled)
-        
-        # Botones
-        button_layout = QHBoxLayout()
-        self.ok_button = QPushButton("Aceptar")
-        self.cancel_button = QPushButton("Cancelar")
-        
-        self.ok_button.clicked.connect(self.accept)
-        self.cancel_button.clicked.connect(self.reject)
-        
-        button_layout.addWidget(self.ok_button)
-        button_layout.addWidget(self.cancel_button)
-        
-        # Agregar todo al layout principal
-        layout.addWidget(style_group)
-        layout.addWidget(text_group)
-        layout.addWidget(overlay_group)
-        layout.addLayout(button_layout)
-        
-        self.setLayout(layout)
-    
-    def on_custom_overlay_toggled(self, checked):
-        """Habilita o deshabilita controles de overlay personalizado."""
-        self.overlay_path_edit.setEnabled(checked)
-        self.browse_button.setEnabled(checked)
-    
-    def browse_overlay_file(self):
-        """Abre diálogo para seleccionar archivo de overlay."""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Seleccionar Overlay",
-            "",
-            "Imágenes (*.png *.jpg *.jpeg *.bmp *.gif)"
-        )
-        if file_path:
-            self.overlay_path_edit.setText(file_path)
-    
-    def get_config(self):
-        """Retorna la configuración seleccionada."""
-        return {
-            'letterbox_style': self.letterbox_radio.isChecked(),
-            'show_text': self.show_text_checkbox.isChecked(),
-            'use_custom_overlay': self.use_custom_overlay_checkbox.isChecked(),
-            'custom_overlay_path': self.overlay_path_edit.text() if self.use_custom_overlay_checkbox.isChecked() else None
-        }
-
-
 class VideoGeneratorWorker(QThread):
     """Clase para procesar la generación de videos en un hilo separado."""
     progress_updated = pyqtSignal(int, str)
     finished = pyqtSignal(bool, str)
     
-    def __init__(self, beats_folder, images_folder, output_folder, beats_info, thumbnail_config=None):
+    def __init__(self, beats_folder, images_folder, output_folder, beats_info):
         super().__init__()
         self.beats_folder = beats_folder
         self.images_folder = images_folder
         self.output_folder = output_folder
         self.beats_info = beats_info
-        self.thumbnail_config = thumbnail_config or {}
         self.stop_processing = False
     
     def run(self):
         """Ejecuta el proceso de generación de videos."""
         try:
-            used_images = {}  # {canal_grupo: set(imagenes_usadas)}
             total_beats = len(self.beats_info)
+            successful_videos = 0
             
-            for i, info in enumerate(self.beats_info):
+            for i, beat_info in enumerate(self.beats_info):
                 if self.stop_processing:
-                    self.finished.emit(False, "Proceso cancelado por el usuario.")
-                    return
-                
-                channel = info["channel"]
-                group = info.get("group", "Principal")  # Por defecto usamos el grupo Principal
-                audio_file = info["audio"]
-                
-                self.progress_updated.emit(
-                    int((i / total_beats) * 100),
-                    f"Procesando: {audio_file} ({i+1}/{total_beats})"
-                )
-                
-                # Obtener imágenes para el canal/grupo
-                images = self._get_images_for_channel_group(channel, group)
-                if not images:
-                    self.finished.emit(False, f"No hay imágenes para el canal '{channel}', grupo '{group}'.")
-                    return
-                
-                # Gestionar las imágenes usadas con clave compuesta canal_grupo
-                image_key = f"{channel}_{group}"
-                if image_key not in used_images:
-                    used_images[image_key] = set()
-                
-                # Filtrar imágenes ya utilizadas
-                available_images = [img for img in images if img not in used_images[image_key]]
-                if not available_images:
-                    # Si todas las imágenes fueron usadas, reiniciar para este canal/grupo
-                    used_images[image_key] = set()
-                    available_images = images
-                
-                # Seleccionar imagen aleatoria
-                image = random.choice(available_images)
-                used_images[image_key].add(image)
-                
-                # Crear carpeta de canal en la salida
-                audio_path = os.path.join(self.beats_folder, audio_file)
-                
-                # Usar nombre personalizado si existe, o el formato predeterminado si no
-                if info.get('custom_name'):
-                    base_output_name = f"{info['custom_name']}"
-                else:
-                    base_output_name = f"{os.path.splitext(audio_file)[0]}_{channel}_{group}"
-                
-                output_name = f"{base_output_name}.mp4"
+                    break
                     
-                channel_folder = os.path.join(self.output_folder, channel)
-                os.makedirs(channel_folder, exist_ok=True)
+                beat_file = beat_info['beat_file']
+                channel = beat_info['channel']
+                group = beat_info['group']
+                custom_name = beat_info.get('custom_name', '')
                 
-                # Crear carpeta de grupo dentro del canal
-                group_output_folder = os.path.join(channel_folder, group)
+                # Actualizar progreso
+                progress = int((i / total_beats) * 100)
+                self.progress_updated.emit(progress, f"Procesando: {beat_file} ({i+1}/{total_beats})")
+                
+                # Buscar imagen para este beat
+                image = self._find_image_for_beat(channel, group)
+                if not image:
+                    print(f"⚠️ No se encontró imagen para {beat_file} en {channel}/{group}")
+                    continue
+                
+                # Crear carpeta de salida específica
+                group_output_folder = os.path.join(self.output_folder, channel, group)
                 os.makedirs(group_output_folder, exist_ok=True)
                 
-                output_path = os.path.join(group_output_folder, output_name)
-                
                 # Generar video
-                self.progress_updated.emit(
-                    int((i / total_beats) * 100),
-                    f"Generando video para: {audio_file}"
-                )
-                self._generate_video(audio_path, image, output_path)
+                audio_file = os.path.join(self.beats_folder, beat_file)
                 
-                # Copiar la imagen utilizada junto al video
-                image_extension = os.path.splitext(image)[1]
-                image_output_name = f"{base_output_name}_imagen{image_extension}"
-                image_output_path = os.path.join(group_output_folder, image_output_name)
-                
-                try:
-                    shutil.copy2(image, image_output_path)
-                except Exception as e:
-                    print(f"No se pudo copiar la imagen: {str(e)}")
-                
-                # Generar thumbnail automático si está configurado
-                if self.thumbnail_config.get('letterbox_style', True) or self.thumbnail_config.get('show_text', True):
-                    self._generate_thumbnail(image, audio_file, channel, group_output_folder, base_output_name)
-                
-            # Mensaje final actualizado
-            self.progress_updated.emit(100, "Proceso completado!")
-            self.finished.emit(True, f"Se generaron {total_beats} videos exitosamente. Para cada video, se guardó también la imagen utilizada.")
-            
-        except Exception as e:
-            self.finished.emit(False, f"Error: {str(e)}")
-    
-    def _get_images_for_channel_group(self, channel, group="Principal"):
-        """Obtiene la lista de imágenes para un canal y grupo específico."""
-        group_folder = os.path.join(self.images_folder, channel, group)
-        if not os.path.exists(group_folder):
-            return []
-        
-        return [os.path.join(group_folder, img) for img in os.listdir(group_folder) 
-                if img.lower().endswith(('.jpg', '.jpeg', '.png'))]
-    
-    def _generate_video(self, audio_path, image_path, output_path):
-        """Genera un video combinando un archivo de audio con una imagen."""
-        # Usar FFmpeg desde la carpeta bin si está disponible
-        ffmpeg_path = "ffmpeg"
-        local_ffmpeg = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin", "ffmpeg.exe")
-        if os.path.exists(local_ffmpeg):
-            ffmpeg_path = local_ffmpeg
-            
-        cmd = [
-            ffmpeg_path,
-            "-loop", "1",
-            "-i", image_path,
-            "-i", audio_path,
-            "-vf", "scale=-1:1080,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black",
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-tune", "stillimage",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-shortest",
-            "-y",  # Sobrescribir archivos existentes
-            output_path
-        ]
-        
-        # Ejecutar FFmpeg silenciosamente (sin mostrar la salida en consola)
-        process = subprocess.Popen(
-            cmd, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE
-        )
-        process.communicate()
-        
-        if process.returncode != 0:
-            raise Exception(f"Error al generar el video para {os.path.basename(audio_path)}")
-    
-    def _generate_thumbnail(self, image_path, audio_file, channel, output_folder, base_name):
-        """Genera un thumbnail automático para YouTube usando la imagen del video."""
-        try:
-            from PIL import Image, ImageDraw, ImageFont
-            
-            # Abrir la imagen base
-            background = Image.open(image_path)
-            background = background.convert('RGB')
-            
-            # Redimensionar y centrar la imagen para YouTube (1280x720)
-            target_width, target_height = 1280, 720
-            
-            # Verificar si usar estilo letterbox (por defecto) o pantalla completa
-            use_letterbox = self.thumbnail_config.get('letterbox_style', True)
-            
-            if use_letterbox:
-                # Estilo letterbox con barras negras para type beats
-                content_width = int(target_width * 0.75)  # 75% del ancho
-                content_height = int(target_height * 0.8)  # 80% de la altura
-                
-                # Calcular el escalado manteniendo proporción
-                scale_x = content_width / background.width
-                scale_y = content_height / background.height
-                scale = min(scale_x, scale_y)  # Usar el menor para que quepa completa
-                
-                new_width = int(background.width * scale)
-                new_height = int(background.height * scale)
-            else:
-                # Estilo pantalla completa
-                img_ratio = background.width / background.height
-                target_ratio = target_width / target_height
-                
-                if img_ratio > target_ratio:
-                    new_height = target_height
-                    new_width = int(new_height * img_ratio)
+                # Usar nombre personalizado o generar automático
+                if custom_name:
+                    base_output_name = custom_name
                 else:
-                    new_width = target_width
-                    new_height = int(new_width / img_ratio)
-            
-            # Redimensionar imagen
-            background = background.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            
-            # Crear canvas YouTube con fondo negro
-            thumbnail = Image.new('RGB', (target_width, target_height), (0, 0, 0))
-            
-            # Centrar imagen en el canvas
-            paste_x = (target_width - new_width) // 2
-            paste_y = (target_height - new_height) // 2
-            thumbnail.paste(background, (paste_x, paste_y))
-            
-            # Verificar si usar overlay personalizado
-            use_custom_overlay = self.thumbnail_config.get('use_custom_overlay', False)
-            custom_overlay_path = self.thumbnail_config.get('custom_overlay_path', None)
-            
-            if use_custom_overlay and custom_overlay_path and os.path.exists(custom_overlay_path):
-                try:
-                    # Cargar overlay personalizado
-                    overlay_img = Image.open(custom_overlay_path).convert('RGBA')
-                    # Redimensionar overlay al tamaño del thumbnail
-                    overlay_img = overlay_img.resize((target_width, target_height), Image.Resampling.LANCZOS)
-                    
-                    # Aplicar overlay usando canal alpha
-                    thumbnail_rgba = thumbnail.convert('RGBA')
-                    thumbnail = Image.alpha_composite(thumbnail_rgba, overlay_img).convert('RGB')
-                except Exception as e:
-                    print(f"Warning: No se pudo aplicar overlay personalizado: {e}")
-                    # Aplicar overlay semitransparente por defecto
-                    thumbnail = self._apply_default_overlay(thumbnail, paste_x, paste_y, new_width, new_height)
+                    base_output_name = f"{os.path.splitext(beat_file)[0]}_{channel}_{group}"
+                
+                success = self._generate_video(image, audio_file, channel, group_output_folder, base_output_name)
+                
+                if success:
+                    successful_videos += 1
+                    # Copiar imagen utilizada para referencia
+                    image_copy_path = os.path.join(group_output_folder, f"{base_output_name}_imagen.jpg")
+                    try:
+                        shutil.copy2(image, image_copy_path)
+                    except:
+                        pass
+                else:
+                    print(f"❌ Error generando video para {beat_file}")
+                
+            # Mensaje final
+            if successful_videos == total_beats:
+                self.progress_updated.emit(100, "¡Proceso completado!")
+                self.finished.emit(True, f"✅ ¡Proceso completado! Se generaron {successful_videos} videos de {total_beats} beats.")
             else:
-                # Aplicar overlay semitransparente por defecto
-                thumbnail = self._apply_default_overlay(thumbnail, paste_x, paste_y, new_width, new_height)
-            
-            draw = ImageDraw.Draw(thumbnail)
-            
-            # Preparar texto del beat
-            beat_name = os.path.splitext(audio_file)[0]
-            
-            # Intentar cargar fuente
-            try:
-                title_font = ImageFont.truetype("arial.ttf", 72)
-                subtitle_font = ImageFont.truetype("arial.ttf", 48)
-                small_font = ImageFont.truetype("arial.ttf", 36)
-            except:
-                title_font = ImageFont.load_default()
-                subtitle_font = ImageFont.load_default()
-                small_font = ImageFont.load_default()
-            
-            # Texto principal: "[Beat Name] TYPE BEAT"
-            main_text = f"{beat_name.upper()}"
-            type_beat_text = "TYPE BEAT"
-            channel_text = f"by {channel}"
-            
-            # Función para dibujar texto con borde
-            def draw_text_with_border(draw, pos, text, font, fill_color, border_color, border_width=3):
-                x, y = pos
-                # Dibujar borde
-                for adj_x in range(-border_width, border_width + 1):
-                    for adj_y in range(-border_width, border_width + 1):
-                        if adj_x != 0 or adj_y != 0:
-                            draw.text((x + adj_x, y + adj_y), text, font=font, fill=border_color)
-                # Dibujar texto principal
-                draw.text((x, y), text, font=font, fill=fill_color)
-            
-            # Verificar si mostrar texto (opción de configuración)
-            show_text = self.thumbnail_config.get('show_text', True)
-            
-            if show_text:
-                # Calcular posiciones del texto
-                title_bbox = draw.textbbox((0, 0), main_text, font=title_font)
-                title_width = title_bbox[2] - title_bbox[0]
-                title_x = (target_width - title_width) // 2
-                title_y = target_height // 2 - 80
-                
-                # "TYPE BEAT" debajo del título
-                type_bbox = draw.textbbox((0, 0), type_beat_text, font=subtitle_font)
-                type_width = type_bbox[2] - type_bbox[0]
-                type_x = (target_width - type_width) // 2
-                type_y = title_y + 90
-                
-                # Canal en la parte inferior
-                channel_bbox = draw.textbbox((0, 0), channel_text, font=small_font)
-                channel_width = channel_bbox[2] - channel_bbox[0]
-                channel_x = (target_width - channel_width) // 2
-                channel_y = target_height - 80
-                
-                # Dibujar textos con bordes
-                draw_text_with_border(draw, (title_x, title_y), main_text, title_font, 
-                                    (255, 255, 255), (0, 0, 0), 4)
-                draw_text_with_border(draw, (type_x, type_y), type_beat_text, subtitle_font, 
-                                    (255, 215, 0), (0, 0, 0), 3)  # Dorado
-                draw_text_with_border(draw, (channel_x, channel_y), channel_text, small_font, 
-                                    (200, 200, 200), (0, 0, 0), 2)
-                
-                # Agregar elementos gráficos opcionales
-                # Líneas decorativas
-                line_width = 5
-                
-                # Líneas horizontales arriba y abajo del texto principal
-                line_y1 = title_y - 20
-                line_y2 = type_y + 60
-                line_margin = 200
-                
-                draw.rectangle([line_margin, line_y1, target_width - line_margin, line_y1 + line_width], 
-                             fill=(255, 215, 0))
-                draw.rectangle([line_margin, line_y2, target_width - line_margin, line_y2 + line_width], 
-                             fill=(255, 215, 0))
-            
-            # Guardar thumbnail
-            thumbnail_name = f"{base_name}_thumbnail.png"
-            thumbnail_path = os.path.join(output_folder, thumbnail_name)
-            thumbnail.save(thumbnail_path, "PNG", quality=95)
-            
-            print(f"✓ Thumbnail generado: {thumbnail_name}")
+                self.finished.emit(True, f"⚠️ Proceso completado con advertencias. Se generaron {successful_videos} videos de {total_beats} beats.")
             
         except Exception as e:
-            print(f"Error generando thumbnail para {audio_file}: {e}")
+            self.finished.emit(False, f"Error en el procesamiento: {str(e)}")
     
-    def _apply_default_overlay(self, thumbnail, paste_x, paste_y, img_width, img_height):
-        """Aplica el overlay semitransparente por defecto solo en la imagen."""
-        from PIL import Image, ImageDraw
+    def _find_image_for_beat(self, channel, group):
+        """Busca una imagen apropiada para el beat."""
+        # Buscar en carpeta específica del canal y grupo
+        channel_group_path = os.path.join(self.images_folder, channel, group)
         
-        target_width, target_height = thumbnail.size
+        if os.path.exists(channel_group_path):
+            images = [f for f in os.listdir(channel_group_path) 
+                     if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
+            if images:
+                return os.path.join(channel_group_path, random.choice(images))
         
-        # Aplicar overlay semitransparente solo en la imagen, no en las barras negras
-        thumbnail_rgba = thumbnail.convert('RGBA')
+        # Buscar en carpeta del canal (cualquier grupo)
+        channel_path = os.path.join(self.images_folder, channel)
+        if os.path.exists(channel_path):
+            for subdir in os.listdir(channel_path):
+                subdir_path = os.path.join(channel_path, subdir)
+                if os.path.isdir(subdir_path):
+                    images = [f for f in os.listdir(subdir_path) 
+                             if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
+                    if images:
+                        return os.path.join(subdir_path, random.choice(images))
         
-        # Crear máscara para aplicar overlay solo en la imagen
-        mask = Image.new('L', (target_width, target_height), 0)
-        mask_draw = ImageDraw.Draw(mask)
-        mask_draw.rectangle([paste_x, paste_y, paste_x + img_width, paste_y + img_height], fill=255)
+        # Buscar en carpeta general
+        if os.path.exists(self.images_folder):
+            images = [f for f in os.listdir(self.images_folder) 
+                     if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
+            if images:
+                return os.path.join(self.images_folder, random.choice(images))
         
-        # Aplicar overlay usando la máscara
-        overlay_full = Image.new('RGBA', (target_width, target_height), (0, 0, 0, 40))
-        result = Image.composite(overlay_full, thumbnail_rgba, mask)
-        
-        # Retornar la imagen resultante
-        return result.convert('RGB')
+        return None
+    
+    def _generate_video(self, image_path, audio_path, channel, output_folder, base_name):
+        """Genera un video combinando imagen y audio."""
+        try:
+            output_file = os.path.join(output_folder, f"{base_name}.mp4")
+            
+            # Comando FFmpeg para generar video
+            ffmpeg_path = os.path.join("bin", "ffmpeg.exe") if os.name == 'nt' else "ffmpeg"
+            
+            cmd = [
+                ffmpeg_path,
+                "-loop", "1",
+                "-i", image_path,
+                "-i", audio_path,
+                "-vf", "scale=-1:1080,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black",
+                "-c:v", "libx264",
+                "-preset", "fast",
+                "-tune", "stillimage",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-shortest",
+                "-y",
+                output_file
+            ]
+            
+            # Ejecutar comando
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                print(f"✓ Video generado: {os.path.basename(output_file)}")
+                return True
+            else:
+                print(f"✗ Error FFmpeg: {result.stderr}")
+                return False
+                
+        except Exception as e:
+            print(f"Error generando video: {e}")
+            return False
     
     def stop(self):
         """Detiene el proceso."""
         self.stop_processing = True
+
+
+class ChannelManager(QDialog):
+    """Diálogo para gestionar canales y grupos."""
+    
+    def __init__(self, parent=None, config_file=None):
+        super().__init__(parent)
+        self.config_file = config_file or CONFIG_FILE
+        self.setWindowTitle("Gestión de Canales y Grupos")
+        self.setModal(True)
+        self.setMinimumSize(600, 400)
+        self.load_config()
+        self.setup_ui()
+    
+    def load_config(self):
+        """Carga la configuración de canales."""
+        self.channels_config = {}
+        try:
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    self.channels_config = config.get('channels', {})
+        except Exception as e:
+            print(f"Error cargando configuración: {e}")
+    
+    def save_config(self):
+        """Guarda la configuración de canales."""
+        try:
+            os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
+            
+            # Cargar configuración existente
+            config = DEFAULT_CONFIG.copy()
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config.update(json.load(f))
+            
+            # Actualizar canales
+            config['channels'] = self.channels_config
+            
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"Error guardando configuración: {e}")
+    
+    def setup_ui(self):
+        """Configura la interfaz del gestor de canales."""
+        layout = QVBoxLayout(self)
+        
+        # Título
+        title = QLabel("📺 Gestión de Canales y Grupos")
+        title.setStyleSheet("font-size: 16px; font-weight: bold; padding: 10px;")
+        layout.addWidget(title)
+        
+        # Layout principal
+        main_layout = QHBoxLayout()
+        
+        # Panel izquierdo - Lista de canales
+        left_panel = QVBoxLayout()
+        left_panel.addWidget(QLabel("Canales:"))
+        
+        self.channels_list = QListWidget()
+        self.channels_list.currentTextChanged.connect(self.on_channel_selected)
+        left_panel.addWidget(self.channels_list)
+        
+        # Botones de canales
+        channel_buttons = QHBoxLayout()
+        self.btn_add_channel = QPushButton("➕ Agregar Canal")
+        self.btn_add_channel.clicked.connect(self.add_channel)
+        self.btn_remove_channel = QPushButton("🗑️ Eliminar Canal")
+        self.btn_remove_channel.clicked.connect(self.remove_channel)
+        
+        channel_buttons.addWidget(self.btn_add_channel)
+        channel_buttons.addWidget(self.btn_remove_channel)
+        left_panel.addLayout(channel_buttons)
+        
+        # Panel derecho - Grupos del canal seleccionado
+        right_panel = QVBoxLayout()
+        right_panel.addWidget(QLabel("Grupos:"))
+        
+        self.groups_list = QListWidget()
+        right_panel.addWidget(self.groups_list)
+        
+        # Botones de grupos
+        group_buttons = QHBoxLayout()
+        self.btn_add_group = QPushButton("➕ Agregar Grupo")
+        self.btn_add_group.clicked.connect(self.add_group)
+        self.btn_remove_group = QPushButton("🗑️ Eliminar Grupo")
+        self.btn_remove_group.clicked.connect(self.remove_group)
+        self.btn_edit_images = QPushButton("🖼️ Editar Imágenes")
+        self.btn_edit_images.clicked.connect(self.edit_images)
+        
+        group_buttons.addWidget(self.btn_add_group)
+        group_buttons.addWidget(self.btn_remove_group)
+        group_buttons.addWidget(self.btn_edit_images)
+        right_panel.addLayout(group_buttons)
+        
+        # Agregar paneles al layout principal
+        main_layout.addLayout(left_panel)
+        main_layout.addLayout(right_panel)
+        layout.addLayout(main_layout)
+        
+        # Botones de control
+        control_buttons = QHBoxLayout()
+        self.btn_ok = QPushButton("✅ Guardar")
+        self.btn_ok.clicked.connect(self.accept)
+        self.btn_cancel = QPushButton("❌ Cancelar")
+        self.btn_cancel.clicked.connect(self.reject)
+        
+        control_buttons.addWidget(self.btn_ok)
+        control_buttons.addWidget(self.btn_cancel)
+        layout.addLayout(control_buttons)
+        
+        # Cargar datos iniciales
+        self.refresh_channels_list()
+    
+    def refresh_channels_list(self):
+        """Actualiza la lista de canales."""
+        self.channels_list.clear()
+        for channel in sorted(self.channels_config.keys()):
+            self.channels_list.addItem(channel)
+    
+    def on_channel_selected(self, channel_name):
+        """Se ejecuta cuando se selecciona un canal."""
+        self.groups_list.clear()
+        if channel_name and channel_name in self.channels_config:
+            groups = self.channels_config[channel_name].get('groups', [])
+            for group in groups:
+                self.groups_list.addItem(group)
+    
+    def add_channel(self):
+        """Agrega un nuevo canal."""
+        channel_name, ok = QInputDialog.getText(self, "Nuevo Canal", "Nombre del canal:")
+        if ok and channel_name.strip():
+            channel_name = channel_name.strip()
+            if channel_name not in self.channels_config:
+                self.channels_config[channel_name] = {
+                    'groups': ['Principal']  # Grupo por defecto
+                }
+                self.refresh_channels_list()
+                # Crear carpeta del canal
+                channel_path = os.path.join("images", channel_name, "Principal")
+                os.makedirs(channel_path, exist_ok=True)
+            else:
+                QMessageBox.warning(self, "Error", f"El canal '{channel_name}' ya existe.")
+    
+    def remove_channel(self):
+        """Elimina el canal seleccionado."""
+        current_channel = self.channels_list.currentItem()
+        if current_channel:
+            channel_name = current_channel.text()
+            reply = QMessageBox.question(
+                self, "Confirmar", 
+                f"¿Eliminar el canal '{channel_name}' y todos sus grupos?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                del self.channels_config[channel_name]
+                self.refresh_channels_list()
+                self.groups_list.clear()
+    
+    def add_group(self):
+        """Agrega un nuevo grupo al canal seleccionado."""
+        current_channel = self.channels_list.currentItem()
+        if not current_channel:
+            QMessageBox.warning(self, "Error", "Selecciona un canal primero.")
+            return
+        
+        channel_name = current_channel.text()
+        group_name, ok = QInputDialog.getText(self, "Nuevo Grupo", "Nombre del grupo:")
+        
+        if ok and group_name.strip():
+            group_name = group_name.strip()
+            groups = self.channels_config[channel_name].get('groups', [])
+            if group_name not in groups:
+                groups.append(group_name)
+                self.channels_config[channel_name]['groups'] = groups
+                self.on_channel_selected(channel_name)
+                # Crear carpeta del grupo
+                group_path = os.path.join("images", channel_name, group_name)
+                os.makedirs(group_path, exist_ok=True)
+            else:
+                QMessageBox.warning(self, "Error", f"El grupo '{group_name}' ya existe en este canal.")
+    
+    def remove_group(self):
+        """Elimina el grupo seleccionado."""
+        current_channel = self.channels_list.currentItem()
+        current_group = self.groups_list.currentItem()
+        
+        if not current_channel or not current_group:
+            QMessageBox.warning(self, "Error", "Selecciona un canal y grupo.")
+            return
+        
+        channel_name = current_channel.text()
+        group_name = current_group.text()
+        
+        reply = QMessageBox.question(
+            self, "Confirmar", 
+            f"¿Eliminar el grupo '{group_name}' del canal '{channel_name}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            groups = self.channels_config[channel_name].get('groups', [])
+            if group_name in groups:
+                groups.remove(group_name)
+                self.channels_config[channel_name]['groups'] = groups
+                self.on_channel_selected(channel_name)
+    
+    def edit_images(self):
+        """Abre el explorador para editar imágenes del grupo."""
+        current_channel = self.channels_list.currentItem()
+        current_group = self.groups_list.currentItem()
+        
+        if not current_channel or not current_group:
+            QMessageBox.warning(self, "Error", "Selecciona un canal y grupo.")
+            return
+        
+        channel_name = current_channel.text()
+        group_name = current_group.text()
+        
+        images_path = os.path.join("images", channel_name, group_name)
+        os.makedirs(images_path, exist_ok=True)
+        
+        # Abrir explorador de archivos
+        if os.name == 'nt':  # Windows
+            os.startfile(images_path)
+        elif os.name == 'posix':  # macOS y Linux
+            os.system(f'open "{images_path}"' if sys.platform == 'darwin' else f'xdg-open "{images_path}"')
+        
+        QMessageBox.information(
+            self, "Editar Imágenes", 
+            f"Se abrió la carpeta: {images_path}\n\n"
+            "Agrega imágenes (JPG, PNG) a esta carpeta.\n"
+            "Se recomiendan 10-30 imágenes por grupo para mayor variedad."
+        )
+    
+    def accept(self):
+        """Guarda la configuración al aceptar."""
+        self.save_config()
+        super().accept()
 
 
 class MainWindow(QMainWindow):
@@ -573,895 +501,623 @@ class MainWindow(QMainWindow):
         self.beats_folder = os.path.abspath("beats")
         self.images_folder = os.path.abspath("images")
         self.output_folder = os.path.abspath("exported_videos")
-        self.videos_folder = os.path.abspath("videos")
-        self.config_folder = os.path.abspath("config")
-        self.loaded_beats = []
-        self.beats_info = []  # Lista de diccionarios {audio, genre, custom_name}
-        self.config = self._load_config()
+        self.beats_info = []  # Lista de beats asignados para procesamiento
+        self.worker = None
         
-        # Crear carpetas si no existen
-        folders_to_create = [
-            self.beats_folder, 
-            self.images_folder, 
-            self.output_folder,
-            self.videos_folder,
-            self.config_folder
-        ]
-        for folder in folders_to_create:
-            os.makedirs(folder, exist_ok=True)
+        # Configurar ventana
+        self.setWindowTitle("🎵 Type Beat Video Generator v2.0")
+        self.setMinimumSize(1200, 700)
+        self.resize(1400, 800)
         
-        # Configurar la interfaz
-        self._setup_ui()
-        
-        # Actualizar la lista de beats
-        self._update_beats_list()
-        
-        # Restaurar tamaño y posición de la ventana
-        self._restore_window_state()
-    
-    def _setup_ui(self):
-        """Configura la interfaz de usuario de forma simple y clara."""
-        self.setWindowTitle("Type Beat Video Generator")
-        self.setMinimumSize(900, 600)
-        
-        # Aplicar estilo
+        # Aplicar estilos
         self.setStyleSheet(STYLESHEET)
         
-        # Configurar menú
-        self._setup_menu()
+        # Configurar interfaz
+        self.setup_ui()
+        self.load_config()
         
-        # Widget central y layout principal
+        # Cargar datos iniciales
+        self._load_beats()
+        self._load_channels()
+        
+        print("✅ Type Beat Video Generator v2.0 iniciado")
+    
+    def setup_ui(self):
+        """Configura la interfaz de usuario (3 columnas)."""
+        # Widget central
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
-        main_layout = QVBoxLayout(central_widget)
-        main_layout.setSpacing(10)
-        main_layout.setContentsMargins(15, 15, 15, 15)
+        # Layout principal (3 columnas)
+        main_layout = QHBoxLayout(central_widget)
         
-        # Título simple
-        title = QLabel("🎵 Type Beat Video Generator")
-        title.setProperty("heading", True)
-        title.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(title)
+        # === COLUMNA 1: GESTIÓN DE BEATS ===
+        left_panel = QFrame()
+        left_panel.setMaximumWidth(350)
+        left_layout = QVBoxLayout(left_panel)
         
-        # Layout de 3 columnas
-        columns_layout = QHBoxLayout()
-        columns_layout.setSpacing(15)
+        # Título de la columna
+        beats_title = QLabel("🎵 Gestión de Beats")
+        beats_title.setStyleSheet("font-size: 16px; font-weight: bold; padding: 10px; text-align: center;")
+        beats_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        left_layout.addWidget(beats_title)
         
-        # === COLUMNA 1: BEATS ===
-        beats_frame = QFrame()
-        beats_layout = QVBoxLayout(beats_frame)
-        beats_layout.setSpacing(8)
+        # Botones de gestión de beats
+        beats_buttons = QHBoxLayout()
+        self.btn_load_beats = QPushButton("📂 Cargar Beats")
+        self.btn_load_beats.clicked.connect(self._load_beats_from_files)
+        self.btn_delete_beats = QPushButton("🗑️ Eliminar")
+        self.btn_delete_beats.clicked.connect(self._delete_selected_beats)
         
-        beats_title = QLabel("📂 Beats")
-        beats_title.setProperty("heading", True)
-        beats_layout.addWidget(beats_title)
+        beats_buttons.addWidget(self.btn_load_beats)
+        beats_buttons.addWidget(self.btn_delete_beats)
+        left_layout.addLayout(beats_buttons)
         
-        # Botones de beats
-        self.btn_load_beats = QPushButton("Cargar Beats")
-        self.btn_load_beats.clicked.connect(self._load_beats)
-        beats_layout.addWidget(self.btn_load_beats)
+        # Lista de beats disponibles
+        beats_label = QLabel("📁 Beats Disponibles:")
+        beats_label.setStyleSheet("font-weight: bold; padding: 5px;")
+        left_layout.addWidget(beats_label)
         
-        self.btn_delete_beats = QPushButton("Eliminar")
-        self.btn_delete_beats.clicked.connect(self._delete_beat_files)
-        beats_layout.addWidget(self.btn_delete_beats)
-        
-        # Lista de beats
         self.beats_list = QListWidget()
-        self.beats_list.setSelectionMode(QListWidget.ExtendedSelection)
-        self.beats_list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.beats_list.customContextMenuRequested.connect(self._show_beats_list_menu)
-        self.beats_list.setMinimumHeight(200)
-        beats_layout.addWidget(self.beats_list)
+        self.beats_list.setMaximumHeight(200)
+        left_layout.addWidget(self.beats_list)
         
-        columns_layout.addWidget(beats_frame)
+        # Botón para editar nombre
+        self.btn_edit_name = QPushButton("✏️ Editar Nombre")
+        self.btn_edit_name.clicked.connect(self._edit_beat_name)
+        left_layout.addWidget(self.btn_edit_name)
         
-        # === COLUMNA 2: CONFIGURACIÓN ===
-        config_frame = QFrame()
-        config_layout = QVBoxLayout(config_frame)
-        config_layout.setSpacing(8)
+        left_layout.addStretch()
         
-        config_title = QLabel("⚙️ Configuración")
-        config_title.setProperty("heading", True)
-        config_layout.addWidget(config_title)
+        # === COLUMNA 2: CONFIGURACIÓN DE CANALES ===
+        center_panel = QFrame()
+        center_panel.setMaximumWidth(400)
+        center_layout = QVBoxLayout(center_panel)
         
-        # Canal
-        config_layout.addWidget(QLabel("Canal:"))
+        # Título de la columna
+        config_title = QLabel("📺 Configuración de Canales")
+        config_title.setStyleSheet("font-size: 16px; font-weight: bold; padding: 10px; text-align: center;")
+        config_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        center_layout.addWidget(config_title)
+        
+        # Gestión de canales
+        self.btn_manage_channels = QPushButton("⚙️ Gestionar Canales")
+        self.btn_manage_channels.clicked.connect(self._open_channel_manager)
+        center_layout.addWidget(self.btn_manage_channels)
+        
+        # Selector de canal
+        channel_label = QLabel("Canal:")
+        channel_label.setStyleSheet("font-weight: bold; padding: 5px;")
+        center_layout.addWidget(channel_label)
+        
         self.channel_combo = QComboBox()
-        self.channel_combo.currentIndexChanged.connect(lambda: self._update_groups_for_channel(self.channel_combo.currentText()))
-        self._update_channels_combo()
-        config_layout.addWidget(self.channel_combo)
+        self.channel_combo.currentTextChanged.connect(self._on_channel_changed)
+        center_layout.addWidget(self.channel_combo)
         
-        # Grupo
-        config_layout.addWidget(QLabel("Grupo:"))
+        # Selector de grupo
+        group_label = QLabel("Grupo:")
+        group_label.setStyleSheet("font-weight: bold; padding: 5px;")
+        center_layout.addWidget(group_label)
+        
         self.group_combo = QComboBox()
-        config_layout.addWidget(self.group_combo)
+        center_layout.addWidget(self.group_combo)
         
-        # Botón asignar
-        self.btn_assign_channel = QPushButton("Asignar Canal")
-        self.btn_assign_channel.clicked.connect(self._assign_channel_and_group)
-        config_layout.addWidget(self.btn_assign_channel)
+        # Botón de asignación
+        self.btn_assign_channel = QPushButton("➡️ Asignar Canal")
+        self.btn_assign_channel.setStyleSheet("background-color: #27AE60; font-size: 14px; padding: 10px; font-weight: bold;")
+        self.btn_assign_channel.clicked.connect(self._assign_channel_to_beats)
+        center_layout.addWidget(self.btn_assign_channel)
         
-        # Gestionar canales
-        self.btn_manage_channels = QPushButton("Gestionar Canales")
-        self.btn_manage_channels.clicked.connect(self._manage_channels)
-        config_layout.addWidget(self.btn_manage_channels)
+        # Información de imágenes
+        self.images_info_label = QLabel("Selecciona un canal y grupo para ver información de imágenes")
+        self.images_info_label.setStyleSheet("padding: 10px; font-size: 12px; color: #888;")
+        self.images_info_label.setWordWrap(True)
+        center_layout.addWidget(self.images_info_label)
         
-        # Subir imágenes al canal
-        self.btn_upload_images = QPushButton("📁 Subir Imágenes")
+        # Botón para subir imágenes
+        self.btn_upload_images = QPushButton("📷 Subir Imágenes")
         self.btn_upload_images.clicked.connect(self._upload_images_to_channel)
-        config_layout.addWidget(self.btn_upload_images)
+        center_layout.addWidget(self.btn_upload_images)
         
-        # Espaciado
-        config_layout.addStretch()
+        center_layout.addStretch()
         
-        columns_layout.addWidget(config_frame)
+        # === COLUMNA 3: LISTA DE PROCESAMIENTO ===
+        right_panel = QFrame()
+        right_layout = QVBoxLayout(right_panel)
         
-        # === COLUMNA 3: PROCESAMIENTO ===
-        process_frame = QFrame()
-        process_layout = QVBoxLayout(process_frame)
-        process_layout.setSpacing(8)
+        # Título de la columna
+        process_title = QLabel("🎬 Lista de Procesamiento")
+        process_title.setStyleSheet("font-size: 16px; font-weight: bold; padding: 10px; text-align: center;")
+        process_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        right_layout.addWidget(process_title)
         
-        process_title = QLabel("🎬 Procesamiento")
-        process_title.setProperty("heading", True)
-        process_layout.addWidget(process_title)
+        # Lista de beats asignados
+        assigned_label = QLabel("📋 Beats Listos para Procesar:")
+        assigned_label.setStyleSheet("font-weight: bold; padding: 5px;")
+        right_layout.addWidget(assigned_label)
         
-        # Lista de procesos
         self.process_list = QListWidget()
-        self.process_list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.process_list.customContextMenuRequested.connect(self._show_process_list_menu)
-        self.process_list.doubleClicked.connect(self._edit_beat_name)
-        self.process_list.setSelectionMode(QListWidget.ExtendedSelection)
-        self.process_list.setMinimumHeight(150)
-        process_layout.addWidget(self.process_list)
+        self.process_list.setMaximumHeight(250)
+        self.process_list.itemDoubleClicked.connect(self._edit_assigned_beat)
+        right_layout.addWidget(self.process_list)
         
-        # Botones de edición
-        self.btn_edit_name = QPushButton("Editar Nombre")
-        self.btn_edit_name.clicked.connect(self._edit_selected_beat_name)
-        process_layout.addWidget(self.btn_edit_name)
+        # Botones de control de procesamiento
+        process_buttons = QHBoxLayout()
+        self.btn_remove_from_process = QPushButton("❌ Quitar")
+        self.btn_remove_from_process.clicked.connect(self._remove_from_process_list)
+        self.btn_clear_process = QPushButton("🗑️ Limpiar Todo")
+        self.btn_clear_process.clicked.connect(self._clear_process_list)
         
-        self.btn_remove_beat = QPushButton("Eliminar Beat")
-        self.btn_remove_beat.clicked.connect(self._remove_selected_beat)
-        process_layout.addWidget(self.btn_remove_beat)
+        process_buttons.addWidget(self.btn_remove_from_process)
+        process_buttons.addWidget(self.btn_clear_process)
+        right_layout.addLayout(process_buttons)
         
-        columns_layout.addWidget(process_frame)
+        # Configuración de salida
+        output_label = QLabel("📁 Carpeta de Salida:")
+        output_label.setStyleSheet("font-weight: bold; padding: 5px; margin-top: 10px;")
+        right_layout.addWidget(output_label)
         
-        main_layout.addLayout(columns_layout)
+        self.btn_browse_output = QPushButton("📂 Seleccionar Carpeta")
+        self.btn_browse_output.clicked.connect(self._browse_output_folder)
+        right_layout.addWidget(self.btn_browse_output)
         
-        # === SECCIÓN INFERIOR: EXPORTACIÓN ===
-        export_frame = QFrame()
-        export_layout = QVBoxLayout(export_frame)
-        export_layout.setSpacing(8)
-        
-        export_title = QLabel("📤 Exportación")
-        export_title.setProperty("heading", True)
-        export_layout.addWidget(export_title)
-        
-        # Carpeta de salida
-        folder_layout = QHBoxLayout()
-        folder_layout.addWidget(QLabel("Carpeta:"))
-        
-        self.output_path = QLineEdit()
-        self.output_path.setText(self.output_folder)
-        self.output_path.setReadOnly(True)
-        folder_layout.addWidget(self.output_path)
-        
-        self.btn_browse_output = QPushButton("...")
-        self.btn_browse_output.clicked.connect(self._browse_output)
-        self.btn_browse_output.setMaximumWidth(40)
-        folder_layout.addWidget(self.btn_browse_output)
-        
-        export_layout.addLayout(folder_layout)
-        
-        # Progreso
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setTextVisible(True)
-        export_layout.addWidget(self.progress_bar)
-        
-        # Estado
-        self.status_label = QLabel("Listo para procesar")
-        self.status_label.setAlignment(Qt.AlignCenter)
-        export_layout.addWidget(self.status_label)
+        self.output_label = QLabel(f"📍 {self.output_folder}")
+        self.output_label.setStyleSheet("padding: 5px; font-size: 11px; color: #888;")
+        self.output_label.setWordWrap(True)
+        right_layout.addWidget(self.output_label)
         
         # Botones principales
-        buttons_layout = QHBoxLayout()
+        main_buttons = QVBoxLayout()
         
-        self.btn_generate = QPushButton("▶ GENERAR VIDEOS")
-        self.btn_generate.clicked.connect(self._generate_videos)
-        self.btn_generate.setStyleSheet("background-color: #27AE60; font-size: 14px; padding: 8px; font-weight: bold;")
-        buttons_layout.addWidget(self.btn_generate)
+        self.btn_generate = QPushButton("▶️ GENERAR VIDEOS")
+        self.btn_generate.setStyleSheet("background-color: #27AE60; font-size: 16px; padding: 15px; font-weight: bold;")
+        self.btn_generate.clicked.connect(self._start_generation)
+        main_buttons.addWidget(self.btn_generate)
         
-        self.btn_cancel = QPushButton("⏹ CANCELAR")
-        self.btn_cancel.clicked.connect(self._cancel_process)
+        self.btn_cancel = QPushButton("⏹️ CANCELAR")
+        self.btn_cancel.setStyleSheet("background-color: #E74C3C; font-size: 14px; padding: 10px; font-weight: bold;")
+        self.btn_cancel.clicked.connect(self._cancel_generation)
         self.btn_cancel.setEnabled(False)
-        self.btn_cancel.setStyleSheet("background-color: #E74C3C; font-size: 14px; padding: 8px; font-weight: bold;")
-        buttons_layout.addWidget(self.btn_cancel)
+        main_buttons.addWidget(self.btn_cancel)
         
-        # Botón del editor de thumbnails
-        self.btn_thumbnail_editor = QPushButton("🎨 EDITOR THUMBNAILS")
-        self.btn_thumbnail_editor.clicked.connect(self._open_thumbnail_editor)
-        self.btn_thumbnail_editor.setStyleSheet("background-color: #3498DB; font-size: 14px; padding: 8px; font-weight: bold;")
-        buttons_layout.addWidget(self.btn_thumbnail_editor)
+        # Espaciado
+        main_buttons.addSpacing(20)
         
-        # Botón de cerrar aplicación
-        self.btn_close_app = QPushButton("❌ CERRAR TODO")
-        self.btn_close_app.clicked.connect(self._close_application)
-        self.btn_close_app.setStyleSheet("background-color: #95A5A6; font-size: 12px; padding: 6px; font-weight: bold;")
-        buttons_layout.addWidget(self.btn_close_app)
+        # Botón para cerrar programa
+        self.btn_exit = QPushButton("🚪 CERRAR PROGRAMA")
+        self.btn_exit.setStyleSheet("background-color: #95A5A6; font-size: 12px; padding: 8px; font-weight: bold;")
+        self.btn_exit.clicked.connect(self.close)
+        main_buttons.addWidget(self.btn_exit)
         
-        export_layout.addLayout(buttons_layout)
+        right_layout.addLayout(main_buttons)
         
-        main_layout.addWidget(export_frame)
+        # Progreso
+        progress_label = QLabel("📊 Progreso:")
+        progress_label.setStyleSheet("font-weight: bold; padding: 5px; margin-top: 10px;")
+        right_layout.addWidget(progress_label)
         
-        # Footer simple
-        footer = QLabel("Type Beat Video Generator v1.0")
-        footer.setAlignment(Qt.AlignRight)
-        footer.setStyleSheet("color: #888888; font-size: 10px; padding: 5px;")
-        main_layout.addWidget(footer)
-        self.worker = None
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        right_layout.addWidget(self.progress_bar)
+        
+        self.status_label = QLabel("Listo para generar videos")
+        self.status_label.setStyleSheet("padding: 10px; font-size: 12px; color: #888;")
+        right_layout.addWidget(self.status_label)
+        
+        # Agregar columnas al layout principal
+        main_layout.addWidget(left_panel)
+        main_layout.addWidget(center_panel)
+        main_layout.addWidget(right_panel, stretch=1)
     
-    def _setup_menu(self):
-        """Configura la barra de menú de la aplicación."""
-        menubar = self.menuBar()
-        
-        # Menú Archivo
-        file_menu = menubar.addMenu('&Archivo')
-        
-        # Cargar Beats
-        load_action = QAction('&Cargar Beats...', self)
-        load_action.setShortcut('Ctrl+O')
-        load_action.triggered.connect(self._load_beats)
-        file_menu.addAction(load_action)
-        
-        file_menu.addSeparator()
-        
-        # Salir
-        exit_action = QAction('&Salir', self)
-        exit_action.setShortcut('Ctrl+Q')
-        exit_action.triggered.connect(self.close)
-        file_menu.addAction(exit_action)
-        
-        # Menú Herramientas
-        tools_menu = menubar.addMenu('&Herramientas')
-        
-        # Editor de Thumbnails
-        thumbnail_action = QAction('&Editor de Thumbnails', self)
-        thumbnail_action.triggered.connect(self._open_thumbnail_editor)
-        tools_menu.addAction(thumbnail_action)
-        
-        # Menú Ayuda
-        help_menu = menubar.addMenu('&Ayuda')
-        
-        # Acerca de
-        about_action = QAction('&Acerca de...', self)
-        about_action.triggered.connect(self._show_about)
-        help_menu.addAction(about_action)
-    
-    def _show_about(self):
-        """Muestra información sobre la aplicación."""
-        QMessageBox.about(
-            self,
-            "Acerca de Type Beat Video Generator",
-            "Type Beat Video Generator v2.0\n\n"
-            "Generador automático de videos para Type Beats\n"
-            "con sistema integrado de thumbnails.\n\n"
-            "Características:\n"
-            "• Generación automática de videos\n"
-            "• Editor de thumbnails integrado\n"
-            "• Configuración de estilos letterbox\n"
-            "• Soporte para overlays personalizados\n"
-            "• Gestión de canales y grupos"
-        )
-
-    # === MÉTODOS DE CONFIGURACIÓN ===
-    def _load_config(self):
-        """Carga la configuración desde el archivo JSON."""
-        if os.path.exists(CONFIG_FILE):
-            try:
+    def load_config(self):
+        """Carga la configuración desde archivo."""
+        try:
+            if os.path.exists(CONFIG_FILE):
                 with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except Exception:
-                return DEFAULT_CONFIG.copy()
-        else:
-            # Crear carpeta de configuración si no existe
+                    config = json.load(f)
+                    self.output_folder = config.get('last_output_folder', self.output_folder)
+                    self.output_label.setText(f"📍 {self.output_folder}")
+        except Exception as e:
+            print(f"Error cargando config: {e}")
+    
+    def save_config(self):
+        """Guarda la configuración a archivo."""
+        try:
             os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
             
-            # Guardar configuración predeterminada
+            # Cargar configuración existente
+            config = DEFAULT_CONFIG.copy()
+            if os.path.exists(CONFIG_FILE):
+                with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                    config.update(json.load(f))
+            
+            # Actualizar configuración
+            config['last_output_folder'] = self.output_folder
+            
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-                json.dump(DEFAULT_CONFIG, f, indent=2)
-            
-            return DEFAULT_CONFIG.copy()
-    
-    def _save_config(self):
-        """Guarda la configuración en el archivo JSON."""
-        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-            json.dump(self.config, f, indent=2)
-    
-    def _save_window_state(self):
-        """Guarda el estado de la ventana (posición, tamaño)."""
-        settings = QSettings("TypeBeatVideoGen", "VideoGenerator")
-        settings.setValue("geometry", self.saveGeometry())
-        settings.setValue("windowState", self.saveState())
-        
-    def _restore_window_state(self):
-        """Restaura el estado de la ventana (posición, tamaño)."""
-        settings = QSettings("TypeBeatVideoGen", "VideoGenerator")
-        geometry = settings.value("geometry")
-        if geometry is not None:
-            self.restoreGeometry(geometry)
-        window_state = settings.value("windowState")
-        if window_state is not None:
-            self.restoreState(window_state)
-    
-    def closeEvent(self, event):
-        """Captura el evento de cierre de la ventana para guardar configuraciones."""
-        self._save_window_state()
-        super().closeEvent(event)
-    
-    # === MÉTODOS DE GESTIÓN DE BEATS ===
-    def _update_beats_list(self):
-        """Actualiza la lista de beats disponibles."""
-        self.beats_list.clear()
-        
-        if os.path.exists(self.beats_folder):
-            beats = [f for f in os.listdir(self.beats_folder) 
-                    if f.lower().endswith(('.mp3', '.wav'))]
-            self.loaded_beats = beats
-            
-            for beat in beats:
-                item = QListWidgetItem()
-                is_mp3 = beat.lower().endswith('.mp3')
-                if is_mp3:
-                    item.setIcon(qta.icon('fa5s.music', color='#4A9EFF'))
-                else:
-                    item.setIcon(qta.icon('fa5s.file-audio', color='#4CAF50'))
-                
-                item.setText(beat)
-                item.setToolTip(f"Archivo: {beat}\nTipo: {'MP3' if is_mp3 else 'WAV'}")
-                self.beats_list.addItem(item)
+                json.dump(config, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"Error guardando config: {e}")
     
     def _load_beats(self):
-        """Carga archivos de audio a la carpeta de beats."""
-        file_dialog = QFileDialog()
-        file_paths, _ = file_dialog.getOpenFileNames(
+        """Carga los archivos de beat desde la carpeta beats."""
+        self.beats_list.clear()
+        
+        if not os.path.exists(self.beats_folder):
+            os.makedirs(self.beats_folder, exist_ok=True)
+            self.status_label.setText("Carpeta 'beats' creada. Añade archivos de audio.")
+            return
+        
+        # Buscar archivos de audio
+        audio_extensions = ['.mp3', '.wav', '.m4a', '.aac', '.flac']
+        beat_files = []
+        
+        for file in os.listdir(self.beats_folder):
+            if any(file.lower().endswith(ext) for ext in audio_extensions):
+                beat_files.append(file)
+        
+        # Añadir a la lista
+        for beat_file in sorted(beat_files):
+            self.beats_list.addItem(beat_file)
+        
+        self.status_label.setText(f"Cargados {len(beat_files)} archivos de beat")
+    
+    def _load_beats_from_files(self):
+        """Permite cargar beats desde archivos."""
+        files, _ = QFileDialog.getOpenFileNames(
             self,
-            "Seleccionar archivos de audio",
+            "Seleccionar archivos de beat",
             "",
-            "Archivos de audio (*.mp3 *.wav)"
+            "Audio Files (*.mp3 *.wav *.m4a *.aac *.flac)"
         )
         
-        if file_paths:
-            for path in file_paths:
-                filename = os.path.basename(path)
-                dest_path = os.path.join(self.beats_folder, filename)
-                
-                if os.path.exists(dest_path):
-                    response = QMessageBox.question(
-                        self,
-                        "Archivo duplicado",
-                        f"El archivo '{filename}' ya existe. ¿Desea reemplazarlo?",
-                        QMessageBox.Yes | QMessageBox.No
-                    )
-                    
-                    if response == QMessageBox.No:
-                        continue
-                
-                shutil.copy2(path, dest_path)
-            
-            self._update_beats_list()
-    
-    def _clear_beats(self):
-        """Limpia la lista de beats seleccionados."""
-        self.beats_list.clearSelection()
-        self.beats_info = []
-        self._update_process_list()
-    
-    def _delete_beat_files(self):
-        """Elimina los archivos de beats seleccionados del disco."""
-        selected_items = self.beats_list.selectedItems()
-        if not selected_items:
-            QMessageBox.warning(self, "Selección vacía", "Por favor, seleccione al menos un beat para eliminar.")
-            return
-        
-        confirm = QMessageBox.question(
-            self,
-            "Confirmar eliminación",
-            f"¿Está seguro de eliminar {len(selected_items)} archivo(s) del disco?",
-            QMessageBox.Yes | QMessageBox.No
-        )
-        
-        if confirm == QMessageBox.Yes:
-            for item in selected_items:
-                file_name = item.text()
-                file_path = os.path.join(self.beats_folder, file_name)
+        if files:
+            copied_files = 0
+            for file in files:
                 try:
-                    os.remove(file_path)
-                    # Eliminar también de la lista de procesamiento
-                    self.beats_info = [info for info in self.beats_info if info['audio'] != file_name]
+                    filename = os.path.basename(file)
+                    dest_path = os.path.join(self.beats_folder, filename)
+                    if not os.path.exists(dest_path):
+                        shutil.copy2(file, dest_path)
+                        copied_files += 1
                 except Exception as e:
-                    QMessageBox.warning(self, "Error", f"No se pudo eliminar {file_name}: {str(e)}")
+                    print(f"Error copiando {file}: {e}")
             
-            self._update_beats_list()
-            self._update_process_list()
+            self._load_beats()
+            self.status_label.setText(f"Se copiaron {copied_files} archivos nuevos")
     
-    def _show_beats_list_menu(self, position):
-        """Muestra un menú contextual para la lista de beats disponibles."""
-        selected_items = self.beats_list.selectedItems()
-        if not selected_items:
-            return
-            
-        menu = QMenu()
-        delete_action = menu.addAction("Eliminar archivo(s) del disco")
-        select_all_action = menu.addAction("Seleccionar Todos")
-        select_none_action = menu.addAction("Deseleccionar Todos")
-        
-        action = menu.exec_(self.beats_list.mapToGlobal(position))
-        
-        if action == delete_action:
-            self._delete_beat_files()
-        elif action == select_all_action:
-            self.beats_list.selectAll()
-        elif action == select_none_action:
-            self.beats_list.clearSelection()
-    
-    # === MÉTODOS DE GESTIÓN DE CANALES ===
-    def _update_channels_combo(self):
-        """Actualiza la lista de canales en el combobox."""
+    def _load_channels(self):
+        """Carga los canales desde la configuración."""
         self.channel_combo.clear()
+        self.channel_combo.addItem("Seleccionar canal...")
         
-        channels = []
-        if os.path.exists(self.images_folder):
-            channels = [d for d in os.listdir(self.images_folder) 
-                       if os.path.isdir(os.path.join(self.images_folder, d))]
-        
-        self.config['channels'] = channels
-        self._save_config()
-        
-        self.channel_combo.addItems(channels)
-        
-        if channels:
-            self.channel_combo.insertSeparator(len(channels))
-        self.channel_combo.addItem("➕ Agregar nuevo canal...")
+        try:
+            if os.path.exists(CONFIG_FILE):
+                with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    channels = config.get('channels', {})
+                    
+                    for channel_name in sorted(channels.keys()):
+                        self.channel_combo.addItem(channel_name)
+        except Exception as e:
+            print(f"Error cargando canales: {e}")
     
-    def _update_groups_for_channel(self, channel):
-        """Actualiza la lista de grupos disponibles para un canal."""
-        if not hasattr(self, 'group_combo') or not channel:
-            return
-        
-        # Verificar si se seleccionó "Agregar nuevo canal..."
-        if channel == "➕ Agregar nuevo canal...":
-            self._create_new_channel()
-            return
-        
+    def _on_channel_changed(self, channel_name):
+        """Se ejecuta cuando cambia el canal seleccionado."""
         self.group_combo.clear()
+        self.group_combo.addItem("Seleccionar grupo...")
         
-        channel_folder = os.path.join(self.images_folder, channel)
-        if os.path.exists(channel_folder):
-            groups = [d for d in os.listdir(channel_folder) 
-                     if os.path.isdir(os.path.join(channel_folder, d))]
-            self.group_combo.addItems(groups)
-    
-    def _manage_channels(self):
-        """Abre el diálogo para gestionar canales de YouTube."""
-        
-        # Crear diálogo personalizado para gestión de canales
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Gestión de Canales")
-        dialog.setModal(True)
-        dialog.resize(500, 400)
-        
-        layout = QVBoxLayout(dialog)
-        
-        # Título
-        title_label = QLabel("Gestión de Canales de YouTube")
-        title_label.setProperty("heading", True)
-        layout.addWidget(title_label)
-        
-        # Lista de canales existentes
-        channels_label = QLabel("Canales existentes:")
-        layout.addWidget(channels_label)
-        
-        channels_list = QListWidget()
-        
-        # Cargar canales existentes
-        if os.path.exists(self.images_folder):
-            existing_channels = [d for d in os.listdir(self.images_folder) 
-                               if os.path.isdir(os.path.join(self.images_folder, d))]
-            for channel in existing_channels:
-                channels_list.addItem(channel)
-        
-        layout.addWidget(channels_list)
-        
-        # Botones de acción
-        buttons_layout = QHBoxLayout()
-        
-        btn_create = QPushButton("➕ Crear Nuevo Canal")
-        btn_create.clicked.connect(lambda: self._create_new_channel_from_dialog(dialog))
-        buttons_layout.addWidget(btn_create)
-        
-        btn_open_folder = QPushButton("📁 Abrir Carpeta")
-        btn_open_folder.clicked.connect(lambda: self._open_channel_folder(channels_list))
-        buttons_layout.addWidget(btn_open_folder)
-        
-        btn_delete = QPushButton("🗑️ Eliminar Canal")
-        btn_delete.clicked.connect(lambda: self._delete_channel(channels_list))
-        buttons_layout.addWidget(btn_delete)
-        
-        layout.addWidget(QWidget())  # Spacer
-        layout.addLayout(buttons_layout)
-        
-        # Botón cerrar
-        btn_close = QPushButton("Cerrar")
-        btn_close.clicked.connect(dialog.accept)
-        layout.addWidget(btn_close)
-        
-        dialog.exec_()
-        
-        # Actualizar lista después de cerrar el diálogo
-        self._update_channels_combo()
-    
-    def _create_new_channel(self):
-        """Crear un nuevo canal de YouTube."""
-        channel_name, ok = QInputDialog.getText(
-            self, 
-            "Nuevo Canal", 
-            "Ingrese el nombre del nuevo canal de YouTube:",
-            QLineEdit.Normal,
-            ""
-        )
-        
-        if not ok or not channel_name.strip():
-            # Usuario canceló o no ingresó nombre, volver al canal anterior
-            self._update_channels_combo()
-            return
-        
-        channel_name = channel_name.strip()
-        
-        # Validar nombre del canal
-        if not self._validate_channel_name(channel_name):
-            QMessageBox.warning(
-                self, 
-                "Nombre inválido", 
-                "El nombre del canal contiene caracteres no válidos.\n"
-                "Use solo letras, números, guiones y espacios."
-            )
-            self._update_channels_combo()
-            return
-        
-        # Verificar si el canal ya existe
-        channel_folder = os.path.join(self.images_folder, channel_name)
-        if os.path.exists(channel_folder):
-            QMessageBox.warning(
-                self, 
-                "Canal existente", 
-                f"El canal '{channel_name}' ya existe."
-            )
-            self._update_channels_combo()
+        if not channel_name or channel_name == "Seleccionar canal...":
+            self.images_info_label.setText("Selecciona un canal y grupo para ver información de imágenes")
             return
         
         try:
-            # Crear carpeta del canal
-            os.makedirs(channel_folder, exist_ok=True)
-            
-            # Crear grupo por defecto "Principal"
-            default_group_folder = os.path.join(channel_folder, "Principal")
-            os.makedirs(default_group_folder, exist_ok=True)
-            
-            # Crear archivo README con instrucciones
-            readme_path = os.path.join(channel_folder, "README.txt")
-            with open(readme_path, 'w', encoding='utf-8') as f:
-                f.write(f"Canal: {channel_name}\n")
-                f.write("=" * (len(channel_name) + 7) + "\n\n")
-                f.write("Instrucciones:\n")
-                f.write("1. Agregue las imágenes para este canal en las subcarpetas correspondientes\n")
-                f.write("2. Cada subcarpeta representa un 'grupo' de imágenes (ej: Principal, Covers, etc.)\n")
-                f.write("3. Use imágenes en formato JPG, PNG o BMP\n\n")
-                f.write("Estructura recomendada:\n")
-                f.write("├── Principal/       (imágenes generales del canal)\n")
-                f.write("├── Covers/          (portadas de álbumes)\n")
-                f.write("├── Artistas/        (imágenes de artistas)\n")
-                f.write("└── Especiales/      (imágenes para eventos especiales)\n")
-            
-            QMessageBox.information(
-                self, 
-                "Canal creado", 
-                f"Canal '{channel_name}' creado exitosamente.\n\n"
-                f"Se creó la carpeta: {channel_folder}\n"
-                f"Grupo por defecto: Principal\n\n"
-                f"Agregue imágenes en las subcarpetas para usar con este canal."
-            )
-            
-            # Actualizar lista de canales y seleccionar el nuevo
-            self._update_channels_combo()
-            
-            # Seleccionar el nuevo canal creado
-            index = self.channel_combo.findText(channel_name)
-            if index >= 0:
-                self.channel_combo.setCurrentIndex(index)
-            
+            if os.path.exists(CONFIG_FILE):
+                with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    channels = config.get('channels', {})
+                    
+                    if channel_name in channels:
+                        groups = channels[channel_name].get('groups', [])
+                        for group in groups:
+                            self.group_combo.addItem(group)
+                        
+                        self._update_images_info()
         except Exception as e:
-            QMessageBox.critical(
-                self, 
-                "Error", 
-                f"Error al crear el canal '{channel_name}':\n{str(e)}"
-            )
-            self._update_channels_combo()
+            print(f"Error cargando grupos: {e}")
     
-    def _validate_channel_name(self, name):
-        """Valida que el nombre del canal sea seguro para usar como nombre de carpeta."""
-        import re
-        # Permitir letras, números, espacios, guiones y algunos caracteres especiales seguros
-        pattern = r'^[a-zA-Z0-9\s\-_\.()]+$'
-        return bool(re.match(pattern, name)) and len(name) <= 50
-    
-    def _create_new_channel_from_dialog(self, parent_dialog):
-        """Crear nuevo canal desde el diálogo de gestión."""
-        self._create_new_channel()
-        parent_dialog.accept()  # Cerrar diálogo de gestión
-    
-    def _open_channel_folder(self, channels_list):
-        """Abrir la carpeta del canal seleccionado en el explorador."""
-        current_item = channels_list.currentItem()
-        if not current_item:
-            QMessageBox.warning(self, "Selección vacía", "Seleccione un canal de la lista.")
+    def _update_images_info(self):
+        """Actualiza la información de imágenes del canal/grupo seleccionado."""
+        channel = self.channel_combo.currentText()
+        group = self.group_combo.currentText()
+        
+        if not channel or channel == "Seleccionar canal..." or not group or group == "Seleccionar grupo...":
+            self.images_info_label.setText("Selecciona un canal y grupo para ver información de imágenes")
             return
         
-        channel_name = current_item.text()
-        channel_folder = os.path.join(self.images_folder, channel_name)
+        images_path = os.path.join(self.images_folder, channel, group)
         
-        if os.path.exists(channel_folder):
-            import platform
-            if platform.system() == "Windows":
-                os.startfile(channel_folder)
-            elif platform.system() == "Darwin":  # macOS
-                subprocess.Popen(["open", channel_folder])
-            else:  # Linux
-                subprocess.Popen(["xdg-open", channel_folder])
+        if not os.path.exists(images_path):
+            self.images_info_label.setText(f"📁 Carpeta: {channel}/{group}\n❌ No existe la carpeta de imágenes")
+            return
+        
+        # Contar imágenes
+        image_extensions = ['.jpg', '.jpeg', '.png', '.bmp']
+        image_count = 0
+        
+        for file in os.listdir(images_path):
+            if any(file.lower().endswith(ext) for ext in image_extensions):
+                image_count += 1
+        
+        if image_count == 0:
+            self.images_info_label.setText(f"📁 Carpeta: {channel}/{group}\n⚠️ No hay imágenes en esta carpeta")
         else:
-            QMessageBox.warning(self, "Carpeta no encontrada", f"La carpeta del canal '{channel_name}' no existe.")
+            self.images_info_label.setText(f"📁 Carpeta: {channel}/{group}\n✅ {image_count} imágenes disponibles")
     
-    def _delete_channel(self, channels_list):
-        """Eliminar canal seleccionado (solo si está vacío)."""
-        current_item = channels_list.currentItem()
-        if not current_item:
-            QMessageBox.warning(self, "Selección vacía", "Seleccione un canal de la lista.")
+    def _open_channel_manager(self):
+        """Abre el gestor de canales."""
+        manager = ChannelManager(self, CONFIG_FILE)
+        if manager.exec() == QDialog.DialogCode.Accepted:
+            # Recargar canales
+            self._load_channels()
+            self.status_label.setText("Configuración de canales actualizada")
+    
+    def _assign_channel_to_beats(self):
+        """Asigna canal y grupo a los beats seleccionados."""
+        selected_beats = self.beats_list.selectedItems()
+        
+        if not selected_beats:
+            QMessageBox.warning(self, "Selección vacía", "Selecciona al menos un beat para asignar.")
             return
         
-        channel_name = current_item.text()
-        channel_folder = os.path.join(self.images_folder, channel_name)
+        channel = self.channel_combo.currentText()
+        group = self.group_combo.currentText()
         
-        # Confirmar eliminación
-        reply = QMessageBox.question(
-            self, 
-            "Confirmar eliminación", 
-            f"¿Está seguro de que desea eliminar el canal '{channel_name}'?\n\n"
-            f"ADVERTENCIA: Esto eliminará permanentemente la carpeta:\n{channel_folder}\n\n"
-            f"Solo se puede eliminar si la carpeta está vacía o contiene solo archivos README.",
-            QMessageBox.Yes | QMessageBox.No, 
-            QMessageBox.No
-        )
+        if not channel or channel == "Seleccionar canal..." or not group or group == "Seleccionar grupo...":
+            QMessageBox.warning(self, "Configuración incompleta", "Selecciona un canal y grupo válido.")
+            return
         
-        if reply == QMessageBox.Yes:
-            try:
-                # Verificar si está vacío o solo tiene README
-                if os.path.exists(channel_folder):
-                    contents = os.listdir(channel_folder)
-                    non_readme_files = [f for f in contents if not f.lower().startswith('readme')]
-                    
-                    if non_readme_files:
-                        QMessageBox.warning(
-                            self, 
-                            "Canal no vacío", 
-                            f"El canal '{channel_name}' contiene archivos o subcarpetas.\n"
-                            f"Elimine todo el contenido primero antes de eliminar el canal."
-                        )
-                        return
-                    
-                    # Eliminar carpeta
-                    shutil.rmtree(channel_folder)
-                    QMessageBox.information(self, "Canal eliminado", f"Canal '{channel_name}' eliminado exitosamente.")
-                    
-                    # Actualizar lista
-                    channels_list.takeItem(channels_list.currentRow())
-                    
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Error al eliminar el canal:\n{str(e)}")
+        # Verificar que existan imágenes
+        images_path = os.path.join(self.images_folder, channel, group)
+        if not os.path.exists(images_path):
+            QMessageBox.warning(self, "Sin imágenes", f"No existe la carpeta de imágenes para {channel}/{group}")
+            return
+        
+        image_extensions = ['.jpg', '.jpeg', '.png', '.bmp']
+        image_count = sum(1 for f in os.listdir(images_path) if any(f.lower().endswith(ext) for ext in image_extensions))
+        
+        if image_count == 0:
+            QMessageBox.warning(self, "Sin imágenes", f"No hay imágenes en la carpeta {channel}/{group}")
+            return
+        
+        # Asignar beats
+        assigned_count = 0
+        for beat_item in selected_beats:
+            beat_file = beat_item.text()
+            
+            # Verificar si ya está asignado
+            already_assigned = False
+            for beat_info in self.beats_info:
+                if beat_info['beat_file'] == beat_file:
+                    already_assigned = True
+                    break
+            
+            if not already_assigned:
+                self.beats_info.append({
+                    'beat_file': beat_file,
+                    'channel': channel,
+                    'group': group,
+                    'custom_name': ''
+                })
+                assigned_count += 1
+        
+        self._update_process_list()
+        self.status_label.setText(f"Asignados {assigned_count} beats a {channel}/{group}")
     
-    def _assign_channel_and_group(self):
-        """Asigna un canal y grupo a los beats seleccionados."""
+    def _update_process_list(self):
+        """Actualiza la lista de procesamiento."""
+        self.process_list.clear()
+        
+        for beat_info in self.beats_info:
+            display_name = beat_info.get('custom_name', '') or beat_info['beat_file']
+            item_text = f"{display_name} → {beat_info['channel']}/{beat_info['group']}"
+            self.process_list.addItem(item_text)
+    
+    def _edit_assigned_beat(self, item):
+        """Edita el nombre personalizado de un beat asignado."""
+        index = self.process_list.row(item)
+        if 0 <= index < len(self.beats_info):
+            beat_info = self.beats_info[index]
+            
+            dialog = EditBeatNameDialog(beat_info, self)
+            dialog.set_beat_info(beat_info['beat_file'], beat_info.get('custom_name', ''))
+            
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                new_name = dialog.get_custom_name()
+                self.beats_info[index]['custom_name'] = new_name
+                self._update_process_list()
+    
+    def _edit_beat_name(self):
+        """Edita el nombre de un beat seleccionado (antes de asignar)."""
+        current_item = self.beats_list.currentItem()
+        if not current_item:
+            QMessageBox.warning(self, "Sin selección", "Selecciona un beat para editar su nombre.")
+            return
+        
+        beat_file = current_item.text()
+        dialog = EditBeatNameDialog(self)
+        dialog.set_beat_info(beat_file, "")
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            new_name = dialog.get_custom_name()
+            if new_name:
+                # Renombrar archivo físico
+                old_path = os.path.join(self.beats_folder, beat_file)
+                new_filename = f"{new_name}.{beat_file.split('.')[-1]}"
+                new_path = os.path.join(self.beats_folder, new_filename)
+                
+                try:
+                    os.rename(old_path, new_path)
+                    self._load_beats()
+                    self.status_label.setText(f"Beat renombrado a: {new_filename}")
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"No se pudo renombrar el archivo: {e}")
+    
+    def _remove_from_process_list(self):
+        """Quita beats de la lista de procesamiento."""
+        selected_items = self.process_list.selectedItems()
+        
+        if not selected_items:
+            QMessageBox.warning(self, "Sin selección", "Selecciona beats para quitar de la lista.")
+            return
+        
+        # Obtener índices en orden inverso para evitar problemas al eliminar
+        indices = [self.process_list.row(item) for item in selected_items]
+        indices.sort(reverse=True)
+        
+        for index in indices:
+            if 0 <= index < len(self.beats_info):
+                del self.beats_info[index]
+        
+        self._update_process_list()
+        self.status_label.setText(f"Quitados {len(indices)} beats de la lista")
+    
+    def _clear_process_list(self):
+        """Limpia toda la lista de procesamiento."""
+        if self.beats_info:
+            reply = QMessageBox.question(
+                self, "Confirmar", 
+                "¿Limpiar toda la lista de procesamiento?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                self.beats_info.clear()
+                self._update_process_list()
+                self.status_label.setText("Lista de procesamiento limpiada")
+    
+    def _delete_selected_beats(self):
+        """Elimina los beats seleccionados."""
         selected_items = self.beats_list.selectedItems()
         
         if not selected_items:
-            QMessageBox.warning(self, "Selección vacía", "Por favor, seleccione al menos un beat de la lista.")
+            QMessageBox.warning(self, "Selección vacía", "Selecciona al menos un beat para eliminar.")
             return
         
-        current_channel = self.channel_combo.currentText()
-        current_group = self.group_combo.currentText() or "Principal"
-        
-        if current_channel == "➕ Agregar nuevo canal...":
-            QMessageBox.warning(self, "Selección inválida", "Por favor, seleccione un canal existente.")
-            return
-        
-        for item in selected_items:
-            beat_name = item.text()
-            
-            # Verificar si el beat ya está en la lista
-            existing_index = -1
-            for i, info in enumerate(self.beats_info):
-                if info['audio'] == beat_name:
-                    existing_index = i
-                    break
-            
-            if existing_index >= 0:
-                self.beats_info[existing_index]['channel'] = current_channel
-                self.beats_info[existing_index]['group'] = current_group
-            else:
-                self.beats_info.append({
-                    'audio': beat_name,
-                    'channel': current_channel,
-                    'group': current_group
-                })
-        
-        self._update_process_list()
-    
-    # === MÉTODOS DE GESTIÓN DE PROCESOS ===
-    def _update_process_list(self):
-        """Actualiza la lista de beats a procesar."""
-        self.process_list.clear()
-        
-        for info in self.beats_info:
-            item = QListWidgetItem()
-            item.setIcon(qta.icon('fa5s.video', color='#4A9EFF'))
-            
-            channel = info.get('channel', '')
-            group = info.get('group', 'Principal')
-            
-            if info.get('custom_name'):
-                display_text = f"{info['custom_name']} ({info['audio']}) | {channel} - {group}"
-            else:
-                display_text = f"{info['audio']} | {channel} - {group}"
-            
-            item.setText(display_text)
-            item.setToolTip(f"Audio: {info['audio']}\nCanal: {channel}\nGrupo: {group}")
-            self.process_list.addItem(item)
-    
-    def _edit_selected_beat_name(self):
-        """Abre un diálogo para editar el nombre personalizado del beat seleccionado."""
-        selected_items = self.process_list.selectedItems()
-        if not selected_items:
-            QMessageBox.warning(self, "Selección vacía", "Por favor, seleccione un beat de la lista para editar su nombre.")
-            return
-        
-        selected_index = self.process_list.row(selected_items[0])
-        if selected_index < 0 or selected_index >= len(self.beats_info):
-            return
-        
-        beat_info = self.beats_info[selected_index]
-        dialog = EditBeatNameDialog(beat_info, self)
-        
-        if dialog.exec_() == QDialog.Accepted:
-            self.beats_info[selected_index]['custom_name'] = dialog.custom_name
-            self._update_process_list()
-    
-    def _edit_beat_name(self, item):
-        """Maneja el doble clic en un elemento de la lista de procesos."""
-        self._edit_selected_beat_name()
-    
-    def _remove_selected_beat(self):
-        """Quita los beats seleccionados de la lista de procesos."""
-        selected_items = self.process_list.selectedItems()
-        if not selected_items:
-            QMessageBox.warning(self, "Selección vacía", "Por favor, seleccione al menos un beat de la lista para eliminar.")
-            return
-        
-        confirm = QMessageBox.question(
-            self,
-            "Confirmar eliminación",
-            f"¿Está seguro de eliminar {len(selected_items)} beat(s) de la lista?",
-            QMessageBox.Yes | QMessageBox.No
+        reply = QMessageBox.question(
+            self, "Confirmar eliminación",
+            f"¿Estás seguro de que quieres eliminar {len(selected_items)} beat(s)?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
-        if confirm == QMessageBox.Yes:
-            indices = sorted([self.process_list.row(item) for item in selected_items], reverse=True)
+        if reply == QMessageBox.StandardButton.Yes:
+            for item in selected_items:
+                beat_file = item.text()
+                file_path = os.path.join(self.beats_folder, beat_file)
+                try:
+                    os.remove(file_path)
+                    # También quitar de lista de procesamiento si está
+                    self.beats_info = [b for b in self.beats_info if b['beat_file'] != beat_file]
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"No se pudo eliminar {beat_file}: {e}")
             
-            for index in indices:
-                if index < len(self.beats_info):
-                    del self.beats_info[index]
-            
+            self._load_beats()
             self._update_process_list()
     
-    def _show_process_list_menu(self, position):
-        """Muestra un menú contextual para la lista de procesos."""
-        menu = QMenu()
-        edit_action = menu.addAction("Editar Nombre de Video")
-        remove_action = menu.addAction("Quitar de la Lista")
+    def _upload_images_to_channel(self):
+        """Permite subir imágenes al canal/grupo seleccionado."""
+        channel = self.channel_combo.currentText()
+        group = self.group_combo.currentText()
         
-        action = menu.exec_(self.process_list.mapToGlobal(position))
+        if not channel or channel == "Seleccionar canal..." or not group or group == "Seleccionar grupo...":
+            QMessageBox.warning(self, "Selección incompleta", "Selecciona un canal y grupo primero.")
+            return
         
-        if action == edit_action:
-            self._edit_selected_beat_name()
-        elif action == remove_action:
-            self._remove_selected_beat()
-    
-    # === MÉTODOS DE EXPORTACIÓN ===
-    def _browse_output(self):
-        """Permite al usuario seleccionar la carpeta de salida."""
-        folder_dialog = QFileDialog()
-        folder_path = folder_dialog.getExistingDirectory(
+        files, _ = QFileDialog.getOpenFileNames(
             self,
-            "Seleccionar carpeta de salida",
-            self.output_folder
+            "Seleccionar imágenes",
+            "",
+            "Image Files (*.jpg *.jpeg *.png *.bmp)"
         )
         
-        if folder_path:
-            self.output_folder = folder_path
-            self.output_path.setText(folder_path)
-            self.config['last_output_folder'] = folder_path
-            self._save_config()
+        if files:
+            target_path = os.path.join(self.images_folder, channel, group)
+            os.makedirs(target_path, exist_ok=True)
+            
+            copied_files = 0
+            for file in files:
+                try:
+                    filename = os.path.basename(file)
+                    dest_path = os.path.join(target_path, filename)
+                    if not os.path.exists(dest_path):
+                        shutil.copy2(file, dest_path)
+                        copied_files += 1
+                except Exception as e:
+                    print(f"Error copiando {file}: {e}")
+            
+            self._update_images_info()
+            self.status_label.setText(f"Se copiaron {copied_files} imágenes a {channel}/{group}")
     
-    def _generate_videos(self):
+    def _browse_output_folder(self):
+        """Permite seleccionar la carpeta de salida."""
+        folder = QFileDialog.getExistingDirectory(self, "Seleccionar carpeta de salida", self.output_folder)
+        if folder:
+            self.output_folder = folder
+            self.output_label.setText(f"📍 {self.output_folder}")
+            self.save_config()
+            self.status_label.setText(f"Carpeta de salida: {self.output_folder}")
+    
+    def _start_generation(self):
         """Inicia el proceso de generación de videos."""
         if not self.beats_info:
-            QMessageBox.warning(self, "Lista vacía", "No hay beats para procesar. Asigne canales y grupos a los beats primero.")
+            QMessageBox.warning(self, "Lista vacía", "No hay beats para procesar. Asigna canales y grupos a los beats primero.")
             return
-        
-        # Mostrar diálogo de configuración de thumbnails
-        config_dialog = ThumbnailConfigDialog(self)
-        if config_dialog.exec() != QDialog.DialogCode.Accepted:
-            return  # Usuario canceló
-        
-        thumbnail_config = config_dialog.get_config()
         
         if not os.path.exists(self.output_folder):
             try:
                 os.makedirs(self.output_folder, exist_ok=True)
             except Exception as e:
-                QMessageBox.critical(self, "Error", f"No se pudo crear la carpeta de salida: {str(e)}")
+                QMessageBox.critical(self, "Error", f"No se pudo crear la carpeta de salida: {e}")
                 return
         
+        # Configurar UI para procesamiento
         self._set_ui_processing(True)
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setValue(0)
         
+        # Crear y iniciar worker
         self.worker = VideoGeneratorWorker(
             self.beats_folder,
             self.images_folder,
             self.output_folder,
-            self.beats_info,
-            thumbnail_config  # Pasar la configuración al worker
+            self.beats_info
         )
         
         self.worker.progress_updated.connect(self._update_progress)
         self.worker.finished.connect(self._process_finished)
-        
         self.worker.start()
     
-    def _cancel_process(self):
-        """Cancela el proceso de generación de videos."""
+    def _cancel_generation(self):
+        """Cancela el proceso de generación."""
         if self.worker and self.worker.isRunning():
-            self.worker.stop_processing = True
+            self.worker.stop()
+            self.worker.wait()
+            self._set_ui_processing(False)
+            self.progress_bar.setVisible(False)
+            self.status_label.setText("Proceso cancelado")
     
-    def _update_progress(self, value, message):
-        """Actualiza la barra de progreso y el mensaje de estado."""
-        self.progress_bar.setValue(value)
+    def _update_progress(self, progress, message):
+        """Actualiza la barra de progreso y el mensaje."""
+        self.progress_bar.setValue(progress)
         self.status_label.setText(message)
     
     def _process_finished(self, success, message):
-        """Maneja la finalización del proceso de generación."""
+        """Se ejecuta cuando termina el procesamiento."""
         self._set_ui_processing(False)
+        self.progress_bar.setVisible(False)
         
         if success:
-            # Preguntar si quiere crear thumbnails automáticamente
-            reply = QMessageBox.question(
-                self, 
-                "Proceso completado", 
-                f"{message}\\n\\n¿Quieres abrir el editor de thumbnails para crear thumbnails para los videos generados?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.Yes
-            )
-            
-            if reply == QMessageBox.StandardButton.Yes:
-                self._open_thumbnail_editor()
-            else:
-                QMessageBox.information(self, "Completado", "Videos generados exitosamente")
+            QMessageBox.information(self, "Completado", message)
         else:
             QMessageBox.warning(self, "Error", message)
     
@@ -1475,197 +1131,27 @@ class MainWindow(QMainWindow):
         self.btn_browse_output.setEnabled(not is_processing)
         self.btn_generate.setEnabled(not is_processing)
         self.btn_cancel.setEnabled(is_processing)
-        self.btn_thumbnail_editor.setEnabled(not is_processing)
         self.beats_list.setEnabled(not is_processing)
         self.process_list.setEnabled(not is_processing)
         self.btn_edit_name.setEnabled(not is_processing)
-        self.btn_remove_beat.setEnabled(not is_processing)
+        self.btn_remove_from_process.setEnabled(not is_processing)
+        self.btn_clear_process.setEnabled(not is_processing)
+
+
+def main():
+    """Función principal."""
+    app = QApplication(sys.argv)
     
-    def _open_thumbnail_editor(self):
-        """Abre el editor de thumbnails en una ventana separada."""
-        try:
-            # Importar el editor de thumbnails
-            from thumbnail_editor import ThumbnailEditor
-            
-            # Crear y mostrar la ventana del editor
-            self.thumbnail_editor_window = ThumbnailEditor()
-            
-            # Configurar el canal actual si hay uno seleccionado
-            current_channel = self.channel_combo.currentText()
-            if current_channel and current_channel != "➕ Agregar nuevo canal...":
-                self.thumbnail_editor_window.channel_combo.setCurrentText(current_channel)
-                
-            # Mostrar la ventana
-            self.thumbnail_editor_window.show()
-            
-            # Actualizar el status
-            self.status_label.setText("Editor de thumbnails abierto")
-            
-        except ImportError as e:
-            QMessageBox.critical(
-                self, 
-                "Error", 
-                f"No se pudo cargar el editor de thumbnails: {e}\\n\\nAsegúrate de que thumbnail_editor.py existe."
-            )
-        except Exception as e:
-            QMessageBox.critical(
-                self, 
-                "Error", 
-                f"Error inesperado al abrir el editor de thumbnails: {e}"
-            )
+    # Configurar estilo
+    app.setStyle(QStyleFactory.create('Fusion'))
     
-    def _upload_images_to_channel(self):
-        """Permite subir imágenes al canal seleccionado."""
-        current_channel = self.channel_combo.currentText()
-        
-        # Validar que hay un canal seleccionado
-        if not current_channel or current_channel == "➕ Agregar nuevo canal...":
-            QMessageBox.warning(
-                self, 
-                "Sin canal seleccionado", 
-                "Por favor, seleccione un canal válido antes de subir imágenes."
-            )
-            return
-        
-        # Verificar que el canal existe
-        channel_folder = os.path.join(self.images_folder, current_channel)
-        if not os.path.exists(channel_folder):
-            reply = QMessageBox.question(
-                self,
-                "Canal no encontrado",
-                f"La carpeta del canal '{current_channel}' no existe.\n"
-                f"¿Desea crearla ahora?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes
-            )
-            
-            if reply == QMessageBox.Yes:
-                try:
-                    os.makedirs(channel_folder, exist_ok=True)
-                    os.makedirs(os.path.join(channel_folder, "Principal"), exist_ok=True)
-                except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Error al crear la carpeta del canal:\n{str(e)}")
-                    return
-            else:
-                return
-        
-        # Obtener grupos disponibles
-        groups = []
-        if os.path.exists(channel_folder):
-            groups = [d for d in os.listdir(channel_folder) 
-                     if os.path.isdir(os.path.join(channel_folder, d))]
-        
-        if not groups:
-            groups = ["Principal"]
-            os.makedirs(os.path.join(channel_folder, "Principal"), exist_ok=True)
-        
-        # Seleccionar grupo
-        group, ok = QInputDialog.getItem(
-            self,
-            "Seleccionar Grupo",
-            f"Seleccione el grupo dentro del canal '{current_channel}':",
-            groups,
-            0,
-            False
-        )
-        
-        if not ok:
-            return
-        
-        group_folder = os.path.join(channel_folder, group)
-        
-        # Seleccionar archivos de imagen
-        file_dialog = QFileDialog()
-        file_dialog.setFileMode(QFileDialog.ExistingFiles)
-        file_dialog.setNameFilter("Imágenes (*.jpg *.jpeg *.png *.bmp *.gif *.tiff)")
-        file_dialog.setViewMode(QFileDialog.Detail)
-        
-        if file_dialog.exec_():
-            selected_files = file_dialog.selectedFiles()
-            
-            if not selected_files:
-                return
-            
-            # Confirmar subida
-            reply = QMessageBox.question(
-                self,
-                "Confirmar subida",
-                f"¿Subir {len(selected_files)} imagen(es) a:\n"
-                f"Canal: {current_channel}\n"
-                f"Grupo: {group}\n\n"
-                f"Carpeta destino: {group_folder}",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes
-            )
-            
-            if reply == QMessageBox.Yes:
-                try:
-                    copied_files = 0
-                    errors = []
-                    
-                    for source_file in selected_files:
-                        filename = os.path.basename(source_file)
-                        destination = os.path.join(group_folder, filename)
-                        
-                        # Verificar si el archivo ya existe
-                        if os.path.exists(destination):
-                            reply = QMessageBox.question(
-                                self,
-                                "Archivo existente",
-                                f"El archivo '{filename}' ya existe.\n¿Desea reemplazarlo?",
-                                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
-                                QMessageBox.No
-                            )
-                            
-                            if reply == QMessageBox.Cancel:
-                                break
-                            elif reply == QMessageBox.No:
-                                continue
-                        
-                        try:
-                            shutil.copy2(source_file, destination)
-                            copied_files += 1
-                        except Exception as e:
-                            errors.append(f"{filename}: {str(e)}")
-                    
-                    # Mostrar resultado
-                    message = f"Subida completada:\n✅ {copied_files} archivo(s) copiado(s)"
-                    if errors:
-                        message += f"\n❌ {len(errors)} error(es):\n" + "\n".join(errors[:3])
-                        if len(errors) > 3:
-                            message += f"\n... y {len(errors) - 3} error(es) más"
-                    
-                    QMessageBox.information(self, "Subida de imágenes", message)
-                    
-                    # Actualizar la lista de grupos si es necesario
-                    self._update_groups_for_channel(current_channel)
-                    
-                except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Error durante la subida:\n{str(e)}")
+    # Crear ventana principal
+    window = MainWindow()
+    window.show()
     
-    def _close_application(self):
-        """Cierra la aplicación completamente."""
-        reply = QMessageBox.question(
-            self,
-            "Cerrar aplicación",
-            "¿Está seguro de que desea cerrar la aplicación?\n\n"
-            "Se perderán los datos no guardados.",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
-        
-        if reply == QMessageBox.Yes:
-            # Cancelar cualquier proceso en curso
-            if hasattr(self, 'worker') and self.worker and self.worker.isRunning():
-                self.worker.terminate()
-                self.worker.wait(3000)  # Esperar máximo 3 segundos
-            
-            # Cerrar aplicación
-            QApplication.quit()
+    # Ejecutar aplicación
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec_())
+    main()

@@ -1,15 +1,40 @@
 {
   "last_output_folder": "C:/Users/matia/OneDrive/Desktop",
-  "genres": [
-    "mattwyyre",
-    "wyrelatinbeatz"
-  ],
-  "channels": [
-    "mattwyyre",
-    "matwyrebeats",
-    "MelodyMaker",
-    "Trap Indie Type Beats",
-    "TrappyBeats",
-    "wyrelatinbeatz"
-  ]
+  "channels": {
+    "mattwyyre": {
+      "groups": [
+        "Principal",
+        "Test con IA"
+      ]
+    },
+    "matwyrebeats": {
+      "groups": [
+        "Principal"
+      ]
+    },
+    "MelodyMaker": {
+      "groups": [
+        "Principal"
+      ]
+    },
+    "Trap Indie Type Beats": {
+      "groups": [
+        "Principal"
+      ]
+    },
+    "TrappyBeats": {
+      "groups": [
+        "Dark",
+        "Principal"
+      ]
+    },
+    "wyrelatinbeatz": {
+      "groups": []
+    },
+    "IslaBeatz": {
+      "groups": [
+        "Principal"
+      ]
+    }
+  }
 }
