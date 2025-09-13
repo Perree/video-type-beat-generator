@@ -27,8 +27,9 @@ from PyQt6.QtGui import QPixmap, QIcon, QColor, QPalette, QFont, QCursor, QLinea
 import qdarkstyle
 import qtawesome as qta
 
-# Importar el diálogo para editar nombres de beat
+# Importar diálogos
 from edit_beat_dialog import EditBeatNameDialog
+from content_selection_dialog import ContentSelectionDialog
 
 # Constantes
 CONFIG_FILE = os.path.join('config', 'app_config.json')
@@ -108,12 +109,14 @@ class VideoGeneratorWorker(QThread):
     progress_updated = pyqtSignal(int, str)
     finished = pyqtSignal(bool, str)
     
-    def __init__(self, beats_folder, images_folder, output_folder, beats_info):
+    def __init__(self, beats_folder, images_folder, output_folder, beats_info, content_type="images", main_window=None):
         super().__init__()
         self.beats_folder = beats_folder
         self.images_folder = images_folder
         self.output_folder = output_folder
         self.beats_info = beats_info
+        self.content_type = content_type
+        self.main_window = main_window  # Referencia para usar funciones de selección
         self.stop_processing = False
     
     def run(self):
@@ -135,10 +138,19 @@ class VideoGeneratorWorker(QThread):
                 progress = int((i / total_beats) * 100)
                 self.progress_updated.emit(progress, f"Procesando: {beat_file} ({i+1}/{total_beats})")
                 
-                # Buscar imagen para este beat
-                image = self._find_image_for_beat(channel, group)
-                if not image:
-                    print(f"⚠️ No se encontró imagen para {beat_file} en {channel}/{group}")
+                # Buscar contenido para este beat usando el sistema anti-duplicados
+                if self.main_window:
+                    content_file = self.main_window._select_unique_content(channel, group, self.content_type)
+                else:
+                    # Fallback al método anterior
+                    if self.content_type == "videos":
+                        content_file = self._find_video_for_beat(channel, group)
+                    else:
+                        content_file = self._find_image_for_beat(channel, group)
+                
+                if not content_file:
+                    content_name = "video" if self.content_type == "videos" else "imagen"
+                    print(f"⚠️ No se encontró {content_name} para {beat_file} en {channel}/{group}")
                     continue
                 
                 # Crear carpeta de salida específica
@@ -154,16 +166,18 @@ class VideoGeneratorWorker(QThread):
                 else:
                     base_output_name = f"{os.path.splitext(beat_file)[0]}_{channel}_{group}"
                 
-                success = self._generate_video(image, audio_file, channel, group_output_folder, base_output_name)
+                success = self._generate_video(content_file, audio_file, channel, group_output_folder, base_output_name, self.content_type)
                 
                 if success:
                     successful_videos += 1
-                    # Copiar imagen utilizada para referencia
-                    image_copy_path = os.path.join(group_output_folder, f"{base_output_name}_imagen.jpg")
-                    try:
-                        shutil.copy2(image, image_copy_path)
-                    except:
-                        pass
+                    # Copiar contenido utilizado para referencia
+                    if self.content_type == "images":
+                        content_copy_path = os.path.join(group_output_folder, f"{base_output_name}_imagen.jpg")
+                        try:
+                            shutil.copy2(content_file, content_copy_path)
+                        except:
+                            pass
+                    # Para videos no copiamos ya que son archivos más grandes
                 else:
                     print(f"❌ Error generando video para {beat_file}")
                 
@@ -208,35 +222,78 @@ class VideoGeneratorWorker(QThread):
         
         return None
     
-    def _generate_video(self, image_path, audio_path, channel, output_folder, base_name):
-        """Genera un video combinando imagen y audio."""
+    def _find_video_for_beat(self, channel, group):
+        """Busca un video apropiado para el beat (método fallback)."""
+        # Buscar en carpeta específica del canal y grupo
+        channel_group_path = os.path.join("videos", channel, group)
+        
+        if os.path.exists(channel_group_path):
+            videos = [f for f in os.listdir(channel_group_path) 
+                     if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.wmv'))]
+            if videos:
+                return os.path.join(channel_group_path, random.choice(videos))
+        
+        # Buscar en carpeta del canal (cualquier grupo)
+        channel_path = os.path.join("videos", channel)
+        if os.path.exists(channel_path):
+            for subdir in os.listdir(channel_path):
+                subdir_path = os.path.join(channel_path, subdir)
+                if os.path.isdir(subdir_path):
+                    videos = [f for f in os.listdir(subdir_path) 
+                             if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.wmv'))]
+                    if videos:
+                        return os.path.join(subdir_path, random.choice(videos))
+        
+        return None
+    
+    def _generate_video(self, content_path, audio_path, channel, output_folder, base_name, content_type="images"):
+        """Genera un video combinando imagen/video con audio."""
         try:
             output_file = os.path.join(output_folder, f"{base_name}.mp4")
             
             # Comando FFmpeg para generar video
             ffmpeg_path = os.path.join("bin", "ffmpeg.exe") if os.name == 'nt' else "ffmpeg"
             
-            cmd = [
-                ffmpeg_path,
-                "-loop", "1",
-                "-i", image_path,
-                "-i", audio_path,
-                "-vf", "scale=-1:1080,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black",
-                "-c:v", "libx264",
-                "-preset", "fast",
-                "-tune", "stillimage",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-shortest",
-                "-y",
-                output_file
-            ]
+            if content_type == "videos":
+                # Para videos: usar loop hasta que termine el audio
+                cmd = [
+                    ffmpeg_path,
+                    "-stream_loop", "-1",  # Loop infinito del video
+                    "-i", content_path,
+                    "-i", audio_path,
+                    "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black",
+                    "-c:v", "libx264",
+                    "-preset", "fast",
+                    "-c:a", "aac",
+                    "-b:a", "192k",
+                    "-shortest",  # Terminar cuando termine el audio
+                    "-y",
+                    output_file
+                ]
+            else:
+                # Para imágenes: comportamiento original
+                cmd = [
+                    ffmpeg_path,
+                    "-loop", "1",
+                    "-i", content_path,
+                    "-i", audio_path,
+                    "-vf", "scale=-1:1080,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black",
+                    "-c:v", "libx264",
+                    "-preset", "fast",
+                    "-tune", "stillimage",
+                    "-c:a", "aac",
+                    "-b:a", "192k",
+                    "-shortest",
+                    "-y",
+                    output_file
+                ]
             
             # Ejecutar comando
             result = subprocess.run(cmd, capture_output=True, text=True)
             
             if result.returncode == 0:
-                print(f"✓ Video generado: {os.path.basename(output_file)}")
+                content_name = "video looped" if content_type == "videos" else "imagen"
+                print(f"✓ Video generado con {content_name}: {os.path.basename(output_file)}")
                 return True
             else:
                 print(f"✗ Error FFmpeg: {result.stderr}")
@@ -504,6 +561,10 @@ class MainWindow(QMainWindow):
         self.beats_info = []  # Lista de beats asignados para procesamiento
         self.worker = None
         
+        # Sistema anti-duplicados
+        self.used_content_files = []  # Archivos ya utilizados en la sesión actual
+        self.current_content_type = "images"  # Tipo de contenido seleccionado
+        
         # Configurar ventana
         self.setWindowTitle("🎵 Type Beat Video Generator v2.0")
         self.setMinimumSize(1200, 700)
@@ -614,9 +675,9 @@ class MainWindow(QMainWindow):
         self.images_info_label.setWordWrap(True)
         center_layout.addWidget(self.images_info_label)
         
-        # Botón para subir imágenes
-        self.btn_upload_images = QPushButton("📷 Subir Imágenes")
-        self.btn_upload_images.clicked.connect(self._upload_images_to_channel)
+        # Botón para subir contenido (imágenes y videos)
+        self.btn_upload_images = QPushButton("� Subir Contenido")
+        self.btn_upload_images.clicked.connect(self._upload_content_to_channel)
         center_layout.addWidget(self.btn_upload_images)
         
         center_layout.addStretch()
@@ -1024,8 +1085,8 @@ class MainWindow(QMainWindow):
             self._load_beats()
             self._update_process_list()
     
-    def _upload_images_to_channel(self):
-        """Permite subir imágenes al canal/grupo seleccionado."""
+    def _upload_content_to_channel(self):
+        """Permite subir imágenes y videos al canal/grupo seleccionado."""
         channel = self.channel_combo.currentText()
         group = self.group_combo.currentText()
         
@@ -1033,15 +1094,44 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Selección incompleta", "Selecciona un canal y grupo primero.")
             return
         
+        # Crear diálogo para seleccionar tipo de contenido a subir
+        content_type_dialog = QMessageBox()
+        content_type_dialog.setWindowTitle("Tipo de Contenido")
+        content_type_dialog.setText("¿Qué tipo de contenido quieres subir?")
+        content_type_dialog.setIcon(QMessageBox.Icon.Question)
+        
+        btn_images = content_type_dialog.addButton("🖼️ Imágenes", QMessageBox.ButtonRole.AcceptRole)
+        btn_videos = content_type_dialog.addButton("🎬 Videos", QMessageBox.ButtonRole.AcceptRole)
+        btn_cancel = content_type_dialog.addButton("❌ Cancelar", QMessageBox.ButtonRole.RejectRole)
+        
+        content_type_dialog.exec()
+        clicked_button = content_type_dialog.clickedButton()
+        
+        if clicked_button == btn_cancel:
+            return
+        
+        # Configurar filtros según el tipo seleccionado
+        if clicked_button == btn_images:
+            file_filter = "Image Files (*.jpg *.jpeg *.png *.bmp *.gif)"
+            dialog_title = "Seleccionar imágenes"
+            target_base = self.images_folder
+            content_type = "imágenes"
+        else:  # Videos
+            file_filter = "Video Files (*.mp4 *.mov *.avi *.mkv *.wmv)"
+            dialog_title = "Seleccionar videos"
+            target_base = "videos"
+            content_type = "videos"
+        
+        # Abrir diálogo de selección de archivos
         files, _ = QFileDialog.getOpenFileNames(
             self,
-            "Seleccionar imágenes",
+            dialog_title,
             "",
-            "Image Files (*.jpg *.jpeg *.png *.bmp)"
+            file_filter
         )
         
         if files:
-            target_path = os.path.join(self.images_folder, channel, group)
+            target_path = os.path.join(target_base, channel, group)
             os.makedirs(target_path, exist_ok=True)
             
             copied_files = 0
@@ -1052,11 +1142,18 @@ class MainWindow(QMainWindow):
                     if not os.path.exists(dest_path):
                         shutil.copy2(file, dest_path)
                         copied_files += 1
+                    else:
+                        print(f"El archivo {filename} ya existe, omitiendo...")
                 except Exception as e:
                     print(f"Error copiando {file}: {e}")
             
+            # Actualizar información de imágenes/videos
             self._update_images_info()
-            self.status_label.setText(f"Se copiaron {copied_files} imágenes a {channel}/{group}")
+            
+            if copied_files > 0:
+                self.status_label.setText(f"✅ {copied_files} {content_type} copiadas a {channel}/{group}")
+            else:
+                self.status_label.setText(f"⚠️ No se copiaron archivos (ya existían o hubo errores)")
     
     def _browse_output_folder(self):
         """Permite seleccionar la carpeta de salida."""
@@ -1068,10 +1165,39 @@ class MainWindow(QMainWindow):
             self.status_label.setText(f"Carpeta de salida: {self.output_folder}")
     
     def _start_generation(self):
-        """Inicia el proceso de generación de videos."""
+        """Inicia el proceso de generación de videos con selección de contenido."""
         if not self.beats_info:
             QMessageBox.warning(self, "Lista vacía", "No hay beats para procesar. Asigna canales y grupos a los beats primero.")
             return
+        
+        # Obtener canal y grupo predominante o del primer beat
+        first_beat = self.beats_info[0]
+        channel = first_beat['channel']
+        group = first_beat['group']
+        
+        # Verificar que todos los beats usen el mismo canal/grupo
+        mixed_channels = any(beat['channel'] != channel or beat['group'] != group for beat in self.beats_info)
+        if mixed_channels:
+            QMessageBox.warning(self, "Canales mixtos", 
+                              "Todos los beats deben usar el mismo canal y grupo para poder seleccionar el tipo de contenido.\n"
+                              "Organiza tus beats por canal/grupo antes de generar.")
+            return
+        
+        # Contar contenido disponible
+        image_count, video_count = self._get_content_counts(channel, group)
+        beats_count = len(self.beats_info)
+        
+        # Mostrar diálogo de selección
+        dialog = ContentSelectionDialog(channel, group, image_count, video_count, beats_count, self)
+        
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return  # Usuario canceló
+        
+        # Obtener tipo de contenido seleccionado
+        self.current_content_type = dialog.get_selected_content_type()
+        
+        # Reiniciar tracking de contenido usado
+        self._reset_content_tracking()
         
         if not os.path.exists(self.output_folder):
             try:
@@ -1085,12 +1211,14 @@ class MainWindow(QMainWindow):
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         
-        # Crear y iniciar worker
+        # Crear y iniciar worker con el tipo de contenido seleccionado
         self.worker = VideoGeneratorWorker(
             self.beats_folder,
             self.images_folder,
             self.output_folder,
-            self.beats_info
+            self.beats_info,
+            self.current_content_type,
+            self  # Pasar referencia para usar sistema anti-duplicados
         )
         
         self.worker.progress_updated.connect(self._update_progress)
@@ -1136,6 +1264,77 @@ class MainWindow(QMainWindow):
         self.btn_edit_name.setEnabled(not is_processing)
         self.btn_remove_from_process.setEnabled(not is_processing)
         self.btn_clear_process.setEnabled(not is_processing)
+    
+    # ========== FUNCIONES DE DETECCIÓN DE CONTENIDO ==========
+    
+    def _get_content_counts(self, channel, group):
+        """Cuenta las imágenes y videos disponibles para un canal/grupo."""
+        # Extensiones soportadas
+        image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.gif']
+        video_extensions = ['.mp4', '.mov', '.avi', '.mkv', '.wmv']
+        
+        # Contar imágenes
+        images_path = os.path.join(self.images_folder, channel, group)
+        image_count = 0
+        if os.path.exists(images_path):
+            image_count = sum(1 for f in os.listdir(images_path) 
+                            if any(f.lower().endswith(ext) for ext in image_extensions))
+        
+        # Contar videos
+        videos_path = os.path.join("videos", channel, group)
+        video_count = 0
+        if os.path.exists(videos_path):
+            video_count = sum(1 for f in os.listdir(videos_path) 
+                            if any(f.lower().endswith(ext) for ext in video_extensions))
+        
+        return image_count, video_count
+    
+    def _get_available_content(self, channel, group, content_type):
+        """Obtiene la lista de archivos disponibles según el tipo de contenido."""
+        if content_type == "images":
+            extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.gif']
+            base_path = os.path.join(self.images_folder, channel, group)
+        else:  # videos
+            extensions = ['.mp4', '.mov', '.avi', '.mkv', '.wmv']
+            base_path = os.path.join("videos", channel, group)
+        
+        if not os.path.exists(base_path):
+            return []
+        
+        files = []
+        for file in os.listdir(base_path):
+            if any(file.lower().endswith(ext) for ext in extensions):
+                files.append(os.path.join(base_path, file))
+        
+        return files
+    
+    def _select_unique_content(self, channel, group, content_type):
+        """Selecciona un archivo de contenido sin repetir hasta agotar todos."""
+        available_files = self._get_available_content(channel, group, content_type)
+        
+        if not available_files:
+            return None
+        
+        # Filtrar archivos no utilizados
+        unused_files = [f for f in available_files if f not in self.used_content_files]
+        
+        # Si se agotaron los archivos, reiniciar la lista
+        if not unused_files:
+            self.used_content_files.clear()
+            unused_files = available_files
+        
+        # Seleccionar uno al azar
+        import random
+        selected_file = random.choice(unused_files)
+        
+        # Marcarlo como utilizado
+        self.used_content_files.append(selected_file)
+        
+        return selected_file
+    
+    def _reset_content_tracking(self):
+        """Reinicia el tracking de contenido utilizado."""
+        self.used_content_files.clear()
 
 
 def main():
