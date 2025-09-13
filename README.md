@@ -1,13 +1,61 @@
-# 🎵 Type Beat Video Generator
+# 🎵 Type Beat Video Generator v2.0
 
-Una aplicación de escritorio profesional para automatizar la generación de videos de type beats para YouTube en formato horizontal 16:9. Permite procesar hasta 30 beats de forma automática, organizados por canales y grupos de imágenes.
+Una aplicación de escritorio profesional para automatizar la generación de videos de type beats para YouTube. Ahora con soporte completo para **videos looped** y **imágenes estáticas** con selección manual y sistema anti-duplicados avanzado.
 
-![Version](https://img.shields.io/badge/version-2.0-blue.svg)
+![Version### 5. 🎬 Generación de Videos con Selección de Contenido
+1. **Verificación previa**: Confirma que todos los beats tienen canal y grupo asignado
+2. **Carpeta de salida**: Opcionalmente selecciona carpeta personalizada
+3. **Inicio**: Haz clic en **"▶️ GENERAR VIDEOS"** para abrir el diálogo de selección
+4. **Selección de contenido**: 
+   - **🎬 Videos Looped**: Para contenido dinámico con loops automáticos
+   - **🖼️ Imágenes Estáticas**: Para método tradicional
+5. **Validación**: El sistema verifica contenido suficiente y muestra estadísticas
+6. **Procesamiento**: Monitorea progreso en tiempo real con información detallada
+7. **Resultado**: Videos organizados automáticamente en estructura `canal/grupo/`
+
+#### 🎯 Diálogo de Selección de Contenido:
+```
+┌─────────────────────────────────────────┐
+│  Configurar Generación de Videos        │
+├─────────────────────────────────────────┤
+│  📁 Canal: mattwyyre / Grupo: Principal │
+│  🎵 Beats a procesar: 8                 │
+│                                         │
+│  📊 Contenido Disponible:               │
+│  🖼️ Imágenes: 25 archivos ✅            │
+│  🎬 Videos: 12 archivos ✅               │
+│                                         │
+│  🎯 Tipo de Contenido:                  │
+│  ◉ 🎬 Usar Videos Looped                │
+│  ○ 🖼️ Usar Imágenes Estáticas           │
+│                                         │
+│  ✅ Suficientes videos para generar     │
+│     sin duplicados                      │
+│                                         │
+│  [❌ Cancelar] [✅ Continuar]            │
+└─────────────────────────────────────────┘
+```s://img.shields.io/badge/version-2.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.13+-blue.svg)
 ![PyQt6](https://img.shields.io/badge/PyQt6-6.9+-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 ## ✨ Características Principales
+
+### 🎬 **NUEVO: Sistema de Videos Looped**
+- **Videos de Pinterest**: Sube videos cortos (5-10 segundos) que se repetirán automáticamente
+- **Loop inteligente**: Los videos se repiten hasta que termine el audio del beat
+- **Selección manual**: Elige entre videos looped o imágenes estáticas para cada sesión
+- **Sistema anti-duplicados**: Cada beat usa contenido único, sin repeticiones
+- **Calidad profesional**: Videos HD 1920x1080 con loops suaves y naturales
+- **Formatos soportados**: MP4, MOV, AVI, MKV, WMV para máxima compatibilidad
+
+### 📁 **Gestión Inteligente de Contenido**
+- **Estructura dual**: Carpetas separadas para `images/` y `videos/`
+- **Organización por canal/grupo**: Misma jerarquía para ambos tipos de contenido
+- **Subida unificada**: Botón "📁 Subir Contenido" para imágenes y videos
+- **Detección automática**: El sistema cuenta contenido disponible en tiempo real
+- **Validación previa**: Verifica suficiente contenido antes de generar
+- **Tracking inteligente**: Sin repetición hasta agotar toda la biblioteca
 
 ### 🎶 Gestión de Audio
 - **Carga masiva de beats**: Soporte para archivos .wav, .mp3, .flac
@@ -23,22 +71,28 @@ Una aplicación de escritorio profesional para automatizar la generación de vid
 - **Estructura automática**: Sistema de carpetas organizadas por canal/grupo
 - **Configuración persistente**: Guardado automático de configuraciones de canales
 
-### 🖼️ Gestión Inteligente de Imágenes
-- **Organización jerárquica**: Estructura `images/{canal}/{grupo}/`
+### 🖼️ Gestión Inteligente de Imágenes y Videos
+- **Doble sistema**: Soporte para imágenes estáticas Y videos looped
+- **Organización jerárquica**: Estructura `images/{canal}/{grupo}/` y `videos/{canal}/{grupo}/`
 - **Selección sin repetición**: Algoritmo que evita duplicados en cada procesamiento
-- **Formatos soportados**: JPG, PNG, JPEG con resoluciones flexibles
-- **Gestión visual**: Interface para administrar imágenes por categoría
+- **Formatos soportados**: 
+  - **Imágenes**: JPG, PNG, JPEG, BMP, GIF
+  - **Videos**: MP4, MOV, AVI, MKV, WMV
+- **Gestión visual**: Interface para administrar contenido por categoría
 - **Backup automático**: Copia de imágenes utilizadas junto a videos generados
 - **Escalado inteligente**: Adaptación automática a 1920x1080 manteniendo proporción
 
 ### 🎬 Generación Profesional de Videos
 - **Formato optimizado**: MP4 (1920x1080, 16:9) compatible con YouTube
 - **Procesamiento FFmpeg**: Integración nativa con FFmpeg 8.0 incluido
+- **Videos looped**: Repetición automática de clips cortos hasta duración del beat
+- **Imágenes estáticas**: Soporte completo para el método tradicional
 - **Escalado inteligente**: Centrado automático con relleno negro para cualquier proporción
 - **Calidad premium**: Video H.264 con audio AAC 192kbps
 - **Progreso en tiempo real**: Monitoreo detallado del procesamiento
 - **Organización automática**: Videos exportados en estructura `canal/grupo/`
 - **Nombres personalizables**: Formato automático o nombres custom
+- **Selección de contenido**: Diálogo previo para elegir imágenes o videos
 
 ### 🖱️ Interfaz Moderna y Profesional
 - **Diseño PyQt6**: Interface nativa con tema oscuro profesional
@@ -166,6 +220,16 @@ video-type-beat-generator/
 │   │   └── R&B/           # Otro grupo específico
 │   └── {canal2}/
 │       └── Principal/
+├── videos/                 # 🆕 Videos cortos para loops
+│   ├── {canal1}/
+│   │   ├── Principal/     # Videos de 5-10 segundos
+│   │   │   ├── aesthetic_loop.mp4
+│   │   │   ├── trap_vibes.mp4
+│   │   │   └── city_night.mp4
+│   │   ├── Trap/          # Videos específicos por género
+│   │   └── R&B/
+│   └── {canal2}/
+│       └── Principal/
 ├── exported_videos/        # Videos generados con estructura organizativa
 │   ├── {canal1}/
 │   │   ├── Principal/
@@ -179,6 +243,50 @@ video-type-beat-generator/
 ```
 
 ## 📖 Guía de Uso Completa
+
+### 🎬 **NUEVO: Trabajar con Videos Looped**
+
+#### 1. 📁 Subir Videos de Pinterest
+1. **Preparar videos**: Descarga videos cortos (5-15 segundos) de Pinterest, TikTok o cualquier fuente
+2. **Seleccionar canal/grupo**: Elige la categoría en la columna central
+3. **Subir contenido**: 
+   - Haz clic en **"📁 Subir Contenido"**
+   - Selecciona **"🎬 Videos"**
+   - Elige múltiples archivos .mp4, .mov, etc.
+4. **Verificación**: Los videos se copian automáticamente a `videos/canal/grupo/`
+
+#### 2. 🎯 Generar Videos con Loops
+1. **Preparar beats**: Carga y asigna beats a canal/grupo (mismo proceso que siempre)
+2. **Iniciar generación**: Haz clic en **"▶️ GENERAR VIDEOS"**
+3. **Seleccionar tipo**: En el diálogo emergente, elige **"🎬 Usar Videos Looped"**
+4. **Validación automática**: El sistema verifica que tengas suficientes videos únicos
+5. **Procesamiento**: Cada beat usará un video diferente, sin repeticiones
+
+#### 3. 💡 Consejos para Videos Looped
+- **Duración ideal**: Videos de 8-12 segundos funcionan mejor
+- **Variedad**: Sube 15-30 videos por grupo para máxima diversidad
+- **Calidad**: Usa videos en HD (1080p) para mejor resultado final
+- **Estilo**: Mantén consistencia visual dentro de cada grupo
+- **Formato**: MP4 es el más compatible, pero MOV y AVI también funcionan
+
+#### 4. 🔄 Workflow Híbrido (Imágenes + Videos)
+Puedes usar ambos tipos de contenido:
+- **Sesión 1**: Generar con videos looped para beats dinámicos
+- **Sesión 2**: Generar con imágenes estáticas para beats melódicos
+- **Organización**: Mantén ambas bibliotecas actualizadas por canal/grupo
+
+#### 5. 📊 Comparación: Videos vs Imágenes
+
+| Aspecto | 🎬 Videos Looped | 🖼️ Imágenes Estáticas |
+|---------|------------------|------------------------|
+| **Engagement** | ⭐⭐⭐⭐⭐ Muy Alto | ⭐⭐⭐ Moderado |
+| **Facilidad** | ⭐⭐⭐⭐ Fácil | ⭐⭐⭐⭐⭐ Muy Fácil |
+| **Tamaño archivo** | ⭐⭐⭐ Moderado (10-50MB) | ⭐⭐⭐⭐⭐ Pequeño (2-5MB) |
+| **Tiempo render** | ⭐⭐⭐ Moderado | ⭐⭐⭐⭐⭐ Rápido |
+| **Impacto visual** | ⭐⭐⭐⭐⭐ Muy Alto | ⭐⭐⭐ Moderado |
+| **Retención YouTube** | ⭐⭐⭐⭐⭐ Excelente | ⭐⭐⭐ Buena |
+
+---
 
 ### 1. 🎵 Cargar y Gestionar Beats
 1. **Carga inicial**: Haz clic en **"Cargar Beats"** en la columna izquierda
@@ -194,10 +302,11 @@ video-type-beat-generator/
    - Haz clic en **"➕ Agregar nuevo canal..."**
    - Ingresa nombre único del canal (validación automática)
    - Define grupos específicos (ej: "Principal", "Trap", "Guitarra", "R&B")
-4. **Gestión de imágenes por grupo**:
+4. **Gestión de imágenes y videos por grupo**:
    - Selecciona canal y grupo específico
-   - Usa **"Editar Imágenes"** para gestión visual
-   - Agrega 10-50 imágenes por grupo para variedad máxima
+   - Usa **"📁 Subir Contenido"** para agregar imágenes o videos
+   - Usa **"Editar Imágenes"** para gestión visual (solo imágenes)
+   - Agrega 10-50 archivos por grupo para variedad máxima
 5. **Configuración automática**: Las configuraciones se guardan automáticamente
 
 ### 3. 🎯 Asignación Inteligente de Beats
@@ -221,20 +330,20 @@ video-type-beat-generator/
 4. **Monitoreo**: Observa progreso en tiempo real con información detallada
 5. **Resultado**: Videos organizados automáticamente en estructura `canal/grupo/`
 
-#### Estructura de Salida Final:
+### Estructura de Salida Final:
 ```
 exported_videos/
 ├── mattwyyre/
 │   ├── Principal/
-│   │   ├── beat1_mattwyyre_Principal.mp4
-│   │   └── beat1_mattwyyre_Principal_imagen.jpg
+│   │   ├── beat1_mattwyyre_Principal.mp4      # Video con loop automático
+│   │   └── beat1_mattwyyre_Principal_imagen.jpg  # Solo si usó imágenes
 │   ├── Trap/
-│   │   ├── beat2_mattwyyre_Trap.mp4
+│   │   ├── beat2_mattwyyre_Trap.mp4           # Cada beat usa contenido único
 │   │   └── beat2_mattwyyre_Trap_imagen.jpg
 │   └── R&B/
 └── wyrelatinbeatz/
     └── Principal/
-        ├── beat3_wyrelatinbeatz_Principal.mp4
+        ├── beat3_wyrelatinbeatz_Principal.mp4  # Sin duplicados de contenido
         └── beat3_wyrelatinbeatz_Principal_imagen.jpg
 ```
 
@@ -489,10 +598,11 @@ video-type-beat-generator/
 ### Componentes Principales
 
 #### **Código Fuente**
-- **`main.py`**: Aplicación principal (1,267 líneas)
+- **`main.py`**: Aplicación principal (1,320+ líneas)
   - Interfaz PyQt6 con tema oscuro
   - Worker thread para procesamiento
   - Gestión de canales y configuración
+  - Sistema dual de imágenes y videos
   - Integración con FFmpeg
 
 - **`edit_beat_dialog.py`**: Diálogo de edición (160 líneas)  
@@ -500,9 +610,16 @@ video-type-beat-generator/
   - Validación de entrada
   - Integración con ventana principal
 
+- **`content_selection_dialog.py`**: **🆕 Diálogo de selección** (250+ líneas)
+  - Interface para elegir entre videos looped o imágenes estáticas
+  - Validación de contenido disponible
+  - Información en tiempo real sobre archivos
+  - Prevención de generación con contenido insuficiente
+
 #### **Estructura de Datos**
 - **`beats/`**: Almacén centralizado de archivos de audio
-- **`images/{canal}/{grupo}/`**: Biblioteca organizada jerárquicamente
+- **`images/{canal}/{grupo}/`**: Biblioteca de imágenes organizadas jerárquicamente
+- **`videos/{canal}/{grupo}/`**: **🆕 Biblioteca de videos** para loops automáticos
 - **`exported_videos/{canal}/{grupo}/`**: Salida estructurada para upload
 - **`config/app_config.json`**: Configuración persistente
 
@@ -514,10 +631,18 @@ video-type-beat-generator/
 ## 🔄 Versionado y Actualizaciones
 
 ### Versión Actual: v2.0 (Septiembre 2025)
-**Migración a PyQt6 y Optimizaciones**
+**Sistema de Videos Looped + Migración PyQt6**
 
 #### ✨ Nuevas Características v2.0:
-- **🔧 PyQt6**: Migración completa desde PyQt5
+- **🎬 Sistema de Videos Looped**: Soporte completo para videos de Pinterest/TikTok
+  - Loop automático de videos cortos hasta duración del beat
+  - Estructura dual `images/` y `videos/` con misma organización
+  - Diálogo de selección manual entre imágenes o videos
+  - Sistema anti-duplicados avanzado para contenido único
+  - Formatos soportados: MP4, MOV, AVI, MKV, WMV
+- **� Gestión Unificada de Contenido**: Botón "Subir Contenido" para imágenes y videos
+- **🎯 Selección Inteligente**: Validación previa con estadísticas de contenido disponible
+- **�🔧 PyQt6**: Migración completa desde PyQt5
   - Eliminación de warnings de deprecación  
   - Compatibilidad con Python 3.13+
   - Mejor rendimiento y estabilidad
@@ -525,13 +650,16 @@ video-type-beat-generator/
   - Removido sistema de miniaturas automáticas (enfoque en video)
   - Removido sistema de overlays (simplificación workflow)
   - Core optimizado para generación de videos únicamente
-- **🎯 Enfoque**: Especialización en generación de videos de alta calidad
-- **🚀 Performance**: Optimizaciones de memoria y procesamiento
 
 #### 📋 Cambios Técnicos v2.0:
 ```diff
 + PyQt6 6.9.1 (reemplaza PyQt5 5.15.9)
 + Python 3.13+ soporte nativo
++ Sistema de videos looped con FFmpeg
++ Diálogo de selección de contenido
++ Estructura dual images/ y videos/
++ Sistema anti-duplicados por sesión
++ Validación previa de contenido disponible
 + Eliminación de warnings de deprecación sipPyTypeDict()
 + Estructura de código simplificada y optimizada
 - Sistema de thumbnails automático removido
@@ -608,12 +736,13 @@ Pillow>=9.0.0          # Manipulación de imágenes
 ```
 
 ### Métricas del Proyecto
-- **Líneas de código**: ~1,430 líneas Python
-- **Archivos principales**: 2 módulos Python
-- **Funcionalidades**: 25+ métodos principales
-- **Formatos soportados**: 6 tipos de archivo (audio + imagen)
+- **Líneas de código**: ~1,580 líneas Python (main.py: 1,320+, dialogs: 260+)
+- **Archivos principales**: 3 módulos Python
+- **Funcionalidades**: 30+ métodos principales
+- **Formatos soportados**: 11 tipos de archivo (audio + imagen + video)
 - **Capacidad**: Hasta 30 beats simultáneos
-- **Tiempo desarrollo**: 12+ meses de iteración
+- **Sistema anti-duplicados**: Tracking inteligente de contenido usado
+- **Tiempo desarrollo**: 14+ meses de iteración
 
 ### Desarrollado por
 **[Perree](https://github.com/Perree)** - Desarrollador Principal
