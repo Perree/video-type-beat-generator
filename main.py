@@ -13,15 +13,15 @@ import random
 import subprocess
 import json
 import shutil
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QLabel, QPushButton, 
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QPushButton, 
                             QVBoxLayout, QHBoxLayout, QWidget, QFileDialog, 
                             QListWidget, QComboBox, QProgressBar, QMessageBox,
                             QDialog, QLineEdit, QGridLayout, QMenu, QFrame,
                             QSplitter, QStyleFactory, QToolButton, QListWidgetItem,
                             QSizePolicy, QTabWidget, QInputDialog, QGraphicsDropShadowEffect,
-                            QMenuBar, QGroupBox, QCheckBox, QRadioButton)
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QPropertyAnimation, QEasingCurve, QRect, QSettings, QPoint, QTimer
-from PyQt6.QtGui import QPixmap, QIcon, QColor, QPalette, QFont, QCursor, QLinearGradient, QPainter, QPainterPath, QAction
+                            QMenuBar, QGroupBox, QCheckBox, QRadioButton, QAction)
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize, QPropertyAnimation, QEasingCurve, QRect, QSettings, QPoint, QTimer
+from PyQt5.QtGui import QPixmap, QIcon, QColor, QPalette, QFont, QCursor, QLinearGradient, QPainter, QPainterPath
 
 # Importar estilos y bibliotecas para la interfaz moderna
 import qdarkstyle
@@ -581,7 +581,31 @@ class MainWindow(QMainWindow):
         self._load_beats()
         self._load_channels()
         
+        # Configurar atajos de teclado
+        self._setup_shortcuts()
+        
         print("✅ Type Beat Video Generator v2.0 iniciado")
+    
+    def _setup_shortcuts(self):
+        """Configura atajos de teclado para operaciones comunes."""
+        from PyQt5.QtWidgets import QShortcut
+        from PyQt5.QtGui import QKeySequence
+        
+        # Ctrl+A para seleccionar todos los beats
+        select_all_shortcut = QShortcut(QKeySequence("Ctrl+A"), self)
+        select_all_shortcut.activated.connect(lambda: self.select_all_checkbox.setChecked(True))
+        
+        # Ctrl+D para deseleccionar todos
+        deselect_all_shortcut = QShortcut(QKeySequence("Ctrl+D"), self)
+        deselect_all_shortcut.activated.connect(lambda: self.select_all_checkbox.setChecked(False))
+        
+        # Delete para eliminar beats seleccionados
+        delete_shortcut = QShortcut(QKeySequence("Delete"), self)
+        delete_shortcut.activated.connect(self._delete_selected_beats)
+        
+        # Enter para asignar canal a beats seleccionados
+        assign_shortcut = QShortcut(QKeySequence("Return"), self)
+        assign_shortcut.activated.connect(self._assign_channel_to_beats)
     
     def setup_ui(self):
         """Configura la interfaz de usuario (3 columnas)."""
@@ -619,14 +643,39 @@ class MainWindow(QMainWindow):
         beats_label.setStyleSheet("font-weight: bold; padding: 5px;")
         left_layout.addWidget(beats_label)
         
+        # Control de selección múltiple
+        selection_layout = QHBoxLayout()
+        self.select_all_checkbox = QCheckBox("Seleccionar todos")
+        self.select_all_checkbox.stateChanged.connect(self._toggle_select_all_beats)
+        selection_layout.addWidget(self.select_all_checkbox)
+        
+        # Contador de beats seleccionados
+        self.selected_count_label = QLabel("0 seleccionados")
+        self.selected_count_label.setStyleSheet("color: #3498DB; font-size: 10px;")
+        selection_layout.addWidget(self.selected_count_label)
+        selection_layout.addStretch()
+        
+        left_layout.addLayout(selection_layout)
+
         self.beats_list = QListWidget()
         self.beats_list.setMaximumHeight(200)
+        self.beats_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        self.beats_list.itemSelectionChanged.connect(self._update_selection_count)
         left_layout.addWidget(self.beats_list)
         
-        # Botón para editar nombre
+        # Botones de acción para beats
+        beats_actions_layout = QHBoxLayout()
+        
         self.btn_edit_name = QPushButton("✏️ Editar Nombre")
         self.btn_edit_name.clicked.connect(self._edit_beat_name)
-        left_layout.addWidget(self.btn_edit_name)
+        beats_actions_layout.addWidget(self.btn_edit_name)
+        
+        self.btn_delete_selected = QPushButton("🗑️ Eliminar Seleccionados")
+        self.btn_delete_selected.clicked.connect(self._delete_selected_beats)
+        self.btn_delete_selected.setStyleSheet("background-color: #E74C3C; color: white; font-weight: bold;")
+        beats_actions_layout.addWidget(self.btn_delete_selected)
+        
+        left_layout.addLayout(beats_actions_layout)
         
         left_layout.addStretch()
         
@@ -664,7 +713,7 @@ class MainWindow(QMainWindow):
         center_layout.addWidget(self.group_combo)
         
         # Botón de asignación
-        self.btn_assign_channel = QPushButton("➡️ Asignar Canal")
+        self.btn_assign_channel = QPushButton("➡️ Asignar Canal a Seleccionados")
         self.btn_assign_channel.setStyleSheet("background-color: #27AE60; font-size: 14px; padding: 10px; font-weight: bold;")
         self.btn_assign_channel.clicked.connect(self._assign_channel_to_beats)
         center_layout.addWidget(self.btn_assign_channel)
@@ -822,6 +871,7 @@ class MainWindow(QMainWindow):
             self.beats_list.addItem(beat_file)
         
         self.status_label.setText(f"Cargados {len(beat_files)} archivos de beat")
+        self._update_selection_count()  # Actualizar contador de selección
     
     def _load_beats_from_files(self):
         """Permite cargar beats desde archivos."""
@@ -951,8 +1001,21 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Sin imágenes", f"No hay imágenes en la carpeta {channel}/{group}")
             return
         
+        # Confirmar operación masiva
+        selected_count = len(selected_beats)
+        if selected_count > 1:
+            reply = QMessageBox.question(
+                self, "Confirmar Asignación Masiva",
+                f"¿Asignar {selected_count} beats al canal '{channel}' grupo '{group}'?\n\n"
+                f"Imágenes disponibles: {image_count}",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+        
         # Asignar beats
         assigned_count = 0
+        already_assigned_count = 0
         for beat_item in selected_beats:
             beat_file = beat_item.text()
             
@@ -961,6 +1024,7 @@ class MainWindow(QMainWindow):
             for beat_info in self.beats_info:
                 if beat_info['beat_file'] == beat_file:
                     already_assigned = True
+                    already_assigned_count += 1
                     break
             
             if not already_assigned:
@@ -973,7 +1037,16 @@ class MainWindow(QMainWindow):
                 assigned_count += 1
         
         self._update_process_list()
-        self.status_label.setText(f"Asignados {assigned_count} beats a {channel}/{group}")
+        
+        # Mensaje de estado detallado
+        status_message = f"✅ Asignados {assigned_count} beats a {channel}/{group}"
+        if already_assigned_count > 0:
+            status_message += f" ({already_assigned_count} ya estaban asignados)"
+        
+        self.status_label.setText(status_message)
+        
+        # Limpiar selección después de la asignación
+        self.beats_list.clearSelection()
     
     def _update_process_list(self):
         """Actualiza la lista de procesamiento."""
@@ -1067,11 +1140,15 @@ class MainWindow(QMainWindow):
         
         reply = QMessageBox.question(
             self, "Confirmar eliminación",
-            f"¿Estás seguro de que quieres eliminar {len(selected_items)} beat(s)?",
+            f"¿Estás seguro de que quieres eliminar {len(selected_items)} beat(s)?\n\n"
+            f"Esta acción eliminará permanentemente los archivos del disco.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
         if reply == QMessageBox.StandardButton.Yes:
+            deleted_count = 0
+            error_count = 0
+            
             for item in selected_items:
                 beat_file = item.text()
                 file_path = os.path.join(self.beats_folder, beat_file)
@@ -1079,11 +1156,59 @@ class MainWindow(QMainWindow):
                     os.remove(file_path)
                     # También quitar de lista de procesamiento si está
                     self.beats_info = [b for b in self.beats_info if b['beat_file'] != beat_file]
+                    deleted_count += 1
                 except Exception as e:
                     QMessageBox.warning(self, "Error", f"No se pudo eliminar {beat_file}: {e}")
+                    error_count += 1
             
             self._load_beats()
             self._update_process_list()
+            
+            # Mensaje de estado detallado
+            if error_count == 0:
+                self.status_label.setText(f"✅ {deleted_count} beats eliminados correctamente")
+            else:
+                self.status_label.setText(f"⚠️ {deleted_count} eliminados, {error_count} errores")
+    
+    def _toggle_select_all_beats(self, state):
+        """Selecciona o deselecciona todos los beats."""
+        if state == Qt.CheckState.Checked.value:
+            self.beats_list.selectAll()
+        else:
+            self.beats_list.clearSelection()
+        self._update_selection_count()
+    
+    def _update_selection_count(self):
+        """Actualiza el contador de beats seleccionados."""
+        selected_count = len(self.beats_list.selectedItems())
+        total_count = self.beats_list.count()
+        
+        self.selected_count_label.setText(f"{selected_count} de {total_count} seleccionados")
+        
+        # Actualizar estado del checkbox sin disparar la señal
+        if selected_count == 0:
+            self.select_all_checkbox.blockSignals(True)
+            self.select_all_checkbox.setCheckState(Qt.CheckState.Unchecked)
+            self.select_all_checkbox.blockSignals(False)
+        elif selected_count == total_count and total_count > 0:
+            self.select_all_checkbox.blockSignals(True)
+            self.select_all_checkbox.setCheckState(Qt.CheckState.Checked)
+            self.select_all_checkbox.blockSignals(False)
+        else:
+            self.select_all_checkbox.blockSignals(True)
+            self.select_all_checkbox.setCheckState(Qt.CheckState.PartiallyChecked)
+            self.select_all_checkbox.blockSignals(False)
+        
+        # Actualizar texto de los botones según la selección
+        if selected_count == 0:
+            self.btn_assign_channel.setText("➡️ Asignar Canal a Seleccionados")
+            self.btn_delete_selected.setText("🗑️ Eliminar Seleccionados")
+        elif selected_count == 1:
+            self.btn_assign_channel.setText("➡️ Asignar Canal a 1 Beat")
+            self.btn_delete_selected.setText("🗑️ Eliminar 1 Beat")
+        else:
+            self.btn_assign_channel.setText(f"➡️ Asignar Canal a {selected_count} Beats")
+            self.btn_delete_selected.setText(f"🗑️ Eliminar {selected_count} Beats")
     
     def _upload_content_to_channel(self):
         """Permite subir imágenes y videos al canal/grupo seleccionado."""
