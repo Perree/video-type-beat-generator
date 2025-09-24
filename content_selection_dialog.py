@@ -3,11 +3,11 @@
 """
 Diálogo para seleccionar el tipo de contenido (imágenes o videos) antes de la generación.
 """
-from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
+from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                             QPushButton, QRadioButton, QButtonGroup, QFrame,
                             QGroupBox, QMessageBox)
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont
 
 try:
     import qtawesome as qta
