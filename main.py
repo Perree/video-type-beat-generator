@@ -253,25 +253,34 @@ class VideoGeneratorWorker(QThread):
             
             # Comando FFmpeg para generar video
             ffmpeg_path = os.path.join("bin", "ffmpeg.exe") if os.name == 'nt' else "ffmpeg"
-            
+            # Obtener la duración del audio con ffprobe para forzar la duración final
+            audio_duration = self._get_media_duration(audio_path)
+            duration_args = []
+            if audio_duration is not None:
+                duration_args = ["-t", f"{audio_duration:.3f}"]
+
             if content_type == "videos":
-                # Para videos: usar loop hasta que termine el audio
+                # Para videos: loop del video y limitar duración al audio (más robusto)
                 cmd = [
                     ffmpeg_path,
-                    "-stream_loop", "-1",  # Loop infinito del video
+                    "-stream_loop", "-1",  # Loop infinito del video (será recortado por -t)
                     "-i", content_path,
                     "-i", audio_path,
+                    # Mapear explícitamente para evitar ambigüedades
+                    "-map", "0:v",
+                    "-map", "1:a",
                     "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black",
                     "-c:v", "libx264",
                     "-preset", "fast",
                     "-c:a", "aac",
                     "-b:a", "192k",
-                    "-shortest",  # Terminar cuando termine el audio
+                    "-shortest",
+                ] + duration_args + [
                     "-y",
                     output_file
                 ]
             else:
-                # Para imágenes: comportamiento original
+                # Para imágenes: loop estático, limitar duración al audio
                 cmd = [
                     ffmpeg_path,
                     "-loop", "1",
@@ -284,6 +293,7 @@ class VideoGeneratorWorker(QThread):
                     "-c:a", "aac",
                     "-b:a", "192k",
                     "-shortest",
+                ] + duration_args + [
                     "-y",
                     output_file
                 ]
@@ -302,6 +312,29 @@ class VideoGeneratorWorker(QThread):
         except Exception as e:
             print(f"Error generando video: {e}")
             return False
+
+    def _get_media_duration(self, media_path):
+        """Devuelve la duración en segundos (float) de un archivo multimedia usando ffprobe, o None si falla."""
+        try:
+            ffprobe_path = os.path.join("bin", "ffprobe.exe") if os.name == 'nt' else "ffprobe"
+            cmd = [
+                ffprobe_path,
+                "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                media_path
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                out = result.stdout.strip()
+                if out:
+                    try:
+                        return float(out)
+                    except:
+                        return None
+            return None
+        except Exception:
+            return None
     
     def stop(self):
         """Detiene el proceso."""
