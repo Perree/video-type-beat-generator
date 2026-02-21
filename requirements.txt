@@ -1,5 +1,4 @@
-PyQt5==5.15.10
-PyQt5-tools
+PyQt5>=5.15.0
 Pillow>=9.0.0
 qdarkstyle
 qtawesome
