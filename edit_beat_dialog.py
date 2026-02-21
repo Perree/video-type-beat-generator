@@ -16,12 +16,35 @@ except ImportError:
 class EditBeatNameDialog(QDialog):
     """Diálogo para editar el nombre personalizado de un beat."""
     
-    def __init__(self, beat_info, parent=None):
+    def __init__(self, beat_info=None, parent=None):
         super().__init__(parent)
+        # Soportar llamada con (parent) cuando se edita desde la lista sin asignar
+        if parent is None and beat_info is not None and not isinstance(beat_info, dict):
+            parent, beat_info = beat_info, None
+        if beat_info is None:
+            beat_info = {'audio': '', 'channel': 'Sin asignar', 'group': '', 'custom_name': ''}
         self.beat_info = beat_info
-        self.custom_name = beat_info.get('custom_name', '')
-        
+        self.custom_name = self.beat_info.get('custom_name', '')
         self._setup_ui()
+    
+    def set_beat_info(self, beat_file, custom_name=''):
+        """Asigna archivo y nombre (cuando se abre sin beat_info, ej. desde lista de beats)."""
+        self.beat_info['audio'] = self.beat_info.get('beat_file') or beat_file
+        self.beat_info['beat_file'] = beat_file
+        self.beat_info['custom_name'] = custom_name
+        self.custom_name = custom_name
+        if hasattr(self, '_file_value'):
+            self._file_value.setText(beat_file)
+        if hasattr(self, 'name_input'):
+            self.name_input.setText(custom_name)
+            base_name, _ = os.path.splitext(beat_file)
+            channel = self.beat_info.get('channel', '')
+            group = self.beat_info.get('group', 'Principal')
+            self.name_input.setPlaceholderText(f"{base_name}_{channel}_{group}")
+    
+    def get_custom_name(self):
+        """Devuelve el nombre personalizado introducido."""
+        return getattr(self, 'custom_name', '') or (self.name_input.text().strip() if hasattr(self, 'name_input') else '')
     
     def _setup_ui(self):
         """Configura la interfaz del diálogo con estilo moderno."""
@@ -89,14 +112,15 @@ class EditBeatNameDialog(QDialog):
         info_card = QFrame()
         info_card_layout = QFormLayout(info_card)
         
-        # Información del beat
-        original_name = self.beat_info['audio']
+        # Información del beat (soporta 'audio' o 'beat_file')
+        original_name = self.beat_info.get('audio') or self.beat_info.get('beat_file', '')
         base_name, _ = os.path.splitext(original_name)
         
-        # Nombre del archivo
+        # Nombre del archivo (guardamos referencia por si se llama set_beat_info después)
         file_label = QLabel("Archivo de audio:")
         file_value = QLabel(original_name)
         file_value.setStyleSheet("font-weight: bold;")
+        self._file_value = file_value
         info_card_layout.addRow(file_label, file_value)
         
         # Canal
