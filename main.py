@@ -1770,21 +1770,24 @@ class MainWindow(QMainWindow):
         use_defaults = self.check_use_defaults.isChecked()
         content_type = getattr(self, 'last_content_type', 'images') if use_defaults else None
         if content_type == 'videos':
-            if video_count < beats_count:
-                messages.append(f"❌ Faltan videos: necesitas al menos {beats_count} (tienes {video_count}).")
+            if video_count < 1:
+                messages.append(f"❌ No hay videos en {channel}/{group}. Agrega al menos 1 video.")
                 return False, messages
-            messages.append(f"✅ Contenido suficiente: {video_count} videos para {beats_count} beats.")
+            reuse = " (se reutilizará)" if video_count < beats_count else ""
+            messages.append(f"✅ Contenido suficiente: {video_count} video(s) para {beats_count} beats{reuse}.")
         elif content_type == 'images':
-            if image_count < beats_count:
-                messages.append(f"❌ Faltan imágenes: necesitas al menos {beats_count} (tienes {image_count}).")
+            if image_count < 1:
+                messages.append(f"❌ No hay imágenes en {channel}/{group}. Agrega al menos 1 imagen.")
                 return False, messages
-            messages.append(f"✅ Contenido suficiente: {image_count} imágenes para {beats_count} beats.")
+            reuse = " (se reutilizará)" if image_count < beats_count else ""
+            messages.append(f"✅ Contenido suficiente: {image_count} imagen(es) para {beats_count} beats{reuse}.")
         else:
-            # Usuario elegirá en el diálogo: debe haber suficiente de al menos uno
-            if image_count < beats_count and video_count < beats_count:
-                messages.append(f"❌ Necesitas al menos {beats_count} imágenes o {beats_count} videos (tienes {image_count} imágenes, {video_count} videos).")
+            # Usuario elegirá en el diálogo: debe haber al menos 1 imagen o 1 video
+            if image_count < 1 and video_count < 1:
+                messages.append(f"❌ No hay imágenes ni videos en {channel}/{group}. Agrega al menos 1 imagen o 1 video.")
                 return False, messages
-            messages.append(f"✅ Contenido suficiente (imágenes: {image_count}, videos: {video_count}) para {beats_count} beats.")
+            reuse = " (se reutilizarán)" if (image_count < beats_count and video_count < beats_count) else ""
+            messages.append(f"✅ Contenido suficiente (imágenes: {image_count}, videos: {video_count}) para {beats_count} beats{reuse}.")
         if not os.path.exists(self.output_folder):
             try:
                 os.makedirs(self.output_folder, exist_ok=True)
@@ -1829,18 +1832,17 @@ class MainWindow(QMainWindow):
         use_defaults = self.check_use_defaults.isChecked()
         if use_defaults:
             self.current_content_type = getattr(self, 'last_content_type', 'images')
-            need_count = beats_count
             if self.current_content_type == 'images':
-                if image_count < need_count:
+                if image_count < 1:
                     QMessageBox.warning(self, "Contenido insuficiente",
-                        f"Necesitas al menos {need_count} imágenes para {beats_count} beats sin repetir.\n"
-                        f"Tienes {image_count}. Desmarca 'Generar sin preguntar' o agrega más imágenes.")
+                        f"No hay imágenes en {channel}/{group}.\n"
+                        "Agrega al menos 1 imagen. Se reutilizará para todos los beats.")
                     return
             else:
-                if video_count < need_count:
+                if video_count < 1:
                     QMessageBox.warning(self, "Contenido insuficiente",
-                        f"Necesitas al menos {need_count} videos para {beats_count} beats sin repetir.\n"
-                        f"Tienes {video_count}. Desmarca 'Generar sin preguntar' o agrega más videos.")
+                        f"No hay videos en {channel}/{group}.\n"
+                        "Agrega al menos 1 video. Se reutilizará para todos los beats.")
                     return
         else:
             # Mostrar diálogo de selección
