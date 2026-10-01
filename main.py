@@ -35,6 +35,7 @@ from content_selection_dialog import ContentSelectionDialog
 from library_dialog import LibraryDialog
 from core import library, description, youtube
 from core.upload_worker import ConnectChannelWorker, YouTubeUploadWorker
+from beat_watcher import BeatFolderWatcher
 
 # Constantes
 CONFIG_FILE = os.path.join('config', 'app_config.json')
@@ -933,6 +934,11 @@ class MainWindow(QMainWindow):
         # Configurar atajos de teclado
         self._setup_shortcuts()
         
+        # Carpeta vigilada: importa audios nuevos de beats/ automáticamente
+        self.beat_watcher = BeatFolderWatcher(self.beats_folder, self)
+        self.beat_watcher.beat_detected.connect(self._on_beat_detected)
+        self.beat_watcher.start()
+        
         print("✅ Type Beat Video Generator v2.0 iniciado")
     
     def _setup_shortcuts(self):
@@ -1322,6 +1328,27 @@ class MainWindow(QMainWindow):
         
         self.status_label.setText(f"Cargados {len(beat_files)} archivos de beat")
         self._update_selection_count()  # Actualizar contador de selección
+    
+    def _on_beat_detected(self, beat_file):
+        """Importa a la biblioteca un audio recién aparecido en beats/."""
+        existing = [self.beats_list.item(i).text() for i in range(self.beats_list.count())]
+        if beat_file in existing:
+            return
+        self.beats_list.addItem(beat_file)
+        channel = getattr(self, 'last_channel', '')
+        group = getattr(self, 'last_group', '')
+        if channel and group and self.channel_combo.findText(channel) >= 0:
+            self.beats_info = [b for b in self.beats_info if b['beat_file'] != beat_file]
+            self.beats_info.append({'beat_file': beat_file, 'channel': channel,
+                                    'group': group, 'custom_name': ''})
+            self._update_process_list()
+        self._update_selection_count()
+        self.status_label.setText(f"Beat importado automáticamente: {beat_file}")
+    
+    def closeEvent(self, event):
+        if getattr(self, 'beat_watcher', None):
+            self.beat_watcher.stop()
+        super().closeEvent(event)
     
     def _load_beats_from_files(self):
         """Permite cargar beats desde archivos."""
