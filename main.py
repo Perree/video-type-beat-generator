@@ -132,6 +132,19 @@ def _escape_drawtext(s):
     return s.replace('\\', '\\\\').replace("'", "\\'").replace(':', '\\:')
 
 
+def _get_available_video_codec(ffmpeg_path):
+    """Detecta si h264_nvenc está disponible, retorna el codec a usar (h264_nvenc o libx264 fallback)."""
+    try:
+        result = subprocess.run([ffmpeg_path, "-codecs"], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=5)
+        if "h264_nvenc" in result.stdout:
+            print("✓ Aceleración GPU (h264_nvenc) detectada")
+            return "h264_nvenc"
+    except:
+        pass
+    print("ℹ Usando codec por defecto (libx264)")
+    return "libx264"
+
+
 def _build_vf_with_overlays(base_vf, overlay_display=None, cta_text=None, audio_duration=None):
     """Añade overlay de título y CTA (último 15% del video) al filtro de video. Sin escape_text (no soportado en todas las builds de FFmpeg)."""
     vf = base_vf
@@ -316,8 +329,9 @@ class VideoGeneratorWorker(QThread):
         """Genera un video combinando imagen/video con audio. Opcional: overlay de texto y CTA en el último 15%."""
         try:
             output_file = os.path.join(output_folder, f"{base_name}.mp4")
-            
+
             ffmpeg_path = os.path.join("bin", "ffmpeg.exe") if os.name == 'nt' else "ffmpeg"
+            video_codec = _get_available_video_codec(ffmpeg_path)
             audio_duration = self._get_media_duration(audio_path)
             duration_args = []
             if audio_duration is not None:
@@ -337,7 +351,7 @@ class VideoGeneratorWorker(QThread):
                     "-map", "0:v",
                     "-map", "1:a",
                     "-vf", vf_videos,
-                    "-c:v", "libx264",
+                    "-c:v", video_codec,
                     "-preset", "fast",
                     "-c:a", "aac",
                     "-b:a", "192k",
@@ -353,7 +367,7 @@ class VideoGeneratorWorker(QThread):
                     "-i", content_path,
                     "-i", audio_path,
                     "-vf", vf_images,
-                    "-c:v", "libx264",
+                    "-c:v", video_codec,
                     "-preset", "fast",
                     "-tune", "stillimage",
                     "-c:a", "aac",
@@ -363,10 +377,10 @@ class VideoGeneratorWorker(QThread):
                     "-y",
                     output_file
                 ]
-            
+
             # Ejecutar comando (encoding utf-8 para evitar UnicodeDecodeError con salida de FFmpeg)
             result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
-            
+
             if result.returncode == 0:
                 content_name = "video looped" if content_type == "videos" else "imagen"
                 print(f"✓ Video generado con {content_name}: {os.path.basename(output_file)}")
@@ -374,7 +388,7 @@ class VideoGeneratorWorker(QThread):
             else:
                 print(f"✗ Error FFmpeg: {result.stderr}")
                 return False
-                
+
         except Exception as e:
             print(f"Error generando video: {e}")
             return False
