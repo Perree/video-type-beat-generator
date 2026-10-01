@@ -58,3 +58,20 @@ class YouTubeUploadWorker(QThread):
                 errors.append(f"{job['title']}: subido sin miniatura ({res['thumbnail_error'][:200]})")
             done.append({**job, **res})
         self.finished_all.emit(done, errors)
+
+
+class ImportHistoryWorker(QThread):
+    """Descarga el historial publicado de un canal y lo empareja con la biblioteca."""
+    finished_ok = pyqtSignal(str, dict)   # canal, resultado de import_history
+    failed = pyqtSignal(str, str)         # canal, error
+
+    def __init__(self, channel, parent=None):
+        super().__init__(parent)
+        self.channel = channel
+
+    def run(self):
+        from core import history_import
+        try:
+            self.finished_ok.emit(self.channel, history_import.import_channel_history(self.channel))
+        except Exception as e:
+            self.failed.emit(self.channel, str(e))

@@ -79,7 +79,7 @@ Prompt: "Implementa core/dropbox_client.py (SDK oficial, OAuth PKCE con refresh 
 árbol de carpetas, filtrar mp3/wav, selección múltiple y botón 'Importar a biblioteca' que descarga y llama a
 library.import_beat()."
 
-## Fase 5 — Importar historial existente de YouTube (Haiku/Sonnet)
+## Fase 5 — Importar historial existente de YouTube (Haiku/Sonnet) ✅ COMPLETADA
 `videos.list` por canal para importar títulos/fechas ya publicados a `uploads` y emparejar con beats por nombre;
 refrescar vistas (cuota casi nula). Cierra el "hace cuánto" también para videos anteriores a la app.
 

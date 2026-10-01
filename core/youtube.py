@@ -168,3 +168,33 @@ def upload(channel, video_path, title, description='', tags=None, thumbnail=None
         'privacy': response.get('status', {}).get('privacyStatus', status['privacyStatus']),
         'thumbnail_error': thumb_error,
     }
+
+
+def list_channel_videos(channel, tokens_dir=None, max_videos=2000):
+    """Videos ya publicados en el canal: [{'youtube_id','title','published_at','privacy'}].
+
+    Usa la playlist de uploads (1 unidad por 50 ids) y videos.list (1 unidad por 50 videos).
+    """
+    yt = _service(_load_credentials(channel, tokens_dir))
+    resp = yt.channels().list(part='contentDetails', mine=True).execute()
+    items = resp.get('items') or []
+    if not items:
+        raise YouTubeError(f"No se encontró el canal de YouTube de '{channel}'.")
+    playlist = items[0]['contentDetails']['relatedPlaylists']['uploads']
+    ids, token = [], None
+    while len(ids) < max_videos:
+        r = yt.playlistItems().list(part='contentDetails', playlistId=playlist,
+                                    maxResults=50, pageToken=token).execute()
+        ids += [i['contentDetails']['videoId'] for i in r.get('items', [])]
+        token = r.get('nextPageToken')
+        if not token:
+            break
+    videos = []
+    for i in range(0, len(ids), 50):
+        r = yt.videos().list(part='snippet,status', id=','.join(ids[i:i + 50])).execute()
+        for v in r.get('items', []):
+            videos.append({'youtube_id': v['id'],
+                           'title': v['snippet']['title'],
+                           'published_at': v['snippet'].get('publishedAt', ''),
+                           'privacy': v.get('status', {}).get('privacyStatus', '')})
+    return videos

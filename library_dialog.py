@@ -2,8 +2,9 @@
 """Diálogo de la biblioteca de beats: lista, filtros y selección para el flujo principal."""
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
                              QComboBox, QLineEdit, QPushButton, QLabel, QAbstractItemView,
-                             QHeaderView, QFileDialog)
-from core import library
+                             QHeaderView, QFileDialog, QMessageBox)
+from core import library, youtube
+from core.upload_worker import ImportHistoryWorker
 
 
 class LibraryDialog(QDialog):
@@ -34,11 +35,15 @@ class LibraryDialog(QDialog):
         btn_import.clicked.connect(self._import)
         btn_dropbox = QPushButton("Dropbox...")
         btn_dropbox.clicked.connect(self._import_dropbox)
+        self.btn_history = QPushButton("Importar historial YT")
+        self.btn_history.setToolTip("Trae los videos ya publicados del canal elegido y los empareja con tus beats por nombre.")
+        self.btn_history.clicked.connect(self._import_history)
         top.addWidget(self.search, 1)
         top.addWidget(self.filter_combo)
         top.addWidget(self.channel_combo)
         top.addWidget(btn_import)
         top.addWidget(btn_dropbox)
+        top.addWidget(self.btn_history)
         layout.addLayout(top)
 
         self.table = QTableWidget(0, 4)
@@ -88,6 +93,39 @@ class LibraryDialog(QDialog):
         from dropbox_browser_dialog import DropboxBrowserDialog
         DropboxBrowserDialog(self).exec_()
         self.refresh()
+
+    def _import_history(self):
+        channel = self.channel_combo.currentData()
+        if not channel:
+            QMessageBox.information(self, "Importar historial", "Elegí un canal en el selector de canal.")
+            return
+        if not youtube.is_connected(channel):
+            QMessageBox.warning(self, "Importar historial",
+                                f"'{channel}' no está conectado a YouTube (Gestión de Canales).")
+            return
+        self.btn_history.setEnabled(False)
+        self.btn_history.setText("Importando...")
+        self._history_worker = ImportHistoryWorker(channel, self)
+        self._history_worker.finished_ok.connect(self._on_history_done)
+        self._history_worker.failed.connect(self._on_history_failed)
+        self._history_worker.start()
+
+    def _reset_history_button(self):
+        self.btn_history.setEnabled(True)
+        self.btn_history.setText("Importar historial YT")
+
+    def _on_history_done(self, channel, res):
+        self._reset_history_button()
+        self.refresh()
+        msg = (f"{channel}: {res['imported']} importados, {res['skipped']} ya registrados, "
+               f"{len(res['unmatched'])} sin beat en la biblioteca.")
+        if res['unmatched']:
+            msg += "\n\nSin emparejar (primeros 15):\n" + "\n".join(res['unmatched'][:15])
+        QMessageBox.information(self, "Historial importado", msg)
+
+    def _on_history_failed(self, channel, error):
+        self._reset_history_button()
+        QMessageBox.warning(self, "Error al importar historial", error)
 
     def _accept_selection(self):
         rows = sorted({i.row() for i in self.table.selectedIndexes()})
