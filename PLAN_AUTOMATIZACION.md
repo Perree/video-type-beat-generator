@@ -70,7 +70,8 @@ tokens/<nombre>.json, upload(video, título, descripción, tags, thumbnail, priv
 en ChannelManager (main.py L410) y la subida opcional en _process_finished (L1905), registrando en core/library.py.
 Antes de subir, avisa si el beat ya está en ese canal. Verifica en la documentación oficial el costo actual de cuota."
 
-## Fase 4 — Dropbox por API (Sonnet)
+## Fase 4 — Dropbox por API (Sonnet) ✅ COMPLETADA
+(Implementado: `core/dropbox_client.py`, `dropbox_browser_dialog.py`, botón "Dropbox..." en la biblioteca, guía en `docs/DROPBOX_SETUP.md`. Pendiente del usuario: crear la app de Dropbox y prueba real F4.)
 - `core/dropbox_client.py`: OAuth con PKCE (refresh token), `list_folder`, `download`.
 - Diálogo navegador de carpetas Dropbox (solo audio: mp3/wav) con selección múltiple → descarga e importa a la
   biblioteca (Fase 1).

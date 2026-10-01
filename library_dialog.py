@@ -32,10 +32,13 @@ class LibraryDialog(QDialog):
             self.channel_combo.addItem(ch, ch)
         btn_import = QPushButton("Importar audios...")
         btn_import.clicked.connect(self._import)
+        btn_dropbox = QPushButton("Dropbox...")
+        btn_dropbox.clicked.connect(self._import_dropbox)
         top.addWidget(self.search, 1)
         top.addWidget(self.filter_combo)
         top.addWidget(self.channel_combo)
         top.addWidget(btn_import)
+        top.addWidget(btn_dropbox)
         layout.addLayout(top)
 
         self.table = QTableWidget(0, 4)
@@ -79,6 +82,11 @@ class LibraryDialog(QDialog):
             self, "Importar a la biblioteca", "", "Audio Files (*.mp3 *.wav *.m4a *.aac *.flac)")
         for f in files:
             library.import_beat(f)
+        self.refresh()
+
+    def _import_dropbox(self):
+        from dropbox_browser_dialog import DropboxBrowserDialog
+        DropboxBrowserDialog(self).exec_()
         self.refresh()
 
     def _accept_selection(self):
