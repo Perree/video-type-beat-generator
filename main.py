@@ -33,7 +33,8 @@ import qtawesome as qta
 from edit_beat_dialog import EditBeatNameDialog
 from content_selection_dialog import ContentSelectionDialog
 from library_dialog import LibraryDialog
-from core import library
+from core import library, description, youtube
+from core.upload_worker import ConnectChannelWorker, YouTubeUploadWorker
 
 # Constantes
 CONFIG_FILE = os.path.join('config', 'app_config.json')
@@ -484,6 +485,12 @@ class ChannelManager(QDialog):
         channel_buttons.addWidget(self.btn_add_channel)
         channel_buttons.addWidget(self.btn_remove_channel)
         left_panel.addLayout(channel_buttons)
+        self.btn_connect_youtube = QPushButton("🔗 Conectar canal (YouTube)")
+        self.btn_connect_youtube.clicked.connect(self.connect_youtube)
+        left_panel.addWidget(self.btn_connect_youtube)
+        self.youtube_status = QLabel("")
+        self.youtube_status.setStyleSheet("color: #aaa; font-size: 11px;")
+        left_panel.addWidget(self.youtube_status)
         
         # Panel derecho - Grupos del canal seleccionado
         right_panel = QVBoxLayout()
@@ -538,6 +545,49 @@ class ChannelManager(QDialog):
             groups = self.channels_config[channel_name].get('groups', [])
             for group in groups:
                 self.groups_list.addItem(group)
+        self._update_youtube_status(channel_name)
+
+    def _update_youtube_status(self, channel_name):
+        if not channel_name:
+            self.youtube_status.setText("")
+        elif youtube.is_connected(channel_name):
+            self.youtube_status.setText("✅ Conectado a YouTube")
+        else:
+            self.youtube_status.setText("⚪ Sin conectar a YouTube")
+
+    def connect_youtube(self):
+        """Autoriza una cuenta de Google para el canal seleccionado (abre el navegador)."""
+        item = self.channels_list.currentItem()
+        if not item:
+            QMessageBox.warning(self, "Advertencia", "Selecciona un canal primero.")
+            return
+        channel = item.text()
+        if youtube.is_connected(channel):
+            reply = QMessageBox.question(self, "Reconectar",
+                f"'{channel}' ya está conectado. ¿Conectar otra cuenta de Google?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply != QMessageBox.Yes:
+                return
+        QMessageBox.information(self, "Conectar canal",
+            "Se abrirá el navegador: elegí la cuenta de Google del canal "
+            f"'{channel}' y aceptá los permisos.")
+        self.btn_connect_youtube.setEnabled(False)
+        self.youtube_status.setText("⏳ Esperando autorización en el navegador...")
+        self._connect_worker = ConnectChannelWorker(channel, self)
+        self._connect_worker.finished_ok.connect(self._on_youtube_connected)
+        self._connect_worker.failed.connect(self._on_youtube_connect_failed)
+        self._connect_worker.start()
+
+    def _on_youtube_connected(self, channel, yt_title):
+        self.btn_connect_youtube.setEnabled(True)
+        self._update_youtube_status(channel)
+        QMessageBox.information(self, "Canal conectado",
+            f"'{channel}' quedó conectado al canal de YouTube: {yt_title or '(sin título)'}")
+
+    def _on_youtube_connect_failed(self, channel, error):
+        self.btn_connect_youtube.setEnabled(True)
+        self._update_youtube_status(channel)
+        QMessageBox.warning(self, "Error al conectar", error)
     
     def add_channel(self):
         """Agrega un nuevo canal."""
@@ -1045,6 +1095,11 @@ class MainWindow(QMainWindow):
         self.check_use_defaults.setStyleSheet("color: #aaa; font-size: 11px;")
         self.check_use_defaults.setToolTip("Si está marcado, no se abre el diálogo de elegir imágenes vs videos; se usa la última opción.")
         main_buttons.addWidget(self.check_use_defaults)
+
+        self.check_youtube_upload = QCheckBox("Subir a YouTube al terminar (privado)")
+        self.check_youtube_upload.setStyleSheet("color: #aaa; font-size: 11px;")
+        self.check_youtube_upload.setToolTip("Sube cada video al canal asignado (hay que conectarlo antes en Gestión de Canales).")
+        main_buttons.addWidget(self.check_youtube_upload)
         
         self.btn_generate = QPushButton("▶️ GENERAR VIDEOS")
         self.btn_generate.setStyleSheet("background-color: #27AE60; font-size: 16px; padding: 15px; font-weight: bold;")
@@ -1929,6 +1984,8 @@ class MainWindow(QMainWindow):
         
         if success:
             self._record_generated_in_library()
+            if self.check_youtube_upload.isChecked():
+                self._start_youtube_upload(list(getattr(self.worker, 'metadata_entries', []) or []))
             # Exportar metadata para YouTube si hay entradas
             metadata_path = None
             if self.worker and getattr(self.worker, 'metadata_entries', None):
@@ -1968,6 +2025,66 @@ class MainWindow(QMainWindow):
                                           titulo=e['title'], estado='generado')
             except Exception as ex:
                 print(f"Error registrando en biblioteca: {ex}")
+
+    def _start_youtube_upload(self, entries):
+        """Prepara y lanza la subida a YouTube de los videos generados."""
+        jobs, sin_conectar, duplicados = [], set(), []
+        for e in entries:
+            if not youtube.is_connected(e['channel']):
+                sin_conectar.add(e['channel'])
+                continue
+            beat = None
+            try:
+                beat = library.find_beat_by_path(os.path.join(self.beats_folder, e['beat_file']))
+            except Exception as ex:
+                print(f"Error buscando beat en biblioteca: {ex}")
+            beat = beat or {}
+            name = beat.get('nombre') or os.path.splitext(e['beat_file'])[0]
+            desc = description.render_for_channel(
+                e['channel'], name, beat.get('bpm'), beat.get('key'),
+                beat.get('beatstars_url') or '', e.get('tags', ''))
+            thumb = os.path.splitext(e['path'])[0] + '_imagen.jpg'
+            job = {'channel': e['channel'], 'group': e['group'], 'path': e['path'],
+                   'title': e['title'], 'description': desc, 'tags': e.get('tags', ''),
+                   'thumbnail': thumb if os.path.exists(thumb) else None,
+                   'privacy': 'private', 'beat_id': beat.get('id')}
+            previas = library.youtube_uploads(beat['id'], e['channel']) if beat.get('id') else []
+            if previas:
+                duplicados.append((job, previas[0]))
+            jobs.append(job)
+        if sin_conectar:
+            QMessageBox.warning(self, "Canales sin conectar",
+                "No se subirán los videos de estos canales (conectalos en Gestión de Canales):\n- "
+                + "\n- ".join(sorted(sin_conectar)))
+        if duplicados:
+            lineas = [f"- {j['title']} → {j['channel']}: {library.humanize_ago(p['subido_en'])} ({p['url']})"
+                      for j, p in duplicados]
+            reply = QMessageBox.question(self, "Beats ya subidos",
+                "Estos beats ya se subieron a ese canal:\n" + "\n".join(lineas)
+                + "\n\n¿Subirlos igual? (No = omitirlos)",
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.No)
+            if reply == QMessageBox.Cancel:
+                return
+            if reply == QMessageBox.No:
+                omitir = {id(j) for j, _ in duplicados}
+                jobs = [j for j in jobs if id(j) not in omitir]
+        if not jobs:
+            return
+        self._upload_worker = YouTubeUploadWorker(jobs, self)
+        self._upload_worker.progress.connect(self.status_label.setText)
+        self._upload_worker.finished_all.connect(self._youtube_upload_finished)
+        self._upload_worker.start()
+
+    def _youtube_upload_finished(self, done, errors):
+        msg = f"Subidos a YouTube: {len(done)} videos (privados; publicalos desde YouTube Studio)."
+        if done:
+            msg += "\n\n" + "\n".join(f"- {d['title']}: {d['url']}" for d in done)
+        self.status_label.setText(f"Subidos a YouTube: {len(done)}")
+        if errors:
+            msg += "\n\nProblemas:\n" + "\n".join(f"- {e}" for e in errors)
+            QMessageBox.warning(self, "Subida a YouTube", msg)
+        else:
+            QMessageBox.information(self, "Subida a YouTube", msg)
 
     def _open_output_folder(self):
         """Abre la carpeta de salida en el explorador del sistema."""

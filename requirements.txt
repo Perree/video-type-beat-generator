@@ -3,3 +3,6 @@ Pillow>=9.0.0
 qdarkstyle
 qtawesome
 librosa
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2

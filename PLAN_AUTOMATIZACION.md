@@ -54,7 +54,9 @@ key y beatstars_url a edit_beat_dialog.py (pre-rellenados, editables) y guárdal
 core/description.py que renderiza una plantilla por canal con {name},{bpm},{key},{beatstars_url}. Muestra una vista
 previa de la descripción en el diálogo."
 
-## Fase 3 — Subida a YouTube, multi-cuenta (Sonnet; Opus solo si OAuth se complica)
+## Fase 3 — Subida a YouTube, multi-cuenta (Sonnet; Opus solo si OAuth se complica) ✅ COMPLETADA
+(Implementado: `core/youtube.py`, `core/upload_worker.py`, guía en `docs/YOUTUBE_SETUP.md`.
+Pendiente del usuario: pasos de Google Cloud y prueba real F3 con un canal de prueba.)
 Pasos manuales previos del usuario (documentar en la fase): crear proyecto en Google Cloud, activar YouTube Data API v3,
 crear credenciales OAuth "Escritorio", pasar la app a "In production", agregar cada cuenta como usuario de prueba,
 (más adelante) pedir auditoría de la API — hasta entonces los videos suben **privados** y se publican a mano en Studio.

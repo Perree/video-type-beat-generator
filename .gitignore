@@ -76,3 +76,7 @@ videos/RaveBeatz/Principal/video stock - RAVE BEATZ.mp4
 # Biblioteca local
 library/
 library.db
+
+# YouTube: credenciales OAuth y tokens por canal
+config/client_secret.json
+tokens/

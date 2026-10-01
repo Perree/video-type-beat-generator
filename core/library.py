@@ -125,6 +125,14 @@ def last_upload(beat_id, canal=None, db_path=None):
         return dict(row) if row else None
 
 
+def youtube_uploads(beat_id, canal, db_path=None):
+    """Subidas reales a YouTube (con youtube_id) de un beat en un canal, más recientes primero."""
+    with _connect(db_path) as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM uploads WHERE beat_id = ? AND canal = ? AND youtube_id <> '' "
+            "ORDER BY subido_en DESC", (beat_id, canal))]
+
+
 def list_beats(filtro=None, canal=None, meses=6, texto='', db_path=None):
     """Lista beats con su última subida (global o del canal indicado).
 
