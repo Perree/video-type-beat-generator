@@ -13,6 +13,9 @@ Una aplicación de escritorio profesional para automatizar la generación de vid
 6. **Procesamiento**: Monitorea progreso en tiempo real con información detallada
 7. **Resultado**: Videos organizados automáticamente en estructura `canal/grupo/`
 
+#### 📱 Clip vertical 9:16 (opcional)
+Activa **"Generar también clip vertical 9:16"** para obtener, junto a cada video, un `<nombre>_vertical.mp4` de 45 s (1080x1920, recorte centrado, fade de audio) listo para Shorts/Reels/TikTok. Si el beat dura menos de 45 s se usa completo.
+
 #### 🎯 Diálogo de Selección de Contenido:
 ```
 ┌─────────────────────────────────────────┐
