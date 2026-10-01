@@ -52,6 +52,7 @@ DEFAULT_CONFIG = {
     'overlay_text': '{name} Type Beat',
     'cta_enabled': False,
     'cta_text': 'Like | Subscribe | Link in description',
+    'vertical_enabled': False,
     'channels': {}  # Canales: { "nombre": { "groups": [...] } }
 }
 
@@ -160,14 +161,51 @@ def _build_vf_with_overlays(base_vf, overlay_display=None, cta_text=None, audio_
     return vf
 
 
+VERTICAL_CLIP_SECONDS = 45  # Duración objetivo del clip vertical (rango válido 30-60 s)
+VERTICAL_START_RATIO = 0.2  # El clip arranca al 20% del beat (evita la intro)
+
+
+def _vertical_clip_window(audio_duration):
+    """Devuelve (inicio, duración) en segundos para el clip vertical.
+    Duración 45 s (30-60 s); si el beat es más corto se usa completo."""
+    dur = float(VERTICAL_CLIP_SECONDS)
+    if not audio_duration or audio_duration <= dur:
+        return 0.0, (audio_duration or dur)
+    start = min(audio_duration * VERTICAL_START_RATIO, audio_duration - dur)
+    return max(start, 0.0), dur
+
+
+def _build_vertical_cmd(ffmpeg_path, content_path, audio_path, output_file, content_type, audio_duration):
+    """Comando FFmpeg para un clip 1080x1920 (9:16) con recorte centrado."""
+    start, dur = _vertical_clip_window(audio_duration)
+    vf = "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1"
+    fade_out_at = max(dur - 1.5, 0)
+    af = f"afade=t=in:d=0.5,afade=t=out:st={fade_out_at:.3f}:d=1.5"
+    if content_type == "videos":
+        video_in = ["-stream_loop", "-1", "-i", content_path]
+    else:
+        video_in = ["-loop", "1", "-i", content_path]
+    cmd = [ffmpeg_path] + video_in + ["-ss", f"{start:.3f}", "-i", audio_path,
+        "-map", "0:v", "-map", "1:a",
+        "-vf", vf, "-af", af,
+        "-t", f"{dur:.3f}",
+        "-c:v", "libx264", "-preset", "fast", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "192k",
+        "-shortest", "-y", output_file]
+    if content_type != "videos":
+        cmd[cmd.index("-preset") + 2:cmd.index("-preset") + 2] = ["-tune", "stillimage"]
+    return cmd
+
+
 class VideoGeneratorWorker(QThread):
     """Clase para procesar la generación de videos en un hilo separado."""
     progress_updated = pyqtSignal(int, str)
     finished = pyqtSignal(bool, str)
     
     def __init__(self, beats_folder, images_folder, output_folder, beats_info, content_type="images", main_window=None, name_template=None,
-                 overlay_enabled=False, overlay_text=None, cta_enabled=False, cta_text=None):
+                 overlay_enabled=False, overlay_text=None, cta_enabled=False, cta_text=None, vertical_enabled=False):
         super().__init__()
+        self.vertical_enabled = vertical_enabled
         self.beats_folder = beats_folder
         self.images_folder = images_folder
         self.output_folder = output_folder
@@ -241,6 +279,10 @@ class VideoGeneratorWorker(QThread):
                 
                 if success:
                     successful_videos += 1
+                    if self.vertical_enabled:
+                        self.progress_updated.emit(progress, f"Clip vertical 9:16: {beat_file} ({i+1}/{total_beats})")
+                        self._generate_vertical_clip(content_file, audio_file, group_output_folder,
+                                                     f"{base_output_name}_vertical", self.content_type)
                     # Metadata para YouTube (título, descripción, tags)
                     title = base_output_name.replace('_', ' ')
                     desc = f"Free type beat - {title}\n\nLink in description.\nSubscribe for more."
@@ -397,6 +439,23 @@ class VideoGeneratorWorker(QThread):
 
         except Exception as e:
             print(f"Error generando video: {e}")
+            return False
+
+    def _generate_vertical_clip(self, content_path, audio_path, output_folder, base_name, content_type="images"):
+        """Genera un clip vertical 1080x1920 de 30-60 s con recorte centrado."""
+        try:
+            output_file = os.path.join(output_folder, f"{base_name}.mp4")
+            ffmpeg_path = os.path.join("bin", "ffmpeg.exe") if os.name == 'nt' else "ffmpeg"
+            cmd = _build_vertical_cmd(ffmpeg_path, content_path, audio_path, output_file,
+                                      content_type, self._get_media_duration(audio_path))
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+            if result.returncode == 0:
+                print(f"✓ Clip vertical generado: {os.path.basename(output_file)}")
+                return True
+            print(f"✗ Error FFmpeg (vertical): {result.stderr}")
+            return False
+        except Exception as e:
+            print(f"Error generando clip vertical: {e}")
             return False
 
     def _get_media_duration(self, media_path):
@@ -1102,6 +1161,12 @@ class MainWindow(QMainWindow):
         self.check_overlay_text.stateChanged.connect(self._on_overlay_check_changed)
         right_layout.addWidget(self.check_overlay_text)
         
+        self.check_vertical = QCheckBox("Generar también clip vertical 9:16 (45 s, 1080x1920)")
+        self.check_vertical.setStyleSheet("color: #aaa; font-size: 11px;")
+        self.check_vertical.setToolTip("Crea además un clip vertical de 30-60 s (Shorts/Reels/TikTok) con recorte centrado: <nombre>_vertical.mp4")
+        self.check_vertical.stateChanged.connect(self._on_vertical_check_changed)
+        right_layout.addWidget(self.check_vertical)
+        
         # Botones principales
         main_buttons = QVBoxLayout()
         
@@ -1172,6 +1237,7 @@ class MainWindow(QMainWindow):
                     self.overlay_text = config.get('overlay_text', '{name} Type Beat')
                     self.cta_enabled = config.get('cta_enabled', False)
                     self.cta_text = config.get('cta_text', 'Like | Subscribe | Link in description')
+                    self.vertical_enabled = config.get('vertical_enabled', False)
             else:
                 self.last_channel = ''
                 self.last_group = ''
@@ -1195,6 +1261,10 @@ class MainWindow(QMainWindow):
             self.cta_text = 'Like | Subscribe | Link in description'
         if hasattr(self, 'name_template_edit'):
             self.name_template_edit.setText(self.name_template)
+        if hasattr(self, 'check_vertical'):
+            self.check_vertical.blockSignals(True)
+            self.check_vertical.setChecked(bool(getattr(self, 'vertical_enabled', False)))
+            self.check_vertical.blockSignals(False)
         if hasattr(self, 'check_overlay_text'):
             self.check_overlay_text.blockSignals(True)
             self.check_overlay_text.setChecked(bool(self.overlay_enabled))
@@ -1221,6 +1291,7 @@ class MainWindow(QMainWindow):
             config['overlay_enabled'] = getattr(self, 'overlay_enabled', False)
             config['overlay_text'] = getattr(self, 'overlay_text', '{name} Type Beat') or '{name} Type Beat'
             config['cta_enabled'] = getattr(self, 'cta_enabled', False)
+            config['vertical_enabled'] = bool(getattr(self, 'vertical_enabled', False))
             config['cta_text'] = getattr(self, 'cta_text', 'Like | Subscribe | Link in description') or 'Like | Subscribe | Link in description'
             
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
@@ -1427,6 +1498,10 @@ class MainWindow(QMainWindow):
             self.name_template = t
             self.save_config()
     
+    def _on_vertical_check_changed(self, state):
+        self.vertical_enabled = bool(self.check_vertical.isChecked())
+        self.save_config()
+
     def _on_overlay_check_changed(self, state):
         """Activa o desactiva el texto en el video (título y CTA)."""
         self.overlay_enabled = self.cta_enabled = (state == Qt.Checked)
@@ -1970,7 +2045,8 @@ class MainWindow(QMainWindow):
             overlay_enabled=self.check_overlay_text.isChecked() if hasattr(self, 'check_overlay_text') else getattr(self, 'overlay_enabled', False),
             overlay_text=getattr(self, 'overlay_text', '{name} Type Beat'),
             cta_enabled=self.check_overlay_text.isChecked() if hasattr(self, 'check_overlay_text') else getattr(self, 'cta_enabled', False),
-            cta_text=getattr(self, 'cta_text', 'Like | Subscribe | Link in description')
+            cta_text=getattr(self, 'cta_text', 'Like | Subscribe | Link in description'),
+            vertical_enabled=self.check_vertical.isChecked()
         )
         
         self.worker.progress_updated.connect(self._update_progress)
@@ -2123,6 +2199,7 @@ class MainWindow(QMainWindow):
         self.btn_generate.setEnabled(not is_processing)
         self.check_use_defaults.setEnabled(not is_processing)
         self.check_overlay_text.setEnabled(not is_processing)
+        self.check_vertical.setEnabled(not is_processing)
         self.btn_cancel.setEnabled(is_processing)
         self.beats_list.setEnabled(not is_processing)
         self.process_list.setEnabled(not is_processing)
