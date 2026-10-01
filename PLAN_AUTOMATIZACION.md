@@ -21,7 +21,7 @@ Código existente a reutilizar (`main.py`): `VideoGeneratorWorker` (L147, genera
   **Opus** solo si Sonnet falla 2 veces en algo difícil (OAuth/auditoría YouTube).
 - Hacer commit al terminar cada fase para poder volver atrás.
 
-## Fase 0 — Limpieza del repo (Haiku, ~baratísima)
+## Fase 0 — Limpieza del repo (Haiku, ~baratísima) ✅ COMPLETADA
 Sacar `ffmpeg-8.0/` y `bin/ffmpeg.exe` del repo (`git rm --cached` + `.gitignore`), unificar PyQt5/PyQt6 en
 `requirements.txt` según lo que `main.py` importa realmente, quitar rutas `C:/Users/...` de `config/app_config.json`
 (mover a un archivo no versionado).
@@ -30,7 +30,7 @@ Prompt: "En este repo: (1) agrega ffmpeg-8.0/ y bin/ffmpeg.exe a .gitignore y qu
 (3) haz que config/app_config.json no se versione con rutas personales (deja un app_config.example.json).
 No toques nada más. Muéstrame el plan antes de ejecutar."
 
-## Fase 1 — Biblioteca local + historial (Sonnet) — la base
+## Fase 1 — Biblioteca local + historial (Sonnet) — la base ✅ COMPLETADA
 - `core/library.py`: SQLite `library.db`. Tablas `beats` (id, nombre, ruta, hash, bpm, key, beatstars_url, notas, creado)
   y `uploads` (beat_id, canal, grupo, youtube_id, url, título, subido_en, estado).
 - Importar beats copiando el audio a `library/` (dedupe por hash).

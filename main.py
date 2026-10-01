@@ -32,6 +32,8 @@ import qtawesome as qta
 # Importar diálogos
 from edit_beat_dialog import EditBeatNameDialog
 from content_selection_dialog import ContentSelectionDialog
+from library_dialog import LibraryDialog
+from core import library
 
 # Constantes
 CONFIG_FILE = os.path.join('config', 'app_config.json')
@@ -231,6 +233,9 @@ class VideoGeneratorWorker(QThread):
                     tags = f"type beat, free beat, {group}, {channel}"
                     self.metadata_entries.append({
                         'video_file': f"{base_output_name}.mp4",
+                        'beat_file': beat_file,
+                        'channel': channel,
+                        'group': group,
                         'path': os.path.join(group_output_folder, f"{base_output_name}.mp4"),
                         'title': title,
                         'description': desc,
@@ -857,6 +862,9 @@ class MainWindow(QMainWindow):
         
         beats_buttons.addWidget(self.btn_load_beats)
         beats_buttons.addWidget(self.btn_delete_beats)
+        self.btn_library = QPushButton("📚 Biblioteca")
+        self.btn_library.clicked.connect(self._open_library)
+        beats_buttons.addWidget(self.btn_library)
         left_layout.addLayout(beats_buttons)
         
         # Lista de beats disponibles
@@ -1200,6 +1208,7 @@ class MainWindow(QMainWindow):
                     if not os.path.exists(dest_path):
                         shutil.copy2(file, dest_path)
                         copied_files += 1
+                    library.import_beat(file)
                 except Exception as e:
                     print(f"Error copiando {file}: {e}")
             
@@ -1220,6 +1229,17 @@ class MainWindow(QMainWindow):
             
             self.status_label.setText(f"Se copiaron {copied_files} archivos nuevos")
     
+    def _open_library(self):
+        """Abre la biblioteca y carga los beats elegidos en el flujo normal."""
+        dlg = LibraryDialog([self.channel_combo.itemText(i) for i in range(self.channel_combo.count()) if self.channel_combo.itemText(i) != 'Sin asignar'], self)
+        if dlg.exec_() == QDialog.Accepted and dlg.selected_paths:
+            for path in dlg.selected_paths:
+                dest = os.path.join(self.beats_folder, os.path.basename(path))
+                if not os.path.exists(dest):
+                    shutil.copy2(path, dest)
+            self._load_beats()
+            self.status_label.setText(f"{len(dlg.selected_paths)} beats cargados desde la biblioteca")
+
     def _save_selection_to_mp3_folder(self):
         """Copia los beats a una carpeta ordenada: [base] / [mes] / [género]. El usuario elige base y escribe el género (ej. sad emotional beats)."""
         selected = self.beats_list.selectedItems()
@@ -1908,6 +1928,7 @@ class MainWindow(QMainWindow):
         self.progress_bar.setVisible(False)
         
         if success:
+            self._record_generated_in_library()
             # Exportar metadata para YouTube si hay entradas
             metadata_path = None
             if self.worker and getattr(self.worker, 'metadata_entries', None):
@@ -1937,6 +1958,17 @@ class MainWindow(QMainWindow):
         else:
             QMessageBox.warning(self, "Error", message)
     
+    def _record_generated_in_library(self):
+        """Registra en el historial de la biblioteca cada video generado."""
+        for e in getattr(self.worker, 'metadata_entries', []) or []:
+            try:
+                beat = library.find_beat_by_path(os.path.join(self.beats_folder, e['beat_file']))
+                if beat:
+                    library.record_upload(beat['id'], e['channel'], e['group'],
+                                          titulo=e['title'], estado='generado')
+            except Exception as ex:
+                print(f"Error registrando en biblioteca: {ex}")
+
     def _open_output_folder(self):
         """Abre la carpeta de salida en el explorador del sistema."""
         if not os.path.exists(self.output_folder):
