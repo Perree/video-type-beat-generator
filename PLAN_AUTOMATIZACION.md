@@ -43,7 +43,7 @@ list_beats(filtros), record_upload(...), humanize_ago(). Luego agrega un diálog
 permita seleccionarlos para el flujo existente de main.py (_load_beats_from_files, línea ~1178). Pregunta antes de
 cambiar firmas existentes. Sin tocar la generación de video."
 
-## Fase 2 — BPM/key + link BeatStars + plantilla de descripción (Sonnet; plantillas con Haiku)
+## Fase 2 — BPM/key + link BeatStars + plantilla de descripción (Sonnet; plantillas con Haiku) ✅ COMPLETADA
 - `core/audio_analysis.py`: BPM y key con `librosa` (cargar solo ~60 s del audio para rapidez), corrigiendo
   doble/mitad de tempo. Resultado siempre editable.
 - Ampliar `edit_beat_dialog.py` con campos BPM, key y link BeatStars (se guardan en la biblioteca).
