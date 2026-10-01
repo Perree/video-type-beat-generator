@@ -56,7 +56,8 @@ class EditBeatNameDialog(QDialog):
     def _setup_ui(self):
         """Configura la interfaz del diálogo con estilo moderno."""
         self.setWindowTitle("Personalizar nombre del video")
-        self.setFixedSize(640, 760)
+        self.setMinimumSize(560, 560)
+        self.resize(660, 780)
         
         # Aplicar estilos
         self.setStyleSheet("""
@@ -215,27 +216,16 @@ class EditBeatNameDialog(QDialog):
         layout.addLayout(form)
         layout.addWidget(self.btn_analyze)
 
-        layout.addWidget(QLabel("Plantilla de descripción del canal ({name} {bpm} {key} {beatstars_url} {tags} {socials} {hashtags}):"))
-        self.template_input = QPlainTextEdit()
-        self.template_input.setFixedHeight(90)
-        layout.addWidget(self.template_input)
-        self.btn_save_template = QPushButton("Guardar plantilla del canal")
-        self.btn_save_template.clicked.connect(self._save_template)
-        layout.addWidget(self.btn_save_template)
-
-        layout.addWidget(QLabel("Vista previa:"))
+        layout.addWidget(QLabel("Vista previa de la descripción (la plantilla se edita en Gestionar Canales):"))
         self.preview = QPlainTextEdit()
         self.preview.setReadOnly(True)
-        self.preview.setFixedHeight(110)
-        layout.addWidget(self.preview)
+        self.preview.setMinimumHeight(100)
+        layout.addWidget(self.preview, 1)
 
         self._fill_metadata()
-        settings = description.get_channel_settings(self._channel())
-        self.template_input.setPlainText(settings['template'])
         for w in (self.key_input, self.url_input):
             w.textChanged.connect(self._update_preview)
         self.bpm_input.valueChanged.connect(self._update_preview)
-        self.template_input.textChanged.connect(self._update_preview)
         self._update_preview()
 
     def _fill_metadata(self):
@@ -258,7 +248,7 @@ class EditBeatNameDialog(QDialog):
         name = self.name_input.text().strip() or (self._lib_beat or {}).get('nombre') or base
         s = description.get_channel_settings(self._channel())
         self.preview.setPlainText(description.render(
-            self.template_input.toPlainText(), name, self.bpm_input.value() or None,
+            s['template'], name, self.bpm_input.value() or None,
             self.key_input.text().strip(), self.url_input.text().strip(),
             socials=s['socials'], hashtags=s['hashtags']))
 
@@ -278,13 +268,6 @@ class EditBeatNameDialog(QDialog):
             QApplication.restoreOverrideCursor()
         self.bpm_input.setValue(bpm)
         self.key_input.setText(key)
-
-    def _save_template(self):
-        channel = self._channel()
-        if not channel:
-            QMessageBox.information(self, "Sin canal", "Asigna el beat a un canal para guardar su plantilla.")
-            return
-        description.save_channel_template(channel, self.template_input.toPlainText())
 
     def _save_name(self):
         """Guarda el nombre personalizado y la metadata en la biblioteca."""

@@ -21,7 +21,8 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QPushButton,
                             QDialog, QLineEdit, QGridLayout, QMenu, QFrame,
                             QSplitter, QStyleFactory, QToolButton, QListWidgetItem,
                             QSizePolicy, QTabWidget, QInputDialog, QGraphicsDropShadowEffect,
-                            QMenuBar, QGroupBox, QCheckBox, QRadioButton, QAction)
+                            QMenuBar, QGroupBox, QCheckBox, QRadioButton, QAction, QSpinBox,
+                            QPlainTextEdit, QScrollArea)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize, QPropertyAnimation, QEasingCurve, QRect, QSettings, QPoint, QTimer
 from PyQt5.QtGui import QPixmap, QIcon, QColor, QPalette, QFont, QCursor, QLinearGradient, QPainter, QPainterPath
 
@@ -34,6 +35,9 @@ from edit_beat_dialog import EditBeatNameDialog
 from content_selection_dialog import ContentSelectionDialog
 from library_dialog import LibraryDialog
 from core import library, description, youtube
+from core import channel_templates
+from core.channel_templates import sanitize_filename as _sanitize_filename
+from beatstars_prompt import ask_beatstars_url
 from core.upload_worker import ConnectChannelWorker, YouTubeUploadWorker
 from beat_watcher import BeatFolderWatcher
 
@@ -54,6 +58,7 @@ DEFAULT_CONFIG = {
     'cta_enabled': False,
     'cta_text': 'Like | Subscribe | Link in description',
     'vertical_enabled': False,
+    'vertical_seconds': 45,
     'channels': {}  # Canales: { "nombre": { "groups": [...] } }
 }
 
@@ -123,13 +128,6 @@ QProgressBar::chunk {
 }
 """
 
-def _sanitize_filename(s):
-    """Elimina caracteres no válidos para nombres de archivo."""
-    for c in '\\/:*?"<>|':
-        s = s.replace(c, '_')
-    return s[:200].strip() or 'video'
-
-
 def _escape_drawtext(s):
     """Escapa texto para drawtext de FFmpeg (comillas y dos puntos)."""
     if not s:
@@ -137,14 +135,34 @@ def _escape_drawtext(s):
     return s.replace('\\', '\\\\').replace("'", "\\'").replace(':', '\\:')
 
 
+def _resolve_tool(name):
+    """Devuelve la ruta de ffmpeg o ffprobe.
+
+    Primero busca en bin/ (copia local). Si no está, usa el que haya en el PATH.
+    Los binarios no van en el repo; sin esta búsqueda subprocess lanza WinError 2.
+    """
+    exe = f"{name}.exe" if os.name == "nt" else name
+    local = os.path.join("bin", exe)
+    if os.path.isfile(local):
+        return local
+    return shutil.which(name)
+
+
 def _get_available_video_codec(ffmpeg_path):
-    """Detecta si h264_nvenc está disponible, retorna el codec a usar (h264_nvenc o libx264 fallback)."""
+    """Retorna h264_nvenc solo si una codificación de prueba funciona; si no, libx264.
+    Que el encoder figure en `-codecs` no basta: con drivers NVIDIA viejos falla al abrirlo."""
     try:
-        result = subprocess.run([ffmpeg_path, "-codecs"], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=5)
-        if "h264_nvenc" in result.stdout:
+        result = subprocess.run(
+            [ffmpeg_path, "-hide_banner", "-loglevel", "error", "-f", "lavfi",
+             "-i", "color=c=black:s=256x256:d=0.1", "-frames:v", "1",
+             "-c:v", "h264_nvenc", "-f", "null", "-"],
+            capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=15)
+        if result.returncode == 0:
             print("✓ Aceleración GPU (h264_nvenc) detectada")
             return "h264_nvenc"
-    except:
+        print("ℹ h264_nvenc no funciona en este equipo (¿driver NVIDIA desactualizado?): "
+              + (result.stderr.strip().splitlines() or [""])[-1])
+    except Exception:
         pass
     print("ℹ Usando codec por defecto (libx264)")
     return "libx264"
@@ -162,23 +180,24 @@ def _build_vf_with_overlays(base_vf, overlay_display=None, cta_text=None, audio_
     return vf
 
 
-VERTICAL_CLIP_SECONDS = 45  # Duración objetivo del clip vertical (rango válido 30-60 s)
+VERTICAL_CLIP_SECONDS = 45  # Duración por defecto del clip vertical
+VERTICAL_MIN, VERTICAL_MAX = 15, 60  # Rango válido (s)
 VERTICAL_START_RATIO = 0.2  # El clip arranca al 20% del beat (evita la intro)
 
 
-def _vertical_clip_window(audio_duration):
+def _vertical_clip_window(audio_duration, seconds=VERTICAL_CLIP_SECONDS):
     """Devuelve (inicio, duración) en segundos para el clip vertical.
-    Duración 45 s (30-60 s); si el beat es más corto se usa completo."""
-    dur = float(VERTICAL_CLIP_SECONDS)
+    Duración configurable (15-60 s); si el beat es más corto se usa completo."""
+    dur = float(min(max(seconds or VERTICAL_CLIP_SECONDS, VERTICAL_MIN), VERTICAL_MAX))
     if not audio_duration or audio_duration <= dur:
         return 0.0, (audio_duration or dur)
     start = min(audio_duration * VERTICAL_START_RATIO, audio_duration - dur)
     return max(start, 0.0), dur
 
 
-def _build_vertical_cmd(ffmpeg_path, content_path, audio_path, output_file, content_type, audio_duration):
+def _build_vertical_cmd(ffmpeg_path, content_path, audio_path, output_file, content_type, audio_duration, seconds=VERTICAL_CLIP_SECONDS):
     """Comando FFmpeg para un clip 1080x1920 (9:16) con recorte centrado."""
-    start, dur = _vertical_clip_window(audio_duration)
+    start, dur = _vertical_clip_window(audio_duration, seconds)
     vf = "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1"
     fade_out_at = max(dur - 1.5, 0)
     af = f"afade=t=in:d=0.5,afade=t=out:st={fade_out_at:.3f}:d=1.5"
@@ -204,16 +223,19 @@ class VideoGeneratorWorker(QThread):
     finished = pyqtSignal(bool, str)
     
     def __init__(self, beats_folder, images_folder, output_folder, beats_info, content_type="images", main_window=None, name_template=None,
-                 overlay_enabled=False, overlay_text=None, cta_enabled=False, cta_text=None, vertical_enabled=False):
+                 overlay_enabled=False, overlay_text=None, cta_enabled=False, cta_text=None, vertical_enabled=False,
+                 vertical_seconds=VERTICAL_CLIP_SECONDS, channel_title_templates=None):
         super().__init__()
         self.vertical_enabled = vertical_enabled
+        self.vertical_seconds = vertical_seconds
+        self.channel_title_templates = channel_title_templates or {}
         self.beats_folder = beats_folder
         self.images_folder = images_folder
         self.output_folder = output_folder
         self.beats_info = beats_info
         self.content_type = content_type
         self.main_window = main_window
-        self.name_template = name_template or '[Type] {name} | Free for Profit'
+        self.name_template = name_template or channel_templates.DEFAULT_TITLE_TEMPLATE
         self.overlay_enabled = overlay_enabled
         self.overlay_text = overlay_text or '{name} Type Beat'
         self.cta_enabled = cta_enabled
@@ -263,13 +285,15 @@ class VideoGeneratorWorker(QThread):
                 audio_file = os.path.join(self.beats_folder, beat_file)
                 
                 # Usar nombre personalizado o plantilla SEO
+                # Título crudo (YouTube, conserva | y [ ]) vs nombre de archivo (sanitizado)
                 if custom_name:
+                    video_title = custom_name
                     base_output_name = _sanitize_filename(custom_name)
                 else:
                     base = os.path.splitext(beat_file)[0]
-                    base_output_name = _sanitize_filename(
-                        self.name_template.replace('{name}', base).replace('{channel}', channel).replace('{group}', group)
-                    )
+                    tpl = self.channel_title_templates.get(channel) or self.name_template
+                    video_title = channel_templates.render_title(tpl, base, channel, group)
+                    base_output_name = _sanitize_filename(video_title)
                     if not base_output_name:
                         base_output_name = f"{base}_{channel}_{group}"
                 
@@ -285,7 +309,7 @@ class VideoGeneratorWorker(QThread):
                         self._generate_vertical_clip(content_file, audio_file, group_output_folder,
                                                      f"{base_output_name}_vertical", self.content_type)
                     # Metadata para YouTube (título, descripción, tags)
-                    title = base_output_name.replace('_', ' ')
+                    title = video_title
                     desc = f"Free type beat - {title}\n\nLink in description.\nSubscribe for more."
                     tags = f"type beat, free beat, {group}, {channel}"
                     self.metadata_entries.append({
@@ -379,7 +403,10 @@ class VideoGeneratorWorker(QThread):
         try:
             output_file = os.path.join(output_folder, f"{base_name}.mp4")
 
-            ffmpeg_path = os.path.join("bin", "ffmpeg.exe") if os.name == 'nt' else "ffmpeg"
+            ffmpeg_path = _resolve_tool("ffmpeg")
+            if not ffmpeg_path:
+                print("Error generando video: no se encontró FFmpeg (ni en bin/ ni en el PATH).")
+                return False
             video_codec = _get_available_video_codec(ffmpeg_path)
             audio_duration = self._get_media_duration(audio_path)
             duration_args = []
@@ -410,6 +437,8 @@ class VideoGeneratorWorker(QThread):
                     output_file
                 ]
             else:
+                # stillimage es de libx264; h264_nvenc lo rechaza y aborta la generación.
+                tune_args = ["-tune", "stillimage"] if video_codec == "libx264" else []
                 cmd = [
                     ffmpeg_path,
                     "-loop", "1",
@@ -418,7 +447,7 @@ class VideoGeneratorWorker(QThread):
                     "-vf", vf_images,
                     "-c:v", video_codec,
                     "-preset", "fast",
-                    "-tune", "stillimage",
+                ] + tune_args + [
                     "-c:a", "aac",
                     "-b:a", "192k",
                     "-shortest",
@@ -443,12 +472,16 @@ class VideoGeneratorWorker(QThread):
             return False
 
     def _generate_vertical_clip(self, content_path, audio_path, output_folder, base_name, content_type="images"):
-        """Genera un clip vertical 1080x1920 de 30-60 s con recorte centrado."""
+        """Genera un clip vertical 1080x1920 (15-60 s) con recorte centrado."""
         try:
             output_file = os.path.join(output_folder, f"{base_name}.mp4")
-            ffmpeg_path = os.path.join("bin", "ffmpeg.exe") if os.name == 'nt' else "ffmpeg"
+            ffmpeg_path = _resolve_tool("ffmpeg")
+            if not ffmpeg_path:
+                print("Error generando clip vertical: no se encontró FFmpeg (ni en bin/ ni en el PATH).")
+                return False
             cmd = _build_vertical_cmd(ffmpeg_path, content_path, audio_path, output_file,
-                                      content_type, self._get_media_duration(audio_path))
+                                      content_type, self._get_media_duration(audio_path),
+                                      self.vertical_seconds)
             result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
             if result.returncode == 0:
                 print(f"✓ Clip vertical generado: {os.path.basename(output_file)}")
@@ -462,7 +495,9 @@ class VideoGeneratorWorker(QThread):
     def _get_media_duration(self, media_path):
         """Devuelve la duración en segundos (float) de un archivo multimedia usando ffprobe, o None si falla."""
         try:
-            ffprobe_path = os.path.join("bin", "ffprobe.exe") if os.name == 'nt' else "ffprobe"
+            ffprobe_path = _resolve_tool("ffprobe")
+            if not ffprobe_path:
+                return None
             cmd = [
                 ffprobe_path,
                 "-v", "error",
@@ -495,7 +530,9 @@ class ChannelManager(QDialog):
         self.config_file = config_file or CONFIG_FILE
         self.setWindowTitle("Gestión de Canales y Grupos")
         self.setModal(True)
-        self.setMinimumSize(600, 400)
+        self.setMinimumSize(760, 480)
+        self.resize(1000, 660)
+        self._current_channel = None
         self.load_config()
         self.setup_ui()
     
@@ -563,7 +600,7 @@ class ChannelManager(QDialog):
         self.btn_connect_youtube.clicked.connect(self.connect_youtube)
         left_panel.addWidget(self.btn_connect_youtube)
         self.youtube_status = QLabel("")
-        self.youtube_status.setStyleSheet("color: #aaa; font-size: 11px;")
+        self.youtube_status.setStyleSheet("color: #aaa; font-size: 12px;")
         left_panel.addWidget(self.youtube_status)
         
         # Panel derecho - Grupos del canal seleccionado
@@ -587,10 +624,43 @@ class ChannelManager(QDialog):
         group_buttons.addWidget(self.btn_edit_images)
         right_panel.addLayout(group_buttons)
         
-        # Agregar paneles al layout principal
-        main_layout.addLayout(left_panel)
-        main_layout.addLayout(right_panel)
-        layout.addLayout(main_layout)
+        # Panel YouTube - título y descripción del canal (se estira con la ventana)
+        yt_panel = QVBoxLayout()
+        yt_panel.addWidget(QLabel("Título de YouTube ({name} = nombre del beat):"))
+        self.title_template_edit = QLineEdit()
+        self.title_template_edit.setPlaceholderText("[Juice WRLD] {name} | Free Type Beat")
+        self.title_template_edit.setToolTip("Vacío = se usa la plantilla por defecto de la ventana principal.")
+        self.title_template_edit.textChanged.connect(self._update_yt_preview)
+        yt_panel.addWidget(self.title_template_edit)
+        yt_panel.addWidget(QLabel("Descripción ({name} {bpm} {key} {beatstars_url}):"))
+        self.desc_edit = QPlainTextEdit()
+        self.desc_edit.setPlaceholderText("Pegá acá tu descripción de YouTube. Poné {beatstars_url} donde va el link.")
+        self.desc_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.desc_edit.setMinimumHeight(120)
+        self.desc_edit.textChanged.connect(self._update_yt_preview)
+        yt_panel.addWidget(self.desc_edit, 3)
+        yt_panel.addWidget(QLabel("Vista previa:"))
+        self.yt_preview = QPlainTextEdit()
+        self.yt_preview.setReadOnly(True)
+        self.yt_preview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.yt_preview.setMinimumHeight(60)
+        yt_panel.addWidget(self.yt_preview, 2)
+        self.yt_widgets = [self.title_template_edit, self.desc_edit]
+        for w in self.yt_widgets:
+            w.setEnabled(False)
+
+        # Agregar paneles a un splitter: todo se reparte al cambiar el tamaño
+        splitter = QSplitter(Qt.Horizontal)
+        for panel, stretch in ((left_panel, 2), (right_panel, 2), (yt_panel, 4)):
+            w = QWidget()
+            w.setLayout(panel)
+            w.setMinimumWidth(200)
+            splitter.addWidget(w)
+            splitter.setStretchFactor(splitter.count() - 1, stretch)
+        splitter.setChildrenCollapsible(False)
+        splitter.setSizes([220, 220, 460])
+        main_layout.addWidget(splitter)
+        layout.addLayout(main_layout, 1)
         
         # Botones de control
         control_buttons = QHBoxLayout()
@@ -614,12 +684,37 @@ class ChannelManager(QDialog):
     
     def on_channel_selected(self, channel_name):
         """Se ejecuta cuando se selecciona un canal."""
+        self._flush_yt_fields()
         self.groups_list.clear()
         if channel_name and channel_name in self.channels_config:
-            groups = self.channels_config[channel_name].get('groups', [])
-            for group in groups:
+            cfg = self.channels_config[channel_name]
+            for group in cfg.get('groups', []):
                 self.groups_list.addItem(group)
+            self._current_channel = channel_name
+            self.title_template_edit.setText(cfg.get('title_template', ''))
+            self.desc_edit.setPlainText(cfg.get('description_template') or description.DEFAULT_TEMPLATE)
+        else:
+            self._current_channel = None
+            self.title_template_edit.clear()
+            self.desc_edit.clear()
+        for w in self.yt_widgets:
+            w.setEnabled(self._current_channel is not None)
         self._update_youtube_status(channel_name)
+
+    def _flush_yt_fields(self):
+        """Vuelca título/descripción editados al dict en memoria del canal activo."""
+        ch = self._current_channel
+        if ch and ch in self.channels_config:
+            self.channels_config[ch]['title_template'] = self.title_template_edit.text().strip()
+            self.channels_config[ch]['description_template'] = self.desc_edit.toPlainText()
+
+    def _update_yt_preview(self):
+        title = channel_templates.render_title(
+            self.title_template_edit.text().strip() or channel_templates.DEFAULT_TITLE_TEMPLATE,
+            "Nombre del beat", self._current_channel or '')
+        body = description.render(self.desc_edit.toPlainText(), "Nombre del beat", 140, "A minor",
+                                  "https://www.beatstars.com/...")
+        self.yt_preview.setPlainText(f"{title}\n\n{body}")
 
     def _update_youtube_status(self, channel_name):
         if not channel_name:
@@ -772,6 +867,7 @@ class ChannelManager(QDialog):
     
     def accept(self):
         """Guarda la configuración al aceptar."""
+        self._flush_yt_fields()
         self.save_config()
         super().accept()
 
@@ -909,7 +1005,7 @@ class MainWindow(QMainWindow):
         
         # Configurar ventana
         self.setWindowTitle("🎵 Type Beat Video Generator v2.0")
-        self.setMinimumSize(1200, 700)
+        self.setMinimumSize(1000, 620)
         self.resize(1400, 800)
         
         # Aplicar estilos
@@ -973,7 +1069,7 @@ class MainWindow(QMainWindow):
         
         # === COLUMNA 1: GESTIÓN DE BEATS ===
         left_panel = QFrame()
-        left_panel.setMaximumWidth(350)
+        left_panel.setMinimumWidth(260)
         left_layout = QVBoxLayout(left_panel)
         
         # Título de la columna
@@ -1001,7 +1097,7 @@ class MainWindow(QMainWindow):
         beats_label.setStyleSheet("font-weight: bold; padding: 5px;")
         left_layout.addWidget(beats_label)
         self.recommended_label = QLabel("Recomendado: 10 beats")
-        self.recommended_label.setStyleSheet("color: #3498DB; font-size: 11px; padding: 2px 5px;")
+        self.recommended_label.setStyleSheet("color: #3498DB; font-size: 12px; padding: 2px 5px;")
         left_layout.addWidget(self.recommended_label)
         
         # Control de selección múltiple
@@ -1019,17 +1115,17 @@ class MainWindow(QMainWindow):
         selection_layout.addWidget(self.btn_deselect_all)
         # Contador de beats seleccionados
         self.selected_count_label = QLabel("0 seleccionados")
-        self.selected_count_label.setStyleSheet("color: #3498DB; font-size: 10px;")
+        self.selected_count_label.setStyleSheet("color: #3498DB; font-size: 12px;")
         selection_layout.addWidget(self.selected_count_label)
         selection_layout.addStretch()
         
         left_layout.addLayout(selection_layout)
 
         self.beats_list = QListWidget()
-        self.beats_list.setMaximumHeight(200)
+        self.beats_list.setMinimumHeight(120)
         self.beats_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
         self.beats_list.itemSelectionChanged.connect(self._update_selection_count)
-        left_layout.addWidget(self.beats_list)
+        left_layout.addWidget(self.beats_list, 1)
         
         # Botones de acción para beats
         beats_actions_layout = QHBoxLayout()
@@ -1051,11 +1147,9 @@ class MainWindow(QMainWindow):
         self.btn_save_to_mp3_folder.clicked.connect(self._save_selection_to_mp3_folder)
         left_layout.addWidget(self.btn_save_to_mp3_folder)
         
-        left_layout.addStretch()
-        
         # === COLUMNA 2: CONFIGURACIÓN DE CANALES ===
         center_panel = QFrame()
-        center_panel.setMaximumWidth(400)
+        center_panel.setMinimumWidth(240)
         center_layout = QVBoxLayout(center_panel)
         
         # Título de la columna
@@ -1103,7 +1197,7 @@ class MainWindow(QMainWindow):
         self.btn_upload_images.clicked.connect(self._upload_content_to_channel)
         center_layout.addWidget(self.btn_upload_images)
         
-        center_layout.addStretch()
+        center_layout.addStretch(1)
         
         # === COLUMNA 3: LISTA DE PROCESAMIENTO ===
         right_panel = QFrame()
@@ -1121,9 +1215,9 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(assigned_label)
         
         self.process_list = QListWidget()
-        self.process_list.setMaximumHeight(250)
+        self.process_list.setMinimumHeight(120)
         self.process_list.itemDoubleClicked.connect(self._edit_assigned_beat)
-        right_layout.addWidget(self.process_list)
+        right_layout.addWidget(self.process_list, 1)
         
         # Botones de control de procesamiento
         process_buttons = QHBoxLayout()
@@ -1146,12 +1240,12 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(self.btn_browse_output)
         
         self.output_label = QLabel(f"📍 {self.output_folder}")
-        self.output_label.setStyleSheet("padding: 5px; font-size: 11px; color: #888;")
+        self.output_label.setStyleSheet("padding: 5px; font-size: 12px; color: #888;")
         self.output_label.setWordWrap(True)
         right_layout.addWidget(self.output_label)
         
         # Plantilla de nombres SEO (título/archivo)
-        name_tpl_label = QLabel("Plantilla nombres (SEO):")
+        name_tpl_label = QLabel("Título por defecto (si el canal no tiene uno):")
         name_tpl_label.setStyleSheet("font-weight: bold; padding: 5px; margin-top: 8px;")
         right_layout.addWidget(name_tpl_label)
         self.name_template_edit = QLineEdit()
@@ -1162,27 +1256,37 @@ class MainWindow(QMainWindow):
         
         # Opción de texto en el video (desactivado por defecto)
         self.check_overlay_text = QCheckBox("Añadir texto en el video (título y CTA)")
-        self.check_overlay_text.setStyleSheet("color: #aaa; font-size: 11px;")
+        self.check_overlay_text.setStyleSheet("color: #aaa; font-size: 12px;")
         self.check_overlay_text.setToolTip("Si está marcado, se dibuja el nombre del beat y un CTA al final. Desmarcado = solo imagen/video y audio.")
         self.check_overlay_text.stateChanged.connect(self._on_overlay_check_changed)
         right_layout.addWidget(self.check_overlay_text)
         
-        self.check_vertical = QCheckBox("Generar también clip vertical 9:16 (45 s, 1080x1920)")
-        self.check_vertical.setStyleSheet("color: #aaa; font-size: 11px;")
-        self.check_vertical.setToolTip("Crea además un clip vertical de 30-60 s (Shorts/Reels/TikTok) con recorte centrado: <nombre>_vertical.mp4")
+        vertical_row = QHBoxLayout()
+        self.check_vertical = QCheckBox("Clip vertical 9:16 (1080x1920)")
+        self.check_vertical.setStyleSheet("color: #aaa; font-size: 12px;")
+        self.check_vertical.setToolTip("Crea además un clip vertical (Shorts/Reels/TikTok) con recorte centrado: <nombre>_vertical.mp4")
         self.check_vertical.stateChanged.connect(self._on_vertical_check_changed)
-        right_layout.addWidget(self.check_vertical)
+        vertical_row.addWidget(self.check_vertical, 1)
+        self.spin_vertical_seconds = QSpinBox()
+        self.spin_vertical_seconds.setRange(VERTICAL_MIN, VERTICAL_MAX)
+        self.spin_vertical_seconds.setValue(VERTICAL_CLIP_SECONDS)
+        self.spin_vertical_seconds.setSuffix(" s")
+        self.spin_vertical_seconds.setToolTip("Duración del clip vertical (15-60 s)")
+        self.spin_vertical_seconds.setEnabled(False)
+        self.spin_vertical_seconds.valueChanged.connect(self._on_vertical_seconds_changed)
+        vertical_row.addWidget(self.spin_vertical_seconds)
+        right_layout.addLayout(vertical_row)
         
         # Botones principales
         main_buttons = QVBoxLayout()
         
         self.check_use_defaults = QCheckBox("Generar sin preguntar (usar imagen/video por defecto)")
-        self.check_use_defaults.setStyleSheet("color: #aaa; font-size: 11px;")
+        self.check_use_defaults.setStyleSheet("color: #aaa; font-size: 12px;")
         self.check_use_defaults.setToolTip("Si está marcado, no se abre el diálogo de elegir imágenes vs videos; se usa la última opción.")
         main_buttons.addWidget(self.check_use_defaults)
 
         self.check_youtube_upload = QCheckBox("Subir a YouTube al terminar (privado)")
-        self.check_youtube_upload.setStyleSheet("color: #aaa; font-size: 11px;")
+        self.check_youtube_upload.setStyleSheet("color: #aaa; font-size: 12px;")
         self.check_youtube_upload.setToolTip("Sube cada video al canal asignado (hay que conectarlo antes en Gestión de Canales).")
         main_buttons.addWidget(self.check_youtube_upload)
         
@@ -1222,9 +1326,15 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(self.status_label)
         
         # Agregar columnas al layout principal
-        main_layout.addWidget(left_panel)
-        main_layout.addWidget(center_panel)
-        main_layout.addWidget(right_panel, stretch=1)
+        # La columna derecha va en un scroll para que, en pantallas chicas, no fuerce el alto de la ventana
+        right_scroll = QScrollArea()
+        right_scroll.setWidgetResizable(True)
+        right_scroll.setFrameShape(QFrame.NoFrame)
+        right_scroll.setMinimumWidth(300)
+        right_scroll.setWidget(right_panel)
+        main_layout.addWidget(left_panel, 3)
+        main_layout.addWidget(center_panel, 2)
+        main_layout.addWidget(right_scroll, 3)
     
     def load_config(self):
         """Carga la configuración desde archivo."""
@@ -1244,6 +1354,7 @@ class MainWindow(QMainWindow):
                     self.cta_enabled = config.get('cta_enabled', False)
                     self.cta_text = config.get('cta_text', 'Like | Subscribe | Link in description')
                     self.vertical_enabled = config.get('vertical_enabled', False)
+                    self.vertical_seconds = config.get('vertical_seconds', VERTICAL_CLIP_SECONDS)
             else:
                 self.last_channel = ''
                 self.last_group = ''
@@ -1271,6 +1382,11 @@ class MainWindow(QMainWindow):
             self.check_vertical.blockSignals(True)
             self.check_vertical.setChecked(bool(getattr(self, 'vertical_enabled', False)))
             self.check_vertical.blockSignals(False)
+        if hasattr(self, 'spin_vertical_seconds'):
+            self.spin_vertical_seconds.blockSignals(True)
+            self.spin_vertical_seconds.setValue(int(getattr(self, 'vertical_seconds', VERTICAL_CLIP_SECONDS)))
+            self.spin_vertical_seconds.blockSignals(False)
+            self.spin_vertical_seconds.setEnabled(self.check_vertical.isChecked())
         if hasattr(self, 'check_overlay_text'):
             self.check_overlay_text.blockSignals(True)
             self.check_overlay_text.setChecked(bool(self.overlay_enabled))
@@ -1298,6 +1414,7 @@ class MainWindow(QMainWindow):
             config['overlay_text'] = getattr(self, 'overlay_text', '{name} Type Beat') or '{name} Type Beat'
             config['cta_enabled'] = getattr(self, 'cta_enabled', False)
             config['vertical_enabled'] = bool(getattr(self, 'vertical_enabled', False))
+            config['vertical_seconds'] = int(getattr(self, 'vertical_seconds', VERTICAL_CLIP_SECONDS))
             config['cta_text'] = getattr(self, 'cta_text', 'Like | Subscribe | Link in description') or 'Like | Subscribe | Link in description'
             
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
@@ -1375,7 +1492,11 @@ class MainWindow(QMainWindow):
                     if not os.path.exists(dest_path):
                         shutil.copy2(file, dest_path)
                         copied_files += 1
-                    library.import_beat(file)
+                    beat_id, creado = library.import_beat(file)
+                    if creado:
+                        url = ask_beatstars_url(self, os.path.splitext(filename)[0])
+                        if url:
+                            library.update_beat(beat_id, beatstars_url=url)
                 except Exception as e:
                     print(f"Error copiando {file}: {e}")
             
@@ -1458,9 +1579,10 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Error", f"No se pudo crear la carpeta:\n{folder}\n{e}")
             return
         
-        ffmpeg_path = os.path.join("bin", "ffmpeg.exe") if os.name == 'nt' else "ffmpeg"
-        if not os.path.isfile(ffmpeg_path) and os.name == 'nt':
-            ffmpeg_path = "ffmpeg"
+        ffmpeg_path = _resolve_tool("ffmpeg")
+        if not ffmpeg_path:
+            QMessageBox.critical(self, "FFmpeg", "No se encontró FFmpeg (ni en bin/ ni en el PATH).")
+            return
         
         copied = 0
         converted = 0
@@ -1525,8 +1647,22 @@ class MainWindow(QMainWindow):
             self.name_template = t
             self.save_config()
     
+    def _channel_title_templates(self):
+        """Plantillas de título por canal desde app_config.json ({canal: plantilla})."""
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                chans = json.load(f).get('channels', {})
+        except (OSError, ValueError):
+            return {}
+        return {n: c.get('title_template', '') for n, c in chans.items()}
+
+    def _on_vertical_seconds_changed(self, value):
+        self.vertical_seconds = int(value)
+        self.save_config()
+
     def _on_vertical_check_changed(self, state):
         self.vertical_enabled = bool(self.check_vertical.isChecked())
+        self.spin_vertical_seconds.setEnabled(self.vertical_enabled)
         self.save_config()
 
     def _on_overlay_check_changed(self, state):
@@ -2073,7 +2209,9 @@ class MainWindow(QMainWindow):
             overlay_text=getattr(self, 'overlay_text', '{name} Type Beat'),
             cta_enabled=self.check_overlay_text.isChecked() if hasattr(self, 'check_overlay_text') else getattr(self, 'cta_enabled', False),
             cta_text=getattr(self, 'cta_text', 'Like | Subscribe | Link in description'),
-            vertical_enabled=self.check_vertical.isChecked()
+            vertical_enabled=self.check_vertical.isChecked(),
+            vertical_seconds=self.spin_vertical_seconds.value(),
+            channel_title_templates=self._channel_title_templates()
         )
         
         self.worker.progress_updated.connect(self._update_progress)

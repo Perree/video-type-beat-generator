@@ -87,6 +87,19 @@ refrescar vistas (cuota casi nula). Cierra el "hace cuánto" también para video
 Miniaturas automáticas (Pillow), carpeta vigilada (`watchdog`), modo CLI, aceleración GPU `h264_nvenc`,
 versión vertical 9:16 para Shorts, partir `main.py` en módulos.
 
+## Fase 7 — Título/descripción por canal, link BeatStars al importar, clip vertical y UI responsive (Sonnet) ✅ COMPLETADA
+- `core/channel_templates.py`: `title_template` por canal en `app_config.json` (marcador `{name}`; fallback a la plantilla
+  global `[Type] {name} | Free for Profit`). Separar título crudo (YouTube, conserva `|`) de nombre de archivo (sanitizado).
+- Gestionar Canales (`ChannelManager`): panel con título y descripción del canal (cuadro grande, se estira), vista previa;
+  se guarda con `save_config()` (único escritor). Quitar el editor de plantilla de `EditBeatNameDialog`.
+- Importación manual (`_load_beats_from_files`): pedir el link de BeatStars por cada beat nuevo y guardarlo en
+  `beats.beatstars_url`. No se pide en la carpeta vigilada ni en Dropbox.
+- Clip vertical: campo de segundos (15-60) recordado en `app_config.json` (`vertical_seconds`).
+- Layout responsive: sin alturas/anchos máximos fijos, listas con stretch, panel derecho con scroll, fuentes ≥12 px,
+  mínimo usable en pantalla chica.
+Verificación: importar un beat y cargar el link; guardar título/descripción en un canal y reabrir; generar y ver título
+(con `|`) y descripción con el link en `{beatstars_url}`; cambiar los segundos del vertical; achicar/maximizar la ventana.
+
 ## Verificación por fase
 - F0: `git status` limpio y la app abre (`python main.py`).
 - F1: importar 2 beats, reabrir la app y ver que persisten; importar el mismo audio dos veces no duplica.
