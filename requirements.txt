@@ -8,3 +8,6 @@ google-auth-oauthlib
 google-auth-httplib2
 dropbox
 watchdog>=3.0.0
+# Transcripción local. PyPI instala ctranslate2 para CPU.
+# TODO: pip install -r requirements.txt — no instalar el wheel CUDA de ctranslate2.
+faster-whisper==1.2.1

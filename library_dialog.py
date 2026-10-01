@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QTableWidget, QT
                              QComboBox, QLineEdit, QPushButton, QLabel, QAbstractItemView,
                              QHeaderView, QFileDialog, QMessageBox)
 from core import library, youtube
+from core.library import KIND_BEAT, KIND_LOOP_KIT
 from core.upload_worker import ImportHistoryWorker
 
 
@@ -13,12 +14,15 @@ class LibraryDialog(QDialog):
     FILTERS = [("Todos", None), ("Nunca subidos", 'nunca'),
                ("Sin subir al canal", 'sin_canal'), ("Subidos hace > 6 meses", 'antiguos')]
 
-    def __init__(self, channels=None, parent=None):
+    def __init__(self, channels=None, parent=None, kind=KIND_BEAT):
         super().__init__(parent)
-        self.setWindowTitle("Biblioteca de beats")
+        self.kind = kind if kind in (KIND_BEAT, KIND_LOOP_KIT) else KIND_BEAT
+        is_kit = self.kind == KIND_LOOP_KIT
+        self.setWindowTitle("Biblioteca de loop kits" if is_kit else "Biblioteca de beats")
         self.resize(780, 460)
         self.selected_paths = []
         self._beats = []
+        self._item_label = "kits" if is_kit else "beats"
 
         layout = QVBoxLayout(self)
         top = QHBoxLayout()
@@ -73,25 +77,26 @@ class LibraryDialog(QDialog):
     def refresh(self):
         filtro = self.FILTERS[self.filter_combo.currentIndex()][1]
         canal = self.channel_combo.currentData()
-        self._beats = library.list_beats(filtro=filtro, canal=canal, texto=self.search.text().strip())
+        self._beats = library.list_beats(
+            filtro=filtro, canal=canal, texto=self.search.text().strip(), kind=self.kind)
         self.table.setRowCount(len(self._beats))
         for row, b in enumerate(self._beats):
             vals = [b['nombre'], '' if b['bpm'] is None else f"{b['bpm']:g}", b['key'] or '',
                     library.humanize_ago(b['ultima_subida'])]
             for col, v in enumerate(vals):
                 self.table.setItem(row, col, QTableWidgetItem(v))
-        self.count_label.setText(f"{len(self._beats)} beats")
+        self.count_label.setText(f"{len(self._beats)} {self._item_label}")
 
     def _import(self):
         files, _ = QFileDialog.getOpenFileNames(
             self, "Importar a la biblioteca", "", "Audio Files (*.mp3 *.wav *.m4a *.aac *.flac)")
         for f in files:
-            library.import_beat(f)
+            library.import_beat(f, kind=self.kind)
         self.refresh()
 
     def _import_dropbox(self):
         from dropbox_browser_dialog import DropboxBrowserDialog
-        DropboxBrowserDialog(self).exec_()
+        DropboxBrowserDialog(self, kind=self.kind).exec_()
         self.refresh()
 
     def _import_history(self):
@@ -105,7 +110,7 @@ class LibraryDialog(QDialog):
             return
         self.btn_history.setEnabled(False)
         self.btn_history.setText("Importando...")
-        self._history_worker = ImportHistoryWorker(channel, self)
+        self._history_worker = ImportHistoryWorker(channel, self, kind=self.kind)
         self._history_worker.finished_ok.connect(self._on_history_done)
         self._history_worker.failed.connect(self._on_history_failed)
         self._history_worker.start()

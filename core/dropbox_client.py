@@ -107,7 +107,7 @@ def download(dropbox_path, dest_dir, dbx=None):
     return dest
 
 
-def import_files(dropbox_paths, dbx=None, progress=None):
+def import_files(dropbox_paths, dbx=None, progress=None, kind='beat'):
     """Descarga cada archivo a un temporal, lo importa a la biblioteca (dedupe por hash) y
     devuelve (nuevos, duplicados, errores)."""
     import tempfile
@@ -121,7 +121,7 @@ def import_files(dropbox_paths, dbx=None, progress=None):
                 progress(i, len(dropbox_paths), os.path.basename(p))
             try:
                 local = download(p, tmp, dbx)
-                _, creado = library.import_beat(local)
+                _, creado = library.import_beat(local, kind=kind)
                 nuevos += creado
                 duplicados += not creado
                 os.remove(local)

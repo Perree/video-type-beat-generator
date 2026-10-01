@@ -24,6 +24,7 @@ class EditBeatNameDialog(QDialog):
         # Soportar llamada con (parent) cuando se edita desde la lista sin asignar
         if parent is None and beat_info is not None and not isinstance(beat_info, dict):
             parent, beat_info = beat_info, None
+            self.setParent(parent)
         if beat_info is None:
             beat_info = {'audio': '', 'channel': 'Sin asignar', 'group': '', 'custom_name': ''}
         self.beat_info = beat_info
@@ -45,13 +46,22 @@ class EditBeatNameDialog(QDialog):
             group = self.beat_info.get('group', 'Principal')
             self.name_input.setPlaceholderText(f"{base_name}_{channel}_{group}")
         if hasattr(self, 'bpm_input'):
-            self._lib_beat = library.find_beat_by_path(beat_file)
+            self._lib_beat = library.find_beat_by_path(
+                beat_file, kind=self._library_kind())
             self._fill_metadata()
             self._update_preview()
     
     def get_custom_name(self):
         """Devuelve el nombre personalizado introducido."""
         return getattr(self, 'custom_name', '') or (self.name_input.text().strip() if hasattr(self, 'name_input') else '')
+
+    def _library_kind(self):
+        """Kind de la ventana principal si existe; si no, beat."""
+        parent = self.parent()
+        if parent is not None and hasattr(parent, '_library_kind'):
+            return parent._library_kind()
+        from core.library import KIND_BEAT
+        return KIND_BEAT
     
     def _setup_ui(self):
         """Configura la interfaz del diálogo con estilo moderno."""
@@ -198,7 +208,8 @@ class EditBeatNameDialog(QDialog):
     def _setup_metadata_ui(self, layout):
         """BPM, key, link BeatStars y vista previa de la descripción (requiere beat en la biblioteca)."""
         self._lib_beat = library.find_beat_by_path(
-            self.beat_info.get('audio') or self.beat_info.get('beat_file', ''))
+            self.beat_info.get('audio') or self.beat_info.get('beat_file', ''),
+            kind=self._library_kind())
         form = QFormLayout()
         self.bpm_input = QDoubleSpinBox()
         self.bpm_input.setRange(0, 300)

@@ -11,22 +11,25 @@ class _ImportWorker(QThread):
     progress = pyqtSignal(int, int, str)
     done = pyqtSignal(int, int, list)
 
-    def __init__(self, paths):
+    def __init__(self, paths, kind='beat'):
         super().__init__()
         self.paths = paths
+        self.kind = kind
 
     def run(self):
         try:
             n, d, errs = dropbox_client.import_files(
-                self.paths, progress=lambda i, t, name: self.progress.emit(i, t, name))
+                self.paths, kind=self.kind,
+                progress=lambda i, t, name: self.progress.emit(i, t, name))
         except Exception as e:
             n, d, errs = 0, 0, [str(e)]
         self.done.emit(n, d, errs)
 
 
 class DropboxBrowserDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, kind='beat'):
         super().__init__(parent)
+        self.kind = kind
         self.setWindowTitle("Importar desde Dropbox")
         self.resize(560, 480)
         self.current = ''
@@ -112,7 +115,7 @@ class DropboxBrowserDialog(QDialog):
             QMessageBox.information(self, "Dropbox", "Seleccioná uno o más archivos de audio.")
             return
         self.btn_import.setEnabled(False)
-        self._worker = _ImportWorker(paths)
+        self._worker = _ImportWorker(paths, kind=self.kind)
         self._worker.progress.connect(
             lambda i, t, name: self.status.setText(f"Descargando {i + 1}/{t}: {name}"))
         self._worker.done.connect(self._on_done)

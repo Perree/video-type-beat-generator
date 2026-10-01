@@ -24,7 +24,8 @@ class ConnectChannelWorker(QThread):
 class YouTubeUploadWorker(QThread):
     """Sube una lista de trabajos y registra cada subida en la biblioteca.
 
-    Cada trabajo: {channel, group, path, title, description, tags, thumbnail, privacy, beat_id}
+    Cada trabajo: {channel, group, path, title, description, tags, thumbnail, privacy,
+                   publish_at, beat_id}
     """
     progress = pyqtSignal(str)
     finished_all = pyqtSignal(list, list)   # resultados ok, errores (str)
@@ -43,6 +44,7 @@ class YouTubeUploadWorker(QThread):
                 res = youtube.upload(
                     job['channel'], job['path'], job['title'], job.get('description', ''),
                     job.get('tags'), job.get('thumbnail'), job.get('privacy', 'private'),
+                    publish_at=job.get('publish_at'),
                     progress=lambda p, label=label: self.progress.emit(f"{label} — {p}%"))
             except Exception as e:
                 errors.append(f"{job['title']}: {e}")
@@ -65,13 +67,15 @@ class ImportHistoryWorker(QThread):
     finished_ok = pyqtSignal(str, dict)   # canal, resultado de import_history
     failed = pyqtSignal(str, str)         # canal, error
 
-    def __init__(self, channel, parent=None):
+    def __init__(self, channel, parent=None, kind=None):
         super().__init__(parent)
         self.channel = channel
+        self.kind = kind if kind is not None else library.KIND_BEAT
 
     def run(self):
         from core import history_import
         try:
-            self.finished_ok.emit(self.channel, history_import.import_channel_history(self.channel))
+            self.finished_ok.emit(
+                self.channel, history_import.import_channel_history(self.channel, kind=self.kind))
         except Exception as e:
             self.failed.emit(self.channel, str(e))

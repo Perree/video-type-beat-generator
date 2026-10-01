@@ -35,12 +35,17 @@ def _to_local_iso(published_at):
     return dt.astimezone().replace(tzinfo=None).isoformat(timespec='seconds')
 
 
-def import_history(channel, videos, grupo='', db_path=None):
+def import_history(channel, videos, grupo='', db_path=None, kind=None):
     """Guarda en `uploads` los videos que emparejan con un beat.
+
+    Args:
+        kind: limitar el emparejamiento a beats o loop kits.
 
     Devuelve {'imported', 'skipped' (ya registrados), 'unmatched': [títulos]}.
     """
-    beats = library.list_beats(db_path=db_path)
+    if kind is None:
+        kind = library.KIND_BEAT
+    beats = library.list_beats(db_path=db_path, kind=kind)
     known = {u for b in beats for u in
              (x['youtube_id'] for x in library.youtube_uploads(b['id'], channel, db_path=db_path))}
     res = {'imported': 0, 'skipped': 0, 'unmatched': []}
@@ -61,5 +66,9 @@ def import_history(channel, videos, grupo='', db_path=None):
     return res
 
 
-def import_channel_history(channel, db_path=None):
-    return import_history(channel, youtube.list_channel_videos(channel), db_path=db_path)
+def import_channel_history(channel, db_path=None, kind=None):
+    """Descarga el historial del canal y lo empareja con la biblioteca del kind dado."""
+    if kind is None:
+        kind = library.KIND_BEAT
+    return import_history(
+        channel, youtube.list_channel_videos(channel), db_path=db_path, kind=kind)

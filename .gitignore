@@ -58,9 +58,10 @@ $RECYCLE.BIN/
 *.bak
 *.log
 
-# FFmpeg binarios (usar versión del sistema)
+# FFmpeg binarios (copia local o versión del sistema; no van al repo)
 ffmpeg-8.0/
 bin/ffmpeg.exe
+bin/ffprobe.exe
 
 # Configuración con rutas personales
 config/app_config.json
@@ -80,6 +81,10 @@ library.db
 # YouTube: credenciales OAuth y tokens por canal
 config/client_secret.json
 tokens/
+
+# Shorts: clave del LLM y caché de render
+config/llm_key.txt
+shorts_cache/
 
 # Dropbox: app key local
 config/dropbox_app.json

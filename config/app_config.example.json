@@ -9,6 +9,40 @@
   "overlay_text": "{name} Type Beat",
   "cta_enabled": false,
   "cta_text": "Like | Subscribe | Link in description",
+  "shorts": {
+    "whisper_model": "small",
+    "whisper_device": "auto",
+    "compute_type": "int8",
+    "language": "es",
+    "initial_prompt": "beatmaking, type beat, DAW, loops, drums, sample, placements, FL Studio, mezcla, BeatStars",
+    "clip_min_s": 20,
+    "clip_max_s": 60,
+    "clip_count": 6,
+    "llm": {
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-4.1-mini",
+      "api_key_file": "config/llm_key.txt"
+    },
+    "layouts": {
+      "obs_unico": {"margin_v": 400},
+      "recorte": {"x": 0, "y": 0, "w": 1080, "h": 1080, "margin_v": 400},
+      "split": {
+        "camera_region": {"x": 0, "y": 0, "w": 480, "h": 270},
+        "screen_region": {"x": 0, "y": 0, "w": 1920, "h": 1080},
+        "camera_file": "",
+        "offset_ms": 0,
+        "margin_v": 860
+      }
+    },
+    "subtitles": {
+      "font": "Arial",
+      "size": 64,
+      "margin_v": 400,
+      "primary_color": "&H00FFFFFF",
+      "highlight_color": "&H0000FFFF",
+      "outline": 4
+    }
+  },
   "channels": {
     "channel_name": {
       "groups": [

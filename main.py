@@ -22,8 +22,8 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QPushButton,
                             QSplitter, QStyleFactory, QToolButton, QListWidgetItem,
                             QSizePolicy, QTabWidget, QInputDialog, QGraphicsDropShadowEffect,
                             QMenuBar, QGroupBox, QCheckBox, QRadioButton, QAction, QSpinBox,
-                            QPlainTextEdit, QScrollArea)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize, QPropertyAnimation, QEasingCurve, QRect, QSettings, QPoint, QTimer
+                            QPlainTextEdit, QScrollArea, QStackedWidget, QDateTimeEdit)
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize, QPropertyAnimation, QEasingCurve, QRect, QSettings, QPoint, QTimer, QDateTime
 from PyQt5.QtGui import QPixmap, QIcon, QColor, QPalette, QFont, QCursor, QLinearGradient, QPainter, QPainterPath
 
 # Importar estilos y bibliotecas para la interfaz moderna
@@ -39,7 +39,25 @@ from core import channel_templates
 from core.channel_templates import sanitize_filename as _sanitize_filename
 from beatstars_prompt import ask_beatstars_url
 from core.upload_worker import ConnectChannelWorker, YouTubeUploadWorker
+from core.publish_at import publish_at_from_qdatetime
 from beat_watcher import BeatFolderWatcher
+from ui_theme import APPLICATION_STYLESHEET, style_primary_generate_button
+from section_nav import SectionNavBar
+from personal_panel import PersonalPanel
+from core.sections import (
+    DEFAULT_SECTION,
+    SECTION_BEATS,
+    SECTION_LOOP_KITS,
+    SECTION_PERSONAL,
+    channel_names_for_section,
+    ensure_channel_sections,
+    section_library_kind,
+)
+from core.ffmpeg_util import (
+    resolve_tool as _resolve_tool,
+    get_available_video_codec as _get_available_video_codec,
+    get_media_duration as _media_duration,
+)
 
 # Constantes
 CONFIG_FILE = os.path.join('config', 'app_config.json')
@@ -59,113 +77,15 @@ DEFAULT_CONFIG = {
     'cta_text': 'Like | Subscribe | Link in description',
     'vertical_enabled': False,
     'vertical_seconds': 45,
-    'channels': {}  # Canales: { "nombre": { "groups": [...] } }
+    'last_section': SECTION_BEATS,
+    'channels': {}  # Canales: { "nombre": { "groups": [...], "section": "beats" } }
 }
-
-# Estilos profesionales
-STYLESHEET = """
-QMainWindow {
-    background-color: #2b2b2b;
-    color: white;
-}
-
-QLabel {
-    color: white;
-    font-size: 12px;
-    padding: 2px;
-}
-
-QPushButton {
-    background-color: #404040;
-    color: white;
-    border: 1px solid #555;
-    padding: 8px;
-    border-radius: 4px;
-    font-size: 12px;
-}
-
-QPushButton:hover {
-    background-color: #505050;
-}
-
-QPushButton:pressed {
-    background-color: #606060;
-}
-
-QFrame {
-    background-color: #353535;
-    border: 1px solid #555;
-    border-radius: 8px;
-    margin: 2px;
-}
-
-QListWidget {
-    background-color: #404040;
-    color: white;
-    border: 1px solid #555;
-    selection-background-color: #0078D4;
-    padding: 4px;
-}
-
-QComboBox {
-    background-color: #404040;
-    color: white;
-    border: 1px solid #555;
-    padding: 4px;
-    border-radius: 4px;
-}
-
-QProgressBar {
-    border: 1px solid #555;
-    border-radius: 4px;
-    text-align: center;
-    background-color: #404040;
-    color: white;
-}
-
-QProgressBar::chunk {
-    background-color: #3498DB;
-}
-"""
 
 def _escape_drawtext(s):
     """Escapa texto para drawtext de FFmpeg (comillas y dos puntos)."""
     if not s:
         return ''
     return s.replace('\\', '\\\\').replace("'", "\\'").replace(':', '\\:')
-
-
-def _resolve_tool(name):
-    """Devuelve la ruta de ffmpeg o ffprobe.
-
-    Primero busca en bin/ (copia local). Si no está, usa el que haya en el PATH.
-    Los binarios no van en el repo; sin esta búsqueda subprocess lanza WinError 2.
-    """
-    exe = f"{name}.exe" if os.name == "nt" else name
-    local = os.path.join("bin", exe)
-    if os.path.isfile(local):
-        return local
-    return shutil.which(name)
-
-
-def _get_available_video_codec(ffmpeg_path):
-    """Retorna h264_nvenc solo si una codificación de prueba funciona; si no, libx264.
-    Que el encoder figure en `-codecs` no basta: con drivers NVIDIA viejos falla al abrirlo."""
-    try:
-        result = subprocess.run(
-            [ffmpeg_path, "-hide_banner", "-loglevel", "error", "-f", "lavfi",
-             "-i", "color=c=black:s=256x256:d=0.1", "-frames:v", "1",
-             "-c:v", "h264_nvenc", "-f", "null", "-"],
-            capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=15)
-        if result.returncode == 0:
-            print("✓ Aceleración GPU (h264_nvenc) detectada")
-            return "h264_nvenc"
-        print("ℹ h264_nvenc no funciona en este equipo (¿driver NVIDIA desactualizado?): "
-              + (result.stderr.strip().splitlines() or [""])[-1])
-    except Exception:
-        pass
-    print("ℹ Usando codec por defecto (libx264)")
-    return "libx264"
 
 
 def _build_vf_with_overlays(base_vf, overlay_display=None, cta_text=None, audio_duration=None):
@@ -494,28 +414,7 @@ class VideoGeneratorWorker(QThread):
 
     def _get_media_duration(self, media_path):
         """Devuelve la duración en segundos (float) de un archivo multimedia usando ffprobe, o None si falla."""
-        try:
-            ffprobe_path = _resolve_tool("ffprobe")
-            if not ffprobe_path:
-                return None
-            cmd = [
-                ffprobe_path,
-                "-v", "error",
-                "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1",
-                media_path
-            ]
-            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
-            if result.returncode == 0:
-                out = result.stdout.strip()
-                if out:
-                    try:
-                        return float(out)
-                    except:
-                        return None
-            return None
-        except Exception:
-            return None
+        return _media_duration(media_path)
     
     def stop(self):
         """Detiene el proceso."""
@@ -525,9 +424,11 @@ class VideoGeneratorWorker(QThread):
 class ChannelManager(QDialog):
     """Diálogo para gestionar canales y grupos."""
     
-    def __init__(self, parent=None, config_file=None):
+    def __init__(self, parent=None, config_file=None, default_section=DEFAULT_SECTION):
         super().__init__(parent)
         self.config_file = config_file or CONFIG_FILE
+        self.default_section = default_section if default_section in (
+            SECTION_BEATS, SECTION_LOOP_KITS, SECTION_PERSONAL) else DEFAULT_SECTION
         self.setWindowTitle("Gestión de Canales y Grupos")
         self.setModal(True)
         self.setMinimumSize(760, 480)
@@ -544,6 +445,7 @@ class ChannelManager(QDialog):
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     config = json.load(f)
                     self.channels_config = config.get('channels', {})
+                    ensure_channel_sections(self.channels_config)
         except Exception as e:
             print(f"Error cargando configuración: {e}")
     
@@ -558,6 +460,7 @@ class ChannelManager(QDialog):
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     config.update(json.load(f))
             
+            ensure_channel_sections(self.channels_config)
             # Actualizar canales
             config['channels'] = self.channels_config
             
@@ -765,7 +668,8 @@ class ChannelManager(QDialog):
             channel_name = channel_name.strip()
             if channel_name not in self.channels_config:
                 self.channels_config[channel_name] = {
-                    'groups': ['Principal']  # Grupo por defecto
+                    'groups': ['Principal'],
+                    'section': self.default_section,
                 }
                 self.refresh_channels_list()
                 # Crear carpeta del canal
@@ -945,7 +849,7 @@ class OnboardingWizard(QDialog):
             if name in channels:
                 QMessageBox.information(self, "Canal existente", "Ese canal ya existe. Pasando al paso 2.")
             else:
-                channels[name] = {'groups': ['Principal']}
+                channels[name] = {'groups': ['Principal'], 'section': SECTION_BEATS}
                 config['channels'] = channels
                 config['last_channel'] = name
                 config['last_group'] = 'Principal'
@@ -993,7 +897,15 @@ class MainWindow(QMainWindow):
         super().__init__()
         
         # Inicializar variables
-        self.beats_folder = os.path.abspath("beats")
+        self._beats_folders = {
+            SECTION_BEATS: os.path.abspath("beats"),
+            SECTION_LOOP_KITS: os.path.abspath("loop_kits"),
+        }
+        self._section_sessions = {
+            SECTION_BEATS: {'beats_info': []},
+            SECTION_LOOP_KITS: {'beats_info': []},
+        }
+        self.beats_folder = self._beats_folders[SECTION_BEATS]
         self.images_folder = os.path.abspath("images")
         self.output_folder = os.path.abspath("exported_videos")
         self.beats_info = []  # Lista de beats asignados para procesamiento
@@ -1004,16 +916,18 @@ class MainWindow(QMainWindow):
         self.current_content_type = "images"  # Tipo de contenido seleccionado
         
         # Configurar ventana
-        self.setWindowTitle("🎵 Type Beat Video Generator v2.0")
+        self.setWindowTitle("Type Beat Video Generator v2.0")
         self.setMinimumSize(1000, 620)
         self.resize(1400, 800)
         
         # Aplicar estilos
-        self.setStyleSheet(STYLESHEET)
+        self.setStyleSheet(APPLICATION_STYLESHEET)
+        self.current_section = DEFAULT_SECTION
         
         # Configurar interfaz
         self.setup_ui()
         self.load_config()
+        self._apply_initial_section()
         
         # Cargar datos iniciales
         self._load_beats()
@@ -1030,10 +944,9 @@ class MainWindow(QMainWindow):
         # Configurar atajos de teclado
         self._setup_shortcuts()
         
-        # Carpeta vigilada: importa audios nuevos de beats/ automáticamente
-        self.beat_watcher = BeatFolderWatcher(self.beats_folder, self)
-        self.beat_watcher.beat_detected.connect(self._on_beat_detected)
-        self.beat_watcher.start()
+        # Carpeta vigilada: audios nuevos en beats/ o loop_kits/ según sección
+        self.beat_watcher = None
+        self._restart_beat_watcher()
         
         print("✅ Type Beat Video Generator v2.0 iniciado")
     
@@ -1059,66 +972,55 @@ class MainWindow(QMainWindow):
         assign_shortcut.activated.connect(self._assign_channel_to_beats)
     
     def setup_ui(self):
-        """Configura la interfaz de usuario (3 columnas)."""
-        # Widget central
+        """Configura la interfaz: barra de secciones y área de trabajo (beats u placeholder)."""
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        
-        # Layout principal (3 columnas)
-        main_layout = QHBoxLayout(central_widget)
+        outer_layout = QVBoxLayout(central_widget)
+        outer_layout.setContentsMargins(4, 4, 4, 4)
+
+        self.section_nav = SectionNavBar()
+        self.section_nav.section_changed.connect(self._on_section_changed)
+        outer_layout.addWidget(self.section_nav)
+
+        self.section_stack = QStackedWidget()
+        beats_page = QWidget()
+        main_layout = QHBoxLayout(beats_page)
+        main_layout.setContentsMargins(0, 0, 0, 0)
         
         # === COLUMNA 1: GESTIÓN DE BEATS ===
         left_panel = QFrame()
         left_panel.setMinimumWidth(260)
         left_layout = QVBoxLayout(left_panel)
         
-        # Título de la columna
-        beats_title = QLabel("🎵 Gestión de Beats")
-        beats_title.setStyleSheet("font-size: 16px; font-weight: bold; padding: 10px; text-align: center;")
-        beats_title.setAlignment(Qt.AlignCenter)
-        left_layout.addWidget(beats_title)
+        self.beats_title = QLabel("Gestión de Beats")
+        self.beats_title.setStyleSheet("font-size: 15px; font-weight: bold; padding: 10px;")
+        self.beats_title.setAlignment(Qt.AlignCenter)
+        left_layout.addWidget(self.beats_title)
         
-        # Botones de gestión de beats
         beats_buttons = QHBoxLayout()
-        self.btn_load_beats = QPushButton("📂 Cargar Beats")
+        self.btn_load_beats = QPushButton("Cargar beats")
         self.btn_load_beats.clicked.connect(self._load_beats_from_files)
-        self.btn_delete_beats = QPushButton("🗑️ Eliminar")
+        self.btn_delete_beats = QPushButton("Eliminar")
         self.btn_delete_beats.clicked.connect(self._delete_selected_beats)
-        
         beats_buttons.addWidget(self.btn_load_beats)
         beats_buttons.addWidget(self.btn_delete_beats)
-        self.btn_library = QPushButton("📚 Biblioteca")
+        self.btn_library = QPushButton("Biblioteca")
         self.btn_library.clicked.connect(self._open_library)
         beats_buttons.addWidget(self.btn_library)
         left_layout.addLayout(beats_buttons)
         
-        # Lista de beats disponibles
-        beats_label = QLabel("📁 Beats Disponibles:")
-        beats_label.setStyleSheet("font-weight: bold; padding: 5px;")
-        left_layout.addWidget(beats_label)
-        self.recommended_label = QLabel("Recomendado: 10 beats")
-        self.recommended_label.setStyleSheet("color: #3498DB; font-size: 12px; padding: 2px 5px;")
-        left_layout.addWidget(self.recommended_label)
+        self.beats_label = QLabel("Beats disponibles:")
+        self.beats_label.setStyleSheet("font-weight: bold; padding: 5px;")
+        left_layout.addWidget(self.beats_label)
         
-        # Control de selección múltiple
         selection_layout = QHBoxLayout()
         self.select_all_checkbox = QCheckBox("Seleccionar todos")
         self.select_all_checkbox.stateChanged.connect(self._toggle_select_all_beats)
         selection_layout.addWidget(self.select_all_checkbox)
-        self.btn_select_all = QPushButton("✓ Todos")
-        self.btn_select_all.setToolTip("Seleccionar todos los beats de la lista")
-        self.btn_select_all.clicked.connect(lambda: self._toggle_select_all_beats(Qt.Checked))
-        selection_layout.addWidget(self.btn_select_all)
-        self.btn_deselect_all = QPushButton("Ninguno")
-        self.btn_deselect_all.setToolTip("Quitar la selección")
-        self.btn_deselect_all.clicked.connect(lambda: self._toggle_select_all_beats(Qt.Unchecked))
-        selection_layout.addWidget(self.btn_deselect_all)
-        # Contador de beats seleccionados
         self.selected_count_label = QLabel("0 seleccionados")
-        self.selected_count_label.setStyleSheet("color: #3498DB; font-size: 12px;")
+        self.selected_count_label.setStyleSheet("color: #3498DB;")
         selection_layout.addWidget(self.selected_count_label)
         selection_layout.addStretch()
-        
         left_layout.addLayout(selection_layout)
 
         self.beats_list = QListWidget()
@@ -1127,39 +1029,23 @@ class MainWindow(QMainWindow):
         self.beats_list.itemSelectionChanged.connect(self._update_selection_count)
         left_layout.addWidget(self.beats_list, 1)
         
-        # Botones de acción para beats
         beats_actions_layout = QHBoxLayout()
-        
-        self.btn_edit_name = QPushButton("✏️ Editar Nombre")
+        self.btn_edit_name = QPushButton("Editar nombre")
         self.btn_edit_name.clicked.connect(self._edit_beat_name)
         beats_actions_layout.addWidget(self.btn_edit_name)
-        
-        self.btn_delete_selected = QPushButton("🗑️ Eliminar Seleccionados")
-        self.btn_delete_selected.clicked.connect(self._delete_selected_beats)
-        self.btn_delete_selected.setStyleSheet("background-color: #E74C3C; color: white; font-weight: bold;")
-        beats_actions_layout.addWidget(self.btn_delete_selected)
-        
         left_layout.addLayout(beats_actions_layout)
-        
-        # Guardar selección en carpeta (MP3) para reutilizar sin volver a subir
-        self.btn_save_to_mp3_folder = QPushButton("📁 Guardar selección en carpeta MP3...")
-        self.btn_save_to_mp3_folder.setToolTip("Copia los beats seleccionados a una carpeta (en MP3 si es posible) para cargarlos otra vez sin re-subir.")
-        self.btn_save_to_mp3_folder.clicked.connect(self._save_selection_to_mp3_folder)
-        left_layout.addWidget(self.btn_save_to_mp3_folder)
         
         # === COLUMNA 2: CONFIGURACIÓN DE CANALES ===
         center_panel = QFrame()
         center_panel.setMinimumWidth(240)
         center_layout = QVBoxLayout(center_panel)
         
-        # Título de la columna
-        config_title = QLabel("📺 Configuración de Canales")
-        config_title.setStyleSheet("font-size: 16px; font-weight: bold; padding: 10px; text-align: center;")
+        config_title = QLabel("Configuración de canales")
+        config_title.setStyleSheet("font-size: 15px; font-weight: bold; padding: 10px;")
         config_title.setAlignment(Qt.AlignCenter)
         center_layout.addWidget(config_title)
         
-        # Gestión de canales
-        self.btn_manage_channels = QPushButton("⚙️ Gestionar Canales")
+        self.btn_manage_channels = QPushButton("Gestionar canales")
         self.btn_manage_channels.clicked.connect(self._open_channel_manager)
         center_layout.addWidget(self.btn_manage_channels)
         
@@ -1180,9 +1066,7 @@ class MainWindow(QMainWindow):
         self.group_combo = QComboBox()
         center_layout.addWidget(self.group_combo)
         
-        # Botón de asignación
-        self.btn_assign_channel = QPushButton("➡️ Asignar Canal a Seleccionados")
-        self.btn_assign_channel.setStyleSheet("background-color: #27AE60; font-size: 14px; padding: 10px; font-weight: bold;")
+        self.btn_assign_channel = QPushButton("Asignar canal a seleccionados")
         self.btn_assign_channel.clicked.connect(self._assign_channel_to_beats)
         center_layout.addWidget(self.btn_assign_channel)
         
@@ -1193,7 +1077,7 @@ class MainWindow(QMainWindow):
         center_layout.addWidget(self.images_info_label)
         
         # Botón para subir contenido (imágenes y videos)
-        self.btn_upload_images = QPushButton("� Subir Contenido")
+        self.btn_upload_images = QPushButton("Subir contenido")
         self.btn_upload_images.clicked.connect(self._upload_content_to_channel)
         center_layout.addWidget(self.btn_upload_images)
         
@@ -1203,16 +1087,14 @@ class MainWindow(QMainWindow):
         right_panel = QFrame()
         right_layout = QVBoxLayout(right_panel)
         
-        # Título de la columna
-        process_title = QLabel("🎬 Lista de Procesamiento")
-        process_title.setStyleSheet("font-size: 16px; font-weight: bold; padding: 10px; text-align: center;")
+        process_title = QLabel("Lista de procesamiento")
+        process_title.setStyleSheet("font-size: 15px; font-weight: bold; padding: 10px;")
         process_title.setAlignment(Qt.AlignCenter)
         right_layout.addWidget(process_title)
         
-        # Lista de beats asignados
-        assigned_label = QLabel("📋 Beats Listos para Procesar:")
-        assigned_label.setStyleSheet("font-weight: bold; padding: 5px;")
-        right_layout.addWidget(assigned_label)
+        self.assigned_label = QLabel("Beats listos para procesar:")
+        self.assigned_label.setStyleSheet("font-weight: bold; padding: 5px;")
+        right_layout.addWidget(self.assigned_label)
         
         self.process_list = QListWidget()
         self.process_list.setMinimumHeight(120)
@@ -1221,9 +1103,9 @@ class MainWindow(QMainWindow):
         
         # Botones de control de procesamiento
         process_buttons = QHBoxLayout()
-        self.btn_remove_from_process = QPushButton("❌ Quitar")
+        self.btn_remove_from_process = QPushButton("Quitar")
         self.btn_remove_from_process.clicked.connect(self._remove_from_process_list)
-        self.btn_clear_process = QPushButton("🗑️ Limpiar Todo")
+        self.btn_clear_process = QPushButton("Limpiar todo")
         self.btn_clear_process.clicked.connect(self._clear_process_list)
         
         process_buttons.addWidget(self.btn_remove_from_process)
@@ -1231,40 +1113,34 @@ class MainWindow(QMainWindow):
         right_layout.addLayout(process_buttons)
         
         # Configuración de salida
-        output_label = QLabel("📁 Carpeta de Salida:")
+        output_label = QLabel("Carpeta de salida:")
         output_label.setStyleSheet("font-weight: bold; padding: 5px; margin-top: 10px;")
         right_layout.addWidget(output_label)
         
-        self.btn_browse_output = QPushButton("📂 Seleccionar Carpeta")
+        self.btn_browse_output = QPushButton("Seleccionar carpeta")
         self.btn_browse_output.clicked.connect(self._browse_output_folder)
         right_layout.addWidget(self.btn_browse_output)
         
-        self.output_label = QLabel(f"📍 {self.output_folder}")
-        self.output_label.setStyleSheet("padding: 5px; font-size: 12px; color: #888;")
+        self.output_label = QLabel(self.output_folder)
+        self.output_label.setStyleSheet("padding: 5px; color: #888;")
         self.output_label.setWordWrap(True)
         right_layout.addWidget(self.output_label)
         
-        # Plantilla de nombres SEO (título/archivo)
-        name_tpl_label = QLabel("Título por defecto (si el canal no tiene uno):")
-        name_tpl_label.setStyleSheet("font-weight: bold; padding: 5px; margin-top: 8px;")
-        right_layout.addWidget(name_tpl_label)
-        self.name_template_edit = QLineEdit()
-        self.name_template_edit.setPlaceholderText("[Type] {name} | Free for Profit")
-        self.name_template_edit.setToolTip("Usa {name}, {channel}, {group}. Ejemplo: [Type] {name} | Free for Profit")
-        self.name_template_edit.editingFinished.connect(self._on_name_template_changed)
-        right_layout.addWidget(self.name_template_edit)
+        self.options_group = QGroupBox("Opciones")
+        self.options_group.setCheckable(True)
+        self.options_group.setChecked(False)
+        options_layout = QVBoxLayout(self.options_group)
         
-        # Opción de texto en el video (desactivado por defecto)
         self.check_overlay_text = QCheckBox("Añadir texto en el video (título y CTA)")
-        self.check_overlay_text.setStyleSheet("color: #aaa; font-size: 12px;")
-        self.check_overlay_text.setToolTip("Si está marcado, se dibuja el nombre del beat y un CTA al final. Desmarcado = solo imagen/video y audio.")
+        self.check_overlay_text.setToolTip(
+            "Si está marcado, se dibuja el nombre del beat y un CTA al final. Desmarcado = solo imagen/video y audio.")
         self.check_overlay_text.stateChanged.connect(self._on_overlay_check_changed)
-        right_layout.addWidget(self.check_overlay_text)
+        options_layout.addWidget(self.check_overlay_text)
         
         vertical_row = QHBoxLayout()
         self.check_vertical = QCheckBox("Clip vertical 9:16 (1080x1920)")
-        self.check_vertical.setStyleSheet("color: #aaa; font-size: 12px;")
-        self.check_vertical.setToolTip("Crea además un clip vertical (Shorts/Reels/TikTok) con recorte centrado: <nombre>_vertical.mp4")
+        self.check_vertical.setToolTip(
+            "Crea además un clip vertical (Shorts/Reels/TikTok) con recorte centrado: <nombre>_vertical.mp4")
         self.check_vertical.stateChanged.connect(self._on_vertical_check_changed)
         vertical_row.addWidget(self.check_vertical, 1)
         self.spin_vertical_seconds = QSpinBox()
@@ -1275,45 +1151,47 @@ class MainWindow(QMainWindow):
         self.spin_vertical_seconds.setEnabled(False)
         self.spin_vertical_seconds.valueChanged.connect(self._on_vertical_seconds_changed)
         vertical_row.addWidget(self.spin_vertical_seconds)
-        right_layout.addLayout(vertical_row)
-        
-        # Botones principales
-        main_buttons = QVBoxLayout()
+        options_layout.addLayout(vertical_row)
         
         self.check_use_defaults = QCheckBox("Generar sin preguntar (usar imagen/video por defecto)")
-        self.check_use_defaults.setStyleSheet("color: #aaa; font-size: 12px;")
-        self.check_use_defaults.setToolTip("Si está marcado, no se abre el diálogo de elegir imágenes vs videos; se usa la última opción.")
-        main_buttons.addWidget(self.check_use_defaults)
+        self.check_use_defaults.setToolTip(
+            "Si está marcado, no se abre el diálogo de elegir imágenes vs videos; se usa la última opción.")
+        options_layout.addWidget(self.check_use_defaults)
 
         self.check_youtube_upload = QCheckBox("Subir a YouTube al terminar (privado)")
-        self.check_youtube_upload.setStyleSheet("color: #aaa; font-size: 12px;")
-        self.check_youtube_upload.setToolTip("Sube cada video al canal asignado (hay que conectarlo antes en Gestión de Canales).")
-        main_buttons.addWidget(self.check_youtube_upload)
+        self.check_youtube_upload.setToolTip(
+            "Sube cada video al canal asignado (hay que conectarlo antes en Gestión de Canales).")
+        self.check_youtube_upload.stateChanged.connect(self._on_youtube_schedule_ui)
+        options_layout.addWidget(self.check_youtube_upload)
+
+        schedule_row = QHBoxLayout()
+        self.check_schedule_publish = QCheckBox("Programar")
+        self.check_schedule_publish.setToolTip(
+            "Publicación automática en la fecha y hora indicadas (hora local). El video queda privado hasta entonces.")
+        self.check_schedule_publish.setEnabled(False)
+        self.check_schedule_publish.stateChanged.connect(self._on_youtube_schedule_ui)
+        schedule_row.addWidget(self.check_schedule_publish)
+        self.schedule_datetime = QDateTimeEdit(QDateTime.currentDateTime().addSecs(3600))
+        self.schedule_datetime.setCalendarPopup(True)
+        self.schedule_datetime.setDisplayFormat("dd/MM/yyyy HH:mm")
+        self.schedule_datetime.setEnabled(False)
+        schedule_row.addWidget(self.schedule_datetime, 1)
+        options_layout.addLayout(schedule_row)
+        right_layout.addWidget(self.options_group)
         
-        self.btn_generate = QPushButton("▶️ GENERAR VIDEOS")
-        self.btn_generate.setStyleSheet("background-color: #27AE60; font-size: 16px; padding: 15px; font-weight: bold;")
+        main_buttons = QVBoxLayout()
+        self.btn_generate = QPushButton("Generar")
+        style_primary_generate_button(self.btn_generate)
         self.btn_generate.clicked.connect(self._start_generation)
         main_buttons.addWidget(self.btn_generate)
         
-        self.btn_cancel = QPushButton("⏹️ CANCELAR")
-        self.btn_cancel.setStyleSheet("background-color: #E74C3C; font-size: 14px; padding: 10px; font-weight: bold;")
+        self.btn_cancel = QPushButton("Cancelar")
         self.btn_cancel.clicked.connect(self._cancel_generation)
         self.btn_cancel.setEnabled(False)
         main_buttons.addWidget(self.btn_cancel)
-        
-        # Espaciado
-        main_buttons.addSpacing(20)
-        
-        # Botón para cerrar programa
-        self.btn_exit = QPushButton("🚪 CERRAR PROGRAMA")
-        self.btn_exit.setStyleSheet("background-color: #95A5A6; font-size: 12px; padding: 8px; font-weight: bold;")
-        self.btn_exit.clicked.connect(self.close)
-        main_buttons.addWidget(self.btn_exit)
-        
         right_layout.addLayout(main_buttons)
         
-        # Progreso
-        progress_label = QLabel("📊 Progreso:")
+        progress_label = QLabel("Progreso:")
         progress_label.setStyleSheet("font-weight: bold; padding: 5px; margin-top: 10px;")
         right_layout.addWidget(progress_label)
         
@@ -1322,11 +1200,9 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(self.progress_bar)
         
         self.status_label = QLabel("Listo para generar videos")
-        self.status_label.setStyleSheet("padding: 10px; font-size: 12px; color: #888;")
+        self.status_label.setStyleSheet("padding: 10px; color: #888;")
         right_layout.addWidget(self.status_label)
         
-        # Agregar columnas al layout principal
-        # La columna derecha va en un scroll para que, en pantallas chicas, no fuerce el alto de la ventana
         right_scroll = QScrollArea()
         right_scroll.setWidgetResizable(True)
         right_scroll.setFrameShape(QFrame.NoFrame)
@@ -1335,6 +1211,97 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(left_panel, 3)
         main_layout.addWidget(center_panel, 2)
         main_layout.addWidget(right_scroll, 3)
+
+        self.section_stack.addWidget(beats_page)
+        self.section_stack.addWidget(PersonalPanel(
+            lambda: _resolve_tool("ffmpeg"), self._personal_output_dir, CONFIG_FILE))
+
+        outer_layout.addWidget(self.section_stack, 1)
+
+    def _section_stack_index(self, section_id: str) -> int:
+        if section_id in (SECTION_BEATS, SECTION_LOOP_KITS):
+            return 0
+        return 1
+
+    def _library_kind(self) -> str:
+        """Tipo de biblioteca según la sección activa (beat | loop_kit)."""
+        return section_library_kind(getattr(self, 'current_section', DEFAULT_SECTION))
+
+    def _personal_output_dir(self) -> str:
+        """exported_videos/personal salvo que el usuario haya elegido otra carpeta de salida."""
+        if os.path.abspath(self.output_folder) == os.path.abspath("exported_videos"):
+            return os.path.join("exported_videos", "personal")
+        return self.output_folder
+
+    def _effective_output_folder(self) -> str:
+        """Carpeta de exportación; loop kits van en subcarpeta loop_kits/."""
+        if getattr(self, 'current_section', DEFAULT_SECTION) == SECTION_LOOP_KITS:
+            return os.path.join(self.output_folder, 'loop_kits')
+        return self.output_folder
+
+    def _apply_workflow_ui(self):
+        """Actualiza textos de la UI de trabajo según beats vs loop kits."""
+        is_kits = getattr(self, 'current_section', DEFAULT_SECTION) == SECTION_LOOP_KITS
+        if is_kits:
+            self.beats_title.setText("Gestión de Loop kits")
+            self.beats_label.setText("Loop kits disponibles:")
+            self.assigned_label.setText("Loop kits listos para procesar:")
+            self.btn_load_beats.setText("Cargar kits")
+        else:
+            self.beats_title.setText("Gestión de Beats")
+            self.beats_label.setText("Beats disponibles:")
+            self.assigned_label.setText("Beats listos para procesar:")
+            self.btn_load_beats.setText("Cargar beats")
+
+    def _sync_beats_folder_for_section(self):
+        """Apunta beats_folder a beats/ o loop_kits/ según la sección."""
+        section = getattr(self, 'current_section', DEFAULT_SECTION)
+        if section in self._beats_folders:
+            self.beats_folder = self._beats_folders[section]
+            self._apply_workflow_ui()
+
+    def _restart_beat_watcher(self):
+        """Vigila la carpeta de audio de la sección beats o loop kits."""
+        if getattr(self, 'beat_watcher', None):
+            self.beat_watcher.stop()
+            self.beat_watcher = None
+        if getattr(self, 'current_section', DEFAULT_SECTION) not in (
+                SECTION_BEATS, SECTION_LOOP_KITS):
+            return
+        self.beat_watcher = BeatFolderWatcher(self.beats_folder, self)
+        self.beat_watcher.beat_detected.connect(self._on_beat_detected)
+        self.beat_watcher.start()
+
+    def _apply_initial_section(self):
+        """Sincroniza barra y stack con last_section tras load_config."""
+        section = getattr(self, 'current_section', DEFAULT_SECTION)
+        if section in self._section_sessions:
+            self.beats_info = list(self._section_sessions[section]['beats_info'])
+        self._sync_beats_folder_for_section()
+        self.section_nav.set_section(section)
+        self.section_stack.setCurrentIndex(self._section_stack_index(section))
+        self._update_process_list()
+
+    def _on_section_changed(self, section_id: str):
+        """Cambia de sección, persiste en config y actualiza el combo de canales."""
+        prev = getattr(self, 'current_section', DEFAULT_SECTION)
+        if prev in self._section_sessions:
+            self._section_sessions[prev]['beats_info'] = list(self.beats_info)
+
+        self.current_section = section_id
+        if section_id in self._section_sessions:
+            self.beats_info = list(self._section_sessions[section_id]['beats_info'])
+        else:
+            self.beats_info = []
+
+        self.section_stack.setCurrentIndex(self._section_stack_index(section_id))
+        self._sync_beats_folder_for_section()
+        self._load_beats()
+        self._update_process_list()
+        self._restart_beat_watcher()
+        self.save_config()
+        self._load_channels()
+        self._restore_last_channel_group()
     
     def load_config(self):
         """Carga la configuración desde archivo."""
@@ -1343,7 +1310,10 @@ class MainWindow(QMainWindow):
                 with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                     config = json.load(f)
                     self.output_folder = config.get('last_output_folder', self.output_folder)
-                    self.output_label.setText(f"📍 {self.output_folder}")
+                    self.output_label.setText(self.output_folder)
+                    section = config.get('last_section', DEFAULT_SECTION)
+                    self.current_section = section if section in (
+                        SECTION_BEATS, SECTION_LOOP_KITS, SECTION_PERSONAL) else DEFAULT_SECTION
                     self.last_channel = config.get('last_channel', '')
                     self.last_group = config.get('last_group', '')
                     self.last_content_type = config.get('last_content_type', 'images')
@@ -1361,6 +1331,7 @@ class MainWindow(QMainWindow):
                 self.last_content_type = 'images'
                 self.last_beats_folder = ''
                 self.name_template = '[Type] {name} | Free for Profit'
+                self.current_section = DEFAULT_SECTION
                 self.overlay_enabled = False
                 self.overlay_text = '{name} Type Beat'
                 self.cta_enabled = False
@@ -1372,12 +1343,11 @@ class MainWindow(QMainWindow):
             self.last_content_type = 'images'
             self.last_beats_folder = ''
             self.name_template = '[Type] {name} | Free for Profit'
+            self.current_section = DEFAULT_SECTION
             self.overlay_enabled = False
             self.overlay_text = '{name} Type Beat'
             self.cta_enabled = False
             self.cta_text = 'Like | Subscribe | Link in description'
-        if hasattr(self, 'name_template_edit'):
-            self.name_template_edit.setText(self.name_template)
         if hasattr(self, 'check_vertical'):
             self.check_vertical.blockSignals(True)
             self.check_vertical.setChecked(bool(getattr(self, 'vertical_enabled', False)))
@@ -1416,6 +1386,7 @@ class MainWindow(QMainWindow):
             config['vertical_enabled'] = bool(getattr(self, 'vertical_enabled', False))
             config['vertical_seconds'] = int(getattr(self, 'vertical_seconds', VERTICAL_CLIP_SECONDS))
             config['cta_text'] = getattr(self, 'cta_text', 'Like | Subscribe | Link in description') or 'Like | Subscribe | Link in description'
+            config['last_section'] = getattr(self, 'current_section', DEFAULT_SECTION) or DEFAULT_SECTION
             
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)
@@ -1492,7 +1463,7 @@ class MainWindow(QMainWindow):
                     if not os.path.exists(dest_path):
                         shutil.copy2(file, dest_path)
                         copied_files += 1
-                    beat_id, creado = library.import_beat(file)
+                    beat_id, creado = library.import_beat(file, kind=self._library_kind())
                     if creado:
                         url = ask_beatstars_url(self, os.path.splitext(filename)[0])
                         if url:
@@ -1519,14 +1490,21 @@ class MainWindow(QMainWindow):
     
     def _open_library(self):
         """Abre la biblioteca y carga los beats elegidos en el flujo normal."""
-        dlg = LibraryDialog([self.channel_combo.itemText(i) for i in range(self.channel_combo.count()) if self.channel_combo.itemText(i) != 'Sin asignar'], self)
+        channels = [
+            self.channel_combo.itemText(i) for i in range(self.channel_combo.count())
+            if self.channel_combo.itemText(i) not in ('Sin asignar', 'Seleccionar canal...')
+        ]
+        kind = self._library_kind()
+        dlg = LibraryDialog(channels, self, kind=kind)
         if dlg.exec_() == QDialog.Accepted and dlg.selected_paths:
             for path in dlg.selected_paths:
                 dest = os.path.join(self.beats_folder, os.path.basename(path))
                 if not os.path.exists(dest):
                     shutil.copy2(path, dest)
             self._load_beats()
-            self.status_label.setText(f"{len(dlg.selected_paths)} beats cargados desde la biblioteca")
+            label = "loop kits" if kind == library.KIND_LOOP_KIT else "beats"
+            self.status_label.setText(
+                f"{len(dlg.selected_paths)} {label} cargados desde la biblioteca")
 
     def _save_selection_to_mp3_folder(self):
         """Copia los beats a una carpeta ordenada: [base] / [mes] / [género]. El usuario elige base y escribe el género (ej. sad emotional beats)."""
@@ -1624,9 +1602,10 @@ class MainWindow(QMainWindow):
         self.status_label.setText(f"Guardados {copied + converted} beats en {month_folder_name}/{genre_folder_name}")
     
     def _load_channels(self):
-        """Carga los canales desde la configuración."""
+        """Carga los canales de la sección activa desde la configuración."""
         self.channel_combo.clear()
         self.channel_combo.addItem("Seleccionar canal...")
+        section = getattr(self, 'current_section', DEFAULT_SECTION)
         
         try:
             if os.path.exists(CONFIG_FILE):
@@ -1635,17 +1614,10 @@ class MainWindow(QMainWindow):
                     channels = config.get('channels', {})
                     if not isinstance(channels, dict):
                         channels = {}
-                    for channel_name in sorted(channels.keys()):
+                    for channel_name in channel_names_for_section(channels, section):
                         self.channel_combo.addItem(channel_name)
         except Exception as e:
             print(f"Error cargando canales: {e}")
-    
-    def _on_name_template_changed(self):
-        """Guarda la plantilla de nombres al editar."""
-        t = self.name_template_edit.text().strip()
-        if t:
-            self.name_template = t
-            self.save_config()
     
     def _channel_title_templates(self):
         """Plantillas de título por canal desde app_config.json ({canal: plantilla})."""
@@ -1737,7 +1709,8 @@ class MainWindow(QMainWindow):
     
     def _open_channel_manager(self):
         """Abre el gestor de canales."""
-        manager = ChannelManager(self, CONFIG_FILE)
+        manager = ChannelManager(
+            self, CONFIG_FILE, default_section=getattr(self, 'current_section', DEFAULT_SECTION))
         if manager.exec() == QDialog.DialogCode.Accepted:
             # Recargar canales
             self._load_channels()
@@ -1990,14 +1963,11 @@ class MainWindow(QMainWindow):
         
         # Actualizar texto de los botones según la selección
         if selected_count == 0:
-            self.btn_assign_channel.setText("➡️ Asignar Canal a Seleccionados")
-            self.btn_delete_selected.setText("🗑️ Eliminar Seleccionados")
+            self.btn_assign_channel.setText("Asignar canal a seleccionados")
         elif selected_count == 1:
-            self.btn_assign_channel.setText("➡️ Asignar Canal a 1 Beat")
-            self.btn_delete_selected.setText("🗑️ Eliminar 1 Beat")
+            self.btn_assign_channel.setText("Asignar canal a 1 beat")
         else:
-            self.btn_assign_channel.setText(f"➡️ Asignar Canal a {selected_count} Beats")
-            self.btn_delete_selected.setText(f"🗑️ Eliminar {selected_count} Beats")
+            self.btn_assign_channel.setText(f"Asignar canal a {selected_count} beats")
     
     def _upload_content_to_channel(self):
         """Permite subir imágenes y videos al canal/grupo seleccionado."""
@@ -2069,12 +2039,19 @@ class MainWindow(QMainWindow):
             else:
                 self.status_label.setText(f"⚠️ No se copiaron archivos (ya existían o hubo errores)")
     
+    def _on_youtube_schedule_ui(self, _state=None):
+        """Habilita programación solo si la subida a YouTube está activa."""
+        yt = self.check_youtube_upload.isChecked()
+        self.check_schedule_publish.setEnabled(yt)
+        sched = yt and self.check_schedule_publish.isChecked()
+        self.schedule_datetime.setEnabled(sched)
+
     def _browse_output_folder(self):
         """Permite seleccionar la carpeta de salida."""
         folder = QFileDialog.getExistingDirectory(self, "Seleccionar carpeta de salida", self.output_folder)
         if folder:
             self.output_folder = folder
-            self.output_label.setText(f"📍 {self.output_folder}")
+            self.output_label.setText(self.output_folder)
             self.save_config()
             self.status_label.setText(f"Carpeta de salida: {self.output_folder}")
     
@@ -2183,9 +2160,10 @@ class MainWindow(QMainWindow):
         # Reiniciar tracking de contenido usado
         self._reset_content_tracking()
         
-        if not os.path.exists(self.output_folder):
+        export_folder = self._effective_output_folder()
+        if not os.path.exists(export_folder):
             try:
-                os.makedirs(self.output_folder, exist_ok=True)
+                os.makedirs(export_folder, exist_ok=True)
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"No se pudo crear la carpeta de salida: {e}")
                 return
@@ -2196,11 +2174,11 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(0)
         
         # Crear y iniciar worker con el tipo de contenido seleccionado
-        name_template = (self.name_template_edit.text().strip() or getattr(self, 'name_template', '[Type] {name} | Free for Profit'))
+        name_template = getattr(self, 'name_template', '[Type] {name} | Free for Profit')
         self.worker = VideoGeneratorWorker(
             self.beats_folder,
             self.images_folder,
-            self.output_folder,
+            export_folder,
             self.beats_info,
             self.current_content_type,
             self,
@@ -2245,7 +2223,7 @@ class MainWindow(QMainWindow):
             metadata_path = None
             if self.worker and getattr(self.worker, 'metadata_entries', None):
                 try:
-                    metadata_path = os.path.join(self.output_folder, 'metadata_youtube.csv')
+                    metadata_path = os.path.join(self._effective_output_folder(), 'metadata_youtube.csv')
                     with open(metadata_path, 'w', newline='', encoding='utf-8') as f:
                         w = csv.DictWriter(f, fieldnames=['video_file', 'title', 'description', 'tags'])
                         w.writeheader()
@@ -2274,7 +2252,9 @@ class MainWindow(QMainWindow):
         """Registra en el historial de la biblioteca cada video generado."""
         for e in getattr(self.worker, 'metadata_entries', []) or []:
             try:
-                beat = library.find_beat_by_path(os.path.join(self.beats_folder, e['beat_file']))
+                beat = library.find_beat_by_path(
+                    os.path.join(self.beats_folder, e['beat_file']),
+                    kind=self._library_kind())
                 if beat:
                     library.record_upload(beat['id'], e['channel'], e['group'],
                                           titulo=e['title'], estado='generado')
@@ -2283,6 +2263,8 @@ class MainWindow(QMainWindow):
 
     def _start_youtube_upload(self, entries):
         """Prepara y lanza la subida a YouTube de los videos generados."""
+        publish_at = publish_at_from_qdatetime(
+            self.check_schedule_publish.isChecked(), self.schedule_datetime.dateTime())
         jobs, sin_conectar, duplicados = [], set(), []
         for e in entries:
             if not youtube.is_connected(e['channel']):
@@ -2290,7 +2272,9 @@ class MainWindow(QMainWindow):
                 continue
             beat = None
             try:
-                beat = library.find_beat_by_path(os.path.join(self.beats_folder, e['beat_file']))
+                beat = library.find_beat_by_path(
+                    os.path.join(self.beats_folder, e['beat_file']),
+                    kind=self._library_kind())
             except Exception as ex:
                 print(f"Error buscando beat en biblioteca: {ex}")
             beat = beat or {}
@@ -2302,7 +2286,7 @@ class MainWindow(QMainWindow):
             job = {'channel': e['channel'], 'group': e['group'], 'path': e['path'],
                    'title': e['title'], 'description': desc, 'tags': e.get('tags', ''),
                    'thumbnail': thumb if os.path.exists(thumb) else None,
-                   'privacy': 'private', 'beat_id': beat.get('id')}
+                   'privacy': 'private', 'publish_at': publish_at, 'beat_id': beat.get('id')}
             previas = library.youtube_uploads(beat['id'], e['channel']) if beat.get('id') else []
             if previas:
                 duplicados.append((job, previas[0]))
@@ -2331,7 +2315,12 @@ class MainWindow(QMainWindow):
         self._upload_worker.start()
 
     def _youtube_upload_finished(self, done, errors):
-        msg = f"Subidos a YouTube: {len(done)} videos (privados; publicalos desde YouTube Studio)."
+        scheduled = any(d.get('publish_at') for d in done)
+        if scheduled:
+            msg = (f"Subidos a YouTube: {len(done)} videos programados "
+                   "(privados hasta la fecha/hora elegida).")
+        else:
+            msg = f"Subidos a YouTube: {len(done)} videos (privados; publicalos desde YouTube Studio)."
         if done:
             msg += "\n\n" + "\n".join(f"- {d['title']}: {d['url']}" for d in done)
         self.status_label.setText(f"Subidos a YouTube: {len(done)}")
@@ -2356,7 +2345,6 @@ class MainWindow(QMainWindow):
         """Habilita/deshabilita elementos de la interfaz durante el procesamiento."""
         self.btn_load_beats.setEnabled(not is_processing)
         self.btn_delete_beats.setEnabled(not is_processing)
-        self.btn_save_to_mp3_folder.setEnabled(not is_processing)
         self.btn_assign_channel.setEnabled(not is_processing)
         self.btn_manage_channels.setEnabled(not is_processing)
         self.btn_upload_images.setEnabled(not is_processing)
@@ -2364,6 +2352,12 @@ class MainWindow(QMainWindow):
         self.btn_generate.setEnabled(not is_processing)
         self.check_use_defaults.setEnabled(not is_processing)
         self.check_overlay_text.setEnabled(not is_processing)
+        self.check_youtube_upload.setEnabled(not is_processing)
+        if is_processing:
+            self.check_schedule_publish.setEnabled(False)
+            self.schedule_datetime.setEnabled(False)
+        else:
+            self._on_youtube_schedule_ui()
         self.check_vertical.setEnabled(not is_processing)
         self.btn_cancel.setEnabled(is_processing)
         self.beats_list.setEnabled(not is_processing)
