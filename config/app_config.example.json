@@ -1,0 +1,19 @@
+{
+  "last_output_folder": "exported_videos",
+  "last_channel": "",
+  "last_group": "",
+  "last_content_type": "images",
+  "last_beats_folder": "beats",
+  "name_template": "[Type] {name} | Free for Profit",
+  "overlay_enabled": false,
+  "overlay_text": "{name} Type Beat",
+  "cta_enabled": false,
+  "cta_text": "Like | Subscribe | Link in description",
+  "channels": {
+    "channel_name": {
+      "groups": [
+        "Principal"
+      ]
+    }
+  }
+}

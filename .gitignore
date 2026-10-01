@@ -57,6 +57,15 @@ $RECYCLE.BIN/
 *.tmp
 *.bak
 *.log
+
+# FFmpeg binarios (usar versión del sistema)
+ffmpeg-8.0/
+bin/ffmpeg.exe
+
+# Configuración con rutas personales
+config/app_config.json
+
+# Archivos de video descargados
 videos/RaveBeatz/Principal/(FREE) Makar x Deep House Type Beat _ Melodic Deep House Instrumental.mp4
 videos/RaveBeatz/Principal/(FREE) Makar x Deep House Type Beat _ Melodic Deep House Instrumental (1).mp4
 videos/ey mat/Principal/juice wrld footage type beat.mp4
