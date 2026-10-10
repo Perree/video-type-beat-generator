@@ -12,12 +12,19 @@ YouTube Studio (o una alerta con el paso que falló) y libera el lock en un `fin
 
 Qué kits salen y cómo se arma cada video lo decide `core/kit_week.py`:
 
+- Los kits salen de las categorías de `kit_preview.scan_folders` dentro de `kit_preview.dropbox_root` (obligatorio);
+  cómo se reconocen los loops está en [KIT_PREVIEW.md](KIT_PREVIEW.md). El botón "Detectar kits" del panel los suma a la
+  tabla sin link, para completarlos; una carpeta duplicada (nombre terminado en ` (1)`) llega desactivada.
 - Solo entran los kits de `kits.json` (panel de la app) activos, con link y con carpeta en Dropbox; las carpetas que
-  empiezan con `_` y los kits sin audio o sin imágenes quedan afuera. Sin `kits.json` se usan todas las carpetas y el
-  link del canal. `kit_preview.dropbox_root` es obligatorio.
-- Sale primero el kit que hace más que no se usa. Cada kit hace hasta `cycle_max_videos` (3) videos y descansa
-  `cycle_rest_days` (30); entre dos usos pasan al menos `kit_min_gap_days` (7).
-- El audio dura entre `target_min_s` y `target_max_s` (135-195 s) y no repite tramos dentro del ciclo del kit.
+  empiezan con `_` y los kits sin loops quedan afuera. Un kit sin imágenes solo entra con `cover_mode: "auto"` (el
+  fondo se genera); con `manual` necesita su `images/`. Sin `kits.json` se usan todas las carpetas y el link del canal.
+- Sale primero el kit que hace más que no se usa; entre kits parejos manda el orden de `scan_folders` y, dentro de
+  cada categoría, el de las carpetas. Cada kit hace hasta `cycle_max_videos` (3) videos y descansa `cycle_rest_days`
+  (30); entre dos usos pasan al menos `kit_min_gap_days` (7).
+- El audio dura entre `target_min_s` y `target_max_s` (135-195 s) y nunca repite un loop dentro del ciclo del kit. Hacen
+  falta `min_loops_per_video` (4) loops sin usar: con menos, el kit se saltea. Con 4 o más que no llegan al mínimo de
+  duración sale un video más corto, con aviso. Ese video, o el que deja al kit sin loops para otro, cierra el ciclo y
+  el kit descansa. `short_min_s` (0 = sin piso) permite exigir una duración mínima al video corto.
 - `{link}` es el link del kit con `utm_source` y `utm_content` propios del video; nombre y referencias usan el género del kit.
 - Un kit que no da un video se saltea y se prueba el siguiente. Si no alcanzan los kits, los horarios que sobran quedan
   sin video y el resumen de Telegram lo avisa (no es un fallo). Con 12 kits, 3 videos por semana y 30 días de descanso

@@ -66,8 +66,7 @@ def _catalog(indices):
 
 def _run(dbx, tg, channel, out_dir, paths=None, label=None, now=base.NOW):
     hooks = {'list_packs_fn': base._packs, 'render_fn': base._fake_render,
-             'cut_fn': base._fake_cut, 'end_fn': lambda path, **_k: 28.0,
-             'silences_fn': lambda path, **_k: (400.0, [])}
+             'cut_fn': base._fake_cut, 'end_fn': lambda path, **_k: 28.0}
     config = base._config(out_dir)
     config['kit_preview']['genres'] = [GENRE]
     with contextlib.redirect_stdout(OUTPUT):

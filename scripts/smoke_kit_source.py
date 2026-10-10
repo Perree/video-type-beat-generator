@@ -32,15 +32,17 @@ class _FakeEntry:
 
 
 class FakeDbx:
-    """files_list_folder en memoria. Falla si se lista stems/ o layers/."""
+    """files_list_folder en memoria. Falla si se lista una carpeta que no está en el árbol."""
 
     def __init__(self, by_path):
         self.by_path = by_path
+        self.listed = []
 
     def files_list_folder(self, path):
         key = path or ''
         if key not in self.by_path:
             raise KeyError(f"listado inesperado: {key!r}")
+        self.listed.append(key)
         return _FakeResult(self.by_path[key])
 
     def files_list_folder_continue(self, cursor):
@@ -56,12 +58,14 @@ def _file(name, path):
 
 
 def main() -> int:
-    # Pack A: 3 loops + Preview.wav + 2 jpg en images/ (+ stems/ que no debe listarse).
+    # Kits colgando directo de la raíz (scan_folders vacío).
+    # Pack A: 3 loops + Preview.wav + 2 jpg en images/ (+ stems/ y layers/ que no deben listarse).
     # Pack B: sin images/; 1 loop; 1 png local.
     tree = {
         '/kits': [
             _folder('Pack A', '/kits/pack a'),
             _folder('Pack B', '/kits/pack b'),
+            _folder('_automation', '/kits/_automation'),
             _file('readme.txt', '/kits/readme.txt'),
         ],
         '/kits/pack a': [
@@ -92,23 +96,36 @@ def main() -> int:
     with open(local_png, 'wb') as f:
         f.write(b'\x89PNG')
 
-    packs = kit_source.list_packs('/kits', local_images_root=local_root, dbx=dbx)
+    defaults = kit_source.scan_settings()
+    if defaults != {'scan_folders': ['Individual Kits', 'Production Suites', 'Genre Bundles',
+                                     'free kits'],
+                    'loops_dirs': ['loops'], 'ignore_names': ['tag', 'preview'], 'max_depth': 3}:
+        print('FAIL: defaults de scan_settings', defaults)
+        return 1
+    custom = kit_source.scan_settings({'scan_folders': [], 'loops_dirs': 'Loops, WAV',
+                                       'ignore_names': ['Demo', 'demo'], 'scan_max_depth': 0})
+    if custom != {'scan_folders': [], 'loops_dirs': ['Loops', 'WAV'], 'ignore_names': ['Demo'],
+                  'max_depth': 1}:
+        print('FAIL: scan_settings con config', custom)
+        return 1
+
+    flat = kit_source.scan_settings({'scan_folders': []})
+    packs = kit_source.list_packs('/kits', local_images_root=local_root, dbx=dbx, scan=flat)
     by_name = {p['name']: p for p in packs}
     if set(by_name) != {'Pack A', 'Pack B'}:
         print('FAIL: packs', list(by_name))
         return 1
+    if any('named_previews' in p for p in packs):
+        print('FAIL: el pack no debe traer named_previews')
+        return 1
+    if '/kits/_automation' in dbx.listed:
+        print('FAIL: se recorrió una carpeta que empieza con _')
+        return 1
 
     pack_a = by_name['Pack A']
     loop_names = [x['name'] for x in pack_a['loops']]
-    preview_names = [x['name'] for x in pack_a['named_previews']]
     if loop_names != ['Loop_01.wav', 'Loop_02.wav', 'Loop_03.wav']:
-        print('FAIL: loops Pack A', loop_names)
-        return 1
-    if preview_names != ['Preview.wav']:
-        print('FAIL: named_previews Pack A', preview_names)
-        return 1
-    if 'Preview.wav' in loop_names:
-        print('FAIL: Preview.wav no debe estar en loops')
+        print('FAIL: loops Pack A (Preview.wav se ignora)', loop_names)
         return 1
     img_a = pack_a['images']
     if sorted(i['name'] for i in img_a) != ['a.jpg', 'b.jpg']:
@@ -117,16 +134,10 @@ def main() -> int:
     if any(i['source'] != 'dropbox' for i in img_a):
         print('FAIL: source Pack A', img_a)
         return 1
-    if any('stems' in i['path'] or 'layers' in i['path'] for i in pack_a['loops']):
-        print('FAIL: se recorrió stems/ o layers/')
-        return 1
 
     pack_b = by_name['Pack B']
     if [x['name'] for x in pack_b['loops']] != ['OnlyLoop.mp3']:
         print('FAIL: loops Pack B', pack_b['loops'])
-        return 1
-    if pack_b['named_previews']:
-        print('FAIL: named_previews Pack B', pack_b['named_previews'])
         return 1
     if len(pack_b['images']) != 1:
         print('FAIL: Pack B debe tomar 1 png local', pack_b['images'])
@@ -137,6 +148,12 @@ def main() -> int:
         return 1
     if local_img['path'] != local_png:
         print('FAIL: path local', local_img['path'])
+        return 1
+
+    # Con las categorías por defecto, una raíz que no las tiene no da kits ni se recorre.
+    dbx.listed.clear()
+    if kit_source.list_packs('/kits', dbx=dbx) or dbx.listed != ['/kits']:
+        print('FAIL: sin categorías no debía recorrer nada', dbx.listed)
         return 1
 
     # El browser de beats no debe ver jpg.

@@ -64,16 +64,20 @@ def _fake_download(paths, dest_dir, dbx=None):
     return out
 
 
+def _fake_trim(src, dest, **_k):
+    open(dest, 'wb').close()
+    return dest
+
+
 def _run(tmp, names_cfg, store, llm, link='https://shop.example/p'):
     bg = os.path.join(tmp, 'bg.png')
     Image.new('RGB', (900, 600), (120, 90, 60)).save(bg)
     pack = [{
         'name': 'PackPreview', 'dropbox_path': PACK_PATH,
         'loops': [{'name': 'L1.wav', 'path': '/kits/PackPreview/l1.wav'}],
-        'named_previews': [{'name': 'Preview.wav', 'path': '/kits/PackPreview/Preview.wav'}],
         'images': [{'name': 'bg.png', 'path': bg, 'source': 'local'}],
     }]
-    kit_cfg = {'dropbox_root': '/loop_kits', 'prefer_named_preview': True}
+    kit_cfg = {'dropbox_root': '/loop_kits'}
     if names_cfg is not None:
         kit_cfg['names'] = names_cfg
     seen = {}
@@ -97,7 +101,8 @@ def _run(tmp, names_cfg, store, llm, link='https://shop.example/p'):
         app_config={'kit_preview': kit_cfg, 'channels': {'c': {'section': 'loop_kits'}}},
         channel='c', channel_templates=templates, now=NOW, seed=1, store=store,
         list_packs_fn=lambda *_a, **_k: pack, render_fn=render, publish_fn=publish,
-        cover_fn=cover, llm_call=llm, output_dir=os.path.join(tmp, 'out'))
+        cover_fn=cover, llm_call=llm, output_dir=os.path.join(tmp, 'out'),
+        trim_fn=_fake_trim)
     seen['cover_title'] = cover_titles[0]
     return seen
 

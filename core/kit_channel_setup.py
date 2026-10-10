@@ -14,6 +14,7 @@ SECTION = 'loop_kits'
 _REGISTRY_NAME = 'channels.json'
 # Lo único que se copia de un canal ya configurado en esta PC: sus plantillas.
 _CHANNEL_KEYS = ('title_template', 'description_template', 'tags', 'socials', 'hashtags', 'link')
+_SCAN_KEYS = ('scan_folders', 'loops_dirs', 'ignore_names', 'scan_max_depth')
 _WRITE_ATTEMPTS = 4
 
 
@@ -52,7 +53,8 @@ def loop_kit_channels(*configs):
 def minimal_config(name, base_config=None, local_config=None):
     """Config mínima del worker para un canal nuevo.
 
-    De la config del canal por defecto solo se heredan la carpeta de kits y los géneros; las
+    De la config del canal por defecto solo se heredan la carpeta de kits (con sus reglas
+    de recorrido) y los géneros; las
     plantillas del canal salen de la config local si el canal ya existe en la app. Marca,
     portada y claves de API no se copian: se cargan después para este canal.
     """
@@ -66,6 +68,9 @@ def minimal_config(name, base_config=None, local_config=None):
            'genres': list(base_kit.get('genres') or [])}
     if base_kit.get('dropbox_root'):
         kit['dropbox_root'] = base_kit['dropbox_root']
+    for key in _SCAN_KEYS:
+        if key in base_kit:
+            kit[key] = base_kit[key]
     return {'channels': {name: channel}, 'kit_preview': kit}
 
 

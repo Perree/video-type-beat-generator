@@ -44,14 +44,13 @@ def analyze_all(packs, pack_filter=None, max_loops=None, show_names=False, dbx=N
 
 def format_table(results):
     """Tabla de texto legible, sin rutas."""
-    head = f"{'pack':<10}{'loops':>6}{'prev?':>7}{'prev dur':>10}{'suma prev':>11}{'videos':>8}{'techo':>7}{'err':>5}"
+    head = f"{'pack':<10}{'loops':>6}{'suma prev':>11}{'videos':>8}{'techo':>7}{'err':>5}"
     lines = [head, '-' * len(head)]
     for r in results:
         title = r.get('name') or r['label']
         v = r['videos']
         lines.append(
-            f"{r['label']:<10}{r['loops_total']:>6}{('si' if r['preview_file'] else 'no'):>7}"
-            f"{_fmt(r['preview_sec']):>10}{_fmt(r['preview_total_sec']):>11}"
+            f"{r['label']:<10}{r['loops_total']:>6}{_fmt(r['preview_total_sec']):>11}"
             f"{v['videos']:>8}{v['upper_bound']:>7}{r['errors']:>5}"
             + (f'  {title}' if r.get('name') else ''))
     total = sum(r['videos']['videos'] for r in results)
@@ -70,7 +69,8 @@ def main(argv=None):
     with open(CONFIG_FILE, encoding='utf-8') as f:
         kit_cfg = json.load(f).get('kit_preview') or {}
     packs = kit_source.list_packs(
-        kit_cfg.get('dropbox_root') or '', local_images_root=kit_cfg.get('local_images_root'))
+        kit_cfg.get('dropbox_root') or '', local_images_root=kit_cfg.get('local_images_root'),
+        scan=kit_source.scan_settings(kit_cfg))
     results = analyze_all(packs, args.pack, args.max_loops, args.show_names)
     if not results:
         print('Ningún pack coincide.')

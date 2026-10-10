@@ -45,13 +45,12 @@ class Counters:
 
 def _packs(*_a, **_k):
     out = []
-    for i, name in enumerate(PACK_NAMES):
+    for name in PACK_NAMES:
         out.append({
             'name': name,
             'dropbox_path': f'/smoke/{name}',
-            'loops': [{'name': f'L{j}.wav', 'path': f'/smoke/{name}/l{j}.wav'} for j in range(8)],
-            'named_previews': ([{'name': 'Preview.wav', 'path': f'/smoke/{name}/Preview.wav'}]
-                               if i % 2 == 0 else []),
+            # 16 loops: un video usa 5 y quedan de sobra, así el kit no cierra el ciclo.
+            'loops': [{'name': f'L{j}.wav', 'path': f'/smoke/{name}/l{j}.wav'} for j in range(16)],
             'images': [{'name': 'a.png', 'path': 'a.png', 'source': 'local'}],
         })
     return out
@@ -103,12 +102,12 @@ def _reset(**kw):
 
 def _config(out_dir):
     return {'kit_preview': {'dropbox_root': '/smoke', 'output_dir': out_dir,
-                            'prefer_named_preview': True, 'pack_cooldown_days': 30}}
+                            'pack_cooldown_days': 30}}
 
 
 def _run(dbx, tg, out_dir, dry_run=False, now=NOW):
     hooks = {'list_packs_fn': _packs, 'render_fn': _fake_render, 'cut_fn': _fake_cut,
-             'end_fn': lambda path, **_k: 28.0, 'silences_fn': lambda path, **_k: (400.0, [])}
+             'end_fn': lambda path, **_k: 28.0}
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         code = run_kit_weekly.run_weekly(

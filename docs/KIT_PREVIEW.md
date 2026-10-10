@@ -2,26 +2,31 @@
 
 Una corrida elige un pack en Dropbox, arma un video 16:9 (imagen fija + audio) y lo sube al canal de la sección **loop kits**, programado en el próximo slot configurado.
 
-## Dos vías de audio
+## Audio
 
-1. **`named_preview`** (default si `kit_preview.prefer_named_preview` es true): en la raíz del pack hay un mp3/wav cuyo nombre contiene `preview` (sin distinguir mayúsculas). Ese archivo es **toda** la pista. No se corta por silencio ni se mezcla con otros loops.
-2. **`assembled`**: no hay preview nombrada, o corrés con `--no-named-preview` / `prefer_named_preview: false`. Se eligen entre 6 y 8 loops (o todos si hay menos), se corta cada uno al primer silencio (`core/kit_trim`) y se concatenan en orden aleatorio.
+El audio se arma siempre con loops del kit: se eligen entre 6 y 8 (o todos si hay menos), se corta cada uno al primer silencio (`core/kit_trim`) y se concatenan en orden aleatorio. Un archivo con `preview` o `tag` en el nombre no es un loop y se ignora.
 
-La imagen es siempre una foto hecha a mano del pack (no se genera en la app).
+La imagen es una foto hecha a mano del kit; con `kit_preview.cover_mode: "auto"` el fondo se genera y el kit no necesita imágenes propias.
 
 ## Carpetas
 
-En Dropbox, `kit_preview.dropbox_root` tiene **una subcarpeta por pack**:
+`kit_preview.dropbox_root` es la carpeta de la tienda. Adentro hay **categorías** y, dentro de cada una, una carpeta por kit:
 
-- Raíz del pack: loops (mp3/wav). Un archivo con `preview` en el nombre = pista completa, no loop.
-- No se recorren `stems/` ni `layers/`.
-- Imágenes: subcarpeta `images/` (jpg, jpeg, png, webp).
+```text
+<dropbox_root>/
+  <categoría>/
+    <kit>/
+      LOOPS/        loops (mp3/wav)
+      images/       opcional: jpg, jpeg, png, webp
+      ...           drum kit, midis, starters, vocals, phrases, stems: no se recorren
+```
 
-Si el pack **no** tiene `images/` en Dropbox, la app usa archivos locales en:
-
-`kit_preview.local_images_root/<nombre-del-pack>/`
-
-Creá esa carpeta en disco y copiá ahí las imágenes del pack.
+- **Categorías:** se recorren las de `kit_preview.scan_folders`, en ese orden. Una categoría que no está en la lista no se toca. Con `"scan_folders": []` los kits cuelgan directo de `dropbox_root`.
+- **Loops:** los audios de la subcarpeta del kit que se llame como alguna de `kit_preview.loops_dirs` (nombre exacto, sin distinguir mayúsculas: `LOOPS`, `Loops`). Una carpeta que solo contiene la palabra, como `Drum Loops`, no cuenta. Si el kit no tiene esa subcarpeta, valen los audios de su raíz.
+- **Nombres ignorados:** los archivos con alguna palabra de `kit_preview.ignore_names` como palabra suelta (`Kit TAG.wav`, `kit_preview.mp3`; `Vintage.wav` no).
+- **mp3 y wav del mismo loop:** cuentan una vez y se usa el wav.
+- **Bundles:** una carpeta sin loops se recorre hacia adentro hasta `kit_preview.scan_max_depth` niveles; ahí adentro un kit tiene que tener su subcarpeta de loops.
+- **Imágenes:** subcarpeta `images/` del kit. Si no existe, la app usa los archivos locales de `kit_preview.local_images_root/<nombre-del-kit>/`.
 
 Ver también [DROPBOX_SETUP.md](DROPBOX_SETUP.md).
 
@@ -30,13 +35,19 @@ Ver también [DROPBOX_SETUP.md](DROPBOX_SETUP.md).
 ```json
 "kit_preview": {
   "dropbox_root": "/loop_kits",
+  "scan_folders": ["Individual Kits", "Production Suites", "Genre Bundles", "free kits"],
+  "loops_dirs": ["loops"],
+  "ignore_names": ["tag", "preview"],
+  "scan_max_depth": 3,
+  "min_loops_per_video": 4,
   "local_images_root": "images/loop_kits",
-  "prefer_named_preview": true,
   "pack_cooldown_days": 30,
   "loops_min": 6,
   "loops_max": 8
 }
 ```
+
+Los valores de `scan_folders`, `loops_dirs`, `ignore_names` y `scan_max_depth` del ejemplo son los que se usan si la clave falta. Se editan desde el panel de la app ("Carpeta de kits en Dropbox"), que los guarda en la config del canal en Dropbox.
 
 - Al menos un canal con `"section": "loop_kits"` en `channels`.
 - Slots de publicación: opcional `kit_preview.slots` como lista de `{ "weekday": 0, "hour": 18, "minute": 0 }` (lunes=0). Si falta, lun/mié/vie 18:00 local.
@@ -49,11 +60,10 @@ Desde la raíz del repo (con Dropbox y YouTube ya conectados):
 ```text
 python scripts/run_kit_preview.py
 python scripts/run_kit_preview.py --dry-run
-python scripts/run_kit_preview.py --no-named-preview
 python scripts/run_kit_preview.py --channel MiCanalKits
 ```
 
-`--dry-run` imprime `audio_mode`, pack, archivos e imagen; **no** renderiza video ni sube a YouTube.
+`--dry-run` imprime pack, loops elegidos e imagen; **no** renderiza video ni sube a YouTube.
 
 Si ya existe una corrida en estado `scheduled` o `uploaded` con el mismo `publish_at` del próximo slot, el script termina con código 0 sin elegir otro pack (útil si el Programador dispara dos veces).
 
@@ -79,4 +89,5 @@ Estado `scheduled`: subida privada con `publishAt` aceptado. Estado `uploaded`: 
 
 ```text
 python scripts/smoke_kit_preview_dry.py
+python scripts/smoke_kit_scan.py
 ```

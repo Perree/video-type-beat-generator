@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Corrida completa de preview de loop kit: elegir pack, audio, render y subida.
+"""Corrida completa de preview de loop kit: elegir pack, loops, render y subida.
 
 Entry point: ``python scripts/run_kit_preview.py`` (ver docs/KIT_PREVIEW.md).
 """
@@ -81,7 +81,6 @@ def run_preview(
     channel: str,
     channel_templates: dict,
     dry_run: bool = False,
-    no_named_preview: bool = False,
     now: Optional[datetime] = None,
     seed: Optional[int] = None,
     db_path: Optional[str] = None,
@@ -127,13 +126,12 @@ def run_preview(
         kit_cfg.get('dropbox_root') or '',
         local_images_root=kit_cfg.get('local_images_root'),
         dbx=dbx,
+        scan=kit_source.scan_settings(kit_cfg),
     )
     if exclude_paths:
         packs = [p for p in packs if p['dropbox_path'] not in set(exclude_paths)]
     history = store.selection_history(db_path=db_path)
     rng = random.Random(seed)
-    prefer_named = False if no_named_preview else bool(
-        kit_cfg.get('prefer_named_preview', True))
     try:
         selection = choose(
             packs,
@@ -143,7 +141,7 @@ def run_preview(
             cooldown_days=int(kit_cfg.get('pack_cooldown_days', 30)),
             loops_min=int(kit_cfg.get('loops_min', 6)),
             loops_max=int(kit_cfg.get('loops_max', 8)),
-            prefer_named_preview=prefer_named,
+            require_image=kit_art.mode(kit_cfg) != kit_art.MODE_AUTO,
         )
     except KitSelectError as exc:
         raise SystemExit(str(exc)) from exc
@@ -160,7 +158,7 @@ def run_preview(
         'pack': pack['name'],
         'pack_path': pack['dropbox_path'],
         'audio_files': [a['name'] for a in audio_files],
-        'image': image['name'],
+        'image': image['name'] if image else None,
         'warnings': selection.get('warnings') or [],
         'publish_at': publish_iso,
         'slot': slot,
@@ -171,7 +169,7 @@ def run_preview(
         print(f"audio_mode={audio_mode}")
         print(f"pack={pack['name']}")
         print(f"audio={[a['name'] for a in audio_files]}")
-        print(f"image={image['name']}")
+        print(f"image={image['name'] if image else '(fondo generado)'}")
         for w in result['warnings']:
             print(f"warning: {w}")
         return result
@@ -200,24 +198,22 @@ def run_preview(
                          'link': kit_names.track_link(channel_templates['link'], tracking_id)}
 
     with tempfile.TemporaryDirectory(prefix='kit_preview_') as tmp:
-        image_local = _resolve_image_local(image, tmp, dbx=dbx)
+        image_local = _resolve_image_local(image, tmp, dbx=dbx) if image else None
         wavs: List[str] = []
-        if audio_mode == 'named_preview':
-            paths = [a['path'] for a in audio_files]
-            wavs = kit_source.download_pack_files(paths, tmp, dbx=dbx)
-        else:
-            paths = [a['path'] for a in audio_files]
-            locals_audio = kit_source.download_pack_files(paths, tmp, dbx=dbx)
-            for i, local in enumerate(locals_audio):
-                dest = os.path.join(tmp, f"trim_{i:02d}.wav")
-                trim_impl(local, dest, **trim_kw)
-                result['trim_calls'] += 1
-                wavs.append(dest)
+        paths = [a['path'] for a in audio_files]
+        locals_audio = kit_source.download_pack_files(paths, tmp, dbx=dbx)
+        for i, local in enumerate(locals_audio):
+            dest = os.path.join(tmp, f"trim_{i:02d}.wav")
+            trim_impl(local, dest, **trim_kw)
+            result['trim_calls'] += 1
+            wavs.append(dest)
 
         # cover_mode auto: fondo con IA; si falla vuelve a la imagen manual y la corrida sigue.
         background_local, ref_images = kit_art.for_video(
             kit_cfg, pack['name'], image_local, store, rng, tmp, dbx=dbx,
             client=art_client, notify=art_notify)
+        if not background_local:
+            raise SystemExit("El kit no tiene imágenes y no se pudo generar el fondo.")
         frame_local, thumbnail = (cover_fn or kit_cover.for_video)(
             kit_cfg.get('cover'), background_local, display_name, tmp)
         render_impl(frame_local, wavs, video_out)
@@ -233,7 +229,7 @@ def run_preview(
             audio_mode=audio_mode,
             db_path=db_path,
             now=when,
-            image_path=image.get('path') or image_local,
+            image_path=(image.get('path') if image else None) or image_local,
             loops_json=loops_meta,
             **({'video_name': video_name, 'tracking_id': tracking_id} if tracking_id else {}),
             **({'ref_images': ref_images} if ref_images else {}),
@@ -248,9 +244,7 @@ def run_preview(
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description='Genera y sube un preview de loop kit.')
     parser.add_argument('--dry-run', action='store_true',
-                        help='Solo elige pack y modo; sin FFmpeg de video ni YouTube.')
-    parser.add_argument('--no-named-preview', action='store_true',
-                        help='Fuerza modo assembled aunque exista Preview.wav.')
+                        help='Solo elige pack y loops; sin FFmpeg de video ni YouTube.')
     parser.add_argument('--channel', help='Canal loop_kits (obligatorio si hay varios).')
     parser.add_argument('--config', default=CONFIG_FILE, help='Ruta a app_config.json.')
     parser.add_argument('--seed', type=int, help='Semilla para elegir pack/loops/imagen.')
@@ -263,7 +257,6 @@ def main(argv: Optional[List[str]] = None) -> int:
         channel=channel,
         channel_templates=templates,
         dry_run=args.dry_run,
-        no_named_preview=args.no_named_preview,
         seed=args.seed,
     )
     return 0

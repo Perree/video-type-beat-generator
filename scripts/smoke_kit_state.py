@@ -206,7 +206,7 @@ def _check_store_api(dbx):
                          loops_json=['x.wav'], estado='rendered', **kw)
     kit_state.record_run(a, audio_mode='assembled', image_path='img/2.png',
                          publish_at='2026-01-02T15:00:00Z', estado='scheduled', **kw)
-    kit_state.record_run(a, audio_mode='named_preview',
+    kit_state.record_run(a, audio_mode='assembled',
                          publish_at='2026-01-03T15:00:00Z', estado='private_pending', **kw)
 
     history = kit_state.selection_history(**kw)

@@ -290,6 +290,33 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
   y del workflow con dos canales (acá solo se probó con dobles de `gh`, Dropbox y YouTube).
 - Smoke: `scripts/smoke_kit_multichannel.py` (sin red; la parte del panel necesita PyQt5).
 
+## Loop kits — Carpeta de tienda, categorías y fin del preview nombrado ✅ COMPLETADA
+- `core/kit_source.py`: `dropbox_root` es la tienda. Recorre las categorías de `kit_preview.scan_folders` en orden
+  (default Individual Kits, Production Suites, Genre Bundles, free kits; `[]` = kits directo en la raíz). Un kit es una
+  carpeta con loops en una subcarpeta de `loops_dirs` (nombre exacto, sin mayúsculas: "Drum Loops" no entra) o, si no
+  la tiene, en su raíz. Ignora los nombres con las palabras de `ignore_names` (palabra suelta) y las subcarpetas de
+  drums, midis, starters, vocals, phrases, stems y layers; mp3+wav del mismo loop cuentan una vez (queda el wav);
+  `scan_max_depth` limita cuánto se entra en un bundle (ahí adentro el kit necesita su carpeta de loops).
+- **Se quitó el modo "preview nombrado" entero:** `named_previews` y `_is_named_preview` (`kit_source`),
+  `_pick_named_preview` y `prefer_named_preview` (`kit_select`), `_plan_preview`, el corte por silencios, los fundidos y
+  `silences_fn` (`kit_audio`), `prefer_named_preview` y el hook `silences_fn` (`kit_week`), `--no-named-preview` y la rama
+  sin corte (`run_kit_preview`), `preview_file` / `preview_sec` (`kit_analyze`, `analyze_kits`), el valor `named_preview`
+  de `AUDIO_MODES` y la clave de `app_config.example.json`. El único `audio_mode` es `assembled`; las corridas viejas
+  guardadas con el otro valor se siguen leyendo.
+- Mínimo de loops (`min_loops_per_video`, 4): con menos loops sin usar el kit se saltea; con 4 o más que no llegan a
+  `target_min_s` sale un video más corto con aviso. Ya no se repiten loops de videos anteriores del ciclo: el video
+  corto, o el que deja al kit sin loops para otro, cierra el ciclo. `short_min_s` pasa a 0 (piso opcional).
+- Con `cover_mode: auto` un kit sin imágenes es elegible (`kit_select.choose(require_image=)`,
+  `kit_cycle.pick_week(require_images=)`); con `manual` sigue necesitando imágenes. Si el fondo no se genera, ese kit se
+  saltea. `pick_week(keep_order=True)`: entre kits parejos manda el orden del recorrido.
+- Panel: grupo "Carpeta de kits en Dropbox" (raíz, casillas de categorías leídas de Dropbox y reordenables, carpetas de
+  loops, nombres a ignorar, profundidad) y botón "Detectar kits" (`core/kit_detect.py`): suma a la tabla los kits que
+  falten, sin link ni género; una carpeta duplicada (nombre terminado en " (N)") llega con `active` en false. Todo se
+  guarda en la config del canal (`kit_settings`); `main.py` no se tocó.
+- Pendiente del usuario: en el panel, cargar la carpeta raíz, "Detectar kits", completar links y géneros y guardar;
+  después un dry-run. Revisar a mano los kits que queden afuera por nombre de carpeta.
+- Smokes: `scripts/smoke_kit_scan.py` (estructura falsa igual a la real) y los `smoke_kit_*` existentes actualizados.
+
 ## Loop kits — Revisión de seguridad ⏳ INFORME ENTREGADO, FALTA LA PRIMERA CORRIDA REAL
 - Revisión de solo lectura de todo lo agregado (workflow, worker, `core/kit_*`, panel).
 - Sin secretos, links de venta ni nombre de canal en los archivos a commitear; acciones fijadas por SHA (verificadas

@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Elige pack, modo de audio e imagen para un video de loop kit.
+"""Elige pack, loops e imagen para un video de loop kit.
 
 Recibe la lista de ``kit_source.list_packs`` y un historial en memoria
 (last_used e imagen reciente por ``dropbox_path``). No accede a Dropbox.
 """
-import os
 import random
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
@@ -67,26 +66,6 @@ def _pick_pack_relaxed(
     return min(packs, key=sort_key)
 
 
-def _stem(filename: str) -> str:
-    return os.path.splitext(filename)[0]
-
-
-def _pick_named_preview(named_previews: List[dict]) -> dict:
-    """Un preview nombrado: stem exacto preview, luego prefijo preview, nombre más corto."""
-
-    def rank(rec: dict) -> tuple:
-        stem = _stem(rec['name']).lower()
-        if stem == 'preview':
-            tier = 0
-        elif stem.startswith('preview'):
-            tier = 1
-        else:
-            tier = 2
-        return (tier, len(rec['name']), rec['name'].lower())
-
-    return min(named_previews, key=rank)
-
-
 def _pick_loops(
     loops: List[dict],
     rng: random.Random,
@@ -97,7 +76,7 @@ def _pick_loops(
     """Entre loops_min y loops_max al azar si alcanza; si no, todos con aviso."""
     n = len(loops)
     if n == 0:
-        raise KitSelectError('El pack no tiene loops para modo assembled')
+        raise KitSelectError('El pack no tiene loops')
     if n < loops_min:
         warnings.append(
             f'Solo hay {n} loop(s); se usan todos (mínimo deseado {loops_min}).')
@@ -113,10 +92,16 @@ def _pick_image(
     pack: dict,
     history: dict,
     rng: random.Random,
-) -> dict:
-    """Elige imagen evitando repetir la última de ese pack si hay alternativa."""
+    require_image: bool = True,
+) -> Optional[dict]:
+    """Elige imagen evitando repetir la última de ese pack si hay alternativa.
+
+    Sin imágenes devuelve None cuando ``require_image`` es falso (portada automática).
+    """
     images = pack.get('images') or []
     if not images:
+        if not require_image:
+            return None
         raise KitSelectError(
             f"El pack {pack.get('name', pack['dropbox_path'])} no tiene imágenes")
     last_path = _pack_last_image(history, pack['dropbox_path'])
@@ -136,7 +121,7 @@ def choose(
     cooldown_days: int = 30,
     loops_min: int = 6,
     loops_max: int = 8,
-    prefer_named_preview: bool = True,
+    require_image: bool = True,
 ) -> Dict[str, Any]:
     """Elige pack, audio e imagen según cooldown y preferencias.
 
@@ -146,8 +131,9 @@ def choose(
         now: instante de referencia para el cooldown.
         rng: generador para pack, cantidad de loops e imagen.
         cooldown_days: días mínimos desde ``last_used_at``.
-        loops_min, loops_max: rango en modo ``assembled``.
-        prefer_named_preview: usar un solo archivo de ``named_previews`` si existe.
+        loops_min, loops_max: cuántos loops se eligen.
+        require_image: con False (``cover_mode: auto``) un pack sin imágenes es válido
+            y ``image`` sale en None.
 
     Returns:
         dict con pack, audio_mode, audio_files, image, warnings, cooldown_relaxed.
@@ -167,23 +153,13 @@ def choose(
             f'Todos los packs fueron usados en los últimos {cooldown_days} días; '
             f'se eligió el más antiguo ({pack.get("name", pack["dropbox_path"])}).')
 
-    use_named = (
-        prefer_named_preview
-        and bool(pack.get('named_previews'))
-    )
-    if use_named:
-        audio_mode = 'named_preview'
-        audio_files = [_pick_named_preview(pack['named_previews'])]
-    else:
-        audio_mode = 'assembled'
-        audio_files = _pick_loops(
-            pack.get('loops') or [], rng, loops_min, loops_max, warnings)
-
-    image = _pick_image(pack, history, rng)
+    audio_files = _pick_loops(
+        pack.get('loops') or [], rng, loops_min, loops_max, warnings)
+    image = _pick_image(pack, history, rng, require_image)
 
     return {
         'pack': pack,
-        'audio_mode': audio_mode,
+        'audio_mode': 'assembled',
         'audio_files': audio_files,
         'image': image,
         'warnings': warnings,

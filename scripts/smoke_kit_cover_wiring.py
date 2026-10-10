@@ -35,16 +35,20 @@ def _fake_download(paths, dest_dir, dbx=None):
     return out
 
 
+def _fake_trim(src, dest, **_k):
+    open(dest, 'wb').close()
+    return dest
+
+
 def _run(tmp, cover_cfg, seed=1):
     bg = os.path.join(tmp, 'bg.png')
     Image.new('RGB', (900, 600), (120, 90, 60)).save(bg)
     pack = [{
         'name': 'PackPreview', 'dropbox_path': '/kits/PackPreview',
         'loops': [{'name': 'L1.wav', 'path': '/kits/PackPreview/l1.wav'}],
-        'named_previews': [{'name': 'Preview.wav', 'path': '/kits/PackPreview/Preview.wav'}],
         'images': [{'name': 'bg.png', 'path': bg, 'source': 'local'}],
     }]
-    kit_cfg = {'dropbox_root': '/loop_kits', 'prefer_named_preview': True}
+    kit_cfg = {'dropbox_root': '/loop_kits'}
     if cover_cfg is not None:
         kit_cfg['cover'] = cover_cfg
     seen = {}
@@ -65,6 +69,7 @@ def _run(tmp, cover_cfg, seed=1):
         channel='c', channel_templates={'title_template': '{name}'}, now=NOW, seed=seed,
         db_path=os.path.join(tmp, 'k.db'),
         list_packs_fn=lambda *_a, **_k: pack, render_fn=render, publish_fn=publish,
+        trim_fn=_fake_trim,
         output_dir=os.path.join(tmp, 'out'))
     return bg, seen, out
 

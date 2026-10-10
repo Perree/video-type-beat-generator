@@ -153,7 +153,7 @@ def used_segments(state, dropbox_path, now, cfg=None):
 
 
 def pick_week(packs, state, history, now, rng, cfg=None, exclude=(), require_images=True,
-              choose_fn=choose, limit=None, **choose_kw):
+              choose_fn=choose, limit=None, keep_order=False, **choose_kw):
     """Elige hasta kits_per_week kits distintos entre los que pueden usarse.
 
     Van primero los que hace más que no salen (los nunca usados antes que nadie); el
@@ -162,7 +162,11 @@ def pick_week(packs, state, history, now, rng, cfg=None, exclude=(), require_ima
     armar (sin audio) se saltea y se sigue con el resto.
 
     Args:
+        require_images: con False un kit sin imágenes también entra (portada automática)
+            y su selección lleva ``image`` en None.
         limit: tope de kits a devolver en lugar de ``kits_per_week``.
+        keep_order: desempata el orden de ``packs`` (el del recorrido de carpetas) en
+            lugar del azar.
 
     Returns:
         dict ``{selections, warnings}``. Cada selección es la de ``choose`` más
@@ -181,7 +185,8 @@ def pick_week(packs, state, history, now, rng, cfg=None, exclude=(), require_ima
     # no aplique ni relaje su propio cooldown (solo le sirve la última imagen).
     history = {**(history or {}), 'last_used_by_path': {}}
     pool = list(pool)
-    rng.shuffle(pool)
+    if not keep_order:
+        rng.shuffle(pool)
     pool.sort(key=lambda pack: str(_pack_state(state, pack['dropbox_path']).get('last_used_at')
                                    or ''))
     selections = []
@@ -190,7 +195,8 @@ def pick_week(packs, state, history, now, rng, cfg=None, exclude=(), require_ima
         if len(selections) >= want:
             break
         try:
-            selection = choose_fn([pack], history, now, rng, cooldown_days=0, **choose_kw)
+            selection = choose_fn([pack], history, now, rng, cooldown_days=0,
+                                  require_image=require_images, **choose_kw)
         except KitSelectError:
             unusable += 1
             continue

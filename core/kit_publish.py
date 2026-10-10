@@ -131,7 +131,7 @@ def publish_preview(channel, video, thumbnail, pack_name, slots, templates, *,
         slots: horarios de ``next_slot``.
         templates: dict del canal (title_template, description_template, tags, …).
         pack_id: id en kit_packs. Obligatorio para no subir sin poder registrar.
-        audio_mode: ``named_preview`` o ``assembled``.
+        audio_mode: ``assembled`` (loops cortados y unidos).
         db_path: library.db alternativo (smokes).
         now: reloj inyectable; default datetime.now().
         image_path, loops_json: se guardan en kit_runs.

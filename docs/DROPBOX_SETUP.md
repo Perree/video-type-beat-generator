@@ -15,8 +15,10 @@ copian a `library/` (dedupe por hash). El diálogo de biblioteca sigue mostrando
 
 ## Loop kits (previews)
 
-`kit_preview.dropbox_root` tiene una subcarpeta por pack. En la **raíz** de esa carpeta van los
-loops (mp3/wav). Un archivo de esa misma raíz cuyo nombre contiene `preview` (sin distinguir
-mayúsculas) es la pista completa del pack, no un loop. No se recorren `stems/` ni `layers/`.
-Imágenes: subcarpeta `images/` del pack (jpg, jpeg, png, webp). Si esa carpeta no existe, se
-usan los archivos de `kit_preview.local_images_root/<nombre-del-pack>/` en disco.
+`kit_preview.dropbox_root` es la carpeta de la tienda: adentro van las categorías
+(`kit_preview.scan_folders`) y, en cada una, una carpeta por kit con sus loops (mp3/wav) en
+`LOOPS/` o, si no la tiene, en su raíz. Los archivos con `tag` o `preview` en el nombre se
+ignoran y no se recorren las subcarpetas de drum kits, midis, starters, vocals, phrases ni stems.
+Imágenes: subcarpeta `images/` del kit (jpg, jpeg, png, webp). Si esa carpeta no existe, se
+usan los archivos de `kit_preview.local_images_root/<nombre-del-kit>/` en disco. El detalle
+está en [KIT_PREVIEW.md](KIT_PREVIEW.md).

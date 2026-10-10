@@ -122,7 +122,8 @@ def main() -> int:
                 out.append(dest)
             return out
 
-        packs = kit_source.list_packs('/kits', dbx=FakeDbx(tree))
+        packs = kit_source.list_packs('/kits', dbx=FakeDbx(tree),
+                                      scan=kit_source.scan_settings({'scan_folders': []}))
         if not resolve_tool('ffmpeg'):
             print('SKIP: sin ffmpeg, no se prueba el corte real')
             print('OK')
@@ -137,12 +138,11 @@ def main() -> int:
         results = analyze_all(packs, analyze_fn=run)
         by = {r['label']: r for r in results}
         x = by['pack-01']
-        ok &= _check(x['loops_total'] == 12 and x['preview_file'], f'pack-01 {x}')
-        ok &= _check(abs(x['preview_sec'] - 30) < 0.5, f"preview_sec {x['preview_sec']}")
+        ok &= _check(x['loops_total'] == 12 and 'preview_file' not in x, f'pack-01 {x}')
         ok &= _check(all(abs(s - 12) < 0.5 for s in x['loop_preview_secs']), x['loop_preview_secs'])
         ok &= _check(x['videos']['videos'] == 1 and x['errors'] == 0, f"videos {x['videos']}")
         y = by['pack-02']
-        ok &= _check(not y['preview_file'] and y['preview_sec'] is None, f'pack-02 {y}')
+        ok &= _check(y['loops_total'] == 1, f'pack-02 {y}')
         ok &= _check('name' not in x, 'sin nombres por defecto')
 
         limited = analyze_all(packs, pack_filter='pack-01', max_loops=3, analyze_fn=run)

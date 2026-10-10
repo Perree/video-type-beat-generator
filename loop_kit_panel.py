@@ -13,10 +13,12 @@ import sys
 from PyQt5.QtCore import QProcess, Qt, QThread, QTime, pyqtSignal
 from PyQt5.QtWidgets import (QAbstractItemView, QComboBox, QDialog, QFormLayout, QGroupBox,
                              QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit,
-                             QPlainTextEdit, QPushButton, QScrollArea, QTableWidget,
-                             QTableWidgetItem, QTimeEdit, QVBoxLayout, QWidget)
+                             QListWidget, QListWidgetItem, QPlainTextEdit, QPushButton,
+                             QScrollArea, QSpinBox, QTableWidget, QTableWidgetItem, QTimeEdit,
+                             QVBoxLayout, QWidget)
 
-from core import kit_channel, kit_channel_setup, kit_cloud, kit_settings, kit_state
+from core import (kit_channel, kit_channel_setup, kit_cloud, kit_detect, kit_settings,
+                  kit_source, kit_state)
 
 _ROOT = os.path.dirname(os.path.abspath(__file__))
 _HEADERS = ("Carpeta", "Nombre", "Link de PayHip", "Género", "Activo")
@@ -49,7 +51,7 @@ class _Task(QThread):
 
 
 class LoopKitPanel(QWidget):
-    """Formulario de canal, horarios, kits, géneros, portada y estado del worker."""
+    """Formulario de canal, horarios, carpeta de kits, kits, géneros, portada y estado."""
 
     def __init__(self, parent=None, dbx_provider=None, python=None, script_dir=None):
         super().__init__(parent)
@@ -82,6 +84,7 @@ class LoopKitPanel(QWidget):
         body = QWidget()
         col = QVBoxLayout(body)
         col.addWidget(self._build_channel_box())
+        col.addWidget(self._build_source_box())
         col.addWidget(self._build_kits_box(), 1)
         col.addWidget(self._build_genres_box())
         col.addWidget(self._build_cover_box())
@@ -131,6 +134,38 @@ class LoopKitPanel(QWidget):
             self.slot_time.append(tm)
         return box
 
+    def _build_source_box(self):
+        box = QGroupBox("Carpeta de kits en Dropbox")
+        form = QFormLayout(box)
+        self.kits_root = QLineEdit()
+        self.kits_root.setPlaceholderText("/ruta/en/Dropbox/tienda")
+        self.btn_categories = QPushButton("Leer categorías")
+        self.btn_categories.clicked.connect(self.read_categories)
+        row = QHBoxLayout()
+        row.addWidget(self.kits_root, 1)
+        row.addWidget(self.btn_categories)
+        form.addRow("Carpeta raíz:", row)
+        self.categories = QListWidget()
+        self.categories.setDragDropMode(QAbstractItemView.InternalMove)
+        self.categories.setFixedHeight(110)
+        form.addRow("Categorías a recorrer:", self.categories)
+        self.loops_dirs = QLineEdit()
+        self.loops_dirs.setPlaceholderText("loops")
+        form.addRow("Carpetas de loops:", self.loops_dirs)
+        self.ignore_names = QLineEdit()
+        self.ignore_names.setPlaceholderText("tag, preview")
+        form.addRow("Nombres a ignorar:", self.ignore_names)
+        self.scan_depth = QSpinBox()
+        self.scan_depth.setRange(1, kit_settings.MAX_SCAN_DEPTH)
+        form.addRow("Profundidad máxima:", self.scan_depth)
+        hint = QLabel("Las categorías se recorren en el orden de la lista (se puede arrastrar). "
+                      "Sin ninguna marcada, los kits se buscan directo en la carpeta raíz. "
+                      "Carpetas de loops y nombres a ignorar van separados por coma.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #888;")
+        form.addRow(hint)
+        return box
+
     def _build_kits_box(self):
         box = QGroupBox("Kits")
         lay = QVBoxLayout(box)
@@ -147,11 +182,16 @@ class LoopKitPanel(QWidget):
         add, rm = QPushButton("Agregar kit"), QPushButton("Quitar seleccionado")
         add.clicked.connect(lambda: self.add_kit_row())
         rm.clicked.connect(self.remove_selected_kit)
+        self.btn_detect = QPushButton("Detectar kits")
+        self.btn_detect.clicked.connect(self.detect_kits)
         row.addWidget(add)
         row.addWidget(rm)
+        row.addWidget(self.btn_detect)
         row.addStretch(1)
         lay.addLayout(row)
-        hint = QLabel("Un kit sin link se guarda, pero el worker no lo elige.")
+        hint = QLabel("Un kit sin link se guarda, pero el worker no lo elige. \"Detectar kits\" "
+                      "suma las carpetas con loops que falten en la tabla, sin link ni género.")
+        hint.setWordWrap(True)
         hint.setStyleSheet("color: #888;")
         lay.addWidget(hint)
         return box
@@ -236,7 +276,36 @@ class LoopKitPanel(QWidget):
                           for i in range(_SLOT_ROWS)],
                 'genres': kit_settings.parse_genres(self.genres.toPlainText()),
                 'refs_root': self.refs_root.text(),
-                'cover_mode': self.cover_mode.currentData()}
+                'cover_mode': self.cover_mode.currentData(),
+                'dropbox_root': self.kits_root.text(),
+                'scan_folders': self.checked_categories(),
+                'loops_dirs': self.loops_dirs.text(),
+                'ignore_names': self.ignore_names.text(),
+                'scan_max_depth': self.scan_depth.value()}
+
+    def checked_categories(self):
+        return [self.categories.item(i).text() for i in range(self.categories.count())
+                if self.categories.item(i).checkState() == Qt.Checked]
+
+    def set_categories(self, available, selected=None):
+        """Casillas de categorías: primero las elegidas, en su orden, y después el resto."""
+        selected = self.checked_categories() if selected is None else list(selected)
+        chosen = {name.lower() for name in selected}
+        names = selected + [n for n in available or [] if n.lower() not in chosen]
+        self.categories.clear()
+        for name in names:
+            item = QListWidgetItem(name)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked if name.lower() in chosen else Qt.Unchecked)
+            self.categories.addItem(item)
+
+    def scan_values(self):
+        """Reglas de recorrido tal como están en el formulario (validadas)."""
+        form = self.form_values()
+        scan = kit_settings._validate_scan(form)
+        if not scan['dropbox_root']:
+            raise kit_settings.SettingsError('Cargá la carpeta raíz de kits.')
+        return scan['dropbox_root'], kit_source.scan_settings(scan)
 
     def set_form(self, form):
         self.channel.clear()
@@ -250,6 +319,11 @@ class LoopKitPanel(QWidget):
         self.genres.setPlainText('\n'.join(form.get('genres') or []))
         self.refs_root.setText(form.get('refs_root') or '')
         self.cover_mode.setCurrentIndex(max(0, self.cover_mode.findData(form.get('cover_mode'))))
+        self.kits_root.setText(form.get('dropbox_root') or '')
+        self.set_categories(form.get('categories'), form.get('scan_folders') or [])
+        self.loops_dirs.setText(', '.join(form.get('loops_dirs') or []))
+        self.ignore_names.setText(', '.join(form.get('ignore_names') or []))
+        self.scan_depth.setValue(int(form.get('scan_max_depth') or kit_source.DEFAULT_MAX_DEPTH))
 
     def set_kits(self, kits):
         self.table.setRowCount(0)
@@ -277,7 +351,7 @@ class LoopKitPanel(QWidget):
 
     def _busy(self, on):
         for btn in (self.btn_reload, self.btn_save, self.btn_state, self.btn_new,
-                    self.automation):
+                    self.automation, self.btn_categories, self.btn_detect):
             btn.setEnabled(not on)
 
     # --- Canal elegido ---
@@ -369,6 +443,11 @@ class LoopKitPanel(QWidget):
             data = kit_settings.load_all(dbx, None if paths.is_default else paths)
             data['registry'] = kit_channel_setup.load_registry(dbx)
             data['own'] = not paths.is_default
+            root = ((data['config'] or {}).get('kit_preview') or {}).get('dropbox_root')
+            try:
+                data['categories'] = kit_detect.categories(root, dbx) if root else []
+            except Exception:  # noqa: BLE001 - sin listado quedan las categorías guardadas
+                data['categories'] = []
             return data
 
         self._run(work, lambda data: self._apply_loaded(data, note), "Leyendo desde Dropbox…")
@@ -381,7 +460,8 @@ class LoopKitPanel(QWidget):
         self._set_automations(data['registry'])
         if not data['own']:
             self._base_config = data['config']
-        self.set_form(kit_settings.form_from_config(data['config']))
+        self.set_form({**kit_settings.form_from_config(data['config']),
+                       'categories': data['categories']})
         # Un canal con automatización propia no puede apuntar a otro canal.
         self.channel.setEnabled(not data['own'])
         self.set_kits(data['kits'])
@@ -423,6 +503,41 @@ class LoopKitPanel(QWidget):
                       "No se guardó todo — " + " ".join(problems), error=bool(problems))
 
         self._run(work, done, "Guardando en Dropbox…")
+
+    # --- Carpeta de kits ---
+
+    def read_categories(self):
+        """Arma las casillas con las subcarpetas de la raíz escrita en el formulario."""
+        try:
+            root, _scan = self.scan_values()
+        except kit_settings.SettingsError as exc:
+            self._say(str(exc), error=True)
+            return
+
+        def done(names):
+            self.set_categories(names)
+            self._say(f"{len(names)} categoría(s) en la carpeta raíz.")
+
+        self._run(lambda: kit_detect.categories(root, self._dbx()), done,
+                  "Leyendo las categorías…")
+
+    def detect_kits(self):
+        """Suma a la tabla los kits de Dropbox que falten, sin link ni género."""
+        try:
+            root, scan = self.scan_values()
+        except kit_settings.SettingsError as exc:
+            self._say(str(exc), error=True)
+            return
+        current = kit_settings.prune_blank(self.kit_rows())
+
+        def done(detected):
+            rows, added = kit_detect.merge(current, detected)
+            self.set_kits(rows)
+            self._say(f"{len(detected)} kit(s) detectados, {added} nuevo(s) en la tabla. "
+                      "Completá link y género antes de guardar.")
+
+        self._run(lambda: kit_detect.detect(root, scan, self._dbx()), done,
+                  "Buscando kits en Dropbox…")
 
     def show_last_state(self):
         def done(state):

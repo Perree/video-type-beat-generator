@@ -43,7 +43,7 @@ REFS_ROOT = '/sim_refs'
 GENRES = ('reggaeton house', 'guitarras')
 WINDOW = (135.0, 195.0)
 MAX_VIDEOS, REST_DAYS, GAP_DAYS = 3, 30, 7
-LOOP_SEC, PREVIEW_SEC = 28.0, 600.0
+LOOP_SEC = 28.0
 REFS_PER_GENRE = 40
 FRAME = (320, 180)
 TEMPLATES = {'title_template': '{name} | sim', 'link': 'https://example.com/canal',
@@ -102,23 +102,18 @@ class FakeTelegram:
 
 # --- Kits falsos ---
 
-def _kit(i, work_dir, loops=16, preview=False, images=True, active=True, link=True, name=None):
+def _kit(i, work_dir, loops=16, images=True, active=True, link=True, name=None):
     name = name or f'SimKit{i:02d}'
     path = f'{KITS_ROOT}/{name.lower()}'
     loop_recs = [{'name': f'loop{j:02d}.wav', 'path': f'{path}/loop{j:02d}.wav'}
                  for j in range(loops)]
     for rec in loop_recs:
         Sim.seconds[rec['path']] = LOOP_SEC
-    previews = []
-    if preview:
-        previews = [{'name': 'Preview.wav', 'path': f'{path}/preview.wav'}]
-        Sim.seconds[previews[0]['path']] = PREVIEW_SEC
     image = os.path.join(work_dir, 'manual.png')
     if not os.path.isfile(image):
         Image.new('RGB', (96, 96), (90, 60, 40)).save(image)
     return {
         'pack': {'name': name, 'dropbox_path': path, 'loops': loop_recs,
-                 'named_previews': previews,
                  'images': [{'name': 'manual.png', 'path': image, 'source': 'local'}]
                  if images else []},
         'entry': {'folder': name, 'name': f'Sim Producto {i:02d}', 'genre': GENRES[i % 2],
@@ -128,9 +123,8 @@ def _kit(i, work_dir, loops=16, preview=False, images=True, active=True, link=Tr
 
 
 def _twelve_kits(work_dir):
-    """12 kits elegibles (6 con archivo preview, 6 solo loops) y 2 que el catálogo descarta."""
-    kits = [_kit(i, work_dir, loops=8, preview=True) for i in range(1, 7)]
-    kits += [_kit(i, work_dir) for i in range(7, 13)]
+    """12 kits elegibles y 2 que el catálogo descarta."""
+    kits = [_kit(i, work_dir) for i in range(1, 13)]
     traps = [_kit(13, work_dir, active=False, name='SimTrapInactivo'),
              _kit(14, work_dir, link=False, name='SimTrapSinLink')]
     return kits, traps
@@ -190,12 +184,6 @@ def _fake_download(paths, dest_dir, dbx=None):
 def _fake_end(path, **_k):
     """Preview de un loop: el archivo falso dura justo eso."""
     return _wav_seconds(path)
-
-
-def _fake_silences(path, **_k):
-    """Archivo preview con un silencio de medio segundo cada 50 s."""
-    seconds = _wav_seconds(path)
-    return seconds, [(t - 0.5, float(t)) for t in range(50, int(seconds), 50)]
 
 
 def _fake_cut(plan, dest_dir, local_fn=None):
@@ -260,7 +248,7 @@ def _install_fakes():
 def _run_week(dbx, tg, kits, out_dir, seed=0):
     packs = [k['pack'] for k in kits]
     hooks = {'list_packs_fn': lambda *a, **k: packs, 'render_fn': _fake_render,
-             'cut_fn': _fake_cut, 'end_fn': _fake_end, 'silences_fn': _fake_silences,
+             'cut_fn': _fake_cut, 'end_fn': _fake_end,
              'llm_call': _fake_llm, 'art_client': _fake_art,
              'art_notify': Sim.art_warnings.append}
     buf = io.StringIO()

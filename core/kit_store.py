@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 from core import library
 
-AUDIO_MODES = ('named_preview', 'assembled')
+AUDIO_MODES = ('assembled',)
 RUN_STATES = ('rendered', 'scheduled', 'private_pending', 'uploaded', 'error')
 
 SCHEMA = """

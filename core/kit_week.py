@@ -31,11 +31,12 @@ def load_catalog(app_config, dbx=None, path=None):
     return kit_catalog.validate(data, kit_catalog.configured_genres(app_config))
 
 
-def candidates(packs, catalog):
+def candidates(packs, catalog, require_images=True):
     """Packs que pueden dar un video y la entrada del catálogo de cada uno.
 
     Quedan afuera las carpetas que empiezan con ``_`` (automatización, referencias), los
-    kits que el catálogo no deja pasar y los que no tienen audio o imágenes.
+    kits que el catálogo no deja pasar y los que no tienen loops. Sin imágenes un kit solo
+    entra cuando ``require_images`` es falso (``cover_mode: auto`` genera el fondo).
 
     Returns:
         ``(pool, entries, warnings)``; ``entries`` es ``{dropbox_path: entrada}`` (vacío
@@ -60,15 +61,19 @@ def candidates(packs, catalog):
                             "carpeta en Dropbox (¿se renombró?).")
         packs = [p for p in packs if p['dropbox_path'] in entries]
     pool = [p for p in packs
-            if p.get('images') and (p.get('loops') or p.get('named_previews'))]
+            if p.get('loops') and (p.get('images') or not require_images)]
     if len(pool) < len(packs):
-        warnings.append(f"{len(packs) - len(pool)} kit(s) sin audio o sin imágenes quedan afuera.")
+        warnings.append(f"{len(packs) - len(pool)} kit(s) sin loops"
+                        + (" o sin imágenes" if require_images else "") + " quedan afuera.")
     return pool, entries, warnings
 
 
 def open_week(app_config, state, history, now, rng, *, dbx=None, exclude=(), list_packs_fn=None,
               kits_path=None):
     """Kits de la semana en orden de prioridad (primero el que hace más que no sale).
+
+    Entre kits con la misma prioridad manda el orden del recorrido: las categorías de
+    ``kit_preview.scan_folders`` y, dentro de cada una, el orden de las carpetas.
 
     Returns:
         dict ``{queue, entries, warnings}``; ``queue`` son selecciones de ``kit_cycle.pick_week``.
@@ -78,11 +83,15 @@ def open_week(app_config, state, history, now, rng, *, dbx=None, exclude=(), lis
     if not root:
         raise ValueError("Falta kit_preview.dropbox_root en la config.")
     packs = (list_packs_fn or kit_source.list_packs)(
-        root, local_images_root=kit_cfg.get('local_images_root'), dbx=dbx)
-    pool, entries, warnings = candidates(packs, load_catalog(app_config, dbx=dbx, path=kits_path))
+        root, local_images_root=kit_cfg.get('local_images_root'), dbx=dbx,
+        scan=kit_source.scan_settings(kit_cfg))
+    # Con portada automática el fondo se genera: el kit no necesita imágenes propias.
+    require_images = kit_art.mode(kit_cfg) != kit_art.MODE_AUTO
+    pool, entries, warnings = candidates(
+        packs, load_catalog(app_config, dbx=dbx, path=kits_path), require_images)
     picked = kit_cycle.pick_week(
         pool, state, history, now, rng, kit_cycle.settings(kit_cfg), exclude=exclude,
-        limit=len(pool), prefer_named_preview=bool(kit_cfg.get('prefer_named_preview', True)))
+        require_images=require_images, limit=len(pool), keep_order=True)
     return {'queue': picked['selections'], 'entries': entries, 'warnings': warnings}
 
 
@@ -97,12 +106,13 @@ def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_c
     """Arma, sube y registra el video de un kit para ``slot``.
 
     Args:
-        selection: una selección de ``open_week`` (pack e imagen).
+        selection: una selección de ``open_week`` (pack e imagen; la imagen es None en un
+            kit sin imágenes con portada automática).
         entry: entrada del catálogo del kit (nombre, link y género), o None sin catálogo.
         slots_cfg: horarios de ``kit_preview.slots``; ``slot`` es el que le toca al video.
         now: momento de la corrida (naive, hora local); desde ahí se cuenta el ciclo.
         state: estado leído al empezar la corrida (ciclo y tramos usados del kit).
-        hooks: reemplazos para pruebas: ``silences_fn``, ``end_fn``, ``cut_fn``, ``render_fn``,
+        hooks: reemplazos para pruebas: ``end_fn``, ``cut_fn``, ``render_fn``,
             ``cover_fn``, ``llm_call``, ``art_client``, ``art_notify``.
 
     Returns:
@@ -129,16 +139,14 @@ def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_c
             plan = kit_audio.plan_audio(
                 pack, kit_cycle.used_segments(state, path, now, cycle_cfg), rng,
                 audio_cfg['target_min_s'], audio_cfg['target_max_s'],
-                short_min=audio_cfg['short_min_s'],
-                prefer_named_preview=bool(kit_cfg.get('prefer_named_preview', True)),
-                trim=kit_cfg.get('trim'), local_fn=local_fn,
-                silences_fn=hooks.get('silences_fn'), end_fn=hooks.get('end_fn'))
+                short_min=audio_cfg['short_min_s'], min_loops=audio_cfg['min_loops'],
+                trim=kit_cfg.get('trim'), local_fn=local_fn, end_fn=hooks.get('end_fn'))
             if not plan['ok']:
                 raise KitSkip('audio')
             warnings += plan['warnings']
             wavs = (hooks.get('cut_fn') or kit_audio.cut_segments)(
                 plan, os.path.join(tmp, 'cut'), local_fn=local_fn)
-            image_local = _image_local(image, tmp, dbx)
+            image_local = _image_local(image, tmp, dbx) if image else None
             pack_id = store.upsert_pack(path, pack['name'])
 
             base_name = (entry or {}).get('name') or pack['name']
@@ -163,6 +171,9 @@ def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_c
             background, ref_images = kit_art.for_video(
                 art_cfg, pack['name'], image_local, store, rng, tmp, dbx=dbx,
                 client=hooks.get('art_client'), notify=hooks.get('art_notify'), now=now)
+            if not background:
+                # Sin imagen propia y sin fondo generado no hay con qué armar la portada.
+                raise KitSkip('cover')
             frame, thumbnail = (hooks.get('cover_fn') or kit_cover.for_video)(
                 kit_cfg.get('cover'), background, display_name, tmp)
             os.makedirs(output_dir, exist_ok=True)
@@ -176,16 +187,16 @@ def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_c
         pub = publish_preview(
             channel, video, thumbnail, display_name, slots_cfg, templates,
             pack_id=pack_id, audio_mode=plan['mode'], now=slot - timedelta(minutes=1),
-            image_path=image.get('path'), loops_json=plan['segments'], store=store, tz=tz,
+            image_path=image.get('path') if image else None, loops_json=plan['segments'], store=store, tz=tz,
             video_name=video_name, tracking_id=tracking_id, ref_images=ref_images)
 
     if pub.get('thumbnail_error'):
         warnings.append("YouTube no aceptó la miniatura de un video.")
     kit_names.remember(store, path, used_names, video_name)
     try:
-        # Un video corto (kit chico) cierra el ciclo con ese único video.
+        # Un video corto, o el que deja al kit sin loops para otro, cierra el ciclo.
         store.update_cycle(path, **kit_cycle.advance(
-            saved.get('cycle'), now, cycle_cfg, close=plan['short'],
+            saved.get('cycle'), now, cycle_cfg, close=plan['short'] or plan['exhausted'],
             last_used_at=saved.get('last_used_at')))
     except Exception:
         warnings.append("No se pudo guardar el ciclo de un kit.")

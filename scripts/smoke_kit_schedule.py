@@ -74,7 +74,7 @@ def _check_fallback(db):
     out = publish_preview(
         'kits', 'exported/smoke.mp4', None, 'Smoke Pack', list(DEFAULT_SLOTS),
         {'title_template': '{name} Kit'},
-        pack_id=pack_id, audio_mode='named_preview', db_path=db,
+        pack_id=pack_id, audio_mode='assembled', db_path=db,
         now=datetime(2026, 10, 5, 10, 0),
     )
     if len(fake.calls) != 2:
@@ -111,7 +111,7 @@ def _check_other_error(db):
     try:
         publish_preview(
             'kits', 'exported/quota.mp4', None, 'Quota', list(DEFAULT_SLOTS), {},
-            pack_id=pack_id, audio_mode='named_preview', db_path=db,
+            pack_id=pack_id, audio_mode='assembled', db_path=db,
             now=datetime(2026, 10, 5, 10, 0),
         )
     except YouTubeError as exc:

@@ -5,41 +5,14 @@ Cada loop se descarga de a uno a un directorio temporal que se borra siempre.
 No sube nada ni toca Dropbox o la biblioteca.
 """
 import os
-import subprocess
 import tempfile
-import wave
 
 from core import kit_source
-from core.ffmpeg_util import resolve_tool
-from core.kit_trim import _parse_duration_sec, preview_end_sec
+from core.kit_trim import preview_end_sec
 
 VIDEO_MIN_SEC = 135.0
 VIDEO_MAX_SEC = 195.0
 SEGMENT_MAX_SEC = 45.0
-
-
-def media_duration_sec(path):
-    """Duración en segundos (ffmpeg; wav sin ffmpeg por stdlib). None si no se puede leer."""
-    ffmpeg = resolve_tool("ffmpeg")
-    if ffmpeg:
-        try:
-            result = subprocess.run(
-                [ffmpeg, "-hide_banner", "-i", path],
-                capture_output=True, text=True, encoding="utf-8", errors="replace",
-                timeout=120,
-            )
-            found = _parse_duration_sec(result.stderr)
-            if found is not None:
-                return found
-        except (subprocess.TimeoutExpired, OSError):
-            pass
-    if path.lower().endswith(".wav"):
-        try:
-            with wave.open(path, "r") as handle:
-                return handle.getnframes() / float(handle.getframerate())
-        except (wave.Error, EOFError, OSError):
-            return None
-    return None
 
 
 def split_segments(duration, segment_max=SEGMENT_MAX_SEC):
@@ -99,38 +72,28 @@ def plan_videos(loop_durations, min_sec=VIDEO_MIN_SEC, max_sec=VIDEO_MAX_SEC,
     }
 
 
-def analyze_pack(pack, dbx=None, max_loops=None, download_fn=None, end_fn=None,
-                 duration_fn=None):
+def analyze_pack(pack, dbx=None, max_loops=None, download_fn=None, end_fn=None):
     """Mide un pack de kit_source.list_packs. Solo lectura.
 
     Args:
         pack: dict de kit_source.list_packs.
         max_loops: analiza solo los primeros N loops (el conteo real se informa aparte).
-        download_fn / end_fn / duration_fn: inyectables para pruebas sin red ni ffmpeg.
+        download_fn / end_fn: inyectables para pruebas sin red ni ffmpeg.
 
     Returns:
-        dict con loops_total, loops_analyzed, preview_file, preview_sec,
-        loop_preview_secs, errors, preview_total_sec y videos.
+        dict con loops_total, loops_analyzed, loop_preview_secs, errors,
+        preview_total_sec y videos.
     """
     download = download_fn or kit_source.download_pack_files
     end_of = end_fn or preview_end_sec
-    duration_of = duration_fn or media_duration_sec
 
     loops = list(pack["loops"])
     chosen = loops if max_loops is None else loops[:max(0, int(max_loops))]
-    previews = pack.get("named_previews") or []
-    preview_sec = None
     errors = 0
     secs = []
 
     # El directorio temporal se borra al salir, haya o no excepción.
     with tempfile.TemporaryDirectory(prefix="kit_analyze_") as tmp:
-        if previews:
-            local = download([previews[0]["path"]], tmp, dbx=dbx)[0]
-            try:
-                preview_sec = duration_of(local)
-            finally:
-                _remove(local)
         for loop in chosen:
             local = None
             try:
@@ -147,8 +110,6 @@ def analyze_pack(pack, dbx=None, max_loops=None, download_fn=None, end_fn=None,
     return {
         "loops_total": len(loops),
         "loops_analyzed": len(chosen),
-        "preview_file": bool(previews),
-        "preview_sec": None if preview_sec is None else round(preview_sec, 2),
         "loop_preview_secs": [None if s is None else round(s, 2) for s in secs],
         "errors": errors,
         "preview_total_sec": round(sum(valid), 2),

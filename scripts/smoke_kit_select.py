@@ -25,7 +25,6 @@ def _img(name: str, path: str) -> dict:
 def _pack(
     name: str,
     loops=None,
-    named_previews=None,
     images=None,
 ) -> dict:
     path = f'/kits/{name}'
@@ -33,7 +32,6 @@ def _pack(
         'name': name,
         'dropbox_path': path,
         'loops': loops or [],
-        'named_previews': named_previews or [],
         'images': images or [],
     }
 
@@ -78,48 +76,22 @@ def main() -> int:
         return 1
 
     loops10 = [_loop(f'loop{i}.wav', f'/kits/Rich/loop{i}.wav') for i in range(10)]
-    rich = _pack(
-        'Rich',
-        loops=loops10,
-        named_previews=[_loop('Preview.wav', '/kits/Rich/Preview.wav')],
-        images=[_img('cover.png', '/kits/Rich/images/cover.png')],
-    )
-    rng3 = random.Random(99)
-    out3 = choose([rich], _history(), now, rng3, prefer_named_preview=True)
-    if out3['audio_mode'] != 'named_preview':
-        print('FAIL: modo named_preview', out3['audio_mode'])
-        return 1
-    if len(out3['audio_files']) != 1 or out3['audio_files'][0]['name'] != 'Preview.wav':
-        print('FAIL: debe ser solo Preview.wav', out3['audio_files'])
-        return 1
-
-    rng4 = random.Random(99)
-    out4 = choose([rich], _history(), now, rng4, prefer_named_preview=False)
+    rich = _pack('Rich', loops=loops10,
+                 images=[_img('cover.png', '/kits/Rich/images/cover.png')])
+    out4 = choose([rich], _history(), now, random.Random(99))
     if out4['audio_mode'] != 'assembled':
-        print('FAIL: modo assembled', out4['audio_mode'])
+        print('FAIL: el único modo es assembled', out4['audio_mode'])
         return 1
     n_loops = len(out4['audio_files'])
     if n_loops < 6 or n_loops > 8:
-        print('FAIL: assembled debe tener entre 6 y 8 loops', n_loops)
+        print('FAIL: debe elegir entre 6 y 8 loops', n_loops)
         return 1
-    names = {f['name'] for f in out4['audio_files']}
-    if 'Preview.wav' in names:
-        print('FAIL: assembled no debe incluir preview', names)
+    try:
+        choose([rich], _history(), now, random.Random(99), prefer_named_preview=True)
+        print('FAIL: prefer_named_preview ya no existe')
         return 1
-
-    loops_only = _pack(
-        'LoopsOnly',
-        loops=[_loop(f'L{i}.wav', f'/kits/LoopsOnly/L{i}.wav') for i in range(12)],
-        images=[_img('c.png', '/img/c.png')],
-    )
-    rng5 = random.Random(7)
-    out5 = choose([loops_only], _history(), now, rng5, prefer_named_preview=True)
-    if out5['audio_mode'] != 'assembled':
-        print('FAIL: sin named_previews debe armar', out5['audio_mode'])
-        return 1
-    if not (6 <= len(out5['audio_files']) <= 8):
-        print('FAIL: rango 6-8 sin previews', len(out5['audio_files']))
-        return 1
+    except TypeError:
+        pass
 
     two_img = _pack(
         'TwoImg',
@@ -147,6 +119,12 @@ def main() -> int:
         return 1
     except KitSelectError:
         pass
+
+    # Portada automática: un kit sin imágenes es válido y sale sin imagen.
+    auto = choose([no_img], _history(), now, random.Random(0), require_image=False)
+    if auto['image'] is not None or not auto['audio_files']:
+        print('FAIL: sin imágenes y require_image=False', auto)
+        return 1
 
     print('OK smoke_kit_select')
     return 0

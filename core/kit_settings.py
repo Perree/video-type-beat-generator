@@ -2,8 +2,9 @@
 """Lógica del panel de configuración de loop kits (sin Qt).
 
 Lee y escribe en Dropbox, vía ``kit_cloud``, dos JSON: ``kits.json`` (catálogo) y la config
-del worker, de la que solo toca las claves ``kit_preview.{channel, slots, genres, cover_mode}``
-y ``kit_preview.art.refs_root``. Los secretos (Telegram, YouTube, Dropbox, claves de API) viven
+del worker, de la que solo toca las claves ``kit_preview.{channel, slots, genres, cover_mode,
+dropbox_root, scan_folders, loops_dirs, ignore_names, scan_max_depth}`` y
+``kit_preview.art.refs_root``. Los secretos (Telegram, YouTube, Dropbox, claves de API) viven
 en variables de entorno / secretos de GitHub: aquí solo se pregunta si están presentes, sin
 leer su valor hacia ningún JSON ni mensaje.
 """
@@ -11,7 +12,7 @@ import copy
 import os
 from urllib.parse import urlparse
 
-from core import kit_catalog, kit_cloud, kit_notify, kit_state
+from core import kit_catalog, kit_cloud, kit_notify, kit_source, kit_state
 
 CONFIG_PATH = os.environ.get('KIT_CONFIG_PATH') or '/loop_kits/_automation/config.json'
 KITS_PATH = os.environ.get('KIT_CATALOG_PATH') or '/loop_kits/_automation/kits.json'
@@ -20,6 +21,8 @@ STATE_PATH = kit_state.STATE_PATH
 WEEKDAYS = ('Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo')
 COVER_MODES = ('manual', 'auto')
 KIT_FIELDS = ('folder', 'name', 'payhip_url', 'genre', 'active')
+SCAN_KEYS = ('scan_folders', 'loops_dirs', 'ignore_names', 'scan_max_depth')
+MAX_SCAN_DEPTH = 6
 
 
 class SettingsError(ValueError):
@@ -76,12 +79,49 @@ def parse_genres(text):
     return out
 
 
+def parse_names(text):
+    """Nombres separados por coma o por línea, sin vacíos ni repetidos."""
+    if not isinstance(text, str):
+        text = '\n'.join(str(item) for item in text or [])
+    return parse_genres(text)
+
+
+def _validate_scan(form):
+    """Carpeta raíz y reglas de recorrido; solo las claves que trae el formulario."""
+    out = {}
+    if 'dropbox_root' in form:
+        root = _text(form.get('dropbox_root')).rstrip('/')
+        # Vacía se admite: la config guardada conserva la suya.
+        if root and not root.startswith('/'):
+            raise SettingsError('La carpeta raíz de kits debe ser una ruta de Dropbox que '
+                                'empiece con "/".')
+        out['dropbox_root'] = root
+    if 'scan_folders' in form:
+        out['scan_folders'] = parse_names(form.get('scan_folders'))
+    if 'loops_dirs' in form:
+        out['loops_dirs'] = parse_names(form.get('loops_dirs'))
+        if not out['loops_dirs']:
+            raise SettingsError('Cargá al menos un nombre de carpeta de loops.')
+    if 'ignore_names' in form:
+        out['ignore_names'] = parse_names(form.get('ignore_names'))
+    if 'scan_max_depth' in form:
+        try:
+            depth = int(form.get('scan_max_depth'))
+        except (TypeError, ValueError):
+            raise SettingsError('Profundidad de búsqueda inválida.') from None
+        if not 1 <= depth <= MAX_SCAN_DEPTH:
+            raise SettingsError(f'La profundidad de búsqueda va de 1 a {MAX_SCAN_DEPTH}.')
+        out['scan_max_depth'] = depth
+    return out
+
+
 def validate_settings(form):
     """Valida el formulario de configuración y devuelve un dict normalizado.
 
     Args:
         form: ``{channel, slots: [{weekday, hour, minute}], genres: [str], refs_root,
-            cover_mode}``.
+            cover_mode}`` y, opcionales, ``dropbox_root``, ``scan_folders``, ``loops_dirs``,
+            ``ignore_names`` y ``scan_max_depth`` (las que falten no se tocan al guardar).
     """
     slots, seen = [], set()
     for i, slot in enumerate(form.get('slots') or [], 1):
@@ -113,7 +153,7 @@ def validate_settings(form):
     if cover_mode == 'auto' and not refs_root:
         raise SettingsError('El modo auto necesita la carpeta de referencias.')
     return {'channel': _text(form.get('channel')), 'slots': slots, 'genres': genres,
-            'refs_root': refs_root, 'cover_mode': cover_mode}
+            'refs_root': refs_root, 'cover_mode': cover_mode, **_validate_scan(form)}
 
 
 def apply_to_config(config, settings):
@@ -136,6 +176,11 @@ def apply_to_config(config, settings):
         art['refs_root'] = settings['refs_root']
     elif isinstance(art, dict):
         art.pop('refs_root', None)
+    if settings.get('dropbox_root'):
+        kit['dropbox_root'] = settings['dropbox_root']
+    for key in SCAN_KEYS:
+        if key in settings:
+            kit[key] = copy.deepcopy(settings[key])
     return new
 
 
@@ -146,11 +191,16 @@ def form_from_config(config):
     art = kit.get('art') if isinstance(kit.get('art'), dict) else {}
     channels = [name for name, c in ((config or {}).get('channels') or {}).items()
                 if isinstance(c, dict) and c.get('section') == 'loop_kits']
+    scan = kit_source.scan_settings(kit)
     return {'channel': str(kit.get('channel') or ''), 'channels': channels,
             'slots': [dict(s) for s in (kit.get('slots') or DEFAULT_SLOTS)],
             'genres': list(kit.get('genres') or []),
             'refs_root': str(art.get('refs_root') or ''),
-            'cover_mode': 'auto' if kit.get('cover_mode') == 'auto' else 'manual'}
+            'cover_mode': 'auto' if kit.get('cover_mode') == 'auto' else 'manual',
+            'dropbox_root': str(kit.get('dropbox_root') or ''),
+            'scan_folders': scan['scan_folders'], 'loops_dirs': scan['loops_dirs'],
+            'ignore_names': scan['ignore_names'],
+            'scan_max_depth': min(scan['max_depth'], MAX_SCAN_DEPTH)}
 
 
 def reference_folders(refs_root, genres):

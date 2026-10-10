@@ -37,20 +37,14 @@ def _check(cond, msg):
     return True
 
 
-def _pack(name, loops=30, preview=False):
+def _pack(name, loops=30):
     path = f'/kits/{name}'
     return {
         'name': name,
         'dropbox_path': path,
         'loops': [{'name': f'L{i:02d}.wav', 'path': f'{path}/L{i:02d}.wav'} for i in range(loops)],
-        'named_previews': [{'name': 'Preview.wav', 'path': f'{path}/Preview.wav'}] if preview else [],
         'images': [{'name': 'a.png', 'path': f'{path}/a.png', 'source': 'local'}],
     }
-
-
-def _silences(path, noise_db, min_silence):
-    """Preview de 520 s con un silencio de 0,6 s cada 20 s."""
-    return 520.0, [(20.0 * i - 0.6, 20.0 * i) for i in range(1, 26)]
 
 
 def _empty_state():
@@ -61,7 +55,8 @@ def _record(state, pack, plan, when, cfg):
     """Lo que hace el worker al subir un video: corrida, last_used_at y ciclo."""
     saved = state['packs'].setdefault(pack['dropbox_path'], {
         'id': len(state['packs']) + 1, 'nombre': pack['name'], 'last_used_at': None, 'cycle': {}})
-    cycle = kit_cycle.advance(saved['cycle'], when, cfg, close=plan['short'],
+    cycle = kit_cycle.advance(saved['cycle'], when, cfg,
+                              close=plan['short'] or plan['exhausted'],
                               last_used_at=saved['last_used_at'])
     state['runs'].append({
         'id': state['next_run_id'], 'pack_id': saved['id'], 'estado': 'uploaded',
@@ -148,7 +143,7 @@ def _simulation_checks():
     ok = True
     cfg = kit_cycle.settings()
     rng = random.Random(5)
-    packs = [_pack(f'K{i:02d}', preview=(i % 2 == 0)) for i in range(11)] + [_pack('Chico', loops=6)]
+    packs = [_pack(f'K{i:02d}') for i in range(11)] + [_pack('Chico', loops=6)]
     by_path = {p['dropbox_path']: p for p in packs}
     state = _empty_state()
     history = {'last_used_by_path': {}, 'last_image_by_path': {}}
@@ -172,8 +167,7 @@ def _simulation_checks():
         for path in paths:
             pack = by_path[path]
             before = kit_cycle.used_segments(state, path, now, cfg)
-            plan = plan_audio(pack, before, rng, silences_fn=_silences,
-                              end_fn=lambda p, **kw: 14.7)
+            plan = plan_audio(pack, before, rng, end_fn=lambda p, **kw: 14.7)
             ok &= _check(plan['ok'], f'semana {week}: sin audio')
             if pack['name'] == 'Chico':
                 ok &= _check(plan['short'] and plan['warnings'], 'el kit chico debía avisar')
@@ -213,6 +207,18 @@ def _simulation_checks():
     no_img = dict(_pack('SinImg'), images=[])
     out = kit_cycle.pick_week([no_img], _empty_state(), history, START, rng, cfg)
     ok &= _check(out['selections'] == [] and len(out['warnings']) == 2, f'sin imágenes: {out}')
+    # Con portada automática el kit sin imágenes entra, sin imagen elegida.
+    out = kit_cycle.pick_week([no_img], _empty_state(), history, START, rng, cfg,
+                              require_images=False)
+    ok &= _check(len(out['selections']) == 1 and out['selections'][0]['image'] is None,
+                 f'sin imágenes con portada auto: {out}')
+    # keep_order: entre kits sin usar manda el orden de la lista, no el azar.
+    ordered = [_pack(f'O{i}') for i in range(6)]
+    for seed in range(5):
+        out = kit_cycle.pick_week(ordered, _empty_state(), history, START, random.Random(seed),
+                                  cfg, keep_order=True)
+        ok &= _check([s['pack']['name'] for s in out['selections']] == ['O0', 'O1', 'O2'],
+                     f'keep_order con semilla {seed}')
     return ok
 
 

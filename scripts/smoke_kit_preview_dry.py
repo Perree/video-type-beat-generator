@@ -31,13 +31,12 @@ def _img(name, path):
     return {'name': name, 'path': path, 'source': 'local'}
 
 
-def _pack_named():
+def _pack_many():
     loops = [{'name': f'Loop_{i}.wav', 'path': f'/kits/A/loop{i}.wav'} for i in range(1, 11)]
     return [{
-        'name': 'PackPreview',
-        'dropbox_path': '/kits/PackPreview',
+        'name': 'PackMany',
+        'dropbox_path': '/kits/PackMany',
         'loops': loops,
-        'named_previews': [{'name': 'Preview.wav', 'path': '/kits/PackPreview/Preview.wav'}],
         'images': [_img('a.png', os.path.join('images', 'a.png'))],
     }]
 
@@ -48,7 +47,6 @@ def _pack_assembled():
         'name': 'PackLoops',
         'dropbox_path': '/kits/PackLoops',
         'loops': loops,
-        'named_previews': [],
         'images': [_img('b.png', os.path.join('images', 'b.png'))],
     }]
 
@@ -57,7 +55,6 @@ def _app_config():
     return {
         'kit_preview': {
             'dropbox_root': '/loop_kits',
-            'prefer_named_preview': True,
             'loops_min': 6,
             'loops_max': 8,
         },
@@ -76,7 +73,7 @@ def _trim_spy(calls):
     return _trim
 
 
-def _check_named(db):
+def _check_many(db):
     trim_calls = []
     out = run_preview(
         app_config=_app_config(),
@@ -86,13 +83,15 @@ def _check_named(db):
         now=NOW,
         seed=42,
         db_path=db,
-        list_packs_fn=lambda *_a, **_k: _pack_named(),
+        list_packs_fn=lambda *_a, **_k: _pack_many(),
         trim_fn=_trim_spy(trim_calls),
     )
-    if out.get('audio_mode') != 'named_preview':
-        return _fail(f"esperaba named_preview, salió {out.get('audio_mode')}")
+    if out.get('audio_mode') != 'assembled':
+        return _fail(f"esperaba assembled, salió {out.get('audio_mode')}")
+    if not 6 <= len(out.get('audio_files') or []) <= 8:
+        return _fail(f"debía elegir entre 6 y 8 loops: {out.get('audio_files')}")
     if trim_calls:
-        return _fail('named_preview no debe llamar a trim en dry-run')
+        return _fail('dry-run no debe trimar')
     if out.get('dry_run') is not True:
         return _fail('debía ser dry_run')
     return 0
@@ -129,7 +128,7 @@ def _check_idempotent(db):
         pack_id,
         db_path=db,
         canal='kits_chan',
-        audio_mode='named_preview',
+        audio_mode='assembled',
         estado='scheduled',
         publish_at=publish_iso,
     )
@@ -137,7 +136,7 @@ def _check_idempotent(db):
 
     def list_once(*_a, **_k):
         packs_seen.append(1)
-        return _pack_named() + _pack_assembled()
+        return _pack_many() + _pack_assembled()
 
     out = run_preview(
         app_config=_app_config(),
@@ -158,7 +157,7 @@ def _check_idempotent(db):
 
 def main() -> int:
     db = os.path.join(tempfile.mkdtemp(), 'kit_preview_dry.db')
-    for fn in (_check_named, _check_assembled, _check_idempotent):
+    for fn in (_check_many, _check_assembled, _check_idempotent):
         code = fn(db)
         if code:
             return code

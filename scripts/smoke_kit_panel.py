@@ -15,10 +15,12 @@ for p in (ROOT, os.path.join(ROOT, 'scripts')):
         sys.path.insert(0, p)
 
 from smoke_kit_state import FakeDropbox  # también instala el doble de dropbox.files si falta
+from smoke_kit_scan import STORE, FakeStore, _tree
 
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QLineEdit
 
-from core import kit_cloud, kit_settings, kit_state
+from core import kit_cloud, kit_settings, kit_source, kit_state
 from loop_kit_panel import LoopKitPanel
 
 TG_TOKEN = 'SMOKE-TG-TOKEN-1a2b'
@@ -42,8 +44,19 @@ def _kit(folder, url='https://example.com/p', genre='genre-a', active=True, name
 def _config():
     return {'channels': {'chan': {'section': 'loop_kits', 'title': 'T'},
                          'other': {'section': 'beats'}},
-            'kit_preview': {'dropbox_root': '/x', 'art': {'model': 'm', 'refs_root': '/old'},
+            'kit_preview': {'dropbox_root': STORE, 'art': {'model': 'm', 'refs_root': '/old'},
                             'genres': ['genre-a'], 'trim': {'a': 1}}}
+
+
+class StoreDropbox(FakeDropbox):
+    """JSON en memoria más el listado de carpetas de la tienda falsa."""
+
+    def __init__(self):
+        super().__init__()
+        self.store = FakeStore(_tree())
+
+    def files_list_folder(self, path):
+        return self.store.files_list_folder(path)
 
 
 def _rejects(fn, *args):
@@ -116,12 +129,40 @@ def _check_validation():
     check(kp['channel'] == 'chan' and kp['cover_mode'] == 'auto' and kp['art']['refs_root'] == '/refs'
           and kp['genres'] == GENRES and len(kp['slots']) == 2, 'las claves propias se actualizan')
     check(not kit_settings.reference_folders('', GENRES), 'sin raíz no hay carpetas de referencia')
+    check(kp['dropbox_root'] == STORE and 'scan_folders' not in kp,
+          'sin campos de carpeta en el formulario la config no cambia')
+
+    # Carpeta raíz, categorías, carpetas de loops y nombres a ignorar.
+    scan = {'dropbox_root': '/tienda con espacios/', 'scan_folders': ['B', 'A', 'b'],
+            'loops_dirs': 'loops, WAV', 'ignore_names': 'tag, preview', 'scan_max_depth': 2}
+    out = kit_settings.validate_settings({**good, **scan})
+    check(out['dropbox_root'] == '/tienda con espacios' and out['scan_folders'] == ['B', 'A']
+          and out['loops_dirs'] == ['loops', 'WAV'] and out['ignore_names'] == ['tag', 'preview']
+          and out['scan_max_depth'] == 2, f'campos de carpeta normalizados: {out}')
+    for bad in ({'dropbox_root': 'sin-barra'}, {'loops_dirs': ' , '}, {'scan_max_depth': 0},
+                {'scan_max_depth': 'x'}):
+        check(_rejects(kit_settings.validate_settings, {**good, **scan, **bad}),
+              f'carpeta inválida: {bad}')
+    kp = kit_settings.apply_to_config(cfg, out)['kit_preview']
+    check(kp['dropbox_root'] == '/tienda con espacios' and kp['scan_folders'] == ['B', 'A']
+          and kp['loops_dirs'] == ['loops', 'WAV'] and kp['scan_max_depth'] == 2
+          and kp['trim'] == {'a': 1}, 'los campos de carpeta se guardan en kit_preview')
+    empty_root = kit_settings.validate_settings({**good, **scan, 'dropbox_root': ''})
+    check(kit_settings.apply_to_config(cfg, empty_root)['kit_preview']['dropbox_root'] == STORE,
+          'una raíz vacía no borra la guardada')
+    form = kit_settings.form_from_config(cfg)
+    check(form['dropbox_root'] == STORE and form['loops_dirs'] == ['loops']
+          and form['scan_folders'] == list(kit_source.DEFAULT_SCAN_FOLDERS)
+          and form['ignore_names'] == ['tag', 'preview'] and form['scan_max_depth'] == 3,
+          'el formulario arranca con los defaults del recorrido')
+    check(kit_settings.form_from_config({'kit_preview': {'scan_folders': []}})['scan_folders'] == [],
+          'una lista de categorías vacía se respeta')
 
 
 def _check_panel(app):
     os.environ['KIT_TELEGRAM_TOKEN'] = TG_TOKEN
     os.environ['KIT_TELEGRAM_CHAT_ID'] = TG_CHAT
-    dbx = FakeDropbox()
+    dbx = StoreDropbox()
     dbx.files[kit_settings.CONFIG_PATH] = ('0000000000a1', json.dumps(_config()).encode())
     dbx.files[kit_settings.KITS_PATH] = ('0000000000a2', json.dumps([_kit('f1')]).encode())
     panel = LoopKitPanel(dbx_provider=lambda: dbx)
@@ -135,6 +176,42 @@ def _check_panel(app):
     check([panel.channel.itemText(i) for i in range(panel.channel.count())] == ['', 'chan'],
           'solo se ofrecen canales de loop kits')
     check(panel.genres.toPlainText() == 'genre-a', 'carga los géneros')
+
+    # Carpeta de kits: casillas armadas leyendo Dropbox, con las de la config marcadas.
+    cats = [panel.categories.item(i).text() for i in range(panel.categories.count())]
+    check(panel.kits_root.text() == STORE and cats == list(kit_source.DEFAULT_SCAN_FOLDERS)
+          + ['STASH KITS'], f'casillas de categorías: {cats}')
+    check(panel.checked_categories() == list(kit_source.DEFAULT_SCAN_FOLDERS),
+          'STASH KITS queda sin marcar')
+    check(panel.loops_dirs.text() == 'loops' and panel.ignore_names.text() == 'tag, preview',
+          'carpetas de loops y nombres a ignorar por defecto')
+
+    # Detectar kits: suma las carpetas con loops, sin link, y no toca lo ya cargado.
+    panel.detect_kits()
+    check(_wait(app, panel), 'la detección termina')
+    rows = {r['folder']: r for r in panel.kit_rows()}
+    check(panel.table.rowCount() == 8 and rows['f1']['payhip_url'], 'la tabla suma los 7 kits')
+    check(all(not r['payhip_url'] and not r['genre'] for f, r in rows.items() if f != 'f1'),
+          'los kits detectados llegan sin link ni género')
+    check(rows['Smoke Alpha (1)']['active'] is False and rows['Smoke Alpha']['active'] is True,
+          'la carpeta duplicada llega inactiva')
+    check('Smoke Drum Kit' not in rows and 'Kicks' not in rows, 'el drum kit no se detecta')
+    panel.detect_kits()
+    _wait(app, panel)
+    check(panel.table.rowCount() == 8, 'detectar dos veces no duplica filas')
+    panel.categories.item(0).setCheckState(Qt.Unchecked)
+    panel.set_kits([_kit('f1')])
+    panel.detect_kits()
+    _wait(app, panel)
+    check(panel.table.rowCount() == 4, 'una categoría sin marcar no se recorre')
+    panel.kits_root.setText('')
+    panel.detect_kits()
+    check(panel._task is None and 'raíz' in panel.status.text(), 'sin carpeta raíz no se busca')
+    panel.kits_root.setText(STORE)
+    panel.read_categories()
+    _wait(app, panel)
+    check(panel.categories.count() == 5 and len(panel.checked_categories()) == 3,
+          'leer categorías conserva las marcadas')
 
     # Ejemplo del enunciado: lista de kits de ejemplo, con una fila en blanco.
     panel.genres.setPlainText('genre-a\ngenre-b')
@@ -158,6 +235,10 @@ def _check_panel(app):
     kp = saved_cfg['kit_preview']
     check(kp['cover_mode'] == 'auto' and kp['channel'] == 'chan' and kp['art']['refs_root'] == '/refs'
           and kp['art']['model'] == 'm' and kp['trim'] == {'a': 1}, 'config guardada sin perder claves')
+    check(kp['dropbox_root'] == STORE and kp['loops_dirs'] == ['loops']
+          and kp['scan_folders'] == list(kit_source.DEFAULT_SCAN_FOLDERS)[1:]
+          and kp['ignore_names'] == ['tag', 'preview'] and kp['scan_max_depth'] == 3,
+          f"carpeta y categorías guardadas en la config del canal: {kp.get('scan_folders')}")
     check(panel.status.text().startswith('Guardado'), 'estado: guardado')
     blob = (dbx.files[kit_settings.KITS_PATH][1] + dbx.files[kit_settings.CONFIG_PATH][1]).decode()
     check(TG_TOKEN not in blob and TG_CHAT not in blob, 'ningún secreto en los JSON guardados')
