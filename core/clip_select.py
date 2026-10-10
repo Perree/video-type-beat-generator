@@ -7,10 +7,12 @@ import bisect
 import json
 import os
 import re
+import threading
 import urllib.error
 import urllib.request
 
 from core import shorts_store
+from core.showcase import format_hint
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -27,10 +29,15 @@ MAX_TITLE_CHARS = 90
 MIN_WORDS = 20
 PHRASE_GAP_S = 0.6
 PHRASE_MAX_S = 15.0
+MAX_CHANNEL_METRICS = 30
 
 
 class ClipSelectError(Exception):
     """Fallo recuperable: el usuario puede exportar el prompt y cargar JSON a mano."""
+
+
+class ClipSelectCancelled(Exception):
+    """El usuario canceló mientras el LLM todavía no había persistido clips."""
 
 
 def _opt(cfg, key):
@@ -63,14 +70,57 @@ def group_phrases(words):
     return [(p[0]['t0'], p[-1]['t1'], ' '.join(x['w'].strip() for x in p)) for p in phrases]
 
 
-def build_prompt(words, cfg=None, duration=None):
-    """Devuelve (system, user) para el LLM."""
+def load_channel_metrics(channel, tokens_dir=None):
+    """Lee título + views del canal vía YouTube. None si no hay canal, token o falla la API."""
+    if not channel:
+        return None
+    try:
+        from core import youtube
+        if not youtube.is_connected(channel, tokens_dir):
+            return None
+        rows = youtube.list_channel_video_stats(
+            channel, tokens_dir=tokens_dir, max_videos=MAX_CHANNEL_METRICS)
+        return rows if rows else None
+    except Exception:
+        return None
+
+
+def _metrics_prompt_block(channel_metrics):
+    """Bloque opcional del user prompt con títulos que más views tuvieron."""
+    if not channel_metrics:
+        return ''
+    lines = []
+    for row in channel_metrics[:MAX_CHANNEL_METRICS]:
+        title = str(row.get('title') or '').strip()
+        if not title:
+            continue
+        try:
+            views = int(row.get('views') or 0)
+        except (TypeError, ValueError):
+            views = 0
+        lines.append(f"- «{title}» ({views} visualizaciones)")
+    if not lines:
+        return ''
+    return (
+        "En tu canal, estos títulos de videos largos tuvieron más visualizaciones "
+        "(referencia de temas que resuenan; no copies literalmente):\n"
+        + '\n'.join(lines) + "\n\n")
+
+
+def build_prompt(words, cfg=None, duration=None, channel_metrics=None, showcase=None):
+    """Devuelve (system, user) para el LLM.
+
+    channel_metrics: lista opcional [{title, views}] desde YouTube; si es None, no se mencionan views.
+    showcase: lista opcional `{start, end}` de tramos con beat y poca voz; van
+    como pista, no como orden. Sin lista, el prompt no menciona showcase.
+    """
     _check_words(words)
     n = _opt(cfg, 'clip_count')
     lo, hi = _opt(cfg, 'clip_min_s'), _opt(cfg, 'clip_max_s')
     lang = _opt(cfg, 'language')
     duration = duration if duration is not None else words[-1]['t1']
     lines = '\n'.join(f"[{a:.2f}-{b:.2f}] {t}" for a, b, t in group_phrases(words))
+    metrics_block = _metrics_prompt_block(channel_metrics)
 
     system = (
         "Eres editor de Shorts de YouTube para un canal de producción musical "
@@ -78,6 +128,7 @@ def build_prompt(words, cfg=None, duration=None):
     user = (
         f"Transcripción de un video de {duration:.0f} segundos (idioma: {lang}). "
         "Cada línea es una frase con su tiempo en segundos.\n\n"
+        f"{metrics_block}"
         f"{lines}\n\n"
         f"Elige hasta {n} clips para Shorts de {lo} a {hi} segundos cada uno.\n"
         "Reglas:\n"
@@ -92,6 +143,7 @@ def build_prompt(words, cfg=None, duration=None):
         "Formato de respuesta exacto:\n"
         '{"clips":[{"start":12.40,"end":51.80,"titulo":"...","gancho":"...",'
         '"motivo":"...","puntaje":0.86}]}')
+    user += format_hint(showcase)
     return system, user
 
 
@@ -277,9 +329,13 @@ def _process_response(text, words, duration, cfg):
     return clips, w1 + w2
 
 
-def export_prompt(words, cfg=None, path=None, duration=None):
+def export_prompt(words, cfg=None, path=None, duration=None, channel=None,
+                  tokens_dir=None, channel_metrics=None, showcase=None):
     """Texto del prompt (system + user) para pegarlo a mano; opcionalmente lo guarda."""
-    system, user = build_prompt(words, cfg, duration)
+    if channel_metrics is None and channel:
+        channel_metrics = load_channel_metrics(channel, tokens_dir=tokens_dir)
+    system, user = build_prompt(
+        words, cfg, duration, channel_metrics=channel_metrics, showcase=showcase)
     text = f"{system}\n\n{user}\n"
     if path:
         with open(path, 'w', encoding='utf-8') as f:
@@ -303,11 +359,56 @@ def _persist(text, words, video_id, cfg, duration, db_path):
     return clips, warnings
 
 
-def select_clips(words, video_id, cfg=None, duration=None, db_path=None, llm_call=None):
+def _call_until_stop(fn, should_stop):
+    """Corre fn() y abandona el resultado si should_stop pasa a True.
+
+    urllib no se puede matar a mitad del POST. El hilo sigue hasta el timeout,
+    pero quien llama no persiste si el usuario ya canceló.
+
+    Args:
+        fn: callable sin argumentos.
+        should_stop: callable, o None.
+
+    Returns:
+        Lo que devuelve fn.
+
+    Raises:
+        ClipSelectCancelled: si should_stop es True antes de usar el resultado.
+    """
+    if should_stop and should_stop():
+        raise ClipSelectCancelled("Selección cancelada")
+    if not should_stop:
+        return fn()
+    box = {}
+
+    def _run():
+        try:
+            box["value"] = fn()
+        except Exception as exc:
+            box["error"] = exc
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+    while thread.is_alive():
+        if should_stop():
+            raise ClipSelectCancelled("Selección cancelada")
+        thread.join(0.25)
+    if should_stop():
+        raise ClipSelectCancelled("Selección cancelada")
+    if "error" in box:
+        raise box["error"]
+    return box.get("value")
+
+
+def select_clips(words, video_id, cfg=None, duration=None, db_path=None, llm_call=None,
+                 channel=None, tokens_dir=None, channel_metrics=None, showcase=None,
+                 should_stop=None):
     """Pide clips al LLM (un reintento si la respuesta no sirve) y los guarda.
 
     llm_call(system, user) -> str permite inyectar el transporte (tests).
-    Si falla, no se modifica la tabla clips. Devuelve (clips, avisos).
+    should_stop corta antes de escribir clips. showcase se reenvía al prompt
+    como pista opcional. Si falla, no se modifica la tabla clips.
+    Devuelve (clips, avisos).
     """
     _check_words(words)
     duration = duration if duration is not None else words[-1]['t1']
@@ -318,17 +419,27 @@ def select_clips(words, video_id, cfg=None, duration=None, db_path=None, llm_cal
                 "No hay config/llm_key.txt: usa export_prompt() y cargá la respuesta con import_response().")
         llm_call = lambda s, u: call_llm(s, u, cfg, key)  # noqa: E731
 
-    system, user = build_prompt(words, cfg, duration)
-    raw = llm_call(system, user)
+    if channel_metrics is None:
+        if not channel and video_id:
+            row = shorts_store.get_video(video_id, db_path=db_path)
+            channel = (row or {}).get('canal')
+        if channel:
+            channel_metrics = load_channel_metrics(channel, tokens_dir=tokens_dir)
+
+    system, user = build_prompt(
+        words, cfg, duration, channel_metrics=channel_metrics, showcase=showcase)
+    raw = _call_until_stop(lambda: llm_call(system, user), should_stop)
     try:
         clips, warnings = _process_response(raw, words, duration, cfg)
     except ClipSelectError as first_error:
         retry_user = (f"{user}\n\nTu respuesta anterior no sirvió: {first_error}\n"
                       f"Respuesta anterior:\n{raw}\n\n"
                       "Corrígela y responde solo con el JSON.")
-        raw = llm_call(system, retry_user)
+        raw = _call_until_stop(lambda: llm_call(system, retry_user), should_stop)
         clips, warnings = _process_response(raw, words, duration, cfg)
 
+    if should_stop and should_stop():
+        raise ClipSelectCancelled("Selección cancelada")
     shorts_store.replace_clips(video_id, clips, db_path=db_path)
     shorts_store.update_video(video_id, db_path=db_path, estado='clips_listos')
     return clips, warnings

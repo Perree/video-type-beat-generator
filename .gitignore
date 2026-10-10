@@ -77,6 +77,8 @@ videos/RaveBeatz/Principal/video stock - RAVE BEATZ.mp4
 # Biblioteca local
 library/
 library.db
+library.db.bak
+library.db.bak.fase1
 
 # YouTube: credenciales OAuth y tokens por canal
 config/client_secret.json
@@ -88,3 +90,8 @@ shorts_cache/
 
 # Dropbox: app key local
 config/dropbox_app.json
+
+# Contenido de terceros y medios locales (no van al repo)
+videos/
+library/
+shorts_cache/

@@ -28,14 +28,16 @@ CREATE TABLE IF NOT EXISTS beats (
 );
 CREATE TABLE IF NOT EXISTS uploads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    beat_id INTEGER NOT NULL REFERENCES beats(id) ON DELETE CASCADE,
+    beat_id INTEGER REFERENCES beats(id) ON DELETE CASCADE,
+    clip_id INTEGER REFERENCES clips(id) ON DELETE CASCADE,
     canal TEXT,
     grupo TEXT,
     youtube_id TEXT,
     url TEXT,
     titulo TEXT,
     subido_en TEXT NOT NULL,
-    estado TEXT
+    estado TEXT,
+    CHECK (beat_id IS NOT NULL OR clip_id IS NOT NULL)
 );
 CREATE INDEX IF NOT EXISTS idx_uploads_beat ON uploads(beat_id, canal);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_beats_hash_kind ON beats(hash, kind);
@@ -109,14 +111,102 @@ def _rebuild_beats_unique_hash_kind(conn):
     conn.execute("PRAGMA foreign_keys = ON")
 
 
+def _uploads_clip_on_delete(conn):
+    """Acción ON DELETE de uploads.clip_id, o '' si la columna no tiene FK."""
+    for row in conn.execute("PRAGMA foreign_key_list(uploads)"):
+        if row[3] == "clip_id":
+            return (row[6] or "").upper()
+    return ""
+
+
+def _uploads_needs_clip_migration(conn):
+    """True si uploads hay que reconstruirlo.
+
+    SQLite no afloja NOT NULL ni cambia una FK con ALTER. ON DELETE SET NULL
+    tampoco sirve: al borrar el clip, beat_id y clip_id quedan NULL y el CHECK
+    aborta el DELETE del video largo.
+    """
+    cols = {row[1]: row for row in conn.execute("PRAGMA table_info(uploads)")}
+    if not cols:
+        return False
+    beat = cols.get("beat_id")
+    if beat is None or "clip_id" not in cols:
+        return True
+    if bool(beat[3]):
+        return True
+    return _uploads_clip_on_delete(conn) == "SET NULL"
+
+
+def _migrate_uploads_clip_id(conn):
+    """Reconstruye uploads: beat_id nullable, clip_id opcional, uno de los dos presente.
+
+    Copia las filas viejas (solo beat). No borra youtube_id ni beat_id históricos.
+    """
+    if not _uploads_needs_clip_migration(conn):
+        return
+    # clips tiene que existir para la FK; shorts_store no importa este helper.
+    from core import shorts_store
+    shorts_store.ensure_schema(conn)
+    conn.execute("PRAGMA foreign_keys = OFF")
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(uploads)")}
+    clip_expr = "clip_id" if "clip_id" in cols else "NULL"
+    conn.executescript(f"""
+        CREATE TABLE uploads_clip_mig (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            beat_id INTEGER REFERENCES beats(id) ON DELETE CASCADE,
+            clip_id INTEGER REFERENCES clips(id) ON DELETE CASCADE,
+            canal TEXT,
+            grupo TEXT,
+            youtube_id TEXT,
+            url TEXT,
+            titulo TEXT,
+            subido_en TEXT NOT NULL,
+            estado TEXT,
+            CHECK (beat_id IS NOT NULL OR clip_id IS NOT NULL)
+        );
+        INSERT INTO uploads_clip_mig
+            (id, beat_id, clip_id, canal, grupo, youtube_id, url, titulo, subido_en, estado)
+        SELECT id, beat_id, {clip_expr}, canal, grupo, youtube_id, url, titulo, subido_en, estado
+        FROM uploads;
+        DROP TABLE uploads;
+        ALTER TABLE uploads_clip_mig RENAME TO uploads;
+        CREATE INDEX IF NOT EXISTS idx_uploads_beat ON uploads(beat_id, canal);
+    """)
+    conn.execute("PRAGMA foreign_keys = ON")
+
+
+def _ensure_uploads_clip_delete(conn):
+    """Permite borrar un clip que ya tiene fila en uploads.
+
+    CASCADE borra la fila del Short. Si esa fila también tiene beat_id, este
+    trigger la desengancha antes y la subida del beat queda.
+    """
+    conn.execute("""
+        CREATE TRIGGER IF NOT EXISTS uploads_before_clip_delete
+        BEFORE DELETE ON clips
+        FOR EACH ROW
+        BEGIN
+            DELETE FROM uploads WHERE clip_id = OLD.id AND beat_id IS NULL;
+            UPDATE uploads SET clip_id = NULL
+                WHERE clip_id = OLD.id AND beat_id IS NOT NULL;
+        END;
+    """)
+
+
 def _connect(db_path=None):
     conn = sqlite3.connect(db_path or DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # clips antes que uploads: la FK de clip_id apunta a esa tabla.
+    from core import shorts_store, kit_store
+    shorts_store.ensure_schema(conn)
+    kit_store.ensure_schema(conn)
     conn.executescript(SCHEMA)
     _ensure_kind_column(conn)
     if _beats_has_global_hash_unique(conn):
         _rebuild_beats_unique_hash_kind(conn)
+    _migrate_uploads_clip_id(conn)
+    _ensure_uploads_clip_delete(conn)
     conn.commit()
     return conn
 
@@ -221,13 +311,35 @@ def find_beat_by_path(path, db_path=None, kind=None):
 
 
 def record_upload(beat_id, canal, grupo='', youtube_id='', url='', titulo='',
-                  estado='generado', subido_en=None, db_path=None):
+                  estado='generado', subido_en=None, db_path=None, clip_id=None):
+    """Registra una subida de beat o de Short en `uploads`.
+
+    Args:
+        beat_id: id en beats, o None si el video es un Short.
+        canal: nombre del canal de la app (el token vive en tokens/, no acá).
+        clip_id: id en clips, o None si es un beat.
+        youtube_id: id devuelto por YouTube; vacío si todavía no se subió.
+
+    Returns:
+        id de la fila nueva.
+
+    Tiene que haber beat_id o clip_id. Los dos a la vez también vale.
+    """
+    if beat_id is None and clip_id is None:
+        raise ValueError("record_upload exige beat_id o clip_id")
     subido_en = subido_en or datetime.now().isoformat(timespec='seconds')
     with _connect(db_path) as conn:
+        # Reintento de un Short ya registrado: no duplicar la fila ni volver a subir.
+        if clip_id is not None and youtube_id:
+            prev = conn.execute(
+                "SELECT id FROM uploads WHERE clip_id = ? AND youtube_id = ?",
+                (clip_id, youtube_id)).fetchone()
+            if prev:
+                return prev["id"]
         cur = conn.execute(
-            "INSERT INTO uploads (beat_id, canal, grupo, youtube_id, url, titulo, subido_en, estado) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (beat_id, canal, grupo, youtube_id, url, titulo, subido_en, estado))
+            "INSERT INTO uploads (beat_id, clip_id, canal, grupo, youtube_id, url, titulo, "
+            "subido_en, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (beat_id, clip_id, canal, grupo, youtube_id, url, titulo, subido_en, estado))
         return cur.lastrowid
 
 
@@ -264,7 +376,8 @@ def list_beats(filtro=None, canal=None, meses=6, texto='', kind=KIND_BEAT, db_pa
             "SELECT * FROM beats WHERE kind = ? ORDER BY creado DESC", (kind,))]
         last = {}
         for r in conn.execute(
-                "SELECT beat_id, canal, MAX(subido_en) AS ult FROM uploads GROUP BY beat_id, canal"):
+                "SELECT beat_id, canal, MAX(subido_en) AS ult FROM uploads "
+                "WHERE beat_id IS NOT NULL GROUP BY beat_id, canal"):
             last.setdefault(r['beat_id'], {})[r['canal']] = r['ult']
     limite = (datetime.now() - timedelta(days=30 * meses)).isoformat(timespec='seconds')
     result = []

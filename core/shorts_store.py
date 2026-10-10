@@ -156,9 +156,64 @@ def replace_clips(video_id, clips, db_path=None):
              for c in clips])
 
 
+def list_videos(db_path=None):
+    """Videos largos, del más reciente al más viejo.
+
+    Args:
+        db_path: library.db (None = la de la app).
+
+    Returns:
+        Lista de dicts de ``long_videos``.
+    """
+    with connect(db_path) as conn:
+        rows = conn.execute(
+            "SELECT * FROM long_videos ORDER BY id DESC").fetchall()
+        return [dict(r) for r in rows]
+
+
 def list_clips(video_id, db_path=None):
     with connect(db_path) as conn:
         rows = conn.execute(
             "SELECT * FROM clips WHERE video_id = ? ORDER BY start_s",
             (video_id,)).fetchall()
         return [dict(r) for r in rows]
+
+
+def get_clip(clip_id, db_path=None):
+    """Una fila de ``clips`` o None.
+
+    Args:
+        clip_id: id de la fila.
+        db_path: library.db (None = la de la app).
+
+    Returns:
+        Dict del clip, o None si no existe.
+    """
+    with connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT * FROM clips WHERE id = ?", (clip_id,)).fetchone()
+        return dict(row) if row else None
+
+
+_CLIP_FIELDS = {'start_s', 'end_s', 'titulo', 'gancho', 'motivo', 'puntaje',
+                'estado', 'render_path', 'youtube_id'}
+
+
+def update_clip(clip_id, db_path=None, **fields):
+    """Actualiza un clip. No toca start_modelo ni end_modelo.
+
+    Args:
+        clip_id: id de la fila.
+        db_path: library.db (None = la de la app).
+        fields: columnas permitidas (estado, render_path, titulo, tiempos…).
+
+    Returns:
+        None.
+    """
+    fields = {k: v for k, v in fields.items() if k in _CLIP_FIELDS}
+    if not fields:
+        return
+    sets = ", ".join(f"{k} = ?" for k in fields)
+    with connect(db_path) as conn:
+        conn.execute(f"UPDATE clips SET {sets} WHERE id = ?",
+                     (*fields.values(), clip_id))

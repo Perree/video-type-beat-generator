@@ -43,7 +43,7 @@ from core.publish_at import publish_at_from_qdatetime
 from beat_watcher import BeatFolderWatcher
 from ui_theme import APPLICATION_STYLESHEET, style_primary_generate_button
 from section_nav import SectionNavBar
-from personal_panel import PersonalPanel
+from shorts_panel import ShortsPanel
 from core.sections import (
     DEFAULT_SECTION,
     SECTION_BEATS,
@@ -1213,8 +1213,9 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(right_scroll, 3)
 
         self.section_stack.addWidget(beats_page)
-        self.section_stack.addWidget(PersonalPanel(
-            lambda: _resolve_tool("ffmpeg"), self._personal_output_dir, CONFIG_FILE))
+        # Índice 1 = Marca personal. Loop kits sigue en el índice 0, junto a beats.
+        self.section_stack.addWidget(ShortsPanel(
+            CONFIG_FILE, lambda: _resolve_tool("ffmpeg"), self._personal_output_dir))
 
         outer_layout.addWidget(self.section_stack, 1)
 

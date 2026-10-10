@@ -46,14 +46,69 @@ def get_available_video_codec(ffmpeg_path):
              "-c:v", "h264_nvenc", "-f", "null", "-"],
             capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=15)
         if result.returncode == 0:
-            print("✓ Aceleración GPU (h264_nvenc) detectada")
+            _log("Aceleracion GPU (h264_nvenc) detectada")
             return "h264_nvenc"
-        print("ℹ h264_nvenc no funciona en este equipo (¿driver NVIDIA desactualizado?): "
-              + (result.stderr.strip().splitlines() or [""])[-1])
+        _log("h264_nvenc no funciona en este equipo (driver NVIDIA desactualizado?): "
+             + (result.stderr.strip().splitlines() or [""])[-1])
     except Exception:
         pass
-    print("ℹ Usando codec por defecto (libx264)")
+    _log("Usando codec por defecto (libx264)")
     return "libx264"
+
+
+def _log(message):
+    """Imprime sin tumbar el proceso si la consola no es UTF-8 (cp1252 en Windows)."""
+    try:
+        print(message)
+    except UnicodeEncodeError:
+        print(message.encode("ascii", "replace").decode("ascii"))
+
+
+def escape_filter_path(path):
+    """Ruta absoluta para un filtro FFmpeg (ass/subtitles), entre comillas simples.
+
+    En el filtergraph `\\` es escape y `:` separa opciones. En Windows `C:`
+    tiene que llegar como `C\\:` y las barras como `/`. El .ass vive en
+    shorts_cache/ (nombre ASCII) para no meter acentos en el filtro; el mp4
+    de salida sí puede llevarlos.
+
+    Args:
+        path: archivo que el filtro va a abrir. Vacío devuelve "".
+
+    Returns:
+        Ruta escapada, sin las comillas que pone quien arma el filtro.
+        Escapa ' y :; si no, un apóstrofe corta el ass='...' del filtergraph.
+    """
+    if not path:
+        return ""
+    normalized = os.path.abspath(path).replace("\\", "/")
+    return normalized.replace("'", r"\'").replace(":", r"\:")
+
+
+def ffmpeg_has_ass_filter(ffmpeg_path):
+    """True si este ffmpeg lista el filtro `ass` (libass).
+
+    Args:
+        ffmpeg_path: ejecutable ffmpeg.
+
+    Returns:
+        True solo si el nombre del filtro es exactamente ass.
+    """
+    if not ffmpeg_path:
+        return False
+    try:
+        result = subprocess.run(
+            [ffmpeg_path, "-hide_banner", "-filters"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=20)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    for line in (result.stdout or "").splitlines():
+        # Cada filtro es una fila: banderas, nombre, dirección, descripción.
+        parts = line.split()
+        if "ass" in parts:
+            return True
+    return False
 
 
 def get_media_duration(media_path):

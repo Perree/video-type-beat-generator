@@ -107,11 +107,14 @@ def _split_tags(tags):
 
 
 def upload(channel, video_path, title, description='', tags=None, thumbnail=None,
-           privacy='private', publish_at=None, progress=None, tokens_dir=None):
+           privacy='private', publish_at=None, progress=None, tokens_dir=None,
+           category_id=None):
     """Sube un video y devuelve {'youtube_id', 'url', 'privacy', 'thumbnail_error'}.
 
     publish_at: ISO 8601 UTC (ej. '2026-10-05T18:00:00Z'); obliga privacy='private'.
     progress: callback opcional progress(porcentaje:int).
+    category_id: categoría de YouTube. Si no se pasa, queda 10 (Música).
+        Los Shorts usan 22 (People & Blogs); el default de beats no cambia.
     """
     from googleapiclient.errors import HttpError
     from googleapiclient.http import MediaFileUpload
@@ -130,7 +133,8 @@ def upload(channel, video_path, title, description='', tags=None, thumbnail=None
                      .replace('<', '').replace('>', '')[:100],
             'description': (description or '')[:5000].replace('<', '').replace('>', ''),
             'tags': _split_tags(tags),
-            'categoryId': CATEGORY_MUSIC,
+            'categoryId': str(category_id).strip() if category_id not in (None, '')
+                          else CATEGORY_MUSIC,
         },
         'status': status,
     }
@@ -170,25 +174,38 @@ def upload(channel, video_path, title, description='', tags=None, thumbnail=None
     }
 
 
+def _uploads_playlist_id(yt, channel_label):
+    """Id de la playlist «uploads» del canal autenticado (1 unidad de cuota)."""
+    resp = yt.channels().list(part='contentDetails', mine=True).execute()
+    items = resp.get('items') or []
+    if not items:
+        raise YouTubeError(f"No se encontró el canal de YouTube de '{channel_label}'.")
+    return items[0]['contentDetails']['relatedPlaylists']['uploads']
+
+
+def _playlist_video_ids(yt, playlist_id, max_videos):
+    """Ids de la playlist de uploads, hasta max_videos (1 unidad de cuota por cada 50)."""
+    ids, token = [], None
+    cap = max(1, int(max_videos))
+    while len(ids) < cap:
+        r = yt.playlistItems().list(
+            part='contentDetails', playlistId=playlist_id,
+            maxResults=min(50, cap - len(ids)), pageToken=token).execute()
+        ids += [i['contentDetails']['videoId'] for i in r.get('items', [])]
+        token = r.get('nextPageToken')
+        if not token:
+            break
+    return ids[:cap]
+
+
 def list_channel_videos(channel, tokens_dir=None, max_videos=2000):
     """Videos ya publicados en el canal: [{'youtube_id','title','published_at','privacy'}].
 
     Usa la playlist de uploads (1 unidad por 50 ids) y videos.list (1 unidad por 50 videos).
     """
     yt = _service(_load_credentials(channel, tokens_dir))
-    resp = yt.channels().list(part='contentDetails', mine=True).execute()
-    items = resp.get('items') or []
-    if not items:
-        raise YouTubeError(f"No se encontró el canal de YouTube de '{channel}'.")
-    playlist = items[0]['contentDetails']['relatedPlaylists']['uploads']
-    ids, token = [], None
-    while len(ids) < max_videos:
-        r = yt.playlistItems().list(part='contentDetails', playlistId=playlist,
-                                    maxResults=50, pageToken=token).execute()
-        ids += [i['contentDetails']['videoId'] for i in r.get('items', [])]
-        token = r.get('nextPageToken')
-        if not token:
-            break
+    playlist = _uploads_playlist_id(yt, channel)
+    ids = _playlist_video_ids(yt, playlist, max_videos)
     videos = []
     for i in range(0, len(ids), 50):
         r = yt.videos().list(part='snippet,status', id=','.join(ids[i:i + 50])).execute()
@@ -198,3 +215,33 @@ def list_channel_videos(channel, tokens_dir=None, max_videos=2000):
                            'published_at': v['snippet'].get('publishedAt', ''),
                            'privacy': v.get('status', {}).get('privacyStatus', '')})
     return videos
+
+
+def list_channel_video_stats(channel, tokens_dir=None, max_videos=30):
+    """Título y views de los uploads más recientes del canal (tope 30).
+
+    Cuota: channels.list (1) + playlistItems (1 por 50 ids) + videos.list statistics
+    (1 por 50). Misma recolección de ids que list_channel_videos, con tope bajo.
+    Devuelve [{'youtube_id','title','views'}] ordenados por views descendente.
+    """
+    cap = min(max(1, int(max_videos or 30)), 30)
+    yt = _service(_load_credentials(channel, tokens_dir))
+    playlist = _uploads_playlist_id(yt, channel)
+    ids = _playlist_video_ids(yt, playlist, cap)
+    rows = []
+    for i in range(0, len(ids), 50):
+        r = yt.videos().list(
+            part='snippet,statistics', id=','.join(ids[i:i + 50])).execute()
+        for v in r.get('items', []):
+            stats = v.get('statistics') or {}
+            try:
+                views = int(stats.get('viewCount') or 0)
+            except (TypeError, ValueError):
+                views = 0
+            rows.append({
+                'youtube_id': v['id'],
+                'title': v['snippet']['title'],
+                'views': views,
+            })
+    rows.sort(key=lambda row: (-row['views'], row['title']))
+    return rows
