@@ -422,6 +422,10 @@ class LoopKitPanel(QWidget):
         task.start()
 
     def _finish(self, task, on_done, result, error=None):
+        if task is not self._task:
+            # El panel se cerró (shutdown) mientras la tarea corría: esta señal llega tarde,
+            # cuando el hilo y los widgets ya no existen. No hay nada que actualizar.
+            return
         task.wait()
         task.deleteLater()
         self._task = None
@@ -551,8 +555,10 @@ class LoopKitPanel(QWidget):
         if self._proc is not None:
             self._proc.kill()
             self._proc.waitForFinished(3000)
+            self._proc = None  # sus señales tardías no deben tocar widgets ya destruidos
         if self._task is not None:
             self._task.wait()
+            self._task = None  # _finish ignora la señal pendiente de esta tarea
 
     # --- Dry-run ---
 
