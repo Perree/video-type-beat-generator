@@ -100,6 +100,148 @@ versión vertical 9:16 para Shorts, partir `main.py` en módulos.
 Verificación: importar un beat y cargar el link; guardar título/descripción en un canal y reabrir; generar y ver título
 (con `|`) y descripción con el link en `{beatstars_url}`; cambiar los segundos del vertical; achicar/maximizar la ventana.
 
+## Loop kits — Análisis de packs, solo lectura ✅ COMPLETADA
+- `core/kit_analyze.py` + `scripts/analyze_kits.py` (`--pack`, `--max-loops`, `--show-names`): por pack, cantidad de loops,
+  preview nombrada y su duración, preview de cada loop (`kit_trim.preview_end_sec` sobre copia temporal que se borra siempre),
+  suma total y cuántos videos de 135-195 s salen sin repetir loops (previews largas partidas en tramos de ≤45 s).
+  No sube ni escribe en Dropbox ni en `library.db`. Guarda `exported_videos/loop_kits/analysis.json` (ignorado por git).
+- Smoke: `scripts/smoke_kit_analyze.py` (sin red).
+
+## Loop kits — Estado y credenciales en la nube ✅ COMPLETADA
+- `core/kit_cloud.py`: `read_json` / `read_json_rev` / `write_json` en Dropbox vía `dropbox_client._client()` (un solo commit
+  por escritura, con `rev` opcional para detectar pisadas). `bootstrap_credentials(env)` arma `config/` y `tokens/` en un
+  directorio temporal (0700/0600) desde variables `KIT_*`, sin imprimirlas; `credentials_dir(env)` hace `chdir` y lo borra.
+- `core/kit_state.py`: `upsert_pack`, `record_run`, `selection_history`, `has_scheduled_run` con la firma de `kit_store` sobre
+  un `state.json` en Dropbox (`KIT_STATE_PATH`), lock con vencimiento (`acquire_lock` / `release_lock` / `locked`) y ciclo
+  por kit (`cycle_videos`, `rest_until`, `used_names`, `used_ref_images`).
+- Todavía no está conectado a `run_kit_preview` ni a `kit_publish`: siguen usando `kit_store`.
+- Smoke: `scripts/smoke_kit_state.py` (sin red, Dropbox falso en memoria).
+
+## Loop kits — Worker semanal (Telegram + GitHub Actions) ✅ COMPLETADA
+- `core/kit_notify.py` (Telegram por urllib: `send`, `summary` con links a YouTube Studio, `alert` sin datos privados),
+  `scripts/run_kit_weekly.py` (lock, 3 slots lun/mié/vie 18:00 en hora de Buenos Aires con `tz` explícito, 3 kits distintos,
+  estado en Dropbox, resumen y lock liberado en `finally`; `--dry-run` no renderiza ni sube),
+  `.github/workflows/kit-weekly.yml` (solo `schedule` y `workflow_dispatch`, `contents: read`, acciones fijadas por SHA),
+  `requirements-worker.txt`, `docs/KIT_WEEKLY.md`.
+- Cambios aditivos en `run_preview` y `publish_preview`: parámetros opcionales `store`, `tz` y `exclude_paths`.
+- Smoke: `scripts/smoke_kit_weekly.py` (sin red).
+
+## Loop kits — Catálogo de kits y marcador `{link}` ✅ COMPLETADA
+- `core/kit_catalog.py`: `load(path, genres=None)` valida `kits.json` (lista de `{folder, name, payhip_url, genre, active}`:
+  link vacío permitido pero no elegible, link con valor debe ser https, género dentro de los configurados, carpetas sin repetir);
+  `eligible(catalog, packs)` deja solo kits activos, con link https y carpeta presente en los packs de Dropbox.
+  `configured_genres(app_config)` lee `kit_preview.genres`. Los errores nombran la entrada por número, nunca el nombre ni el link.
+- `core/kit_publish.py`: `{link}` en la plantilla de descripción se reemplaza por `templates['link']` (vacío si falta);
+  sin el marcador la descripción no cambia. Sin cambios de firma.
+- Todavía no está conectado a `run_kit_weekly`.
+- Smoke: `scripts/smoke_kit_catalog.py` (sin red).
+
+## Loop kits — Audio por duración y ciclo de 3 videos por kit ✅ COMPLETADA
+- `core/kit_audio.py`: `plan_audio(pack, used_before, rng, target_min=135, target_max=195)` devuelve tramos
+  `{name, path, start, end}`. Con archivo preview toma el primer tramo libre y corta en el silencio más cercano al punto
+  ideal (reparte el hueco en partes parejas), sin pisar tramos ya usados; sin silencio en la ventana corta directo con
+  fundido y avisa. Sin preview (o con la preview agotada) suma previews de loops no usados en el ciclo y recién después
+  repite, empezando por el que hace más que no suena. `cut_segments` escribe los wav; `downloader(tmp)` baja de Dropbox
+  solo lo que se usa. Los avisos no llevan nombres de archivo ni de kit.
+- **Kits chicos:** `scripts/analyze_kits.py` no dio datos (en esta PC `kit_preview.dropbox_root` no está configurado y
+  reporta 0 loops), así que la regla es un default configurable: un loop nunca se repite dentro del mismo video; si el
+  kit no llega a `target_min_s` sale un video más corto con warning siempre que supere `short_min_s` (60 s) y ese kit
+  cierra el ciclo con ese único video; por debajo de `short_min_s` no se arma nada (`ok` False). Revisar `short_min_s`
+  cuando haya un análisis real.
+- `core/kit_cycle.py`: funciones puras sobre el estado de `kit_state.load()`. `advance` (al tercer video, o con `close`,
+  el kit descansa 30 días), `current` / `status` (descanso cumplido = ciclo nuevo en 0; separación de 7 días),
+  `eligible_packs`, `pick_week` (3 kits distintos con `kit_select.choose`, sin modificarlo) y `used_segments` (tramos del
+  ciclo vigente desde `loops_json` de las corridas). Los plazos se cuentan por fecha de calendario para que la corrida
+  semanal no falle por minutos.
+- Config en `kit_preview`: `target_min_s`, `target_max_s`, `short_min_s`, `cycle_max_videos`, `cycle_rest_days`,
+  `kit_min_gap_days`, `kits_per_week`.
+- `core/kit_trim.py`: helper aditivo `silence_points(path)`; lo existente no cambia.
+- Todavía no está conectado a `run_kit_preview` ni a `run_kit_weekly`: siguen con `choose` y `pack_cooldown_days`.
+- Smokes: `scripts/smoke_kit_audio.py` y `scripts/smoke_kit_cycle.py` (sin red).
+
+## Loop kits — Nombres de video por LLM y link con seguimiento ✅ COMPLETADA
+- `core/kit_llm.py`: `call(system, user, cfg, key=None)` por urllib (API estilo chat/completions). `cfg` trae `base_url`
+  (https), `model` y `key_file` (archivo con la clave, fuera del repo); opcionales `max_tokens`, `temperature`, `timeout`.
+  La clave no se imprime ni aparece en los errores (solo el tipo de excepción).
+- `core/kit_names.py`: `propose(kit, genre, used_names, n=5, llm_call=None, cfg=None, key=None)` devuelve hasta `n` nombres de
+  1 o 2 palabras, sin vacíos, duplicados (sin distinguir mayúsculas ni tildes), usados ni el nombre del kit (modo manual: el
+  usuario elige). `pick(...)` es el modo automático: la primera válida o `None`. `track_link(url, id)` agrega
+  `utm_source=youtube&utm_content=<id>` conservando query y fragmento, una sola vez; `new_tracking_id()` da el id por video
+  (se genera antes de subir porque el `youtube_id` aún no existe).
+- `core/kit_state.py`: `record_run` acepta además `video_name` y `tracking_id` (cambio aditivo), guardados junto al kit y al
+  `youtube_id`. Los nombres usados del ciclo siguen en `update_cycle(used_names=...)`.
+- Config del LLM: `base_url`, `model`, `key_file`.
+- **Conectado** al worker (vía `run_preview`): `kit_names.for_pack` pide el nombre con `kit_preview.names` (`genre` obligatorio,
+  `enabled` opcional; clave de `KIT_LLM_API_KEY` o `key_file`) evitando los `used_names` del ciclo; `remember` lo guarda ahí
+  tras subir. El nombre reemplaza al del pack en `{name}` (título y descripción) y en la portada. Con `names` activo se genera
+  un `tracking_id` por video, el link del canal lleva `track_link`, y `video_name` / `tracking_id` quedan en el estado.
+  Si el LLM falla se usa el nombre del pack y la subida sigue (solo se imprime el tipo de error). `CloudStore` expone
+  `get_cycle` / `update_cycle`; el workflow pasa el secret `KIT_LLM_API_KEY`. Sin `kit_preview.names`, nada cambia.
+- Pendiente: el género sale de `names.genre` (uno solo); por kit saldrá del catálogo cuando se conecte `kit_catalog`.
+- Smoke de conexión: `scripts/smoke_kit_names_wiring.py` (LLM falso).
+- Smoke: `scripts/smoke_kit_names.py` (sin red, `llm_call` falso).
+
+## Loop kits — Portada del kit y cuadro 16:9 ✅ COMPLETADA
+- `core/kit_cover.py`: `compose(background_path, title, out_path, template=None)` arma la portada 1500x1500: fondo recortado al
+  centro, viñeta, grano, borde desgastado, título en mayúsculas condensado con desgaste (manchas, puntos y rayones), marca arriba,
+  "LOOP KIT" abajo, sello y código de barras decorativos. El título elige líneas y cuerpo de letra para entrar en su caja.
+  La misma semilla da la misma portada (por defecto se deriva del título).
+- Todo está en `DEFAULT_TEMPLATE` (tamaño, fracciones de posición, colores, textos, fuentes, desgaste); `template` se mezcla
+  encima y solo indica lo que cambia. Textos vacíos o `bars: 0` / `border.width: 0` apagan una pieza. El texto de marca por
+  defecto es un placeholder (`BRAND NAME`): la marca real va en la plantilla, no en el código.
+- `to_video_frame(cover, out_path, frame=None)`: cuadro 16:9 (1920x1080 por defecto, `FRAME_DEFAULTS`) con la portada centrada
+  sobre una copia desenfocada y oscurecida de sí misma.
+- Fuentes en `assets/kit_cover/`, ambas SIL OFL 1.1 con su licencia al lado: Oswald (título y "LOOP KIT") y Courier Prime Bold
+  (marca, sello y código). Sin logos ni marcas de terceros.
+- Smoke: `scripts/smoke_kit_cover.py` (sin red, fondo generado por código).
+- **Conectado** en `scripts/run_kit_preview.py` (el worker semanal lo usa a través de `run_preview`): `kit_cover.for_video(cfg,
+  fondo, título, tmp)` arma el cuadro 16:9 que recibe el render y una miniatura JPEG (la misma imagen) que va a `publish_preview`.
+  El título de la portada es el nombre del pack (cuando se conecte `kit_names`, pasará el nombre del video). `image_path` del
+  historial sigue siendo la imagen original.
+- Config en `kit_preview.cover` (opcional): `{"template": {...}, "frame": {...}, "enabled": true}`. Sin la clave, o con
+  `enabled: false`, nada cambia (imagen original y sin miniatura). Hay que poner la marca real en `template.brand.text`;
+  el placeholder `BRAND NAME` es solo del código.
+- Smoke: `scripts/smoke_kit_cover_wiring.py` (sin red, Dropbox y YouTube falsos).
+
+## Loop kits — Fondo de portada con IA ✅ COMPLETADA
+- `core/kit_art.py`: `background(kit, genre, refs, used, rng, client=None, *, cfg, out_dir, now, fetch, dbx, report)` devuelve
+  la ruta local del PNG. `choose_refs` toma 1-2 referencias sin uso en `ref_cooldown_days` (30, por fecha de calendario); si
+  no queda ninguna libre repite la más antigua con warning. `list_refs(refs_root, genre)` lee `<refs_root>/<genero>` de Dropbox.
+- `api_client` llama a `<base_url>/images/edits` por urllib (multipart, referencias como entrada de edición): `base_url` https,
+  `model`, `size`, `quality` y `key_file` configurables; clave de `KIT_IMAGE_API_KEY` o `key_file`, solo en el header. Un único
+  pedido por video, sin reintentos. HTTP 400 → `KitArtRejected`; el resto → `KitArtError` (solo código o tipo de error).
+- Las referencias se bajan a un temporal que se borra siempre y se envían achicadas, sin metadatos y con nombre genérico.
+- `build_prompt`: texto fijo de solo estética (paleta, grano, bokeh, motivos), sin texto en la imagen, sin personas ni parecido
+  de nadie. Paleta y motivos salen de `STYLES` por género o de `art.styles`; el nombre del kit nunca entra y los motivos que
+  lo contengan (o una palabra de `art.banned_words`) se descartan.
+- `for_video(...)`: con `kit_preview.cover_mode: auto` genera el fondo; ante rechazo o cualquier fallo ese video usa la imagen
+  manual del pack, avisa por Telegram (sin nombres ni mensajes de error) y la corrida sigue. Sin la clave, o `manual`, nada cambia.
+- Estado: cada corrida guarda `ref_images` (cambio aditivo en `kit_state.record_run` y `kit_publish.publish_preview`);
+  `kit_art.used_refs(state)` arma el último uso por referencia y `CloudStore.ref_usage()` lo expone al worker.
+- **Conectado** en `scripts/run_kit_preview.py`: el fondo generado reemplaza a la imagen del pack como entrada de `kit_cover`.
+  En corridas locales (`kit_store`) no hay historial de referencias: la regla de 30 días solo aplica con el estado en la nube.
+- Workflow: secret `KIT_IMAGE_API_KEY`. Config y detalles en `docs/KIT_WEEKLY.md`.
+- Pendiente: el género sale de `art.genre` (o `names.genre`), uno solo; por kit saldrá del catálogo cuando se conecte.
+  Falta la prueba real con 2-3 referencias antes de activar `auto`.
+- Smoke: `scripts/smoke_kit_art.py` (sin red, cliente falso).
+
+## Loop kits — Panel de configuración en la app ✅ COMPLETADA
+- `loop_kit_panel.py` (PyQt5, independiente): canal y 3 horarios (hora de Buenos Aires), tabla editable de kits (carpeta,
+  nombre, link, género, activo), géneros + carpeta de referencias (muestra la carpeta de cada género), modo de portada
+  (manual/auto), estado de Telegram ("configurado", sin valores), "Probar dry-run" (`QProcess` sobre `run_kit_weekly.py
+  --dry-run`) y "Ver último estado" (corridas sin nombres). Dropbox va en un `QThread`; guarda con `rev`, así que un cambio
+  hecho desde otro lado da conflicto en vez de pisarse. Ninguna ventana tiene campos de clave.
+- `core/kit_settings.py` (sin Qt): validación (https, sin usuario/clave en el link, género obligatorio y configurado, carpetas
+  sin repetir, horarios en rango, refs obligatorias con `auto`) y `apply_to_config`, que solo toca `kit_preview.{channel, slots,
+  genres, cover_mode}` y `kit_preview.art.refs_root`. `kits.json` en `/loop_kits/_automation/` (`KIT_CATALOG_PATH`). Si no
+  hay config del worker en Dropbox, los kits se guardan igual y los ajustes no (no se crea una config a medias).
+- Cambios aditivos: `kit_catalog.validate(data, genres)` (`load` lo reutiliza); `run_kit_weekly` usa `kit_preview.channel`
+  como canal por defecto.
+- `main.py` (+5 líneas): botón "Configuración de automatización", visible solo en Loop kits, abre el panel en un diálogo.
+  El panel no se monta en el `QStackedWidget` porque Loop kits comparte la página de Beats.
+- Pendiente: probar a mano en `run_app.bat` que Beats y Marca personal se ven igual.
+- Smoke: `scripts/smoke_kit_panel.py` (offscreen, sin red; se corre con `.venv\Scripts\python.exe`, que es donde está PyQt5).
+
 ## Verificación por fase
 - F0: `git status` limpio y la app abre (`python main.py`).
 - F1: importar 2 beats, reabrir la app y ver que persisten; importar el mismo audio dos veces no duplica.
@@ -107,3 +249,37 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
 - F3: conectar un canal de prueba, subir un video como privado, comprobar el registro en `uploads` y el aviso de duplicado.
 - F4: conectar Dropbox, importar un lote y confirmar los archivos en `library/`.
 - F5: el "hace cuánto" aparece también en beats anteriores a la app.
+
+## Loop kits — Revisión completa de bugs ✅ COMPLETADA
+- `core/kit_week.py` (nuevo) conecta lo que faltaba al worker: catálogo (`kits.json`, solo kits activos, con link y carpeta),
+  ciclo (`kit_cycle`: 3 videos, descanso de 30 días, separación de 7), audio por duración (`kit_audio`), y link, nombre y
+  género por kit. `scripts/run_kit_weekly.py` lo usa: un kit que no da un video se saltea, que falten kits es un aviso y
+  los avisos van al resumen de Telegram. `run_preview` queda igual para el uso local.
+- Arreglos: `numpy` en `requirements-worker.txt`; `SystemExit` e import fallido ahora avisan; credenciales locales y
+  `--cloud-config` para el dry-run del panel; nombres de video sin repetir entre kits; `pick_week` prioriza el kit que hace
+  más que no sale y sigue ante un kit sin audio; cortes a 44,1 kHz estéreo; el panel no pisa tras un conflicto ni se cae
+  con un link mal formado; carpetas `_...` y kits sin audio o imágenes quedan afuera; aviso si una entrada del catálogo no
+  tiene carpeta.
+- Con rotación pareja, 12 kits, 3 videos por semana y 30 días de descanso puede salir una semana incompleta cada tanto
+  (se avisa); se evita con más kits o `cycle_rest_days: 28`.
+- Pendientes menores: si la miniatura falla por red el video queda sin registrar; el panel no edita la marca de la portada
+  (`cover.template.brand.text`) ni más de 3 horarios; `smoke_clip_layouts.py` (Marca personal) ya fallaba y no se tocó.
+- Smoke: `scripts/smoke_kit_simulation.py` (6 semanas, 12 kits y casos borde, sin red ni ffmpeg).
+
+## Loop kits — Revisión de seguridad ⏳ INFORME ENTREGADO, FALTA LA PRIMERA CORRIDA REAL
+- Revisión de solo lectura de todo lo agregado (workflow, worker, `core/kit_*`, panel).
+- Sin secretos, links de venta ni nombre de canal en los archivos a commitear; acciones fijadas por SHA (verificadas
+  contra sus tags); sin `pull_request`; `permissions: contents: read`; Beats y Marca personal sin cambios.
+- Arreglado: (1) la config ya no decide a dónde va una clave ni de qué archivo sale: `kit_llm.check_base_url` exige https
+  y un host permitido (`api.openai.com` más la variable `KIT_API_HOSTS`), y en la nube `key_file` no se lee;
+  (2) `requirements-worker.txt` con versiones exactas y hashes (desde `requirements-worker.in`) e instalación con
+  `--require-hashes`. Smoke: `scripts/smoke_kit_api_hosts.py`.
+- También arreglado en el código: (5) en la nube el worker descarta `stderr` y registra como máscaras los valores
+  sueltos de los secretos JSON; (6) `KIT_YT_CLIENT_SECRET_JSON` ya no se pide ni se escribe, y los secretos salen del
+  entorno al arrancar para que ffmpeg no los herede. Smoke: `scripts/smoke_kit_hardening.py`.
+- Preparado, falta tu parte (pasos en `docs/KIT_WEEKLY.md`): (3) app de Dropbox aparte tipo "App folder"
+  (`scripts/kit_dropbox_auth.py`, `tokens/dropbox_worker.json`); (4) el job usa el Environment `kit-weekly` y solo corre
+  en `master`, pero hay que restringir el Environment a `master` y mover ahí los secretos.
+- Sigue abierto: el token de YouTube incluye `youtube.readonly` (está en `core/youtube.py`, módulo compartido).
+- Falta para cerrar la fase: los pasos manuales de (3) y (4), dry-run en Actions revisando el log, una corrida real de
+  un solo video y la primera semana completa.

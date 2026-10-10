@@ -1,0 +1,10 @@
+# Dependencias directas del worker semanal de loop kits (GitHub Actions). Sin PyQt, whisper ni librosa.
+# No se instala este archivo: de acá se genera requirements-worker.txt con versiones exactas y hashes
+# (ver docs/KIT_WEEKLY.md).
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
+dropbox
+Pillow>=9.0.0
+numpy
+tzdata

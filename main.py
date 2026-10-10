@@ -44,6 +44,7 @@ from beat_watcher import BeatFolderWatcher
 from ui_theme import APPLICATION_STYLESHEET, style_primary_generate_button
 from section_nav import SectionNavBar
 from shorts_panel import ShortsPanel
+from loop_kit_panel import open_loop_kit_panel
 from core.sections import (
     DEFAULT_SECTION,
     SECTION_BEATS,
@@ -1008,7 +1009,10 @@ class MainWindow(QMainWindow):
         self.btn_library.clicked.connect(self._open_library)
         beats_buttons.addWidget(self.btn_library)
         left_layout.addLayout(beats_buttons)
-        
+        self.btn_kit_config = QPushButton("Configuración de automatización")
+        self.btn_kit_config.clicked.connect(lambda: open_loop_kit_panel(self))
+        left_layout.addWidget(self.btn_kit_config)
+
         self.beats_label = QLabel("Beats disponibles:")
         self.beats_label.setStyleSheet("font-weight: bold; padding: 5px;")
         left_layout.addWidget(self.beats_label)
@@ -1243,6 +1247,7 @@ class MainWindow(QMainWindow):
     def _apply_workflow_ui(self):
         """Actualiza textos de la UI de trabajo según beats vs loop kits."""
         is_kits = getattr(self, 'current_section', DEFAULT_SECTION) == SECTION_LOOP_KITS
+        self.btn_kit_config.setVisible(is_kits)
         if is_kits:
             self.beats_title.setText("Gestión de Loop kits")
             self.beats_label.setText("Loop kits disponibles:")

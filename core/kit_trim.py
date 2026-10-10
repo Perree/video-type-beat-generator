@@ -14,6 +14,7 @@ from core.ffmpeg_util import resolve_tool
 
 # silence_start puede ir con decimales o entero; a veces es 0 al inicio del archivo.
 _SILENCE_START = re.compile(r"silence_start:\s*(-?\d+(?:\.\d+)?)")
+_SILENCE_EVENT = re.compile(r"silence_(start|end):\s*(-?\d+(?:\.\d+)?)")
 _DURATION = re.compile(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)")
 
 
@@ -83,6 +84,34 @@ def _run_silencedetect(path, noise_db, min_silence):
     return result.stderr or ""
 
 
+def silence_points(path, noise_db=-40, min_silence=0.35):
+    """Silencios del archivo como lista de (inicio, fin) en segundos, en orden.
+
+    Un silencio que llega al final del archivo puede venir sin silence_end:
+    se cierra con la duración.
+
+    Returns:
+        (duración, [(inicio, fin), ...]). La duración es None si ffmpeg no la informa.
+
+    Raises:
+        KitTrimError: ffmpeg ausente, timeout o código distinto de 0.
+    """
+    log = _run_silencedetect(path, noise_db, min_silence)
+    duration = _parse_duration_sec(log)
+    points = []
+    open_start = None
+    for kind, value in _SILENCE_EVENT.findall(log):
+        if kind == "start":
+            open_start = max(0.0, float(value))
+        elif open_start is not None:
+            if float(value) > open_start:
+                points.append((open_start, float(value)))
+            open_start = None
+    if open_start is not None and duration is not None and duration > open_start:
+        points.append((open_start, duration))
+    return duration, points
+
+
 def preview_end_sec(path, noise_db=-40, min_silence=0.35, min_preview=1.5, max_preview=40):
     """Segundo en el que termina la preview: inicio del primer silencio útil.
 
@@ -147,6 +176,8 @@ def trim_to_wav(src, dest, noise_db=-40, min_silence=0.35, min_preview=1.5, max_
         "-t", f"{end:.6f}",
         "-vn",
         "-c:a", "pcm_s16le",
+        # Mismo formato en todos los cortes: el render los une con concat.
+        "-ar", "44100", "-ac", "2",
         dest,
     ]
     try:

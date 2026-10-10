@@ -1,0 +1,207 @@
+# -*- coding: utf-8 -*-
+"""Lógica del panel de configuración de loop kits (sin Qt).
+
+Lee y escribe en Dropbox, vía ``kit_cloud``, dos JSON: ``kits.json`` (catálogo) y la config
+del worker, de la que solo toca las claves ``kit_preview.{channel, slots, genres, cover_mode}``
+y ``kit_preview.art.refs_root``. Los secretos (Telegram, YouTube, Dropbox, claves de API) viven
+en variables de entorno / secretos de GitHub: aquí solo se pregunta si están presentes, sin
+leer su valor hacia ningún JSON ni mensaje.
+"""
+import copy
+import os
+from urllib.parse import urlparse
+
+from core import kit_catalog, kit_cloud, kit_notify, kit_state
+
+CONFIG_PATH = os.environ.get('KIT_CONFIG_PATH') or '/loop_kits/_automation/config.json'
+KITS_PATH = os.environ.get('KIT_CATALOG_PATH') or '/loop_kits/_automation/kits.json'
+STATE_PATH = kit_state.STATE_PATH
+
+WEEKDAYS = ('Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo')
+COVER_MODES = ('manual', 'auto')
+KIT_FIELDS = ('folder', 'name', 'payhip_url', 'genre', 'active')
+
+
+class SettingsError(ValueError):
+    """Entrada inválida; el mensaje es apto para mostrar al usuario."""
+
+
+def _text(value):
+    return value.strip() if isinstance(value, str) else ''
+
+
+# --- Kits ---
+
+def prune_blank(rows):
+    """Quita filas sin ningún dato (``active`` solo no cuenta)."""
+    return [r for r in rows if any(_text(r.get(k)) for k in KIT_FIELDS if k != 'active')]
+
+
+def validate_kits(rows, genres=None):
+    """Valida las filas de la tabla y devuelve la lista lista para ``kits.json``.
+
+    Reglas de ``kit_catalog`` (https, género configurado, carpetas sin repetir) más: el
+    género es obligatorio y el link no puede llevar usuario ni clave. Un link vacío se
+    admite (el kit queda sin elegir). Los mensajes nombran la fila por número.
+    """
+    rows = [{'folder': _text(r.get('folder')), 'name': _text(r.get('name')),
+             'payhip_url': _text(r.get('payhip_url')), 'genre': _text(r.get('genre')),
+             'active': bool(r.get('active', True))} for r in rows]
+    for i, row in enumerate(rows, 1):
+        if not row['genre']:
+            raise SettingsError(f'Kit {i}: falta el género.')
+        if row['payhip_url']:
+            try:
+                parsed = urlparse(row['payhip_url'])
+            except ValueError:
+                raise SettingsError(f'Kit {i}: el link no es válido.') from None
+            if parsed.username or parsed.password:
+                raise SettingsError(f'Kit {i}: el link no puede llevar usuario ni clave.')
+    try:
+        return kit_catalog.validate(rows, genres or None)
+    except kit_catalog.KitCatalogError as exc:
+        raise SettingsError(str(exc).replace('kits.json entrada', 'Kit')) from None
+
+
+# --- Config del worker ---
+
+def parse_genres(text):
+    """Un género por línea (o separados por coma), sin vacíos ni repetidos."""
+    out, seen = [], set()
+    for part in str(text or '').replace(',', '\n').splitlines():
+        part = ' '.join(part.split())
+        if part and part.lower() not in seen:
+            seen.add(part.lower())
+            out.append(part)
+    return out
+
+
+def validate_settings(form):
+    """Valida el formulario de configuración y devuelve un dict normalizado.
+
+    Args:
+        form: ``{channel, slots: [{weekday, hour, minute}], genres: [str], refs_root,
+            cover_mode}``.
+    """
+    slots, seen = [], set()
+    for i, slot in enumerate(form.get('slots') or [], 1):
+        try:
+            item = {'weekday': int(slot['weekday']), 'hour': int(slot['hour']),
+                    'minute': int(slot['minute'])}
+        except (KeyError, TypeError, ValueError):
+            raise SettingsError(f'Horario {i}: valores inválidos.') from None
+        if not (0 <= item['weekday'] <= 6 and 0 <= item['hour'] <= 23
+                and 0 <= item['minute'] <= 59):
+            raise SettingsError(f'Horario {i}: fuera de rango.')
+        key = tuple(item.values())
+        if key in seen:
+            raise SettingsError(f'Horario {i}: repetido.')
+        seen.add(key)
+        slots.append(item)
+    if not slots:
+        raise SettingsError('Hace falta al menos un horario.')
+    genres = parse_genres('\n'.join(form.get('genres') or []))
+    if not genres:
+        raise SettingsError('Cargá al menos un género.')
+    refs_root = _text(form.get('refs_root')).rstrip('/')
+    if refs_root and (not refs_root.startswith('/') or any(c.isspace() for c in refs_root)):
+        raise SettingsError('La carpeta de referencias debe ser una ruta de Dropbox que '
+                            'empiece con "/" y no tenga espacios.')
+    cover_mode = _text(form.get('cover_mode')).lower() or 'manual'
+    if cover_mode not in COVER_MODES:
+        raise SettingsError('Modo de portada inválido.')
+    if cover_mode == 'auto' and not refs_root:
+        raise SettingsError('El modo auto necesita la carpeta de referencias.')
+    return {'channel': _text(form.get('channel')), 'slots': slots, 'genres': genres,
+            'refs_root': refs_root, 'cover_mode': cover_mode}
+
+
+def apply_to_config(config, settings):
+    """Copia de ``config`` con solo las claves propias de ``settings`` actualizadas."""
+    new = copy.deepcopy(config) if isinstance(config, dict) else {}
+    kit = new.get('kit_preview')
+    if not isinstance(kit, dict):
+        kit = new['kit_preview'] = {}
+    kit['slots'] = [dict(s) for s in settings['slots']]
+    kit['genres'] = list(settings['genres'])
+    kit['cover_mode'] = settings['cover_mode']
+    if settings['channel']:
+        kit['channel'] = settings['channel']
+    else:
+        kit.pop('channel', None)
+    art = kit.get('art')
+    if settings['refs_root']:
+        if not isinstance(art, dict):
+            art = kit['art'] = {}
+        art['refs_root'] = settings['refs_root']
+    elif isinstance(art, dict):
+        art.pop('refs_root', None)
+    return new
+
+
+def form_from_config(config):
+    """Valores iniciales del formulario a partir de la config (con defaults del worker)."""
+    from core.kit_publish import DEFAULT_SLOTS
+    kit = (config or {}).get('kit_preview') or {}
+    art = kit.get('art') if isinstance(kit.get('art'), dict) else {}
+    channels = [name for name, c in ((config or {}).get('channels') or {}).items()
+                if isinstance(c, dict) and c.get('section') == 'loop_kits']
+    return {'channel': str(kit.get('channel') or ''), 'channels': channels,
+            'slots': [dict(s) for s in (kit.get('slots') or DEFAULT_SLOTS)],
+            'genres': list(kit.get('genres') or []),
+            'refs_root': str(art.get('refs_root') or ''),
+            'cover_mode': 'auto' if kit.get('cover_mode') == 'auto' else 'manual'}
+
+
+def reference_folders(refs_root, genres):
+    """Carpeta de referencias de cada género, tal como la usa ``kit_art``."""
+    from core import kit_art
+    return [kit_art.genre_folder(refs_root, g) for g in genres] if refs_root else []
+
+
+# --- Telegram (solo estado) ---
+
+def telegram_configured(env=None):
+    """True si el token y el chat de Telegram están presentes en el entorno de esta PC."""
+    env = os.environ if env is None else env
+    return bool(_text(env.get(kit_notify.ENV_TOKEN)) and _text(env.get(kit_notify.ENV_CHAT)))
+
+
+# --- Dropbox ---
+
+def load_all(dbx=None):
+    """Lee catálogo y config con sus ``rev``. Archivos que no existen vienen como None."""
+    kits, kits_rev = kit_cloud.read_json_rev(KITS_PATH, dbx=dbx)
+    if kits is not None and not isinstance(kits, list):
+        raise kit_cloud.KitCloudError('kits.json no tiene el formato esperado.')
+    config, config_rev = kit_cloud.read_json_rev(CONFIG_PATH, dbx=dbx)
+    if config is not None and not isinstance(config, dict):
+        raise kit_cloud.KitCloudError('La config del worker no tiene el formato esperado.')
+    return {'kits': kits, 'kits_rev': kits_rev, 'config': config, 'config_rev': config_rev}
+
+
+def save_kits(catalog, rev, dbx=None):
+    """Guarda ``kits.json``. ``rev`` es el de la última lectura (None si no existía)."""
+    return kit_cloud.write_json(KITS_PATH, catalog, rev=rev or kit_cloud.NEW, dbx=dbx)
+
+
+def save_config(settings, dbx=None):
+    """Relee la config, cambia solo las claves propias y la guarda sin pisar otras ediciones."""
+    config, rev = kit_cloud.read_json_rev(CONFIG_PATH, dbx=dbx)
+    if not isinstance(config, dict):
+        raise SettingsError('No hay config del worker en Dropbox: subí primero la config '
+                            'completa (ver docs/KIT_WEEKLY.md).')
+    return kit_cloud.write_json(CONFIG_PATH, apply_to_config(config, settings), rev=rev, dbx=dbx)
+
+
+def last_state_lines(state, limit=5):
+    """Resumen legible del estado: sin nombres de kit ni de video."""
+    runs = sorted((state or {}).get('runs') or [], key=lambda r: r.get('id', 0), reverse=True)
+    lock = (state or {}).get('lock')
+    lines = [f'Corridas registradas: {len(runs)}',
+             'Hay un lock registrado (worker en curso o corrida cortada).' if lock
+             else 'Sin lock activo.']
+    for run in runs[:limit]:
+        lines.append(f"#{run.get('id')} · {run.get('estado') or '?'} · "
+                     f"{run.get('publish_at') or 'sin fecha'} · {run.get('youtube_id') or '-'}")
+    return lines

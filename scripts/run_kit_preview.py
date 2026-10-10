@@ -19,7 +19,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from core import kit_source, kit_store
+from core import kit_art, kit_cover, kit_names, kit_source, kit_store
 from core.kit_publish import DEFAULT_SLOTS, next_slot, publish_preview
 from core.kit_render import render as kit_render
 from core.kit_select import KitSelectError, choose
@@ -91,19 +91,30 @@ def run_preview(
     render_fn: Optional[Callable[..., str]] = None,
     publish_fn: Optional[Callable[..., dict]] = None,
     output_dir: Optional[str] = None,
+    store=None,
+    tz=None,
+    exclude_paths=(),
+    cover_fn: Optional[Callable[..., tuple]] = None,
+    llm_call: Optional[Callable[[str, str], str]] = None,
+    art_client: Optional[Callable[..., bytes]] = None,
+    art_notify: Optional[Callable[[str], Any]] = None,
 ) -> Dict[str, Any]:
     """Ejecuta la corrida o dry-run. Parámetros inyectables para smokes.
 
     Returns:
         dict con skipped, dry_run, audio_mode, selection, publish, trim_calls, etc.
+
+    ``store`` (default ``kit_store``) es el módulo de estado; ``kit_state`` va con el worker.
+    ``tz`` se usa para armar publishAt; ``exclude_paths`` saca packs de la elección.
     """
+    store = store or kit_store
     when = now or datetime.now()
     kit_cfg = app_config.get('kit_preview') or {}
     slots = kit_cfg.get('slots') or list(DEFAULT_SLOTS)
     slot = next_slot(when, slots)
-    publish_iso = local_to_youtube_publish_at(True, slot)
+    publish_iso = local_to_youtube_publish_at(True, slot, tz=tz)
 
-    if kit_store.has_scheduled_run(publish_iso, db_path=db_path):
+    if store.has_scheduled_run(publish_iso, db_path=db_path):
         return {
             'skipped': True,
             'reason': 'already_scheduled',
@@ -117,7 +128,9 @@ def run_preview(
         local_images_root=kit_cfg.get('local_images_root'),
         dbx=dbx,
     )
-    history = kit_store.selection_history(db_path=db_path)
+    if exclude_paths:
+        packs = [p for p in packs if p['dropbox_path'] not in set(exclude_paths)]
+    history = store.selection_history(db_path=db_path)
     rng = random.Random(seed)
     prefer_named = False if no_named_preview else bool(
         kit_cfg.get('prefer_named_preview', True))
@@ -173,7 +186,18 @@ def run_preview(
     video_out = os.path.join(
         out_dir, f"{safe_name.strip()}_{when.strftime('%Y%m%d_%H%M%S')}.mp4")
 
-    pack_id = kit_store.upsert_pack(pack['dropbox_path'], pack['name'], db_path=db_path)
+    pack_id = store.upsert_pack(pack['dropbox_path'], pack['name'], db_path=db_path)
+
+    names_cfg = kit_cfg.get('names')
+    video_name, used_names = kit_names.for_pack(
+        pack['name'], pack['dropbox_path'], names_cfg, store, llm_call=llm_call)
+    display_name = video_name or pack['name']
+    tracking_id, templates = None, channel_templates
+    if names_cfg and names_cfg.get('enabled', True) is not False:
+        tracking_id = kit_names.new_tracking_id()
+        if channel_templates.get('link'):
+            templates = {**channel_templates,
+                         'link': kit_names.track_link(channel_templates['link'], tracking_id)}
 
     with tempfile.TemporaryDirectory(prefix='kit_preview_') as tmp:
         image_local = _resolve_image_local(image, tmp, dbx=dbx)
@@ -190,23 +214,33 @@ def run_preview(
                 result['trim_calls'] += 1
                 wavs.append(dest)
 
-        render_impl(image_local, wavs, video_out)
+        # cover_mode auto: fondo con IA; si falla vuelve a la imagen manual y la corrida sigue.
+        background_local, ref_images = kit_art.for_video(
+            kit_cfg, pack['name'], image_local, store, rng, tmp, dbx=dbx,
+            client=art_client, notify=art_notify)
+        frame_local, thumbnail = (cover_fn or kit_cover.for_video)(
+            kit_cfg.get('cover'), background_local, display_name, tmp)
+        render_impl(frame_local, wavs, video_out)
         loops_meta = [{'name': a['name'], 'path': a['path']} for a in audio_files]
         pub = publish_impl(
             channel,
             video_out,
-            None,
-            pack['name'],
+            thumbnail,
+            display_name,
             slots,
-            channel_templates,
+            templates,
             pack_id=pack_id,
             audio_mode=audio_mode,
             db_path=db_path,
             now=when,
             image_path=image.get('path') or image_local,
             loops_json=loops_meta,
+            **({'video_name': video_name, 'tracking_id': tracking_id} if tracking_id else {}),
+            **({'ref_images': ref_images} if ref_images else {}),
+            **({'store': store, 'tz': tz} if (store is not kit_store or tz) else {}),
         )
         result['publish'] = pub
+        kit_names.remember(store, pack['dropbox_path'], used_names, video_name)
         result['video'] = video_out
     return result
 

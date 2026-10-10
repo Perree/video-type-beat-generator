@@ -67,7 +67,8 @@ def _schedule_rejected(exc):
 def _metadata(channel, pack_name, templates):
     """Título, descripción y tags a partir de las plantillas del canal.
 
-    ``{name}`` es el nombre del pack. Los tags salen de la config si existen.
+    ``{name}`` es el nombre del pack; ``{link}`` el ``templates['link']`` si lo
+    hay (vacío si no). Los tags salen de la config si existen.
     """
     templates = templates or {}
     group = templates.get('group') or ''
@@ -87,13 +88,18 @@ def _metadata(channel, pack_name, templates):
     else:
         tags_text = raw_tags or ''
         tags = raw_tags
+    desc_template = templates.get('description_template') or description.DEFAULT_TEMPLATE
     body = description.render(
-        templates.get('description_template') or description.DEFAULT_TEMPLATE,
+        desc_template,
         pack_name,
         tags=tags_text,
         socials=templates.get('socials', ''),
         hashtags=templates.get('hashtags', ''),
     )
+    # {link} lo toma de templates['link']; sin marcador no se agrega nada.
+    # Se mira la plantilla, no el cuerpo: un nombre con "{link}" no cuenta.
+    if '{link}' in desc_template:
+        body = body.replace('{link}', str(templates.get('link') or ''))
     return title, body, tags
 
 
@@ -113,7 +119,8 @@ def _insert(channel, video, title, body, tags, thumbnail, publish_at):
 
 def publish_preview(channel, video, thumbnail, pack_name, slots, templates, *,
                     pack_id, audio_mode, db_path=None, now=None,
-                    image_path=None, loops_json=None, tz=None):
+                    image_path=None, loops_json=None, tz=None, store=None,
+                    video_name=None, tracking_id=None, ref_images=None):
     """Sube el preview al próximo slot y registra la corrida.
 
     Args:
@@ -129,6 +136,9 @@ def publish_preview(channel, video, thumbnail, pack_name, slots, templates, *,
         now: reloj inyectable; default datetime.now().
         image_path, loops_json: se guardan en kit_runs.
         tz: zona para datetimes naive al armar publishAt.
+        store: módulo con ``record_run`` (default ``kit_store``).
+        video_name, tracking_id, ref_images: se guardan en la corrida si vienen (estado en
+            la nube). ``ref_images`` son las referencias usadas para el fondo con IA.
 
     Returns:
         dict con estado (``scheduled`` o ``private_pending``), slot local,
@@ -155,7 +165,9 @@ def publish_preview(channel, video, thumbnail, pack_name, slots, templates, *,
         estado = 'private_pending'
         publish_iso = None
 
-    run_id = kit_store.record_run(
+    extra = {k: v for k, v in (('video_name', video_name), ('tracking_id', tracking_id),
+                               ('ref_images', ref_images)) if v}
+    run_id = (store or kit_store).record_run(
         pack_id,
         db_path=db_path,
         canal=channel,
@@ -167,6 +179,7 @@ def publish_preview(channel, video, thumbnail, pack_name, slots, templates, *,
         url=uploaded.get('url'),
         publish_at=publish_iso,
         estado=estado,
+        **extra,
     )
     return {
         'estado': estado,
