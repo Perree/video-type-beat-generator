@@ -20,9 +20,12 @@ class KitSkip(Exception):
     """Este kit no puede dar un video ahora; el worker prueba con el siguiente."""
 
 
-def load_catalog(app_config, dbx=None):
-    """``kits.json`` de Dropbox ya validado, o None si todavía no existe."""
-    data = kit_cloud.read_json(kit_settings.KITS_PATH, dbx=dbx)
+def load_catalog(app_config, dbx=None, path=None):
+    """``kits.json`` de Dropbox ya validado, o None si todavía no existe.
+
+    ``path`` es el catálogo de otro canal; sin él, el del canal por defecto.
+    """
+    data = kit_cloud.read_json(path or kit_settings.KITS_PATH, dbx=dbx)
     if data is None:
         return None
     return kit_catalog.validate(data, kit_catalog.configured_genres(app_config))
@@ -63,7 +66,8 @@ def candidates(packs, catalog):
     return pool, entries, warnings
 
 
-def open_week(app_config, state, history, now, rng, *, dbx=None, exclude=(), list_packs_fn=None):
+def open_week(app_config, state, history, now, rng, *, dbx=None, exclude=(), list_packs_fn=None,
+              kits_path=None):
     """Kits de la semana en orden de prioridad (primero el que hace más que no sale).
 
     Returns:
@@ -75,7 +79,7 @@ def open_week(app_config, state, history, now, rng, *, dbx=None, exclude=(), lis
         raise ValueError("Falta kit_preview.dropbox_root en la config.")
     packs = (list_packs_fn or kit_source.list_packs)(
         root, local_images_root=kit_cfg.get('local_images_root'), dbx=dbx)
-    pool, entries, warnings = candidates(packs, load_catalog(app_config, dbx=dbx))
+    pool, entries, warnings = candidates(packs, load_catalog(app_config, dbx=dbx, path=kits_path))
     picked = kit_cycle.pick_week(
         pool, state, history, now, rng, kit_cycle.settings(kit_cfg), exclude=exclude,
         limit=len(pool), prefer_named_preview=bool(kit_cfg.get('prefer_named_preview', True)))

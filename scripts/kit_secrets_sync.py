@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Carga con ``gh`` los secretos del Environment de un canal de loop kits.
+
+Uso: ``py -3 scripts/kit_secrets_sync.py --env kit-weekly-<slug> --channel "<canal>"``.
+
+Los secretos compartidos (Dropbox, OpenAI, Telegram) salen de archivos locales fuera de git
+(``tokens/kit_secrets.json`` con ``{"NOMBRE": "valor"}`` y ``tokens/dropbox_worker.json``), del
+entorno o, si faltan, de un prompt sin eco; dejar un prompt vacío no toca ese secreto. El token
+de YouTube es el del canal (``tokens/<canal>.json``, o la ruta que se indique). Cada valor
+viaja a ``gh`` por stdin: nunca va en un argumento ni se imprime. Si el Environment no existe
+se crea restringido a la rama principal. Ver docs/KIT_WEEKLY.md.
+"""
+import argparse
+import getpass
+import json
+import os
+import re
+import subprocess
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+
+from core import kit_channel
+
+SHARED_FILE = os.path.join(ROOT, 'tokens', 'kit_secrets.json')
+DROPBOX_FILE = os.path.join(ROOT, 'tokens', 'dropbox_worker.json')
+TOKENS_DIR = os.path.join(ROOT, 'tokens')
+SHARED = (
+    ('KIT_DROPBOX_REFRESH_TOKEN', 'Refresh token de Dropbox'),
+    ('KIT_DROPBOX_APP_KEY', 'App key de Dropbox'),
+    ('KIT_LLM_API_KEY', 'Clave de OpenAI para los nombres'),
+    ('KIT_IMAGE_API_KEY', 'Clave de OpenAI para las portadas'),
+    ('KIT_TELEGRAM_TOKEN', 'Token del bot de Telegram'),
+    ('KIT_TELEGRAM_CHAT_ID', 'Chat id de Telegram'),
+)
+_DROPBOX_FIELDS = {'KIT_DROPBOX_REFRESH_TOKEN': 'refresh_token', 'KIT_DROPBOX_APP_KEY': 'app_key'}
+
+
+class SyncError(Exception):
+    """Mensaje apto para la consola: sin valores."""
+
+
+def _load_json(path):
+    try:
+        with open(path, encoding='utf-8') as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def shared_values(shared_file=None, dropbox_file=None, env=None, ask=getpass.getpass):
+    """``{nombre: valor}`` de los secretos compartidos que se pudieron resolver."""
+    env = os.environ if env is None else env
+    from_file = _load_json(shared_file or SHARED_FILE)
+    dropbox = _load_json(dropbox_file or DROPBOX_FILE)
+    values = {}
+    for name, label in SHARED:
+        value = (from_file.get(name) or dropbox.get(_DROPBOX_FIELDS.get(name, '')) or
+                 env.get(name) or '')
+        value = str(value).strip() or ask(f"{label} (Enter para no tocarlo): ").strip()
+        if value:
+            values[name] = value
+    return values
+
+
+def youtube_token(channel, token_file=None, ask=input):
+    """Contenido del token de YouTube del canal (JSON), listo para el secreto."""
+    safe = re.sub(r'[^\w\-. ]', '_', channel).strip() or 'canal'  # como core/youtube.py
+    path = token_file or os.path.join(TOKENS_DIR, f'{safe}.json')
+    if not os.path.exists(path):
+        path = ask("Ruta al token de YouTube de este canal (.json): ").strip().strip('"')
+    data = _load_json(path)
+    if not data.get('refresh_token'):
+        raise SyncError("El token de YouTube no existe o no es válido: conectá el canal en la app.")
+    return json.dumps(data)
+
+
+def _gh(args, stdin=None):
+    """Corre ``gh`` y devuelve el código de salida; su salida no se muestra."""
+    try:
+        return subprocess.run(['gh', *args], input=(stdin or '').encode('utf-8'),
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+    except OSError:
+        raise SyncError("No se encontró gh (GitHub CLI).") from None
+
+
+def ensure_environment(env_name, repo=None, branch='master', runner=_gh):
+    """Crea el Environment si no existe, limitado a ``branch``. Uno que ya existe no se toca."""
+    base = f"repos/{repo or '{owner}/{repo}'}/environments/{env_name}"
+    if runner(['api', base]) == 0:
+        return False
+    body = {'deployment_branch_policy': {'protected_branches': False,
+                                         'custom_branch_policies': True}}
+    if runner(['api', '--method', 'PUT', base, '--input', '-'], json.dumps(body)) != 0:
+        raise SyncError("No se pudo crear el Environment (¿gh auth login? ¿permisos de admin?).")
+    if runner(['api', '--method', 'POST', base + '/deployment-branch-policies', '--input', '-'],
+              json.dumps({'name': branch})) != 0:
+        raise SyncError("El Environment se creó, pero no quedó restringido a la rama: "
+                        "hacelo a mano en Settings > Environments.")
+    return True
+
+
+def sync(env_name, values, repo=None, runner=_gh, out=print):
+    """Sube ``values`` como secretos del Environment. Devuelve los nombres que fallaron."""
+    failed = []
+    for name, value in values.items():
+        args = ['secret', 'set', name, '--env', env_name] + (['--repo', repo] if repo else [])
+        ok = runner(args, value) == 0
+        out(f"{name}: {'ok' if ok else 'falló'}")
+        if not ok:
+            failed.append(name)
+    return failed
+
+
+def main(argv=None, runner=_gh):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument('--env', required=True, help='Environment: kit-weekly o kit-weekly-<slug>.')
+    parser.add_argument('--channel', help='Nombre del canal, tal como figura en la app.')
+    parser.add_argument('--yt-token-file', help='Token de YouTube (por defecto tokens/<canal>.json).')
+    parser.add_argument('--shared-file', help='JSON con secretos compartidos (fuera de git).')
+    parser.add_argument('--repo', help='owner/repo (por defecto, el de esta carpeta).')
+    parser.add_argument('--branch', default='master', help='Rama que puede usar el Environment.')
+    args = parser.parse_args(argv)
+
+    try:
+        channel = (args.channel or input("Nombre del canal: ")).strip()
+        if not channel:
+            raise SyncError("Falta el nombre del canal.")
+        own = kit_channel.environment(kit_channel.slug(channel))
+        if args.env not in (kit_channel.ENV_PREFIX, own):
+            raise SyncError("Ese Environment no es el de este canal: usá kit-weekly (canal por "
+                            "defecto) o kit-weekly-<slug del canal>.")
+        values = shared_values(args.shared_file)
+        values['KIT_YT_CHANNEL'] = channel
+        values['KIT_YT_TOKEN_JSON'] = youtube_token(channel, args.yt_token_file)
+        if ensure_environment(args.env, args.repo, args.branch, runner):
+            print("Environment creado y restringido a la rama.")
+        failed = sync(args.env, values, args.repo, runner)
+    except (SyncError, kit_channel.KitChannelError) as exc:
+        print(exc)
+        return 1
+    if failed:
+        print(f"{len(failed)} secreto(s) no se cargaron.")
+        return 1
+    print(f"Listo: {len(values)} secreto(s) cargados.")
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

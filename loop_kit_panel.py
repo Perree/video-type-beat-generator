@@ -3,18 +3,20 @@
 
 Independiente de Beats y Marca personal: se abre en un diálogo desde la sección Loop kits.
 Lee y guarda ``kits.json`` y las claves ``kit_preview`` del worker en Dropbox (core/kit_settings).
+Arriba se elige el canal: cada uno tiene su config, sus kits y su estado (core/kit_channel).
 Los secretos nunca pasan por aquí: Telegram solo muestra si está "configurado".
 """
+import json
 import os
 import sys
 
 from PyQt5.QtCore import QProcess, Qt, QThread, QTime, pyqtSignal
 from PyQt5.QtWidgets import (QAbstractItemView, QComboBox, QDialog, QFormLayout, QGroupBox,
-                             QHBoxLayout, QHeaderView, QLabel, QLineEdit, QPlainTextEdit,
-                             QPushButton, QScrollArea, QTableWidget, QTableWidgetItem,
-                             QTimeEdit, QVBoxLayout, QWidget)
+                             QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit,
+                             QPlainTextEdit, QPushButton, QScrollArea, QTableWidget,
+                             QTableWidgetItem, QTimeEdit, QVBoxLayout, QWidget)
 
-from core import kit_cloud, kit_settings, kit_state
+from core import kit_channel, kit_channel_setup, kit_cloud, kit_settings, kit_state
 
 _ROOT = os.path.dirname(os.path.abspath(__file__))
 _HEADERS = ("Carpeta", "Nombre", "Link de PayHip", "Género", "Activo")
@@ -24,7 +26,8 @@ _DRY_RUN_TIMEOUT_MS = 10 * 60 * 1000
 
 def _error_text(exc):
     """Mensaje seguro: los errores propios se muestran, el resto solo por tipo."""
-    if isinstance(exc, (kit_settings.SettingsError, kit_cloud.KitCloudError)):
+    if isinstance(exc, (kit_settings.SettingsError, kit_cloud.KitCloudError,
+                        kit_channel_setup.ChannelSetupError)):
         return str(exc)
     return f"Error ({type(exc).__name__})."
 
@@ -54,6 +57,7 @@ class LoopKitPanel(QWidget):
         self._python = python or sys.executable
         self._script_dir = script_dir or _ROOT
         self._kits_rev = None
+        self._base_config = None  # config del canal por defecto: base de un canal nuevo
         self._task = None
         self._proc = None
         self._build()
@@ -62,6 +66,16 @@ class LoopKitPanel(QWidget):
 
     def _build(self):
         outer = QVBoxLayout(self)
+        top = QHBoxLayout()
+        top.addWidget(QLabel("Canal:"))
+        self.automation = QComboBox()
+        self.automation.addItem("Canal por defecto", '')
+        self.automation.currentIndexChanged.connect(lambda _i: self.reload())
+        top.addWidget(self.automation, 1)
+        self.btn_new = QPushButton("Crear automatización…")
+        self.btn_new.clicked.connect(self.ask_new_automation)
+        top.addWidget(self.btn_new)
+        outer.addLayout(top)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
@@ -262,8 +276,65 @@ class LoopKitPanel(QWidget):
     # --- Dropbox (en hilo aparte) ---
 
     def _busy(self, on):
-        for btn in (self.btn_reload, self.btn_save, self.btn_state):
+        for btn in (self.btn_reload, self.btn_save, self.btn_state, self.btn_new,
+                    self.automation):
             btn.setEnabled(not on)
+
+    # --- Canal elegido ---
+
+    def paths(self):
+        """Rutas de Dropbox del canal del selector."""
+        return kit_channel.paths(self.automation.currentData())
+
+    def _set_automations(self, registry, select=None):
+        current = self.automation.currentData() if select is None else select
+        self.automation.blockSignals(True)
+        self.automation.clear()
+        self.automation.addItem("Canal por defecto", '')
+        for row in registry or []:
+            self.automation.addItem(row['name'], row['slug'])
+        self.automation.setCurrentIndex(max(0, self.automation.findData(current)))
+        self.automation.blockSignals(False)
+
+    def _local_config(self):
+        try:
+            with open(os.path.join(self._script_dir, 'config', 'app_config.json'),
+                      encoding='utf-8') as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            return {}
+        return data if isinstance(data, dict) else {}
+
+    def ask_new_automation(self):
+        names = kit_channel_setup.loop_kit_channels(self._local_config(), self._base_config)
+        taken = {self.automation.itemText(i) for i in range(1, self.automation.count())}
+        name, ok = QInputDialog.getItem(
+            self, "Crear automatización", "Canal de Loop kits:",
+            [n for n in names if n not in taken], 0, True)
+        if ok:
+            self.create_automation(name)
+
+    def create_automation(self, name):
+        """Arma la config mínima del canal en Dropbox y lo deja elegido."""
+        base, local = self._base_config, self._local_config()
+
+        def work():
+            dbx = self._dbx()
+            if base is None:  # todavía no se leyó la config del canal por defecto
+                default = kit_settings.load_all(dbx)['config']
+            else:
+                default = base
+            created = kit_channel_setup.create(name, default, local, dbx)
+            return created, kit_channel_setup.load_registry(dbx)
+
+        def done(result):
+            created, registry = result
+            self._set_automations(registry, select=created.slug)
+            self.reload(note="Automatización creada. Falta cargar los secretos de "
+                             f"{kit_channel.environment(created.slug)} "
+                             "(scripts/kit_secrets_sync.py) y sumar el canal a KIT_CHANNELS.")
+
+        self._run(work, done, "Creando la automatización…")
 
     def _run(self, fn, on_done, message):
         if self._task is not None:
@@ -290,18 +361,31 @@ class LoopKitPanel(QWidget):
         self.status.setText(text)
         self.status.setStyleSheet("color: #d9534f;" if error else "")
 
-    def reload(self):
-        self._run(lambda: kit_settings.load_all(self._dbx()), self._apply_loaded,
-                  "Leyendo desde Dropbox…")
+    def reload(self, note=None):
+        paths = self.paths()
+
+        def work():
+            dbx = self._dbx()
+            data = kit_settings.load_all(dbx, None if paths.is_default else paths)
+            data['registry'] = kit_channel_setup.load_registry(dbx)
+            data['own'] = not paths.is_default
+            return data
+
+        self._run(work, lambda data: self._apply_loaded(data, note), "Leyendo desde Dropbox…")
 
     def _dbx(self):
         return self._dbx_provider() if self._dbx_provider else None
 
-    def _apply_loaded(self, data):
+    def _apply_loaded(self, data, note=None):
         self._kits_rev = data['kits_rev']
+        self._set_automations(data['registry'])
+        if not data['own']:
+            self._base_config = data['config']
         self.set_form(kit_settings.form_from_config(data['config']))
+        # Un canal con automatización propia no puede apuntar a otro canal.
+        self.channel.setEnabled(not data['own'])
         self.set_kits(data['kits'])
-        self._say("Configuración cargada." if data['config'] is not None else
+        self._say(note or "Configuración cargada." if data['config'] is not None else
                   "No hay config del worker en Dropbox: se pueden editar los kits, pero no "
                   "los ajustes hasta subirla (docs/KIT_WEEKLY.md).",
                   error=data['config'] is None)
@@ -315,11 +399,13 @@ class LoopKitPanel(QWidget):
         # Las filas vacías ya no están en el catálogo: se reflejan en la tabla.
         self.set_kits(catalog)
         rev = self._kits_rev
+        paths = self.paths()
+        paths = None if paths.is_default else paths
 
         def work():
             dbx, problems, kits_rev = self._dbx(), [], rev
-            for label, op in (("kits", lambda: kit_settings.save_kits(catalog, rev, dbx)),
-                              ("ajustes", lambda: kit_settings.save_config(settings, dbx))):
+            for label, op in (("kits", lambda: kit_settings.save_kits(catalog, rev, dbx, paths)),
+                              ("ajustes", lambda: kit_settings.save_config(settings, dbx, paths))):
                 try:
                     saved_rev = op()
                     if label == "kits":
@@ -342,8 +428,8 @@ class LoopKitPanel(QWidget):
         def done(state):
             self.output.setPlainText('\n'.join(kit_settings.last_state_lines(state)))
             self._say("Estado leído.")
-        self._run(lambda: kit_state.load(kit_settings.STATE_PATH, dbx=self._dbx()), done,
-                  "Leyendo el estado…")
+        path = self.paths().state
+        self._run(lambda: kit_state.load(path, dbx=self._dbx()), done, "Leyendo el estado…")
 
     def shutdown(self):
         """Espera la tarea en curso y corta el dry-run antes de destruir el panel."""
@@ -368,7 +454,9 @@ class LoopKitPanel(QWidget):
         self.btn_dry.setEnabled(False)
         self.output.setPlainText("")
         self._say("Corriendo dry-run (no renderiza ni sube)…")
-        proc.start(self._python, [script, '--dry-run', '--cloud-config'])
+        paths = self.paths()
+        proc.start(self._python, [script, '--dry-run', '--cloud-config']
+                   + ([] if paths.is_default else ['--automation', paths.slug]))
 
     def _dry_run_done(self, code):
         proc, self._proc = self._proc, None

@@ -25,7 +25,7 @@ SCRIPTS = os.path.join(ROOT, 'scripts')
 if SCRIPTS not in sys.path:
     sys.path.insert(0, SCRIPTS)
 
-from core import kit_art, kit_cloud, kit_notify, kit_settings, kit_state
+from core import kit_art, kit_channel, kit_cloud, kit_notify, kit_settings, kit_state
 from core.kit_publish import DEFAULT_SLOTS, next_slot
 from core.publish_at import local_to_youtube_publish_at
 
@@ -68,31 +68,33 @@ class CloudStore:
     segunda corrida de la misma semana la detecta en ``has_scheduled_run`` y no duplica.
     ``now`` (hora local de la corrida) es la fecha de uso que se guarda: el ciclo y la
     separación entre usos se cuentan en la misma zona que los horarios.
+    ``state_path`` es el estado de otro canal; sin él, el del canal por defecto.
     """
 
-    def __init__(self, dbx, now=None):
+    def __init__(self, dbx, now=None, state_path=None):
         self.dbx = dbx
         self.now = now
         self.proposed = None
         self.orphan = None  # video subido cuyo registro en el estado falló
+        self._kw = {'dbx': dbx, 'db_path': state_path} if state_path else {'dbx': dbx}
 
     def load(self):
-        return kit_state.load(dbx=self.dbx)
+        return kit_state.load(**self._kw)
 
     def has_scheduled_run(self, publish_at, db_path=None):
         return bool(publish_at) and publish_at in scheduled_packs(self.load())
 
     def selection_history(self, db_path=None):
-        return kit_state.selection_history(dbx=self.dbx)
+        return kit_state.selection_history(**self._kw)
 
     def upsert_pack(self, dropbox_path, nombre, db_path=None):
-        return kit_state.upsert_pack(dropbox_path, nombre, dbx=self.dbx)
+        return kit_state.upsert_pack(dropbox_path, nombre, **self._kw)
 
     def get_cycle(self, dropbox_path):
-        return kit_state.get_cycle(dropbox_path, dbx=self.dbx)
+        return kit_state.get_cycle(dropbox_path, **self._kw)
 
     def update_cycle(self, dropbox_path, **fields):
-        return kit_state.update_cycle(dropbox_path, dbx=self.dbx, **fields)
+        return kit_state.update_cycle(dropbox_path, **self._kw, **fields)
 
     def ref_usage(self):
         return kit_art.used_refs(self.load())
@@ -107,7 +109,7 @@ class CloudStore:
             fields.setdefault('subido_en', self.now.isoformat(timespec='seconds'))
         for attempt in range(3):
             try:
-                return kit_state.record_run(pack_id, dbx=self.dbx, **fields)
+                return kit_state.record_run(pack_id, **self._kw, **fields)
             except Exception:
                 if attempt == 2:
                     # El video ya está en YouTube: guardar el id para avisar con su link.
@@ -128,27 +130,35 @@ def _with_warnings(text, warnings):
 
 
 def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, now=None,
-               seed=None, notifier=kit_notify, output_dir=None, hooks=None):
+               seed=None, notifier=kit_notify, output_dir=None, hooks=None, paths=None,
+               label=None):
     """Corre la semana y devuelve el código de salida (0 ok, 1 hubo un fallo).
 
     ``hooks`` son reemplazos para pruebas: ``list_packs_fn`` y los de ``kit_week.make_video``.
+    ``paths`` (``kit_channel.paths``) son el estado y el catálogo del canal; sin él, los del
+    canal por defecto. Con ``label`` cada aviso de Telegram empieza con el nombre del canal.
     Un kit que no da un video se saltea y se prueba con el siguiente; que no alcancen los
     kits para todos los horarios es un aviso, no un fallo.
     """
-    hooks = hooks or {}
+    hooks = dict(hooks or {})
+    own = paths is not None and not paths.is_default
+    state_kw = {'dbx': dbx, 'db_path': paths.state} if own else {'dbx': dbx}
+    if label:
+        notifier = kit_channel.Prefixed(notifier, label)
+        hooks.setdefault('art_notify', notifier.send)
     tz = local_tz()
     now_local = now or datetime.now(tz).replace(tzinfo=None)
     kit_cfg = app_config.get('kit_preview') or {}
     slots_cfg = kit_cfg.get('slots') or list(DEFAULT_SLOTS)
     slots = upcoming_slots(now_local, slots_cfg)
     proposed = [local_to_youtube_publish_at(True, slot, tz=tz) for slot in slots]
-    store = CloudStore(dbx, now_local)
+    store = CloudStore(dbx, now_local, paths.state if own else None)
     rng = random.Random(seed)
 
     owner = None
     if not dry_run:
         try:
-            owner = kit_state.acquire_lock(dbx=dbx)
+            owner = kit_state.acquire_lock(**state_kw)
         except Exception as exc:
             _notify(notifier, kit_notify.alert(exc, step='lock'))
             print(f"Fallo en lock ({type(exc).__name__}).")
@@ -166,7 +176,8 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
             used.update(path for iso, path in taken.items() if iso in proposed and path)
             week = kit_week.open_week(
                 app_config, state, store.selection_history(), now_local, rng, dbx=dbx,
-                exclude=sorted(used), list_packs_fn=hooks.get('list_packs_fn'))
+                exclude=sorted(used), list_packs_fn=hooks.get('list_packs_fn'),
+                **({'kits_path': paths.kits} if own else {}))
             queue = list(week['queue'])
             warnings += week['warnings']
         except (Exception, SystemExit) as exc:
@@ -220,7 +231,7 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
     finally:
         if owner:
             try:
-                kit_state.release_lock(owner, dbx=dbx)
+                kit_state.release_lock(owner, **state_kw)
             except Exception as exc:
                 print(f"No se pudo liberar el lock ({type(exc).__name__}).")
 
@@ -280,34 +291,48 @@ def main(argv=None):
     parser.add_argument('--dry-run', action='store_true',
                         help='Elige kits y slots; no renderiza, no sube, no guarda estado.')
     parser.add_argument('--channel', help='Canal loop_kits (obligatorio si hay varios).')
+    parser.add_argument('--automation', default=os.environ.get(kit_channel.ENV_AUTOMATION),
+                        help='Slug del canal cuya automatización corre (vacío o "default": '
+                             'el canal por defecto).')
     parser.add_argument('--config', default=os.path.join(ROOT, 'config', 'app_config.json'))
     parser.add_argument('--cloud-config', action='store_true',
                         help='Lee la config de Dropbox aunque exista la local.')
     parser.add_argument('--seed', type=int)
     args = parser.parse_args(argv)
 
+    label = None
     try:
+        paths = kit_channel.paths(args.automation)
+        if not paths.is_default:
+            # Hasta leer la config, el aviso de un fallo lleva el slug del canal.
+            label = paths.slug
         from run_kit_preview import load_app_config, resolve_channel
         # Sin ninguna variable KIT_* de credenciales (PC del usuario) se usan las locales.
         with _public_log(), (kit_cloud.credentials_dir() if kit_cloud.in_cloud()
                              else _local_credentials()):
             dbx = kit_cloud.client()
-            if os.path.exists(args.config) and not args.cloud_config:
+            if os.path.exists(args.config) and not args.cloud_config and paths.is_default:
                 app_config = load_app_config(args.config)
             else:  # en Actions no hay app_config.json (está ignorado por git)
-                app_config = kit_cloud.read_json(CONFIG_DROPBOX_PATH, dbx=dbx)
+                app_config = kit_cloud.read_json(
+                    CONFIG_DROPBOX_PATH if paths.is_default else paths.config, dbx=dbx)
                 if not isinstance(app_config, dict):
                     raise kit_cloud.KitCloudError("No hay configuración del worker.")
             default_channel = (app_config.get('kit_preview') or {}).get('channel')
             channel, templates = resolve_channel(app_config, args.channel or default_channel)
+            kit_channel.check_owner(
+                paths, channel,
+                kit_cloud.secret(kit_cloud.ENV_YT_CHANNEL) if kit_cloud.in_cloud() else None)
+            label = channel
             with tempfile.TemporaryDirectory(prefix='kit_weekly_') as out:
                 return run_weekly(app_config=app_config, channel=channel,
                                   channel_templates=templates, dbx=dbx,
-                                  dry_run=args.dry_run, seed=args.seed, output_dir=out)
+                                  dry_run=args.dry_run, seed=args.seed, output_dir=out,
+                                  paths=paths, label=label)
     except (Exception, SystemExit) as exc:
         # Sin traceback ni mensaje: el log de Actions es público. Los nombres de las
         # variables que faltan no son secretos.
-        _notify(kit_notify, kit_notify.alert(exc, step='inicio'))
+        _notify(kit_notify, kit_channel.prefixed(label, kit_notify.alert(exc, step='inicio')))
         detail = f": {exc}" if isinstance(exc, kit_cloud.KitCloudEnvError) else ''
         print(f"Fallo al iniciar ({type(exc).__name__}{detail}).")
         return 1

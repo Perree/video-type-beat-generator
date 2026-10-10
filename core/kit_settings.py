@@ -169,29 +169,34 @@ def telegram_configured(env=None):
 
 # --- Dropbox ---
 
-def load_all(dbx=None):
-    """Lee catálogo y config con sus ``rev``. Archivos que no existen vienen como None."""
-    kits, kits_rev = kit_cloud.read_json_rev(KITS_PATH, dbx=dbx)
+def load_all(dbx=None, paths=None):
+    """Lee catálogo y config con sus ``rev``. Archivos que no existen vienen como None.
+
+    ``paths`` (``kit_channel.paths``) elige el canal; sin él, el canal por defecto.
+    """
+    kits, kits_rev = kit_cloud.read_json_rev(paths.kits if paths else KITS_PATH, dbx=dbx)
     if kits is not None and not isinstance(kits, list):
         raise kit_cloud.KitCloudError('kits.json no tiene el formato esperado.')
-    config, config_rev = kit_cloud.read_json_rev(CONFIG_PATH, dbx=dbx)
+    config, config_rev = kit_cloud.read_json_rev(paths.config if paths else CONFIG_PATH, dbx=dbx)
     if config is not None and not isinstance(config, dict):
         raise kit_cloud.KitCloudError('La config del worker no tiene el formato esperado.')
     return {'kits': kits, 'kits_rev': kits_rev, 'config': config, 'config_rev': config_rev}
 
 
-def save_kits(catalog, rev, dbx=None):
+def save_kits(catalog, rev, dbx=None, paths=None):
     """Guarda ``kits.json``. ``rev`` es el de la última lectura (None si no existía)."""
-    return kit_cloud.write_json(KITS_PATH, catalog, rev=rev or kit_cloud.NEW, dbx=dbx)
+    return kit_cloud.write_json(paths.kits if paths else KITS_PATH, catalog,
+                                rev=rev or kit_cloud.NEW, dbx=dbx)
 
 
-def save_config(settings, dbx=None):
+def save_config(settings, dbx=None, paths=None):
     """Relee la config, cambia solo las claves propias y la guarda sin pisar otras ediciones."""
-    config, rev = kit_cloud.read_json_rev(CONFIG_PATH, dbx=dbx)
+    path = paths.config if paths else CONFIG_PATH
+    config, rev = kit_cloud.read_json_rev(path, dbx=dbx)
     if not isinstance(config, dict):
         raise SettingsError('No hay config del worker en Dropbox: subí primero la config '
                             'completa (ver docs/KIT_WEEKLY.md).')
-    return kit_cloud.write_json(CONFIG_PATH, apply_to_config(config, settings), rev=rev, dbx=dbx)
+    return kit_cloud.write_json(path, apply_to_config(config, settings), rev=rev, dbx=dbx)
 
 
 def last_state_lines(state, limit=5):

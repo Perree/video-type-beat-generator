@@ -266,6 +266,30 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
   (`cover.template.brand.text`) ni más de 3 horarios; `smoke_clip_layouts.py` (Marca personal) ya fallaba y no se tocó.
 - Smoke: `scripts/smoke_kit_simulation.py` (6 semanas, 12 kits y casos borde, sin red ni ffmpeg).
 
+## Loop kits — Varios canales ✅ COMPLETADA
+- `core/kit_channel.py` (solo librería estándar): `slug(canal)` estable y `paths(slug)` con config, catálogo y estado
+  por canal en una subcarpeta `<slug>` de las carpetas actuales. El canal por defecto conserva sus rutas
+  (`KIT_CONFIG_PATH`, `KIT_CATALOG_PATH` y `KIT_STATE_PATH` siguen mandando). Estado y lock independientes: un kit puede
+  estar en varios canales y su ciclo, descanso, nombres y referencias se cuentan por canal. `check_owner` corta si la
+  config o el token de YouTube son de otro canal.
+- Cambios aditivos (sin el parámetro nuevo todo se llama igual que antes): `run_weekly(paths=, label=)`,
+  `CloudStore(state_path=)`, `--automation` / `KIT_AUTOMATION` en `run_kit_weekly.py`, `kit_week.open_week(kits_path=)`,
+  `kit_settings.load_all` / `save_kits` / `save_config(paths=)`.
+- Telegram: un solo chat; cada resumen y cada alerta empieza con `[nombre del canal]` (también en el canal por defecto
+  cuando corre desde `main()`).
+- Workflow: cron diario, job `plan` sin secretos (`scripts/kit_plan.py` lee la variable `KIT_CHANNELS`, `slug[=dia]`,
+  por defecto un canal por día desde el domingo) y job `weekly` en matriz con Environment y `concurrency`
+  `kit-weekly<-slug>`. `workflow_dispatch` con `channel` y `dry_run`. Sin `KIT_CHANNELS` corre solo el canal por
+  defecto los domingos, con el Environment `kit-weekly` de siempre.
+- Panel: selector de canal arriba (carga y guarda la config, los kits y el estado de ese canal) y "Crear
+  automatización…" (`core/kit_channel_setup.py`: config mínima e índice `channels.json`; no pisa una existente).
+  `main.py` no se tocó.
+- `scripts/kit_secrets_sync.py`: carga con `gh` los secretos de un Environment (compartidos desde archivos locales,
+  entorno o prompt; token de YouTube del canal), siempre por stdin, y crea el Environment limitado a `master` si falta.
+- Pendiente del usuario: probar el selector a mano en `run_app.bat`, y la primera corrida real de `kit_secrets_sync.py`
+  y del workflow con dos canales (acá solo se probó con dobles de `gh`, Dropbox y YouTube).
+- Smoke: `scripts/smoke_kit_multichannel.py` (sin red; la parte del panel necesita PyQt5).
+
 ## Loop kits — Revisión de seguridad ⏳ INFORME ENTREGADO, FALTA LA PRIMERA CORRIDA REAL
 - Revisión de solo lectura de todo lo agregado (workflow, worker, `core/kit_*`, panel).
 - Sin secretos, links de venta ni nombre de canal en los archivos a commitear; acciones fijadas por SHA (verificadas

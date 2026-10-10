@@ -1,7 +1,8 @@
 # Worker semanal de loop kits
 
 `scripts/run_kit_weekly.py` corre en GitHub Actions (`.github/workflows/kit-weekly.yml`): domingo 23:00 UTC
-(20:00 en Buenos Aires) o a mano con `workflow_dispatch` (input `dry_run`). Nunca se dispara con `pull_request`.
+(20:00 en Buenos Aires) o a mano con `workflow_dispatch` (inputs `channel` y `dry_run`). Nunca se dispara con
+`pull_request`. Con más de un canal, cada uno corre su día: ver "Varios canales" más abajo.
 
 Cada corrida toma el lock de `state.json` (Dropbox), calcula los próximos 3 slots lun/mié/vie 18:00 en
 `America/Argentina/Buenos_Aires` y, por slot, corre `run_preview` con un kit distinto. Sube en **privado** con la fecha
@@ -38,6 +39,50 @@ aunque exista `config/app_config.json` (así corre el "Probar dry-run" del panel
   los secretos del entorno al arrancar, así ffmpeg no los hereda. Smoke: `scripts/smoke_kit_hardening.py`.
 
 Smoke: `py -3 scripts/smoke_kit_weekly.py`.
+
+## Varios canales
+
+Cada canal de loop kits tiene su automatización: config, catálogo, estado y lock propios en Dropbox, y su
+Environment en GitHub. Un kit puede estar en el catálogo de varios canales; su ciclo, descanso, nombres y
+referencias se cuentan por canal. `core/kit_channel.py` deriva todo del slug del canal (minúsculas, sin tildes,
+`a-z0-9` y guiones), así una corrida solo conoce las rutas de su canal:
+
+| | Canal por defecto (el primero) | Otro canal |
+|---|---|---|
+| Config | `/loop_kits/_automation/config.json` (`KIT_CONFIG_PATH`) | `…/_automation/<slug>/config.json` |
+| Catálogo | `/loop_kits/_automation/kits.json` (`KIT_CATALOG_PATH`) | `…/_automation/<slug>/kits.json` |
+| Estado | `/loop_kits_state/state.json` (`KIT_STATE_PATH`) | `…/loop_kits_state/<slug>/state.json` |
+| Environment | `kit-weekly` | `kit-weekly-<slug>` |
+
+El canal por defecto no cambia nada de lo que ya tenía. Para sumar un canal:
+
+1. En la app, *Loop kits > Configuración de automatización > Crear automatización…* y elegir el canal. Guarda en
+   Dropbox su config mínima (carpeta de kits y géneros del canal por defecto, horarios de fábrica y las plantillas
+   del canal) y lo deja elegido en el selector de arriba. Marca de la portada, `names`, `art` y demás opcionales no
+   se copian: se agregan a mano en la config de ese canal. Después se cargan sus kits y se guarda.
+2. `py -3 scripts/kit_secrets_sync.py --env kit-weekly-<slug> --channel "<canal>"`: crea el Environment (limitado
+   a `master`) si no existe y carga los secretos, con los mismos nombres que en el canal por defecto. Los compartidos
+   salen de `tokens/kit_secrets.json` (`{"KIT_LLM_API_KEY": "…", …}`, fuera de git), de `tokens/dropbox_worker.json`,
+   del entorno o de un prompt sin eco (Enter no toca ese secreto); el token de YouTube, de `tokens/<canal>.json`.
+   Los valores viajan a `gh` por stdin. Un Environment que ya existe no se modifica: solo se cargan secretos.
+3. Sumar el canal a la variable del repo `KIT_CHANNELS` (es una variable, no un secreto):
+   `gh variable set KIT_CHANNELS --body "default,<slug>"`.
+
+`KIT_CHANNELS` es una lista `slug[=dia]` separada por comas. Sin día, un canal por día en el orden de la lista
+empezando por el domingo (`default,a,b` = domingo, lunes, martes). El día se fija con `0`-`6` (lunes = 0) o
+`lun`..`dom`: `default,a=jue`. Sin la variable corre solo el canal por defecto, los domingos, como siempre.
+El workflow se dispara todos los días a las 23:00 UTC; el job `plan` (sin secretos ni Environment) arma la lista de
+canales del día y el job `weekly` corre uno por canal, cada uno con su Environment y su `concurrency`. En
+`workflow_dispatch` se elige el canal por su slug (`default` para el primero) y `dry_run`.
+
+- El worker corta si la config o el token de YouTube del Environment no son del canal que le tocó
+  (`kit_channel.check_owner`).
+- Telegram usa un solo chat: cada resumen y cada alerta empieza con `[nombre del canal]`.
+- El slug del canal se ve en el nombre del Environment y del job, que son públicos. El nombre real del canal no
+  aparece en el log.
+- En la PC: `py -3 scripts/run_kit_weekly.py --dry-run --cloud-config --automation <slug>`.
+
+Smoke: `py -3 scripts/smoke_kit_multichannel.py`.
 
 ## Environment de GitHub (hay que configurarlo una vez)
 
