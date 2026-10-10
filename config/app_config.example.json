@@ -49,5 +49,10 @@
         "Principal"
       ]
     }
+  },
+  "kit_preview": {
+    "dropbox_root": "/loop_kits",
+    "local_images_root": "images/loop_kits",
+    "prefer_named_preview": true
   }
 }
