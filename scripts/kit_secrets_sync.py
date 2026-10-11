@@ -35,6 +35,8 @@ SHARED = (
     ('KIT_IMAGE_API_KEY', 'Clave de OpenAI para las portadas'),
     ('KIT_TELEGRAM_TOKEN', 'Token del bot de Telegram'),
     ('KIT_TELEGRAM_CHAT_ID', 'Chat id de Telegram'),
+    ('KIT_NOTION_TOKEN', 'Clave de Notion (solo lectura) del informe de tendencias'),
+    ('KIT_NOTION_PAGE_ID', 'Id de la página de Notion del informe de tendencias'),
 )
 _DROPBOX_FIELDS = {'KIT_DROPBOX_REFRESH_TOKEN': 'refresh_token', 'KIT_DROPBOX_APP_KEY': 'app_key'}
 

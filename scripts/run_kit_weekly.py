@@ -27,7 +27,7 @@ if SCRIPTS not in sys.path:
     sys.path.insert(0, SCRIPTS)
 
 from core import (kit_art, kit_channel, kit_cloud, kit_notify, kit_settings, kit_spend,
-                  kit_state)
+                  kit_state, kit_trends)
 from core.kit_publish import DEFAULT_SLOTS, next_slot
 from core.publish_at import local_to_youtube_publish_at
 
@@ -192,6 +192,18 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
                 **({'kits_path': paths.kits} if own else {}))
             queue = list(week['queue'])
             warnings += week['warnings']
+            if not dry_run and queue and any(iso not in taken for iso in proposed):
+                # Ficha de SEO de la semana según el informe de tendencias (Notion), solo para
+                # los géneros de los kits de hoy. Nunca levanta: sin informe o sin secretos se
+                # sigue con la última buena o con la del panel.
+                genres = {str((week['entries'].get(sel['pack']['dropbox_path']) or {})
+                              .get('genre') or '') for sel in queue}
+                config_path = (paths or kit_channel.default_paths()).config
+                kit_cfg, trend_warnings = kit_trends.apply(
+                    kit_cfg, dbx=dbx, path=kit_trends.saved_path(config_path), budget=budget,
+                    llm_call=hooks.get('trends_llm'), fetch=hooks.get('trends_fetch'),
+                    only=genres)
+                warnings += trend_warnings
         except (Exception, SystemExit) as exc:
             failure = (exc, 'kits')
             slots = []

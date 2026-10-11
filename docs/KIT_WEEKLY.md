@@ -38,7 +38,8 @@ aunque exista `config/app_config.json` (así corre el "Probar dry-run" del panel
 - Sin `config/app_config.json` (está ignorado por git) la config se lee de Dropbox (`KIT_CONFIG_PATH`, por defecto
   `/loop_kits/_automation/config.json`).
 - Secretos (solo como `env` del paso del worker): `KIT_YT_CHANNEL`, `KIT_YT_TOKEN_JSON`,
-  `KIT_DROPBOX_REFRESH_TOKEN`, `KIT_DROPBOX_APP_KEY`, `KIT_TELEGRAM_TOKEN`, `KIT_TELEGRAM_CHAT_ID`. El
+  `KIT_DROPBOX_REFRESH_TOKEN`, `KIT_DROPBOX_APP_KEY`, `KIT_TELEGRAM_TOKEN`, `KIT_TELEGRAM_CHAT_ID` y, para
+  el informe de tendencias (opcional), `KIT_NOTION_TOKEN` y `KIT_NOTION_PAGE_ID`. El
   `client_secret.json` no hace falta en el runner (solo sirve para conectar un canal): si ya cargaste
   `KIT_YT_CLIENT_SECRET_JSON`, borralo.
 - El log es público: solo se imprime el paso y el tipo de error, nunca nombres de kits ni mensajes de las librerías.
@@ -214,6 +215,45 @@ videos de ese género lo arma `core/kit_seo.py`, sin modelo de lenguaje, con el 
 - Una ficha mal formada no corta la corrida: ese género usa la plantilla del canal y llega un aviso.
 
 Smoke: `py -3 scripts/smoke_kit_seo.py`.
+
+### Tendencias semanales (opcional)
+
+Antes de armar los videos el worker puede ajustar la ficha de cada género con un **informe de
+tendencias** que una tarea programada de Claude (con vidIQ) deja cada semana en una página de Notion.
+Sin los dos secretos de Notion la función no hace nada.
+
+1. La tarea programada corre antes del worker (por ejemplo, el domingo 20:00 UTC; el worker corre a las
+   23:00 UTC) y deja la página con **un bloque de código `json`** (el worker toma el último):
+
+   ```json
+   {"version": 1, "generated_at": "2026-10-11T20:00:00Z",
+    "channel": {"top_videos": [{"title": "…", "views": 123}]},
+    "genres": {"<genero>": {"keywords": [
+      {"keyword": "emotional guitar loop kit", "monthly_searches": 11700, "competition": 12.3, "growth_pct": 4.0}]}}}
+   ```
+
+2. El worker lee la página con `KIT_NOTION_TOKEN` (clave de una integración de Notion **solo con permiso de
+   lectura**, compartida únicamente con esa página) y `KIT_NOTION_PAGE_ID` (el id o la URL de la página). Solo
+   habla con `api.notion.com`, sin seguir redirecciones. El informe se descarta si no es JSON válido, si su
+   `version` no es 1 o si tiene más de `trends.max_age_days` días (10 de fábrica).
+3. Una llamada al modelo de texto por género (`kit_preview.names`, clave `KIT_LLM_API_KEY`; cuenta como
+   `spend.text_cost_usd` dentro del tope) **elige entre opciones que ya existen**: una de las frases del
+   informe que cabe en el título y no repite a un artista, y los subconjuntos de etiquetas y artistas de
+   tu ficha (al menos 4 y 2, para que la rotación siga). Lo que invente se descarta, y el resultado se vuelve
+   a validar con `kit_seo`. Sin modelo, sin tope de gasto o con una respuesta inválida se usa la frase con
+   mejor puntaje de búsquedas y llega un aviso.
+4. La ficha de la semana de cada género queda guardada en `seo_trends.json`, junto a la config del canal,
+   con su fecha y una huella de la ficha del panel de la que salió. Si la semana siguiente falta el informe
+   (la tarea no corrió, Notion no responde, es viejo) se usa esa última ficha buena **siempre que no hayas
+   cambiado la ficha del panel** y no tenga más de `trends.max_saved_age_days` días (35, contados por
+   género); si no, manda la del panel. En todos esos casos llega un aviso por Telegram. **El panel no se
+   modifica nunca**: lo que carga el informe vale una semana. El análisis corre solo si hay un horario libre
+   y kits para armar, y solo para los géneros de esos kits (una llamada de texto por género).
+5. Las ideas nuevas que sugiera el modelo (`suggestions`) se guardan en `seo_trends.json` solo para que
+   las leas; el worker no las usa.
+
+Config opcional en `kit_preview.trends`: `enabled` (true), `max_age_days` (10), `max_saved_age_days` (35),
+`timeout` (30). Smoke: `py -3 scripts/smoke_kit_trends.py`.
 
 ## Fondo de portada con IA (opcional)
 

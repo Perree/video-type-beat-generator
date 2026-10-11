@@ -394,6 +394,20 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
 - Smoke: `scripts/smoke_kit_seo.py` (nuevo, sin red); `smoke_kit_panel.py` suma los casos del panel. Los demás smokes
   de kits pasan sin cambios.
 
+## Loop kits — Tendencias semanales de SEO (vidIQ → Notion → worker) ✅ COMPLETADA (falta la prueba real)
+- `core/kit_notion.py` (nuevo): lectura de solo lectura de una página de Notion (`KIT_NOTION_TOKEN`, `KIT_NOTION_PAGE_ID`),
+  host fijo `api.notion.com`, sin seguir redirecciones, errores con un código fijo (sin URL, clave ni contenido).
+- `core/kit_trends.py` (nuevo): valida el informe semanal (versión, fecha, largos, rangos, antigüedad), la IA elige solo entre
+  opciones existentes (frase del informe que cabe en el título y no repite artista; etiquetas y artistas de la ficha) y el
+  resultado se vuelve a validar con `kit_seo`. Sin informe, usa la última ficha buena de esa misma ficha del panel (huella
+  y vencimiento por género) y, si no, la del panel. El panel nunca se modifica. Avisos por Telegram sin datos del informe.
+- `scripts/run_kit_weekly.py`: aplica la ficha de la semana solo si hay un horario libre y kits para armar, y solo para los
+  géneros de esos kits, dentro del bloque que libera el lock. Workflow, `kit_secrets_sync.py` y docs con los dos secretos.
+- Tarea programada de Claude (domingo 20:00 UTC, antes del worker de las 23:00 UTC) con vidIQ y Notion; se crea desactivada
+  y se activa tras una corrida manual de prueba. Smoke: `scripts/smoke_kit_trends.py` (nuevo, sin red).
+- Revisión de bugs y seguridad: hallazgos corregidos (la ficha guardada no pisa cambios del panel, vencimiento por género,
+  aviso sin IA, gasto acotado, enteros enormes, artistas cortos por palabra entera, bloques vacíos).
+
 ## Loop kits — Revisión de seguridad ⏳ INFORME ENTREGADO, FALTA LA PRIMERA CORRIDA REAL
 - Revisión de solo lectura de todo lo agregado (workflow, worker, `core/kit_*`, panel).
 - Sin secretos, links de venta ni nombre de canal en los archivos a commitear; acciones fijadas por SHA (verificadas

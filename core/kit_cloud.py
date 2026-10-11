@@ -26,7 +26,8 @@ ENV_DROPBOX_APP_KEY = 'KIT_DROPBOX_APP_KEY'
 ENV_VARS = (ENV_YT_CHANNEL, ENV_YT_TOKEN, ENV_DROPBOX_TOKEN, ENV_DROPBOX_APP_KEY)
 # Secretos que se leen recién al usarlos (LLM, API de imágenes, Telegram).
 RUNTIME_SECRETS = ('KIT_LLM_API_KEY', 'KIT_IMAGE_API_KEY',
-                   'KIT_TELEGRAM_TOKEN', 'KIT_TELEGRAM_CHAT_ID')
+                   'KIT_TELEGRAM_TOKEN', 'KIT_TELEGRAM_CHAT_ID',
+                   'KIT_NOTION_TOKEN', 'KIT_NOTION_PAGE_ID')
 # Token de una app de Dropbox aparte para loop kits (tipo "App folder"), fuera de git.
 # Si existe, panel y worker local lo usan en lugar del token general de la app.
 WORKER_TOKEN_FILE = os.path.join(

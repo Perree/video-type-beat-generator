@@ -91,6 +91,9 @@ jobs:
           KIT_IMAGE_API_KEY: ${{ secrets.KIT_IMAGE_API_KEY }}
           KIT_TELEGRAM_TOKEN: ${{ secrets.KIT_TELEGRAM_TOKEN }}
           KIT_TELEGRAM_CHAT_ID: ${{ secrets.KIT_TELEGRAM_CHAT_ID }}
+          # Informe semanal de tendencias (opcional): clave de lectura de Notion y su página.
+          KIT_NOTION_TOKEN: ${{ secrets.KIT_NOTION_TOKEN }}
+          KIT_NOTION_PAGE_ID: ${{ secrets.KIT_NOTION_PAGE_ID }}
           # Hosts extra para el LLM o la API de imágenes (variable del repo, no secreto).
           KIT_API_HOSTS: ${{ vars.KIT_API_HOSTS }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
