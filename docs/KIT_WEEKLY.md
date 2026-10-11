@@ -190,3 +190,53 @@ hasta ahora.
   metadatos y con nombre genérico.
 - Un solo pedido por video, sin reintentos. Si la API rechaza la referencia o falla, ese video sale
   con la imagen manual del pack, llega un aviso por Telegram y la corrida sigue.
+
+## Portada por plantilla + fondo (opcional)
+
+Con `"cover_mode": "template"` la API de imágenes devuelve la portada cuadrada **completa**
+(`core/kit_template_art.py`): recibe la portada modelo del género, un fondo y el título del video. El
+compositor de `core/kit_cover.py` no interviene; solo se arma el cuadro 16:9 con `to_video_frame`.
+`manual` y `auto` siguen como estaban.
+
+En Dropbox, dentro de la carpeta de referencias de cada género (`<refs_root>/<genero>`):
+
+- `modelo.png`: la portada modelo (también sirve `.jpg`, `.jfif` o `.webp`).
+- `fondos/`: los fondos. Uno no se repite dentro de `ref_cooldown_days` (30); si no queda ninguno libre
+  se repite el más antiguo, con un warning. El fondo usado queda en el estado (`ref_images`).
+
+```json
+"cover_mode": "template",
+"art": {"refs_root": "/…/_referencias", "prompt": "… {titulo} …"},
+"spend": {"monthly_cap_usd": 10, "max_images_per_run": 6, "image_cost_usd": 0.25, "verify_cost_usd": 0.01}
+```
+
+- Opcionales en `art`: `model` (`gpt-image-1`), `size` (`1024x1024`), `quality` (`high`),
+  `input_fidelity` (`high`), `n` (1), `timeout`, `model_name` (`modelo`), `backgrounds_dir` (`fondos`) y
+  `verify` (`{"enabled": true, "model": "gpt-4o-mini", "base_url": "…"}`).
+- **Prompt:** `art.prompt` con el marcador `{titulo}`, que se reemplaza por el título tal cual llega. Sin
+  prompt en la config se usa el de fábrica (`DEFAULT_PROMPT`). Se edita en el panel, que tiene un botón
+  para restaurarlo.
+- Las dos imágenes se envían como PNG achicado, sin metadatos y con nombre genérico. El nombre del kit no
+  entra al prompt; el título del video sí (es lo que hay que escribir).
+- **Verificación:** un modelo con visión lee el título de la portada y lo compara sin distinguir
+  mayúsculas ni espacios. Si no coincide hay **un solo** reintento; si vuelve a fallar se usa esa imagen y
+  llega un aviso por Telegram con la portada para revisarla. Usa la clave de imágenes si va al mismo host
+  que la API de imágenes; si `verify.base_url` apunta a otro host (permitido), usa `KIT_LLM_API_KEY`.
+- **Errores:** si la API rechaza o falla (moderación, 4xx, 5xx, timeout) no hay reintento: ese video sale
+  con la imagen manual del kit (o se saltea si el kit no tiene imágenes) y llega un aviso.
+- **Tope de gasto** (`core/kit_spend.py`): antes de cada llamada paga se consulta el gasto estimado del
+  mes, guardado en el estado del canal (`spend`), y después se anota. Al llegar a `monthly_cap_usd` o a
+  `max_images_per_run` no se genera más: los videos que faltan pasan a manual y llega un aviso (uno por
+  corrida). Un fallo dudoso (timeout, 5xx) se cuenta como cobrado; un 4xx no. Si el gasto no se puede
+  leer o guardar, tampoco se genera. Con `n` mayor que 1 se cobran `n` imágenes y se usa solo la primera.
+- El gasto es una **estimación** con los costos de la config, no la factura: `image_cost_usd` hay que
+  ajustarlo a la tarifa vigente. La otra capa del tope es el crédito prepago con la recarga automática
+  apagada. En corridas locales con `run_kit_preview.py` (sin estado en la nube) solo cuenta el máximo por
+  corrida.
+- El panel muestra el gasto estimado del mes en "Ver último estado".
+
+### Descripción por kit
+
+Cada entrada de `kits.json` admite un `description` opcional (1 o 2 líneas, hasta 200 caracteres; columna
+"Descripción" del panel). Se manda al modelo de lenguaje como contexto para que el nombre del video se
+relacione con el kit. No se imprime ni va a los avisos.

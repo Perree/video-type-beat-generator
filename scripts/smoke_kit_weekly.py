@@ -58,9 +58,14 @@ def _packs(*_a, **_k):
 
 def _fake_download(paths, dest_dir, dbx=None):
     out = []
+    os.makedirs(dest_dir, exist_ok=True)
     for p in paths:
         local = os.path.join(dest_dir, os.path.basename(p))
-        open(local, 'wb').close()
+        if p.startswith('/refs/'):  # portada modelo y fondos del modo template
+            from PIL import Image
+            Image.new('RGB', (64, 64), (30, 60, 90)).save(local, 'PNG')
+        else:
+            open(local, 'wb').close()
         out.append(local)
     return out
 
@@ -105,13 +110,13 @@ def _config(out_dir):
                             'pack_cooldown_days': 30}}
 
 
-def _run(dbx, tg, out_dir, dry_run=False, now=NOW):
+def _run(dbx, tg, out_dir, dry_run=False, now=NOW, config=None, extra_hooks=None):
     hooks = {'list_packs_fn': _packs, 'render_fn': _fake_render, 'cut_fn': _fake_cut,
-             'end_fn': lambda path, **_k: 28.0}
+             'end_fn': lambda path, **_k: 28.0, **(extra_hooks or {})}
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         code = run_kit_weekly.run_weekly(
-            app_config=_config(out_dir), channel='canal-smoke', channel_templates={},
+            app_config=config or _config(out_dir), channel='canal-smoke', channel_templates={},
             dbx=dbx, dry_run=dry_run, now=now, seed=1, notifier=tg, hooks=hooks,
             output_dir=out_dir)
     return code, buf.getvalue()
@@ -146,6 +151,57 @@ def _check_notify():
         return "send sin credenciales no levantó error"
     except kit_notify.KitNotifyError:
         pass
+    return None
+
+
+def _check_template(out_dir):
+    """Portada por plantilla: el máximo por corrida corta, pasa a manual y el gasto queda guardado."""
+    from PIL import Image
+    from core import kit_spend, kit_template_art
+    calls = []
+
+    def art_client(prompt, image_paths, cfg):
+        calls.append(prompt)
+        buf = io.BytesIO()
+        Image.new('RGB', (64, 64), (200, 40, 40)).save(buf, 'PNG')
+        return buf.getvalue()
+
+    def list_folder(folder, dbx=None):
+        if folder.endswith('/fondos'):
+            return [{'name': f'f{i}.jfif', 'path': f'{folder}/f{i}.jfif', 'is_folder': False}
+                    for i in range(5)]
+        return [{'name': 'modelo.png', 'path': folder + '/modelo.png', 'is_folder': False}]
+
+    config = _config(out_dir)
+    config['kit_preview'].update({
+        'cover_mode': 'template', 'names': {'genre': 'genero smoke', 'enabled': False},
+        'art': {'refs_root': '/refs', 'verify': {'enabled': False}},
+        'spend': {'max_images_per_run': 2, 'image_cost_usd': 0.25}})
+    real = kit_template_art.list_folder
+    kit_template_art.list_folder = list_folder
+    try:
+        _reset()
+        dbx, tg = FakeDropbox(), FakeTelegram()
+        code, log = _run(dbx, tg, out_dir, config=config, extra_hooks={'art_client': art_client,
+                                                                      'art_notify': tg.send})
+    finally:
+        kit_template_art.list_folder = real
+    state = kit_state.load(dbx=dbx)
+    if code != 0 or Counters.uploads != 3:
+        return f"template: code={code} subidas={Counters.uploads}"
+    if len(calls) != 2:
+        return f"template: el máximo por corrida no cortó ({len(calls)} pedidos)"
+    month = kit_spend.month_entry(state, kit_spend.month_key(NOW))
+    if month != {'usd': 0.5, 'images': 2, 'verifications': 0}:
+        return f"template: gasto del mes mal guardado: {month}"
+    refs = [r.get('ref_images') for r in state['runs']]
+    if sum(1 for r in refs if r) != 2 or len({r[0] for r in refs if r}) != 2:
+        return f"template: los fondos usados no quedaron en el estado: {refs}"
+    caps = [t for t in tg.sent if 'máximo de imágenes' in t]
+    if len(caps) != 1 or len(tg.sent) != 2:
+        return f"template: debía haber un aviso del tope y el resumen: {tg.sent}"
+    if any(name in t for t in caps + [log] for name in PACK_NAMES):
+        return "template: un aviso o el log nombra un kit"
     return None
 
 
@@ -250,6 +306,10 @@ def main():
             return _fail("con lock ajeno el worker corrió o lo liberó")
         if not tg5.sent or 'lock' not in tg5.sent[0]:
             return _fail("con lock ajeno no hubo alerta")
+
+        err = _check_template(out_dir)
+        if err:
+            return _fail(err)
 
         # 6) Nada de secretos/tokens en el estado guardado.
         blob = json.dumps(kit_state.load(dbx=dbx))

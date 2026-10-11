@@ -85,8 +85,8 @@ def open_week(app_config, state, history, now, rng, *, dbx=None, exclude=(), lis
     packs = (list_packs_fn or kit_source.list_packs)(
         root, local_images_root=kit_cfg.get('local_images_root'), dbx=dbx,
         scan=kit_source.scan_settings(kit_cfg))
-    # Con portada automática el fondo se genera: el kit no necesita imágenes propias.
-    require_images = kit_art.mode(kit_cfg) != kit_art.MODE_AUTO
+    # Con portada generada (auto o plantilla) el kit no necesita imágenes propias.
+    require_images = not kit_art.generates(kit_cfg)
     pool, entries, warnings = candidates(
         packs, load_catalog(app_config, dbx=dbx, path=kits_path), require_images)
     picked = kit_cycle.pick_week(
@@ -102,7 +102,7 @@ def _image_local(image, dest_dir, dbx):
 
 
 def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_cfg, slot, now,
-               state, store, rng, output_dir, dbx=None, tz=None, hooks=None):
+               state, store, rng, output_dir, dbx=None, tz=None, hooks=None, budget=None):
     """Arma, sube y registra el video de un kit para ``slot``.
 
     Args:
@@ -113,7 +113,8 @@ def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_c
         now: momento de la corrida (naive, hora local); desde ahí se cuenta el ciclo.
         state: estado leído al empezar la corrida (ciclo y tramos usados del kit).
         hooks: reemplazos para pruebas: ``end_fn``, ``cut_fn``, ``render_fn``,
-            ``cover_fn``, ``llm_call``, ``art_client``, ``art_notify``.
+            ``cover_fn``, ``llm_call``, ``art_client``, ``art_notify``, ``art_verify``.
+        budget: ``kit_spend.Budget`` de la corrida (tope de gasto de las portadas con IA).
 
     Returns:
         dict ``{youtube_id, title, pack_path, warnings}``.
@@ -154,7 +155,8 @@ def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_c
             if names_cfg and genre:
                 names_cfg = {**names_cfg, 'genre': genre}
             video_name, used_names = kit_names.for_pack(
-                base_name, path, names_cfg, store, llm_call=hooks.get('llm_call'))
+                base_name, path, names_cfg, store, llm_call=hooks.get('llm_call'),
+                description=(entry or {}).get('description'))
             if (names_cfg and names_cfg.get('enabled', True) is not False
                     and str(names_cfg.get('genre') or '').strip() and not video_name):
                 warnings.append("Un video salió sin nombre generado (falló el LLM).")
@@ -168,14 +170,20 @@ def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_c
             art_cfg = kit_cfg
             if genre:
                 art_cfg = {**kit_cfg, 'art': {**(kit_cfg.get('art') or {}), 'genre': genre}}
-            background, ref_images = kit_art.for_video(
-                art_cfg, pack['name'], image_local, store, rng, tmp, dbx=dbx,
-                client=hooks.get('art_client'), notify=hooks.get('art_notify'), now=now)
+            background, ref_images, complete = kit_art.for_cover(
+                art_cfg, pack['name'], display_name, image_local, store, rng, tmp, dbx=dbx,
+                client=hooks.get('art_client'), notify=hooks.get('art_notify'), now=now,
+                budget=budget, verify=hooks.get('art_verify'))
             if not background:
                 # Sin imagen propia y sin fondo generado no hay con qué armar la portada.
                 raise KitSkip('cover')
-            frame, thumbnail = (hooks.get('cover_fn') or kit_cover.for_video)(
-                kit_cfg.get('cover'), background, display_name, tmp)
+            if complete:
+                # Portada completa con IA: ya trae el título, solo falta el cuadro 16:9.
+                frame, thumbnail = kit_cover.frame_for_video(
+                    kit_cfg.get('cover'), background, tmp)
+            else:
+                frame, thumbnail = (hooks.get('cover_fn') or kit_cover.for_video)(
+                    kit_cfg.get('cover'), background, display_name, tmp)
             os.makedirs(output_dir, exist_ok=True)
             video = os.path.join(output_dir, f"kit_{slot.strftime('%Y%m%d_%H%M')}.mp4")
             (hooks.get('render_fn') or kit_render)(frame, wavs, video)

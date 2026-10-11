@@ -11,7 +11,7 @@ import os
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from core import kit_cloud
+from core import kit_cloud, kit_spend
 from core.kit_store import AUDIO_MODES, _RUN_FIELDS
 
 STATE_PATH = os.environ.get('KIT_STATE_PATH') or '/loop_kits_state/state.json'
@@ -239,3 +239,16 @@ def update_cycle(dropbox_path, db_path=None, dbx=None, **fields):
         pack['cycle'] = {**_empty_cycle(), **(pack.get('cycle') or {}), **fields}
         return dict(pack['cycle'])
     return _mutate(change, db_path, dbx)
+
+
+# --- Gasto estimado de portadas (por mes) ---
+
+def get_spend(month, db_path=None, dbx=None):
+    """Gasto estimado del mes ``YYYY-MM``: ``{usd, images, verifications}``."""
+    return kit_spend.month_entry(load(db_path, dbx), month)
+
+
+def add_spend(month, usd, db_path=None, dbx=None, images=0, verifications=0):
+    """Suma un gasto estimado al mes y devuelve la entrada resultante."""
+    return _mutate(lambda state: kit_spend.record(state, month, usd, images, verifications),
+                   db_path, dbx)

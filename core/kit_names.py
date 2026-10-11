@@ -15,6 +15,7 @@ from core import kit_cloud, kit_llm
 
 MAX_WORDS = 2
 MAX_LEN = 24
+MAX_DESCRIPTION = 200
 _EXTRA = 3  # se piden algunos de más para compensar los que se descartan
 _PREFIX = re.compile(r'^\s*(?:[-*•]+|\d+\s*[.):-])\s*')
 _VALID = re.compile(r"^[^\W_]+(?:[ '-][^\W_]+)?$", re.UNICODE)
@@ -40,27 +41,36 @@ def _valid_shape(name):
             and bool(_VALID.match(name)))
 
 
-def _prompt(kit, genre, used, count):
+def clean_description(text):
+    """Descripción del kit en una línea y con tope de largo (vacía si no es texto)."""
+    return ' '.join(text.split())[:MAX_DESCRIPTION] if isinstance(text, str) else ''
+
+
+def _prompt(kit, genre, used, count, description=None):
     avoid = ', '.join(sorted({u for u in used if u}))
+    context = clean_description(description)
     return (
         f"Propone {count} nombres de 1 o 2 palabras para un video de loops del género "
         f"\"{genre}\". Deben sonar coherentes con ese género, ser fáciles de recordar y "
         f"distintos entre sí. No uses el nombre \"{kit}\" ni estos ya usados: "
-        f"{avoid or 'ninguno'}. Un nombre por línea.")
+        f"{avoid or 'ninguno'}. Un nombre por línea."
+        + (f" Contexto del kit, para que los nombres se relacionen con él: {context}"
+           if context else ''))
 
 
-def propose(kit, genre, used_names, n=5, llm_call=None, cfg=None, key=None):
+def propose(kit, genre, used_names, n=5, llm_call=None, cfg=None, key=None, description=None):
     """Hasta ``n`` nombres válidos, sin repetir los usados ni el del propio kit.
 
     Descarta vacíos, de más de 2 palabras, con símbolos y duplicados (sin distinguir
     mayúsculas ni tildes). Puede devolver menos de ``n`` si el LLM no alcanza.
+    ``description`` (1-2 líneas sobre el kit) va al LLM como contexto.
     """
     if n < 1:
         return []
     used = list(used_names or [])
     if llm_call is None:
         llm_call = partial(kit_llm.call, cfg=cfg, key=key)
-    raw = llm_call(_SYSTEM, _prompt(kit, genre, used, n + _EXTRA))
+    raw = llm_call(_SYSTEM, _prompt(kit, genre, used, n + _EXTRA, description))
     seen = {_norm(u) for u in used if u}
     seen.add(_norm(kit or ''))
     names = []
@@ -78,9 +88,10 @@ def propose(kit, genre, used_names, n=5, llm_call=None, cfg=None, key=None):
     return names
 
 
-def pick(kit, genre, used_names, llm_call=None, cfg=None, key=None):
+def pick(kit, genre, used_names, llm_call=None, cfg=None, key=None, description=None):
     """Modo automático: la primera opción válida, o None si no hay ninguna."""
-    options = propose(kit, genre, used_names, n=1, llm_call=llm_call, cfg=cfg, key=key)
+    options = propose(kit, genre, used_names, n=1, llm_call=llm_call, cfg=cfg, key=key,
+                      description=description)
     return options[0] if options else None
 
 
@@ -109,8 +120,10 @@ def track_link(url, content_id, source='youtube'):
 ENV_LLM_KEY = 'KIT_LLM_API_KEY'
 
 
-def for_pack(pack_name, pack_path, names_cfg, store, llm_call=None, key=None):
+def for_pack(pack_name, pack_path, names_cfg, store, llm_call=None, key=None, description=None):
     """Nombre del video para un kit, o ``(None, [])`` si no aplica o el LLM falla.
+
+    ``description`` es la descripción del kit en el catálogo: contexto para el LLM.
 
     ``names_cfg`` es ``kit_preview.names`` (``genre`` obligatorio, más ``base_url``, ``model`` y
     ``key_file``); la clave sale de ``key``, de ``KIT_LLM_API_KEY`` o de ``key_file``. Los usados del
@@ -129,7 +142,7 @@ def for_pack(pack_name, pack_path, names_cfg, store, llm_call=None, key=None):
         others = getattr(store, 'used_video_names', None)
         name = pick(pack_name, genre, used + list(others() if others else []),
                     llm_call=llm_call, cfg=names_cfg,
-                    key=key or kit_cloud.secret(ENV_LLM_KEY) or None)
+                    key=key or kit_cloud.secret(ENV_LLM_KEY) or None, description=description)
     except Exception as exc:
         print(f"Nombre de video no generado ({type(exc).__name__}); se usa el del pack.")
         return None, used

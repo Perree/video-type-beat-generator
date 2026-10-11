@@ -141,7 +141,7 @@ def run_preview(
             cooldown_days=int(kit_cfg.get('pack_cooldown_days', 30)),
             loops_min=int(kit_cfg.get('loops_min', 6)),
             loops_max=int(kit_cfg.get('loops_max', 8)),
-            require_image=kit_art.mode(kit_cfg) != kit_art.MODE_AUTO,
+            require_image=not kit_art.generates(kit_cfg),
         )
     except KitSelectError as exc:
         raise SystemExit(str(exc)) from exc
@@ -209,13 +209,19 @@ def run_preview(
             wavs.append(dest)
 
         # cover_mode auto: fondo con IA; si falla vuelve a la imagen manual y la corrida sigue.
-        background_local, ref_images = kit_art.for_video(
-            kit_cfg, pack['name'], image_local, store, rng, tmp, dbx=dbx,
+        # cover_mode template: la portada llega completa y solo se arma el cuadro 16:9. Con el
+        # estado local (kit_store) el tope de gasto cuenta solo lo de esta corrida.
+        background_local, ref_images, complete = kit_art.for_cover(
+            kit_cfg, pack['name'], display_name, image_local, store, rng, tmp, dbx=dbx,
             client=art_client, notify=art_notify)
         if not background_local:
             raise SystemExit("El kit no tiene imágenes y no se pudo generar el fondo.")
-        frame_local, thumbnail = (cover_fn or kit_cover.for_video)(
-            kit_cfg.get('cover'), background_local, display_name, tmp)
+        if complete:
+            frame_local, thumbnail = kit_cover.frame_for_video(
+                kit_cfg.get('cover'), background_local, tmp)
+        else:
+            frame_local, thumbnail = (cover_fn or kit_cover.for_video)(
+                kit_cfg.get('cover'), background_local, display_name, tmp)
         render_impl(frame_local, wavs, video_out)
         loops_meta = [{'name': a['name'], 'path': a['path']} for a in audio_files]
         pub = publish_impl(

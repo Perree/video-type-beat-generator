@@ -1,7 +1,11 @@
 ﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Smoke: la portada se conecta a run_preview (render y miniatura) solo si hay kit_preview.cover."""
+"""Smoke: la portada se conecta a run_preview (render y miniatura) solo si hay kit_preview.cover.
 
+Con ``cover_mode: template`` la portada completa con IA va directo al cuadro 16:9, sin compositor.
+"""
+
+import io
 import os
 import sys
 import tempfile
@@ -14,7 +18,7 @@ for p in (ROOT, os.path.join(ROOT, 'scripts')):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from core import kit_source
+from core import kit_source, kit_template_art
 from run_kit_preview import run_preview
 
 NOW = datetime(2026, 10, 5, 10, 0)
@@ -28,11 +32,36 @@ def check(cond, msg):
 
 def _fake_download(paths, dest_dir, dbx=None):
     out = []
+    os.makedirs(dest_dir, exist_ok=True)
     for i, p in enumerate(paths):
-        dest = os.path.join(dest_dir, f"dl_{i}.wav")
-        open(dest, 'wb').close()
+        if p.lower().endswith(('.png', '.jfif')):  # modelo y fondo del modo template
+            dest = os.path.join(dest_dir, f"dl_{i}.img")
+            Image.new('RGB', (300, 300), (20, 40, 60)).save(dest, 'PNG')
+        else:
+            dest = os.path.join(dest_dir, f"dl_{i}.wav")
+            open(dest, 'wb').close()
         out.append(dest)
     return out
+
+
+def _fake_list_folder(folder, dbx=None):
+    if folder.endswith('/fondos'):
+        return [{'name': 'f1.jfif', 'path': folder + '/f1.jfif', 'is_folder': False}]
+    return [{'name': 'modelo.png', 'path': folder + '/modelo.png', 'is_folder': False}]
+
+
+def _art_client(fail=False):
+    calls = []
+
+    def client(prompt, image_paths, cfg):
+        calls.append(prompt)
+        if fail:
+            raise OSError('api caída')
+        buf = io.BytesIO()
+        Image.new('RGB', (512, 512), (200, 30, 30)).save(buf, 'PNG')
+        return buf.getvalue()
+    client.calls = calls
+    return client
 
 
 def _fake_trim(src, dest, **_k):
@@ -40,7 +69,7 @@ def _fake_trim(src, dest, **_k):
     return dest
 
 
-def _run(tmp, cover_cfg, seed=1):
+def _run(tmp, cover_cfg, seed=1, extra=None, **run_kw):
     bg = os.path.join(tmp, 'bg.png')
     Image.new('RGB', (900, 600), (120, 90, 60)).save(bg)
     pack = [{
@@ -51,6 +80,7 @@ def _run(tmp, cover_cfg, seed=1):
     kit_cfg = {'dropbox_root': '/loop_kits'}
     if cover_cfg is not None:
         kit_cfg['cover'] = cover_cfg
+    kit_cfg.update(extra or {})
     seen = {}
 
     def render(image, wavs, out):
@@ -61,6 +91,8 @@ def _run(tmp, cover_cfg, seed=1):
     def publish(channel, video, thumbnail, name, slots, templates, **kw):
         seen['thumb'] = thumbnail
         seen['thumb_size'] = Image.open(thumbnail).size if thumbnail else None
+        seen['thumb_center'] = (Image.open(thumbnail).convert('RGB').getpixel((960, 540))
+                                if thumbnail else None)
         seen['image_path'] = kw.get('image_path')
         return {'youtube_id': 'x', 'title': 't'}
 
@@ -70,13 +102,44 @@ def _run(tmp, cover_cfg, seed=1):
         db_path=os.path.join(tmp, 'k.db'),
         list_packs_fn=lambda *_a, **_k: pack, render_fn=render, publish_fn=publish,
         trim_fn=_fake_trim,
-        output_dir=os.path.join(tmp, 'out'))
+        output_dir=os.path.join(tmp, 'out'), **run_kw)
     return bg, seen, out
+
+
+def _compose_forbidden(*_a, **_k):
+    raise AssertionError('el compositor no debe correr con la portada completa')
+
+
+def _check_template():
+    """Modo template: portada completa -> cuadro 16:9; si la API falla, imagen manual."""
+    template = {'cover_mode': 'template',
+                'art': {'refs_root': '/refs', 'genre': 'g', 'verify': {'enabled': False}}}
+    sent = []
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        client = _art_client()
+        bg, seen, _ = _run(tmp, None, extra=template, art_client=client,
+                           art_notify=sent.append, cover_fn=_compose_forbidden)
+        check(len(client.calls) == 1 and 'PackPreview' in client.calls[0],
+              "template: el título no llegó al prompt en un único pedido")
+        check(seen['render'][1] == (1920, 1080) and seen['render'][0] != bg,
+              "template: el render no recibió el cuadro 16:9 de la portada generada")
+        check(seen['thumb'] and seen['thumb_size'] == (1920, 1080), "template: falta la miniatura")
+        check(seen['thumb_center'][0] > 150,
+              "template: el cuadro no muestra la portada generada")
+        check(not sent, "template: avisó sin motivo")
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        client = _art_client(fail=True)
+        bg, seen, _ = _run(tmp, None, extra=template, art_client=client, art_notify=sent.append)
+        check(len(client.calls) == 1 and seen['render'][0] == bg and seen['thumb'] is None,
+              "template con error: debía caer a la imagen manual sin reintentar")
+        check(len(sent) == 1 and 'PackPreview' not in sent[0], "template con error: aviso")
 
 
 def main():
     real = kit_source.download_pack_files
+    real_list = kit_template_art.list_folder
     kit_source.download_pack_files = _fake_download
+    kit_template_art.list_folder = _fake_list_folder
     try:
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             bg, seen, out = _run(tmp, {'template': {'brand': {'text': 'TEST BRAND'}}})
@@ -92,8 +155,10 @@ def main():
                 bg, seen, _ = _run(tmp, cfg)
                 check(seen['render'][0] == bg, f"{label}: el render debía recibir la imagen original")
                 check(seen['thumb'] is None, f"{label}: no debía haber miniatura")
+        _check_template()
     finally:
         kit_source.download_pack_files = real
+        kit_template_art.list_folder = real_list
 
     if FAILS:
         for f in FAILS:

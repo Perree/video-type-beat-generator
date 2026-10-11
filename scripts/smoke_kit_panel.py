@@ -243,6 +243,54 @@ def _check_panel(app):
     blob = (dbx.files[kit_settings.KITS_PATH][1] + dbx.files[kit_settings.CONFIG_PATH][1]).decode()
     check(TG_TOKEN not in blob and TG_CHAT not in blob, 'ningún secreto en los JSON guardados')
 
+    # Portada por plantilla: modo, prompt editable, topes y descripción por kit.
+    default = kit_settings.default_prompt()
+    headers = [panel.table.horizontalHeaderItem(c).text() for c in range(panel.table.columnCount())]
+    check(headers[4:] == ['Descripción', 'Activo'], f'columna Descripción en la tabla: {headers}')
+    check(panel.cover_mode.findData('template') == 2 and panel.cover_mode.findData('manual') == 0,
+          'el modo "Plantilla + fondo" se suma sin quitar el manual')
+    check(panel.art_prompt.toPlainText() == default and '{titulo}' in default,
+          'el editor arranca con el prompt por defecto')
+    check(panel.monthly_cap.value() == 10.0 and panel.max_images.value() == 6,
+          'topes por defecto: USD 10 por mes y 6 imágenes por corrida')
+    panel.cover_mode.setCurrentIndex(2)
+    panel.art_prompt.setPlainText('Prompt propio sin marcador')
+    panel.save()
+    check(panel._task is None and '{titulo}' in panel.status.text(),
+          'un prompt sin {titulo} no se guarda')
+    panel.art_prompt.setPlainText('Prompt propio con {titulo}')
+    panel.monthly_cap.setValue(7.5)
+    panel.max_images.setValue(4)
+    panel.set_kits([dict(_kit('f1'), description='  guitarras  tristes '), _kit('f2')])
+    check(panel.kit_rows()[1]['active'] is True and panel.kit_rows()[0]['description'],
+          'la tabla lee la descripción y el activo de sus columnas')
+    panel.save()
+    check(_wait(app, panel) and panel.status.text().startswith('Guardado'), 'guarda el modo plantilla')
+    kp = json.loads(dbx.files[kit_settings.CONFIG_PATH][1])['kit_preview']
+    check(kp['cover_mode'] == 'template' and kp['art']['prompt'] == 'Prompt propio con {titulo}'
+          and kp['spend'] == {'monthly_cap_usd': 7.5, 'max_images_per_run': 4}
+          and kp['art']['model'] == 'm', f"modo plantilla guardado en la config: {kp.get('spend')}")
+    saved_kits = json.loads(dbx.files[kit_settings.KITS_PATH][1])
+    check(saved_kits[0].get('description') == 'guitarras tristes'
+          and 'description' not in saved_kits[1], 'la descripción se guarda solo si existe')
+    panel.reload()
+    _wait(app, panel)
+    check(panel.cover_mode.currentData() == 'template' and panel.monthly_cap.value() == 7.5
+          and panel.max_images.value() == 4
+          and panel.art_prompt.toPlainText() == 'Prompt propio con {titulo}'
+          and panel._cell(0, 4) == 'guitarras tristes', 'el modo plantilla se vuelve a cargar')
+    panel.restore_prompt()
+    check(panel.art_prompt.toPlainText() == default, 'el botón restaura el prompt por defecto')
+    panel.save()
+    _wait(app, panel)
+    kp = json.loads(dbx.files[kit_settings.CONFIG_PATH][1])['kit_preview']
+    check('prompt' not in kp['art'], 'el prompt por defecto no se guarda en la config')
+    panel.set_kits([dict(_kit('f1'), description='x' * 201)])
+    panel.save()
+    check(panel._task is None and 'Kit 1' in panel.status.text(),
+          'una descripción de más de 200 caracteres no se guarda')
+    panel.cover_mode.setCurrentIndex(1)
+
     # Validación en la UI: no sube nada si algo está mal.
     uploads = dbx.uploads
     panel.set_kits([_kit('f1', url='http://example.com')])
@@ -281,6 +329,15 @@ def _check_panel(app):
     _wait(app, panel)
     out = panel.output.toPlainText()
     check('abc123' in out and 'Secret Name' not in out, 'el estado muestra la corrida sin nombres')
+    check('Gasto estimado' in out and 'USD 0.00' in out, 'el estado muestra el gasto estimado del mes')
+    from datetime import datetime
+    from core import kit_spend
+    kit_spend.record(state, kit_spend.month_key(datetime.now()), 1.26, images=5, verifications=1)
+    dbx.files[kit_state.STATE_PATH] = ('0000000000b2', json.dumps(state).encode())
+    panel.monthly_cap.setValue(7.5)
+    panel.show_last_state()
+    _wait(app, panel)
+    check('USD 1.26 de 7.50' in panel.output.toPlainText(), 'gasto del mes contra el tope del panel')
 
     check(TG_TOKEN not in _widget_texts(panel) and TG_CHAT not in _widget_texts(panel),
           'ningún secreto en la interfaz')

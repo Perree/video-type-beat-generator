@@ -394,7 +394,17 @@ def for_video(cfg, background, title, work_dir):
         return background, None
     cover = compose(background, title, os.path.join(work_dir, 'kit_cover.png'),
                     cfg.get('template'))
-    frame = to_video_frame(cover, os.path.join(work_dir, 'kit_frame.png'), cfg.get('frame'))
+    return frame_for_video(cfg, cover, work_dir)
+
+
+def frame_for_video(cfg, cover, work_dir):
+    """Cuadro 16:9 y miniatura a partir de una portada cuadrada ya terminada.
+
+    La usa la portada completa con IA (``cover_mode: template``), que no pasa por
+    ``compose``. De ``cfg`` (``kit_preview.cover``, puede faltar) solo se lee ``frame``.
+    """
+    frame = to_video_frame(cover, os.path.join(work_dir, 'kit_frame.png'),
+                           (cfg or {}).get('frame'))
     thumb = os.path.join(work_dir, 'kit_thumb.jpg')
     Image.open(frame).convert('RGB').save(thumb, quality=88)
     return frame, thumb

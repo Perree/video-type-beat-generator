@@ -25,7 +25,8 @@ SCRIPTS = os.path.join(ROOT, 'scripts')
 if SCRIPTS not in sys.path:
     sys.path.insert(0, SCRIPTS)
 
-from core import kit_art, kit_channel, kit_cloud, kit_notify, kit_settings, kit_state
+from core import (kit_art, kit_channel, kit_cloud, kit_notify, kit_settings, kit_spend,
+                  kit_state)
 from core.kit_publish import DEFAULT_SLOTS, next_slot
 from core.publish_at import local_to_youtube_publish_at
 
@@ -99,6 +100,13 @@ class CloudStore:
     def ref_usage(self):
         return kit_art.used_refs(self.load())
 
+    def spend_month(self, month):
+        return kit_state.get_spend(month, **self._kw)['usd']
+
+    def add_spend(self, month, usd, images=0, verifications=0):
+        return kit_state.add_spend(month, usd, **self._kw, images=images,
+                                   verifications=verifications)
+
     def used_video_names(self):
         return [run['video_name'] for run in self.load()['runs'] if run.get('video_name')]
 
@@ -153,6 +161,8 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
     slots = upcoming_slots(now_local, slots_cfg)
     proposed = [local_to_youtube_publish_at(True, slot, tz=tz) for slot in slots]
     store = CloudStore(dbx, now_local, paths.state if own else None)
+    # Tope de gasto de las portadas con IA: uno por corrida, contra el mes del canal.
+    budget = kit_spend.Budget(kit_spend.settings(kit_cfg), store, now_local)
     rng = random.Random(seed)
 
     owner = None
@@ -204,7 +214,7 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
                             selection, week['entries'].get(path), kit_cfg=kit_cfg,
                             channel=channel, channel_templates=channel_templates,
                             slots_cfg=slots_cfg, slot=slot, now=now_local, state=state,
-                            store=store, rng=rng, dbx=dbx, tz=tz, hooks=hooks,
+                            store=store, rng=rng, dbx=dbx, tz=tz, hooks=hooks, budget=budget,
                             output_dir=output_dir or tempfile.gettempdir())
                 except kit_week.KitSkip:
                     skipped += 1
@@ -235,6 +245,9 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
             except Exception as exc:
                 print(f"No se pudo liberar el lock ({type(exc).__name__}).")
 
+    if budget.broken:
+        warnings.append("No se pudo leer o guardar el gasto estimado de portadas: se dejó de "
+                        "generar con IA en esta corrida.")
     if skipped:
         warnings.append(f"{skipped} kit(s) no dieron un video (audio insuficiente o error al "
                         "prepararlo).")

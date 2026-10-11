@@ -30,6 +30,7 @@ from core import dropbox_client, kit_cloud, kit_llm, kit_notify, kit_source
 
 ENV_KEY = 'KIT_IMAGE_API_KEY'
 MODE_AUTO, MODE_MANUAL = 'auto', 'manual'
+MODE_TEMPLATE = 'template'  # portada completa a partir de un modelo y un fondo (kit_template_art)
 DEFAULTS = {
     'base_url': 'https://api.openai.com/v1',
     'model': 'gpt-image-1',
@@ -71,11 +72,18 @@ _FALLBACK_TEXT = ("Loop kits: no se pudo generar el fondo con IA ({}). "
 
 
 class KitArtError(Exception):
-    pass
+    # Un fallo que no deja claro si la API llegó a cobrar se cuenta como cobrado.
+    billable = True
 
 
 class KitArtRejected(KitArtError):
     """La API rechazó el pedido (referencia o prompt no aceptados)."""
+    billable = False
+
+
+class KitArtConfig(KitArtError):
+    """Falta algo de la config o la clave: el pedido no llegó a salir."""
+    billable = False
 
 
 # --- Referencias ---
@@ -212,7 +220,7 @@ def _read_key(cfg):
     try:
         return kit_llm.read_key(cfg)
     except kit_llm.KitLlmError:
-        raise KitArtError("No hay clave para la API de imágenes.") from None
+        raise KitArtConfig("No hay clave para la API de imágenes.") from None
 
 
 def _multipart(fields, images):
@@ -233,11 +241,21 @@ def _multipart(fields, images):
     return b''.join(parts), f'multipart/form-data; boundary={boundary}'
 
 
+def image_count(cfg):
+    """Imágenes que se piden por llamada (``n``; 1 si falta o no es válido)."""
+    try:
+        return max(1, int((cfg or {}).get('n') or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
 def api_client(prompt, image_paths, cfg=None, key=None):
     """Pide una edición a ``<base_url>/images/edits`` y devuelve los bytes de la imagen.
 
     ``cfg``: ``base_url`` (https, host permitido por ``kit_llm.check_base_url``), ``model``,
-    ``size``, opcionales ``quality``, ``timeout`` y ``key_file``. La clave sale de ``key``, de
+    ``size``, opcionales ``quality``, ``input_fidelity``, ``n``, ``timeout`` y ``key_file``.
+    Las imágenes van en el orden recibido y siempre se usa la primera respuesta.
+    La clave sale de ``key``, de
     ``KIT_IMAGE_API_KEY`` o, solo fuera de la nube, de ``key_file``.
     Un solo intento. HTTP 400 → KitArtRejected; cualquier otro fallo → KitArtError.
     """
@@ -246,10 +264,10 @@ def api_client(prompt, image_paths, cfg=None, key=None):
         # Mismo control que el LLM: la clave solo sale hacia un host permitido.
         base_url = kit_llm.check_base_url(cfg['base_url'], 'de la API de imágenes')
     except kit_llm.KitLlmError as e:
-        raise KitArtError(str(e)) from None
+        raise KitArtConfig(str(e)) from None
     key = key or _read_key(cfg)
-    fields = {'model': cfg['model'], 'prompt': prompt, 'n': 1}
-    for name in ('size', 'quality'):
+    fields = {'model': cfg['model'], 'prompt': prompt, 'n': image_count(cfg)}
+    for name in ('size', 'quality', 'input_fidelity'):
         if cfg.get(name):
             fields[name] = cfg[name]
     body, ctype = _multipart(fields, image_paths)
@@ -270,7 +288,9 @@ def api_client(prompt, image_paths, cfg=None, key=None):
         # Solo el código: el cuerpo y las cabeceras no van a ningún mensaje.
         if e.code == 400:
             raise KitArtRejected("La API de imágenes rechazó el pedido (HTTP 400).") from None
-        raise KitArtError(f"La API de imágenes falló (HTTP {e.code}).") from None
+        error = KitArtError(f"La API de imágenes falló (HTTP {e.code}).")
+        error.billable = not 400 <= e.code < 500   # un 4xx no llega a generar nada
+        raise error from None
     except Exception as e:
         raise KitArtError(f"La API de imágenes no respondió ({type(e).__name__}).") from None
 
@@ -337,9 +357,14 @@ def background(kit, genre, refs, used, rng, client=None, *, cfg=None, out_dir=No
 # --- Entrada del worker ---
 
 def mode(kit_cfg):
-    """``auto`` solo si ``kit_preview.cover_mode`` lo dice; cualquier otra cosa es manual."""
+    """``auto`` o ``template`` solo si ``kit_preview.cover_mode`` lo dice; si no, manual."""
     value = str((kit_cfg or {}).get('cover_mode') or '').strip().lower()
-    return MODE_AUTO if value == MODE_AUTO else MODE_MANUAL
+    return value if value in (MODE_AUTO, MODE_TEMPLATE) else MODE_MANUAL
+
+
+def generates(kit_cfg):
+    """True si la portada se genera con IA: el kit no necesita imágenes propias."""
+    return mode(kit_cfg) != MODE_MANUAL
 
 
 def _warn(notify, text):
@@ -381,3 +406,22 @@ def for_video(kit_cfg, kit, fallback_image, store, rng, work_dir, dbx=None, clie
     for warning in report.get('warnings') or []:
         print(f"warning: {warning}")
     return path, list(report.get('refs') or [])
+
+
+def for_cover(kit_cfg, kit, title, fallback_image, store, rng, work_dir, dbx=None, client=None,
+              notify=None, now=None, budget=None, verify=None):
+    """Imagen de portada del video: ``(ruta, referencias usadas, completa)``.
+
+    Con ``cover_mode: template`` la API devuelve la portada cuadrada ya terminada, con
+    ``title`` escrito (``completa`` es True: no pasa por el compositor). En ``auto`` y
+    ``manual`` es ``for_video``: un fondo al que el compositor le pone el título. Si la
+    plantilla falla, se rechaza o se llega al tope de gasto, ese video cae a manual.
+    """
+    if mode(kit_cfg) != MODE_TEMPLATE:
+        path, refs = for_video(kit_cfg, kit, fallback_image, store, rng, work_dir, dbx=dbx,
+                               client=client, notify=notify, now=now)
+        return path, refs, False
+    from core import kit_template_art
+    return kit_template_art.for_video(
+        kit_cfg, title, fallback_image, store, rng, work_dir, dbx=dbx, client=client,
+        notify=notify, now=now, budget=budget, verify=verify)

@@ -317,6 +317,40 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
   después un dry-run. Revisar a mano los kits que queden afuera por nombre de carpeta.
 - Smokes: `scripts/smoke_kit_scan.py` (estructura falsa igual a la real) y los `smoke_kit_*` existentes actualizados.
 
+## Loop kits — Portada por plantilla + fondo y tope de gasto ✅ COMPLETADA
+- `core/kit_template_art.py` (nuevo): `cover_mode: template`. La API de imágenes (`images/edits`, vía
+  `kit_art.api_client`) recibe la portada modelo del género y un fondo, en ese orden, más el prompt con el título, y
+  devuelve la portada cuadrada completa. En Dropbox: `<refs_root>/<genero>/modelo.png` y `.../fondos/` (se listan
+  también `.jfif`; todo se convierte a PNG achicado, sin metadatos y con nombre genérico). El fondo no se repite en 30
+  días (misma regla y mismo estado `ref_images` que el modo auto); sin fondos libres se relaja con warning.
+- Prompt en `kit_preview.art.prompt` con `{titulo}` (reemplazo literal, el título llega sin cambios); sin prompt se usa
+  `DEFAULT_PROMPT`, que no nombra personas ni kits. Parámetros configurables: `model`, `size`, `quality`,
+  `input_fidelity`, `n`.
+- Verificación: `vision_client` (chat/completions con imagen) lee el título y `titles_match` lo compara sin mayúsculas ni
+  espacios. Si no coincide, un único reintento; si vuelve a fallar se usa la imagen y Telegram avisa con la portada. Si
+  la verificación no responde, se usa la imagen sin reintentar.
+- Sin reintentos ante errores de la API: ese video cae a manual y avisa. `KitArtError.billable` marca qué fallos se
+  cuentan como cobrados (timeout y 5xx sí; 4xx, rechazo y errores de config no).
+- `core/kit_spend.py` (nuevo): gasto estimado por mes en el estado del canal (`state['spend'][YYYY-MM]`), `check` antes
+  y `record` después de cada llamada, `Budget` por corrida con `monthly_cap_usd` (10), `max_images_per_run` (6),
+  `image_cost_usd` (0.25, a verificar con la tarifa real) y `verify_cost_usd` (0.01) en `kit_preview.spend`. Al llegar a
+  un tope no genera más, pasa a manual y avisa una vez por corrida; si el gasto no se puede leer o guardar, tampoco
+  genera. `kit_state.get_spend` / `add_spend` y `CloudStore.spend_month` / `add_spend` (aditivos).
+- Conexión: `kit_art.for_cover` (despacha por modo; `for_video` del modo auto no cambia), `kit_cover.frame_for_video`
+  (cuadro 16:9 y miniatura de una portada ya terminada, sin `compose`), `kit_week.make_video(budget=)`,
+  `run_kit_weekly` crea el `Budget` de la corrida y `run_kit_preview` usa el mismo camino. Con `template`, igual que con
+  `auto`, un kit sin imágenes es elegible (`kit_art.generates`).
+- Descripción por kit: `description` opcional (hasta 200 caracteres) en `kit_catalog` y `kit_settings`; `kit_names` la
+  manda al LLM como contexto. Una entrada sin descripción queda igual que antes.
+- Panel: modo "Plantilla + fondo", editor del prompt con botón para restaurar el de fábrica (igual al de fábrica no se
+  guarda), tope mensual y máximo por corrida, columna "Descripción" y el gasto estimado del mes en "Ver último estado".
+  `main.py` no se tocó.
+- En corridas locales con `kit_store` no hay gasto guardado: solo cuenta el máximo por corrida.
+- Pendiente del usuario: crédito prepago con recarga automática apagada, subir `modelo.png` y `fondos/` de cada género,
+  ajustar `image_cost_usd` a la tarifa real y una corrida real de un solo video en modo `template`.
+- Smokes: `scripts/smoke_kit_template_art.py` (nuevo, sin red) y los de `kit_art`, `kit_cover`, `kit_cover_wiring`,
+  `kit_weekly` y `kit_panel` actualizados; el modo manual sigue igual.
+
 ## Loop kits — Revisión de seguridad ⏳ INFORME ENTREGADO, FALTA LA PRIMERA CORRIDA REAL
 - Revisión de solo lectura de todo lo agregado (workflow, worker, `core/kit_*`, panel).
 - Sin secretos, links de venta ni nombre de canal en los archivos a commitear; acciones fijadas por SHA (verificadas

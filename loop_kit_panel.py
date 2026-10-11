@@ -11,17 +11,20 @@ import os
 import sys
 
 from PyQt5.QtCore import QProcess, Qt, QThread, QTime, pyqtSignal
-from PyQt5.QtWidgets import (QAbstractItemView, QComboBox, QDialog, QFormLayout, QGroupBox,
+from PyQt5.QtWidgets import (QAbstractItemView, QComboBox, QDialog, QDoubleSpinBox,
+                             QFormLayout, QGroupBox,
                              QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit,
                              QListWidget, QListWidgetItem, QPlainTextEdit, QPushButton,
                              QScrollArea, QSpinBox, QTableWidget, QTableWidgetItem, QTimeEdit,
                              QVBoxLayout, QWidget)
 
 from core import (kit_channel, kit_channel_setup, kit_cloud, kit_detect, kit_settings,
-                  kit_source, kit_state)
+                  kit_source, kit_spend, kit_state)
 
 _ROOT = os.path.dirname(os.path.abspath(__file__))
-_HEADERS = ("Carpeta", "Nombre", "Link de PayHip", "Género", "Activo")
+_HEADERS = ("Carpeta", "Nombre", "Link de PayHip", "Género", "Descripción", "Activo")
+_TEXT_COLS = ('folder', 'name', 'payhip_url', 'genre', 'description')
+_ACTIVE_COL = len(_TEXT_COLS)
 _SLOT_ROWS = 3
 _DRY_RUN_TIMEOUT_MS = 10 * 60 * 1000
 
@@ -190,7 +193,9 @@ class LoopKitPanel(QWidget):
         row.addStretch(1)
         lay.addLayout(row)
         hint = QLabel("Un kit sin link se guarda, pero el worker no lo elige. \"Detectar kits\" "
-                      "suma las carpetas con loops que falten en la tabla, sin link ni género.")
+                      "suma las carpetas con loops que falten en la tabla, sin link ni género. "
+                      "La descripción (opcional, 1 o 2 líneas, hasta 200 caracteres) le da "
+                      "contexto al modelo que propone el nombre de cada video.")
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #888;")
         lay.addWidget(hint)
@@ -220,8 +225,37 @@ class LoopKitPanel(QWidget):
         self.cover_mode = QComboBox()
         self.cover_mode.addItem("Manual (imagen del pack)", 'manual')
         self.cover_mode.addItem("Auto (fondo generado con IA)", 'auto')
+        self.cover_mode.addItem("Plantilla + fondo (portada completa con IA)", 'template')
         form.addRow("Modo:", self.cover_mode)
+        self.art_prompt = QPlainTextEdit()
+        self.art_prompt.setFixedHeight(120)
+        form.addRow("Prompt de la portada:", self.art_prompt)
+        self.btn_prompt = QPushButton("Restaurar prompt por defecto")
+        self.btn_prompt.clicked.connect(self.restore_prompt)
+        row = QHBoxLayout()
+        row.addWidget(self.btn_prompt)
+        row.addStretch(1)
+        form.addRow("", row)
+        self.monthly_cap = QDoubleSpinBox()
+        self.monthly_cap.setRange(0, kit_settings.MAX_MONTHLY_CAP)
+        self.monthly_cap.setDecimals(2)
+        self.monthly_cap.setPrefix("USD ")
+        form.addRow("Tope mensual estimado:", self.monthly_cap)
+        self.max_images = QSpinBox()
+        self.max_images.setRange(0, kit_settings.MAX_IMAGES_PER_RUN)
+        form.addRow("Máximo de imágenes por corrida:", self.max_images)
+        hint = QLabel("Plantilla + fondo usa, en la carpeta de referencias de cada género, "
+                      "modelo.png y la subcarpeta fondos/. El prompt tiene que incluir {titulo}, "
+                      "que se reemplaza por el título del video. Al llegar a un tope no se "
+                      "generan más portadas: esos videos salen con la imagen manual y llega un "
+                      "aviso por Telegram. El gasto es una estimación, no la factura.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #888;")
+        form.addRow(hint)
         return box
+
+    def restore_prompt(self):
+        self.art_prompt.setPlainText(kit_settings.default_prompt())
 
     def _build_telegram_box(self):
         box = QGroupBox("Telegram")
@@ -242,12 +276,12 @@ class LoopKitPanel(QWidget):
         kit = kit or {}
         r = self.table.rowCount()
         self.table.insertRow(r)
-        for c, key in enumerate(('folder', 'name', 'payhip_url', 'genre')):
+        for c, key in enumerate(_TEXT_COLS):
             self.table.setItem(r, c, QTableWidgetItem(str(kit.get(key) or '')))
         active = QTableWidgetItem()
         active.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled | Qt.ItemIsSelectable)
         active.setCheckState(Qt.Checked if kit.get('active', True) else Qt.Unchecked)
-        self.table.setItem(r, 4, active)
+        self.table.setItem(r, _ACTIVE_COL, active)
 
     def remove_selected_kit(self):
         for r in sorted({i.row() for i in self.table.selectedIndexes()}, reverse=True):
@@ -260,9 +294,8 @@ class LoopKitPanel(QWidget):
     def kit_rows(self):
         rows = []
         for r in range(self.table.rowCount()):
-            active = self.table.item(r, 4)
-            rows.append({'folder': self._cell(r, 0), 'name': self._cell(r, 1),
-                         'payhip_url': self._cell(r, 2), 'genre': self._cell(r, 3),
+            active = self.table.item(r, _ACTIVE_COL)
+            rows.append({**{key: self._cell(r, c) for c, key in enumerate(_TEXT_COLS)},
                          'active': bool(active and active.checkState() == Qt.Checked)})
         return rows
 
@@ -277,6 +310,9 @@ class LoopKitPanel(QWidget):
                 'genres': kit_settings.parse_genres(self.genres.toPlainText()),
                 'refs_root': self.refs_root.text(),
                 'cover_mode': self.cover_mode.currentData(),
+                'art_prompt': self.art_prompt.toPlainText(),
+                'monthly_cap_usd': self.monthly_cap.value(),
+                'max_images_per_run': self.max_images.value(),
                 'dropbox_root': self.kits_root.text(),
                 'scan_folders': self.checked_categories(),
                 'loops_dirs': self.loops_dirs.text(),
@@ -319,6 +355,11 @@ class LoopKitPanel(QWidget):
         self.genres.setPlainText('\n'.join(form.get('genres') or []))
         self.refs_root.setText(form.get('refs_root') or '')
         self.cover_mode.setCurrentIndex(max(0, self.cover_mode.findData(form.get('cover_mode'))))
+        self.art_prompt.setPlainText(form.get('art_prompt') or kit_settings.default_prompt())
+        spend = {**kit_spend.DEFAULTS, **{k: form[k] for k in kit_settings.SPEND_KEYS
+                                          if form.get(k) is not None}}
+        self.monthly_cap.setValue(float(spend['monthly_cap_usd']))
+        self.max_images.setValue(int(spend['max_images_per_run']))
         self.kits_root.setText(form.get('dropbox_root') or '')
         self.set_categories(form.get('categories'), form.get('scan_folders') or [])
         self.loops_dirs.setText(', '.join(form.get('loops_dirs') or []))
@@ -544,8 +585,10 @@ class LoopKitPanel(QWidget):
                   "Buscando kits en Dropbox…")
 
     def show_last_state(self):
+        cap = self.monthly_cap.value()
+
         def done(state):
-            self.output.setPlainText('\n'.join(kit_settings.last_state_lines(state)))
+            self.output.setPlainText('\n'.join(kit_settings.last_state_lines(state, cap=cap)))
             self._say("Estado leído.")
         path = self.paths().state
         self._run(lambda: kit_state.load(path, dbx=self._dbx()), done, "Leyendo el estado…")

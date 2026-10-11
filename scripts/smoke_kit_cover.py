@@ -133,6 +133,26 @@ def _check_frame(tmp, cover):
     check(Image.open(out).size == (1280, 720), "el tamaño del cuadro no sigue a la configuración")
 
 
+def _check_finished_cover(tmp, cover):
+    """Portada completa (cover_mode template): cuadro y miniatura sin pasar por compose."""
+    real = kit_cover.compose
+
+    def forbidden(*_a, **_k):
+        raise AssertionError('compose no debe correr')
+    kit_cover.compose = forbidden
+    try:
+        for i, cfg in enumerate((None, {'enabled': False}, {'frame': {'size': [640, 360]}})):
+            work = os.path.join(tmp, f'finished{i}')
+            os.makedirs(work)
+            frame, thumb = kit_cover.frame_for_video(cfg, cover, work)
+            size = (640, 360) if cfg and cfg.get('frame') else (1920, 1080)
+            check(Image.open(frame).size == size, f"frame_for_video: cuadro {size} con cfg={cfg}")
+            check(thumb.endswith('.jpg') and Image.open(thumb).size == size,
+                  "frame_for_video: falta la miniatura")
+    finally:
+        kit_cover.compose = real
+
+
 def main():
     with tempfile.TemporaryDirectory() as tmp:
         bg = os.path.join(tmp, 'bg.png')
@@ -141,6 +161,7 @@ def main():
         black = _check_long_title(tmp)
         _check_template_drives_everything(tmp, bg, black)
         _check_frame(tmp, cover)
+        _check_finished_cover(tmp, cover)
     if FAILS:
         for f in FAILS:
             print("FAIL:", f)

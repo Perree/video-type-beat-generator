@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 """Catálogo de loop kits (``kits.json``): qué kits se pueden promocionar.
 
-Cada entrada es ``{folder, name, payhip_url, genre, active}``. Un kit es
+Cada entrada es ``{folder, name, payhip_url, genre, active}`` más un ``description``
+opcional (1-2 líneas, hasta 200 caracteres, contexto para proponer nombres). Un kit es
 elegible solo si está activo, tiene un link https y su carpeta existe entre los
 packs de Dropbox. Los mensajes de error usan el número de entrada, nunca el
 nombre ni el link, para no filtrar datos en logs.
 """
 import json
 from urllib.parse import urlparse
+
+
+MAX_DESCRIPTION = 200
 
 
 class KitCatalogError(ValueError):
@@ -58,8 +62,18 @@ def _validate_entry(index, raw, genres):
     active = raw.get('active', True)
     if not isinstance(active, bool):
         raise KitCatalogError(f'{where}: active debe ser true o false.')
-    return {'folder': folder, 'name': name, 'payhip_url': url,
-            'genre': genre, 'active': active}
+    entry = {'folder': folder, 'name': name, 'payhip_url': url,
+             'genre': genre, 'active': active}
+    description = raw.get('description')
+    if description is not None and not isinstance(description, str):
+        raise KitCatalogError(f'{where}: description debe ser texto.')
+    description = ' '.join((description or '').split())
+    if len(description) > MAX_DESCRIPTION:
+        raise KitCatalogError(
+            f'{where}: description admite hasta {MAX_DESCRIPTION} caracteres.')
+    if description:  # opcional: sin descripción la entrada queda como siempre
+        entry['description'] = description
+    return entry
 
 
 def load(path, genres=None):

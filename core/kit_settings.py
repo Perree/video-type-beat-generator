@@ -3,8 +3,9 @@
 
 Lee y escribe en Dropbox, vía ``kit_cloud``, dos JSON: ``kits.json`` (catálogo) y la config
 del worker, de la que solo toca las claves ``kit_preview.{channel, slots, genres, cover_mode,
-dropbox_root, scan_folders, loops_dirs, ignore_names, scan_max_depth}`` y
-``kit_preview.art.refs_root``. Los secretos (Telegram, YouTube, Dropbox, claves de API) viven
+dropbox_root, scan_folders, loops_dirs, ignore_names, scan_max_depth}``,
+``kit_preview.art.{refs_root, prompt}`` y ``kit_preview.spend.{monthly_cap_usd,
+max_images_per_run}``. Los secretos (Telegram, YouTube, Dropbox, claves de API) viven
 en variables de entorno / secretos de GitHub: aquí solo se pregunta si están presentes, sin
 leer su valor hacia ningún JSON ni mensaje.
 """
@@ -12,17 +13,21 @@ import copy
 import os
 from urllib.parse import urlparse
 
-from core import kit_catalog, kit_cloud, kit_notify, kit_source, kit_state
+from core import kit_catalog, kit_cloud, kit_notify, kit_source, kit_spend, kit_state
 
 CONFIG_PATH = os.environ.get('KIT_CONFIG_PATH') or '/loop_kits/_automation/config.json'
 KITS_PATH = os.environ.get('KIT_CATALOG_PATH') or '/loop_kits/_automation/kits.json'
 STATE_PATH = kit_state.STATE_PATH
 
 WEEKDAYS = ('Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo')
-COVER_MODES = ('manual', 'auto')
-KIT_FIELDS = ('folder', 'name', 'payhip_url', 'genre', 'active')
+COVER_MODES = ('manual', 'auto', 'template')
+KIT_FIELDS = ('folder', 'name', 'payhip_url', 'genre', 'description', 'active')
 SCAN_KEYS = ('scan_folders', 'loops_dirs', 'ignore_names', 'scan_max_depth')
+SPEND_KEYS = ('monthly_cap_usd', 'max_images_per_run')
 MAX_SCAN_DEPTH = 6
+MAX_PROMPT = 4000
+MAX_MONTHLY_CAP = 1000
+MAX_IMAGES_PER_RUN = 50
 
 
 class SettingsError(ValueError):
@@ -49,6 +54,7 @@ def validate_kits(rows, genres=None):
     """
     rows = [{'folder': _text(r.get('folder')), 'name': _text(r.get('name')),
              'payhip_url': _text(r.get('payhip_url')), 'genre': _text(r.get('genre')),
+             'description': _text(r.get('description')),
              'active': bool(r.get('active', True))} for r in rows]
     for i, row in enumerate(rows, 1):
         if not row['genre']:
@@ -115,13 +121,53 @@ def _validate_scan(form):
     return out
 
 
+def default_prompt():
+    """Prompt de la portada por plantilla que usa el worker si la config no trae uno."""
+    from core import kit_template_art
+    return kit_template_art.DEFAULT_PROMPT
+
+
+def _validate_template(form):
+    """Prompt de la portada y topes de gasto; solo las claves que trae el formulario."""
+    out = {}
+    if 'art_prompt' in form:
+        from core import kit_template_art
+        prompt = _text(form.get('art_prompt'))
+        if prompt and kit_template_art.MARKER not in prompt:
+            raise SettingsError(f'El prompt de la portada tiene que incluir '
+                                f'{kit_template_art.MARKER}.')
+        if len(prompt) > MAX_PROMPT:
+            raise SettingsError(f'El prompt de la portada admite hasta {MAX_PROMPT} caracteres.')
+        # Igual al de fábrica no se guarda: así el worker sigue las mejoras del código.
+        out['art_prompt'] = '' if prompt == default_prompt() else prompt
+    if 'monthly_cap_usd' in form:
+        try:
+            cap = round(float(form.get('monthly_cap_usd')), 2)
+        except (TypeError, ValueError):
+            raise SettingsError('Tope mensual inválido.') from None
+        if not 0 <= cap <= MAX_MONTHLY_CAP:
+            raise SettingsError(f'El tope mensual va de 0 a {MAX_MONTHLY_CAP} USD.')
+        out['monthly_cap_usd'] = cap
+    if 'max_images_per_run' in form:
+        try:
+            count = int(form.get('max_images_per_run'))
+        except (TypeError, ValueError):
+            raise SettingsError('Máximo de imágenes por corrida inválido.') from None
+        if not 0 <= count <= MAX_IMAGES_PER_RUN:
+            raise SettingsError(f'El máximo de imágenes por corrida va de 0 a '
+                                f'{MAX_IMAGES_PER_RUN}.')
+        out['max_images_per_run'] = count
+    return out
+
+
 def validate_settings(form):
     """Valida el formulario de configuración y devuelve un dict normalizado.
 
     Args:
         form: ``{channel, slots: [{weekday, hour, minute}], genres: [str], refs_root,
             cover_mode}`` y, opcionales, ``dropbox_root``, ``scan_folders``, ``loops_dirs``,
-            ``ignore_names`` y ``scan_max_depth`` (las que falten no se tocan al guardar).
+            ``ignore_names``, ``scan_max_depth``, ``art_prompt``, ``monthly_cap_usd`` y
+            ``max_images_per_run`` (las que falten no se tocan al guardar).
     """
     slots, seen = [], set()
     for i, slot in enumerate(form.get('slots') or [], 1):
@@ -152,8 +198,11 @@ def validate_settings(form):
         raise SettingsError('Modo de portada inválido.')
     if cover_mode == 'auto' and not refs_root:
         raise SettingsError('El modo auto necesita la carpeta de referencias.')
+    if cover_mode == 'template' and not refs_root:
+        raise SettingsError('El modo plantilla + fondo necesita la carpeta de referencias.')
     return {'channel': _text(form.get('channel')), 'slots': slots, 'genres': genres,
-            'refs_root': refs_root, 'cover_mode': cover_mode, **_validate_scan(form)}
+            'refs_root': refs_root, 'cover_mode': cover_mode, **_validate_scan(form),
+            **_validate_template(form)}
 
 
 def apply_to_config(config, settings):
@@ -181,6 +230,19 @@ def apply_to_config(config, settings):
     for key in SCAN_KEYS:
         if key in settings:
             kit[key] = copy.deepcopy(settings[key])
+    if 'art_prompt' in settings:
+        art = kit.get('art')
+        if settings['art_prompt']:
+            if not isinstance(art, dict):
+                art = kit['art'] = {}
+            art['prompt'] = settings['art_prompt']
+        elif isinstance(art, dict):
+            art.pop('prompt', None)
+    if any(key in settings for key in SPEND_KEYS):
+        spend = kit.get('spend')
+        if not isinstance(spend, dict):
+            spend = kit['spend'] = {}
+        spend.update({key: settings[key] for key in SPEND_KEYS if key in settings})
     return new
 
 
@@ -192,11 +254,18 @@ def form_from_config(config):
     channels = [name for name, c in ((config or {}).get('channels') or {}).items()
                 if isinstance(c, dict) and c.get('section') == 'loop_kits']
     scan = kit_source.scan_settings(kit)
+    spend = kit_spend.settings(kit)
+    prompt = art.get('prompt')
     return {'channel': str(kit.get('channel') or ''), 'channels': channels,
             'slots': [dict(s) for s in (kit.get('slots') or DEFAULT_SLOTS)],
             'genres': list(kit.get('genres') or []),
             'refs_root': str(art.get('refs_root') or ''),
-            'cover_mode': 'auto' if kit.get('cover_mode') == 'auto' else 'manual',
+            'cover_mode': kit.get('cover_mode') if kit.get('cover_mode') in COVER_MODES
+            else 'manual',
+            'art_prompt': prompt.strip() if isinstance(prompt, str) and prompt.strip()
+            else default_prompt(),
+            'monthly_cap_usd': min(spend['monthly_cap_usd'], MAX_MONTHLY_CAP),
+            'max_images_per_run': min(spend['max_images_per_run'], MAX_IMAGES_PER_RUN),
             'dropbox_root': str(kit.get('dropbox_root') or ''),
             'scan_folders': scan['scan_folders'], 'loops_dirs': scan['loops_dirs'],
             'ignore_names': scan['ignore_names'],
@@ -249,13 +318,17 @@ def save_config(settings, dbx=None, paths=None):
     return kit_cloud.write_json(path, apply_to_config(config, settings), rev=rev, dbx=dbx)
 
 
-def last_state_lines(state, limit=5):
-    """Resumen legible del estado: sin nombres de kit ni de video."""
+def last_state_lines(state, limit=5, now=None, cap=None):
+    """Resumen legible del estado: sin nombres de kit ni de video.
+
+    Incluye el gasto estimado de portadas del mes de ``now`` (con ``cap``, contra el tope).
+    """
     runs = sorted((state or {}).get('runs') or [], key=lambda r: r.get('id', 0), reverse=True)
     lock = (state or {}).get('lock')
     lines = [f'Corridas registradas: {len(runs)}',
              'Hay un lock registrado (worker en curso o corrida cortada).' if lock
-             else 'Sin lock activo.']
+             else 'Sin lock activo.',
+             kit_spend.summary_line(state, now, cap)]
     for run in runs[:limit]:
         lines.append(f"#{run.get('id')} · {run.get('estado') or '?'} · "
                      f"{run.get('publish_at') or 'sin fecha'} · {run.get('youtube_id') or '-'}")

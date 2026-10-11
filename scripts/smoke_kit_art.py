@@ -204,6 +204,14 @@ def _check_for_video(tmp):
                                     client=client, notify=sent.append, now=NOW)
             check(got == (fallback, []) and not client.calls, "el modo manual llamó a la API")
         check(not listed and not sent, "el modo manual tocó Dropbox o Telegram")
+        check([kit_art.mode({'cover_mode': m}) for m in ('manual', 'auto', 'Template', 'otro', '')]
+              == ['manual', 'auto', 'template', 'manual', 'manual'], "mode no reconoce los modos")
+        # for_cover en manual y auto es for_video más "completa" en falso (pasa por el compositor).
+        got = kit_art.for_cover({'cover_mode': 'manual'}, KIT, 'Titulo', fallback, _Store(),
+                                random.Random(1), tmp, client=_fake_client(), notify=sent.append,
+                                now=NOW)
+        check(got == (fallback, [], False) and not listed and not sent,
+              "for_cover cambió el modo manual")
 
         # Auto: fondo generado, sin repetir lo usado hace menos de 30 días.
         p = [r['path'] for r in REFS]
@@ -213,6 +221,14 @@ def _check_for_video(tmp):
                                        os.path.join(tmp, 'auto'), client=client,
                                        notify=sent.append, now=NOW)
         check(path != fallback and os.path.exists(path), "auto no devolvió el fondo generado")
+        again = _fake_client()
+        got = kit_art.for_cover(cfg, KIT, 'Titulo', fallback, store, random.Random(1),
+                                os.path.join(tmp, 'auto2'), client=again, notify=sent.append,
+                                now=NOW)
+        check(got[1] == refs and got[2] is False and len(again.calls) == 1
+              and 'titulo' not in again.calls[0]['prompt'].lower(),
+              "for_cover cambió el modo auto (el título no va al prompt del fondo)")
+        listed.remove(FOLDER)
         check(refs == [p[3]], f"auto no eligió la única referencia libre: {refs!r}")
         check(listed == [FOLDER] and not sent, "auto no listó la carpeta del género o avisó de más")
 
@@ -303,6 +319,28 @@ def _check_api(tmp):
                 check(type(e) is kind, f"{fake.__name__} levantó {type(e).__name__}")
                 check(KEY not in str(e) and e.__cause__ is None, "el error de la API expone la clave")
             check(len(seen) == 1, f"{fake.__name__}: hubo reintentos")
+        billable = {}
+        for code in (400, 401, 429, 500, 503):
+            def http_error(req, timeout=None, code=code):
+                raise urllib.error.HTTPError(req.full_url, code, KEY, {}, io.BytesIO(b''))
+            urllib.request.urlopen = http_error
+            try:
+                kit_art.api_client('p', [ref], cfg, key=KEY)
+            except kit_art.KitArtError as e:
+                billable[code] = e.billable
+        check(billable == {400: False, 401: False, 429: False, 500: True, 503: True},
+              f"qué errores HTTP cuentan como cobrados: {billable}")
+        urllib.request.urlopen = boom
+        try:
+            kit_art.api_client('p', [ref], cfg, key=KEY)
+        except kit_art.KitArtError as e:
+            check(e.billable is True, "un timeout debe contarse como cobrado")
+        urllib.request.urlopen = ok
+        seen.clear()
+        kit_art.api_client('p', [ref], {**cfg, 'n': 'x', 'input_fidelity': 'high'}, key=KEY)
+        check(b'name="n"\r\n\r\n1\r\n' in seen[0].data and b'input_fidelity' in seen[0].data,
+              "n inválido debe ser 1 e input_fidelity va solo si se configura")
+        check(b'input_fidelity' not in body, "el modo auto manda input_fidelity sin pedirlo")
         seen.clear()
         for bad in ({'base_url': 'http://img.example/v1'}, {'base_url': 'ftp://x'}):
             try:
