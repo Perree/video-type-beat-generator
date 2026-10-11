@@ -337,6 +337,11 @@ def main(argv=None):
                 paths, channel,
                 kit_cloud.secret(kit_cloud.ENV_YT_CHANNEL) if kit_cloud.in_cloud() else None)
             label = channel
+            if not args.dry_run:
+                # Antes de gastar en portadas: ¿se puede entrar al canal? Es solo lectura
+                # (1 unidad de cuota) y, si falla, avisa sin haber generado nada.
+                from core import youtube
+                youtube.channel_title(channel)
             with tempfile.TemporaryDirectory(prefix='kit_weekly_') as out:
                 return run_weekly(app_config=app_config, channel=channel,
                                   channel_templates=templates, dbx=dbx,
@@ -347,7 +352,7 @@ def main(argv=None):
         # variables que faltan no son secretos.
         _notify(kit_notify, kit_channel.prefixed(label, kit_notify.alert(exc, step='inicio')))
         detail = f": {exc}" if isinstance(exc, kit_cloud.KitCloudEnvError) else ''
-        print(f"Fallo al iniciar ({type(exc).__name__}{detail}).")
+        print(f"Fallo al iniciar ({kit_notify.error_kind(exc)}{detail}).")
         return 1
 
 

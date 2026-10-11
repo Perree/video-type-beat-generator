@@ -91,6 +91,11 @@ def summary(videos):
     return '\n'.join(lines)
 
 
+_YOUTUBE_CODES = (('no está conectado', 'not_connected'), ('no es válido', 'token_invalid'),
+                  ('No existe el video', 'video_missing'),
+                  ('No se encontró el canal', 'channel_not_found'))
+
+
 def error_kind(error):
     """Tipo del error para logs y alertas, sin mensaje (puede traer datos).
 
@@ -103,6 +108,11 @@ def error_kind(error):
     cause = getattr(error, '__cause__', None)
     status = getattr(getattr(cause, 'resp', None), 'status', None)
     if not isinstance(status, int):
+        if kind == 'YouTubeError':
+            # Motivos propios de core.youtube (el mensaje lleva el nombre del canal: no se copia).
+            for needle, code in _YOUTUBE_CODES:
+                if needle in str(error):
+                    return f"{kind} {code}"
         return kind
     reason = ''
     try:
