@@ -6,6 +6,7 @@
 o programación no permitida), reintenta el mismo archivo en privado y deja
 ``estado=private_pending``. El pack se marca usado solo si la subida terminó.
 """
+import re
 from datetime import datetime, timedelta
 
 from core import channel_templates, description, kit_store, youtube
@@ -17,6 +18,34 @@ DEFAULT_SLOTS = (
     {'weekday': 2, 'hour': 18, 'minute': 0},
     {'weekday': 4, 'hour': 18, 'minute': 0},
 )
+
+# Marcadores de la descripción que llegan ya armados en ``desc_vars``.
+DESC_VARS = ('hook', 'chapters')
+
+
+def _token(key):
+    # Sin llaves: pasa intacto por description.render y no puede venir en un nombre de kit.
+    return f'\x00kit:{key}\x00'
+
+
+def description_template(templates):
+    """Plantilla de descripción que se va a usar para el canal."""
+    return (templates or {}).get('description_template') or description.DEFAULT_TEMPLATE
+
+
+def desc_markers(templates):
+    """Marcadores de ``DESC_VARS`` presentes en la plantilla de descripción del canal."""
+    template = description_template(templates)
+    return {key for key in DESC_VARS if '{' + key + '}' in template}
+
+
+def _drop_token(body, token):
+    """Quita un marcador sin contenido junto con el hueco de líneas que dejaría."""
+    def gap(match):
+        if match.start() == 0 or match.end() == len(body):
+            return ''
+        return max(match.group(1), match.group(2), key=len)
+    return re.sub(r'((?:\r?\n)*)[ \t]*' + re.escape(token) + r'[ \t]*((?:\r?\n)*)', gap, body)
 
 # Textos que YouTube mete en el HttpError cuando publishAt no está permitido.
 _SCHEDULE_MARKERS = ('publishat', 'unaudited', 'scheduling')
@@ -64,18 +93,20 @@ def _schedule_rejected(exc):
     return any(marker in blob for marker in _SCHEDULE_MARKERS)
 
 
-def _metadata(channel, pack_name, templates):
+def _metadata(channel, pack_name, templates, title=None, desc_vars=None):
     """Título, descripción y tags a partir de las plantillas del canal.
 
     ``{name}`` es el nombre del pack; ``{link}`` el ``templates['link']`` si lo
     hay (vacío si no). Los tags salen de la config si existen.
+    Con ``title`` el título se usa tal cual. Con ``desc_vars`` (dict con ``hook`` y
+    ``chapters``) se reemplazan ``{hook}`` y ``{chapters}`` de la plantilla de descripción.
     """
     templates = templates or {}
     group = templates.get('group') or ''
     if not group:
         groups = templates.get('groups') or []
         group = groups[0] if groups else ''
-    title = channel_templates.render_title(
+    title = title or channel_templates.render_title(
         channel_templates.get_title_template(templates),
         pack_name,
         channel,
@@ -88,7 +119,18 @@ def _metadata(channel, pack_name, templates):
     else:
         tags_text = raw_tags or ''
         tags = raw_tags
-    desc_template = templates.get('description_template') or description.DEFAULT_TEMPLATE
+    desc_template = description_template(templates)
+    # {link}, {hook} y {chapters} se marcan en la plantilla y se completan después de
+    # renderizar: un nombre de kit o un texto de redes con "{hook}" queda literal, y un
+    # gancho con llaves no pasa por el formateo.
+    values = {}
+    if '{link}' in desc_template:
+        values['link'] = str(templates.get('link') or '')
+    for key in DESC_VARS if desc_vars else ():
+        if '{' + key + '}' in desc_template:
+            values[key] = str(desc_vars.get(key) or '').strip()
+    for key in values:
+        desc_template = desc_template.replace('{' + key + '}', _token(key))
     body = description.render(
         desc_template,
         pack_name,
@@ -97,9 +139,13 @@ def _metadata(channel, pack_name, templates):
         hashtags=templates.get('hashtags', ''),
     )
     # {link} lo toma de templates['link']; sin marcador no se agrega nada.
-    # Se mira la plantilla, no el cuerpo: un nombre con "{link}" no cuenta.
-    if '{link}' in desc_template:
-        body = body.replace('{link}', str(templates.get('link') or ''))
+    for key in DESC_VARS:
+        if key in values and not values[key]:
+            body = _drop_token(body, _token(key))
+    if values:
+        # Una sola pasada: un gancho que traiga "{chapters}" no se vuelve a interpretar.
+        tokens = {_token(key): value for key, value in values.items()}
+        body = re.sub('|'.join(map(re.escape, tokens)), lambda m: tokens[m.group(0)], body)
     return title, body, tags
 
 
@@ -120,7 +166,8 @@ def _insert(channel, video, title, body, tags, thumbnail, publish_at):
 def publish_preview(channel, video, thumbnail, pack_name, slots, templates, *,
                     pack_id, audio_mode, db_path=None, now=None,
                     image_path=None, loops_json=None, tz=None, store=None,
-                    video_name=None, tracking_id=None, ref_images=None):
+                    video_name=None, tracking_id=None, ref_images=None,
+                    title=None, desc_vars=None, seo=None):
     """Sube el preview al próximo slot y registra la corrida.
 
     Args:
@@ -139,6 +186,10 @@ def publish_preview(channel, video, thumbnail, pack_name, slots, templates, *,
         store: módulo con ``record_run`` (default ``kit_store``).
         video_name, tracking_id, ref_images: se guardan en la corrida si vienen (estado en
             la nube). ``ref_images`` son las referencias usadas para el fondo con IA.
+        title: título ya armado (``kit_seo``); sin él sale de la plantilla del canal.
+        desc_vars: ``{hook, chapters}`` para los marcadores de la descripción; si la
+            plantilla no trae el marcador no se agrega nada.
+        seo: variante de título del video (artista, etiquetas, frase); se guarda en la corrida.
 
     Returns:
         dict con estado (``scheduled`` o ``private_pending``), slot local,
@@ -152,7 +203,7 @@ def publish_preview(channel, video, thumbnail, pack_name, slots, templates, *,
     when = now if now is not None else datetime.now()
     slot = next_slot(when, slots)
     publish_iso = local_to_youtube_publish_at(True, slot, tz=tz)
-    title, body, tags = _metadata(channel, pack_name, templates)
+    title, body, tags = _metadata(channel, pack_name, templates, title, desc_vars)
 
     estado = 'scheduled'
     try:
@@ -166,7 +217,7 @@ def publish_preview(channel, video, thumbnail, pack_name, slots, templates, *,
         publish_iso = None
 
     extra = {k: v for k, v in (('video_name', video_name), ('tracking_id', tracking_id),
-                               ('ref_images', ref_images)) if v}
+                               ('ref_images', ref_images), ('seo', seo)) if v}
     run_id = (store or kit_store).record_run(
         pack_id,
         db_path=db_path,

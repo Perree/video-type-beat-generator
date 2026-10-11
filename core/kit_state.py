@@ -19,7 +19,7 @@ LOCK_TTL_SEC = 2 * 60 * 60
 CYCLE_FIELDS = ('cycle_videos', 'rest_until', 'used_names', 'used_ref_images')
 _CYCLE_LISTS = ('used_names', 'used_ref_images')
 # Campos extra de cada corrida que solo existen en el estado de la nube (junto al youtube_id).
-STATE_RUN_FIELDS = ('video_name', 'tracking_id', 'ref_images')
+STATE_RUN_FIELDS = ('video_name', 'tracking_id', 'ref_images', 'seo')
 _WRITE_ATTEMPTS = 4
 
 

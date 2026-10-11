@@ -11,14 +11,14 @@ import os
 import sys
 
 from PyQt5.QtCore import QProcess, Qt, QThread, QTime, pyqtSignal
-from PyQt5.QtWidgets import (QAbstractItemView, QComboBox, QDialog, QDoubleSpinBox,
+from PyQt5.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QDialog, QDoubleSpinBox,
                              QFormLayout, QGroupBox,
                              QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit,
                              QListWidget, QListWidgetItem, QPlainTextEdit, QPushButton,
                              QScrollArea, QSpinBox, QTableWidget, QTableWidgetItem, QTimeEdit,
                              QVBoxLayout, QWidget)
 
-from core import (kit_channel, kit_channel_setup, kit_cloud, kit_detect, kit_settings,
+from core import (kit_channel, kit_channel_setup, kit_cloud, kit_detect, kit_seo, kit_settings,
                   kit_source, kit_spend, kit_state)
 
 _ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -54,7 +54,7 @@ class _Task(QThread):
 
 
 class LoopKitPanel(QWidget):
-    """Formulario de canal, horarios, carpeta de kits, kits, géneros, portada y estado."""
+    """Formulario de canal, horarios, carpeta de kits, kits, géneros, SEO, portada y estado."""
 
     def __init__(self, parent=None, dbx_provider=None, python=None, script_dir=None):
         super().__init__(parent)
@@ -65,6 +65,8 @@ class LoopKitPanel(QWidget):
         self._base_config = None  # config del canal por defecto: base de un canal nuevo
         self._task = None
         self._proc = None
+        self._seo = {}            # fichas de SEO por género, tal como están en el formulario
+        self._seo_current = None  # género cuya ficha se ve en los campos
         self._build()
 
     # --- Construcción ---
@@ -90,6 +92,7 @@ class LoopKitPanel(QWidget):
         col.addWidget(self._build_source_box())
         col.addWidget(self._build_kits_box(), 1)
         col.addWidget(self._build_genres_box())
+        col.addWidget(self._build_seo_box())
         col.addWidget(self._build_cover_box())
         col.addWidget(self._build_telegram_box())
         scroll.setWidget(body)
@@ -135,6 +138,11 @@ class LoopKitPanel(QWidget):
             form.addRow(f"Horario {i + 1} (hora de Buenos Aires):", row)
             self.slot_day.append(day)
             self.slot_time.append(tm)
+        hint = QLabel("Sale un video por horario distinto (hasta 3). Para publicar menos, "
+                      "repetí el mismo horario en las filas que sobran.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #888;")
+        form.addRow(hint)
         return box
 
     def _build_source_box(self):
@@ -219,6 +227,93 @@ class LoopKitPanel(QWidget):
         form.addRow("Carpeta por género:", self.ref_folders)
         return box
 
+    def _build_seo_box(self):
+        box = QGroupBox("SEO por género")
+        form = QFormLayout(box)
+        self.seo_genre = QComboBox()
+        self.seo_genre.currentIndexChanged.connect(lambda _i: self._seo_changed())
+        form.addRow("Género:", self.seo_genre)
+        self.seo_phrase = QLineEdit()
+        self.seo_phrase.setPlaceholderText("Frase que la gente busca")
+        form.addRow("Frase principal:", self.seo_phrase)
+        self.seo_artists = QPlainTextEdit()
+        self.seo_artists.setPlaceholderText("Un artista por línea")
+        self.seo_tags = QPlainTextEdit()
+        self.seo_tags.setPlaceholderText("Una etiqueta por línea")
+        self.seo_template = QLineEdit()
+        self.seo_template.setPlaceholderText(kit_seo.DEFAULT_TEMPLATE)
+        self.seo_examples = QPlainTextEdit()
+        self.seo_examples.setPlaceholderText("Un título de ejemplo por línea")
+        for edit in (self.seo_artists, self.seo_tags, self.seo_examples):
+            edit.setFixedHeight(70)
+        form.addRow("Artistas:", self.seo_artists)
+        form.addRow("Etiquetas:", self.seo_tags)
+        form.addRow("Plantilla del título:", self.seo_template)
+        form.addRow("Títulos de ejemplo:", self.seo_examples)
+        self.vary_name = QCheckBox("Variar también el nombre")
+        form.addRow("", self.vary_name)
+        hint = QLabel("Con ficha, el título lo arma el programa: nombre real del kit, la frase "
+                      "al principio y, en cada video del kit, otro artista y otra mezcla de "
+                      "etiquetas. La plantilla admite {artist}, {artists}, {phrase}, {name} y "
+                      "{tags}; vacía usa la de fábrica. La frase tiene que terminar dentro de "
+                      "los primeros 40 caracteres del título, artista incluido. Un género sin "
+                      "frase no tiene ficha y sigue con la plantilla de título del canal. En la descripción del canal, "
+                      "{hook} es el gancho y {chapters} los capítulos. Variar el nombre lo "
+                      "reemplaza por uno de una sola palabra (necesita el modelo de texto "
+                      "configurado).")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #888;")
+        form.addRow(hint)
+        self.genres.textChanged.connect(self._refresh_seo_genres)
+        return box
+
+    def _seo_fields(self):
+        return {'phrase': self.seo_phrase.text(),
+                'artists': kit_seo.lines(self.seo_artists.toPlainText()),
+                'tags': kit_seo.lines(self.seo_tags.toPlainText()),
+                'title_template': self.seo_template.text(),
+                'examples': kit_seo.lines(self.seo_examples.toPlainText())}
+
+    def _seo_keep(self):
+        """Guarda en memoria lo que hay en los campos, bajo el género que se está viendo."""
+        if self._seo_current is not None:
+            self._seo[self._seo_current] = self._seo_fields()
+
+    def _seo_show(self, genre):
+        self._seo_current = genre or None
+        ficha = kit_seo.form(self._seo.get(kit_seo.find_key(self._seo, genre) or genre))
+        self.seo_phrase.setText(ficha['phrase'])
+        self.seo_artists.setPlainText('\n'.join(ficha['artists']))
+        self.seo_tags.setPlainText('\n'.join(ficha['tags']))
+        self.seo_template.setText(ficha['title_template'])
+        self.seo_examples.setPlainText('\n'.join(ficha['examples']))
+
+    def _seo_changed(self):
+        self._seo_keep()
+        self._seo_show(self.seo_genre.currentText())
+
+    def _refresh_seo_genres(self):
+        """El selector sigue a la lista de géneros; la ficha de cada uno se conserva."""
+        self._seo_keep()
+        genres = kit_settings.parse_genres(self.genres.toPlainText())
+        # Una ficha guardada con otra capitalización pasa a la clave del género actual.
+        for genre in genres:
+            old = kit_seo.find_key(self._seo, genre)
+            if old is not None and old != genre:
+                self._seo[genre] = self._seo.pop(old)
+        current = self._seo_current
+        self.seo_genre.blockSignals(True)
+        self.seo_genre.clear()
+        self.seo_genre.addItems(genres)
+        self.seo_genre.setCurrentIndex(max(0, self.seo_genre.findText(current or '')))
+        self.seo_genre.blockSignals(False)
+        self._seo_show(self.seo_genre.currentText())
+
+    def seo_values(self):
+        """Fichas de todos los géneros, incluida la que se está editando."""
+        self._seo_keep()
+        return {genre: dict(ficha) for genre, ficha in self._seo.items()}
+
     def _build_cover_box(self):
         box = QGroupBox("Portada")
         form = QFormLayout(box)
@@ -302,11 +397,18 @@ class LoopKitPanel(QWidget):
     # --- Formulario ---
 
     def form_values(self):
+        slots = []
+        for i in range(_SLOT_ROWS):
+            slot = {'weekday': self.slot_day[i].currentIndex(),
+                    'hour': self.slot_time[i].time().hour(),
+                    'minute': self.slot_time[i].time().minute()}
+            # Una fila igual a la anterior es "sin horario": así se cargan menos de 3.
+            if not slots or slot != slots[-1]:
+                slots.append(slot)
         return {'channel': self.channel.currentText(),
-                'slots': [{'weekday': self.slot_day[i].currentIndex(),
-                           'hour': self.slot_time[i].time().hour(),
-                           'minute': self.slot_time[i].time().minute()}
-                          for i in range(_SLOT_ROWS)],
+                'slots': slots,
+                'seo': self.seo_values(),
+                'vary_name': self.vary_name.isChecked(),
                 'genres': kit_settings.parse_genres(self.genres.toPlainText()),
                 'refs_root': self.refs_root.text(),
                 'cover_mode': self.cover_mode.currentData(),
@@ -347,6 +449,10 @@ class LoopKitPanel(QWidget):
         self.channel.clear()
         self.channel.addItems([''] + list(form.get('channels') or []))
         self.channel.setCurrentText(form.get('channel') or '')
+        # Antes de tocar los géneros: lo que hay en los campos es de la config anterior.
+        self._seo_current = None
+        self._seo = {genre: dict(ficha) for genre, ficha in (form.get('seo') or {}).items()}
+        self.vary_name.setChecked(bool(form.get('vary_name')))
         slots = list(form.get('slots') or [])
         for i in range(_SLOT_ROWS):
             slot = slots[i] if i < len(slots) else slots[-1] if slots else {}
@@ -365,6 +471,7 @@ class LoopKitPanel(QWidget):
         self.loops_dirs.setText(', '.join(form.get('loops_dirs') or []))
         self.ignore_names.setText(', '.join(form.get('ignore_names') or []))
         self.scan_depth.setValue(int(form.get('scan_max_depth') or kit_source.DEFAULT_MAX_DEPTH))
+        self._refresh_seo_genres()
 
     def set_kits(self, kits):
         self.table.setRowCount(0)
@@ -526,6 +633,7 @@ class LoopKitPanel(QWidget):
         rev = self._kits_rev
         paths = self.paths()
         paths = None if paths.is_default else paths
+        notes = kit_settings.seo_notes(settings.get('seo'))
 
         def work():
             dbx, problems, kits_rev = self._dbx(), [], rev
@@ -544,7 +652,7 @@ class LoopKitPanel(QWidget):
         def done(result):
             # Si los kits no se guardaron queda el rev viejo: repetir sin recargar no pisa.
             problems, self._kits_rev = result
-            self._say("Guardado en Dropbox." if not problems else
+            self._say(" ".join(["Guardado en Dropbox."] + notes) if not problems else
                       "No se guardó todo — " + " ".join(problems), error=bool(problems))
 
         self._run(work, done, "Guardando en Dropbox…")

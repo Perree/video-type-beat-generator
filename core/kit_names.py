@@ -36,9 +36,9 @@ def _clean(line):
     return line.strip(' \t"\'“”‘’`*.,;:').strip()
 
 
-def _valid_shape(name):
+def _valid_shape(name, one_word=False):
     return (bool(name) and len(name) <= MAX_LEN and len(name.split()) <= MAX_WORDS
-            and bool(_VALID.match(name)))
+            and bool(_VALID.match(name)) and not (one_word and ' ' in name))
 
 
 def clean_description(text):
@@ -46,11 +46,13 @@ def clean_description(text):
     return ' '.join(text.split())[:MAX_DESCRIPTION] if isinstance(text, str) else ''
 
 
-def _prompt(kit, genre, used, count, description=None):
+def _prompt(kit, genre, used, count, description=None, one_word=False):
     avoid = ', '.join(sorted({u for u in used if u}))
     context = clean_description(description)
+    shape = ("de UNA sola palabra, que suene a marca o a lugar (una ciudad, una isla, una "
+             "palabra corta y fuerte)" if one_word else "de 1 o 2 palabras")
     return (
-        f"Propone {count} nombres de 1 o 2 palabras para un video de loops del género "
+        f"Propone {count} nombres {shape} para un video de loops del género "
         f"\"{genre}\". Deben sonar coherentes con ese género, ser fáciles de recordar y "
         f"distintos entre sí. No uses el nombre \"{kit}\" ni estos ya usados: "
         f"{avoid or 'ninguno'}. Un nombre por línea."
@@ -58,25 +60,27 @@ def _prompt(kit, genre, used, count, description=None):
            if context else ''))
 
 
-def propose(kit, genre, used_names, n=5, llm_call=None, cfg=None, key=None, description=None):
+def propose(kit, genre, used_names, n=5, llm_call=None, cfg=None, key=None, description=None,
+            one_word=False):
     """Hasta ``n`` nombres válidos, sin repetir los usados ni el del propio kit.
 
     Descarta vacíos, de más de 2 palabras, con símbolos y duplicados (sin distinguir
     mayúsculas ni tildes). Puede devolver menos de ``n`` si el LLM no alcanza.
-    ``description`` (1-2 líneas sobre el kit) va al LLM como contexto.
+    ``description`` (1-2 líneas sobre el kit) va al LLM como contexto. Con ``one_word``
+    se piden y se aceptan solo nombres de una palabra (marca o lugar).
     """
     if n < 1:
         return []
     used = list(used_names or [])
     if llm_call is None:
         llm_call = partial(kit_llm.call, cfg=cfg, key=key)
-    raw = llm_call(_SYSTEM, _prompt(kit, genre, used, n + _EXTRA, description))
+    raw = llm_call(_SYSTEM, _prompt(kit, genre, used, n + _EXTRA, description, one_word))
     seen = {_norm(u) for u in used if u}
     seen.add(_norm(kit or ''))
     names = []
     for line in str(raw or '').splitlines():
         name = _clean(line)
-        if not _valid_shape(name):
+        if not _valid_shape(name, one_word):
             continue
         key_ = _norm(name)
         if key_ in seen:
@@ -88,10 +92,11 @@ def propose(kit, genre, used_names, n=5, llm_call=None, cfg=None, key=None, desc
     return names
 
 
-def pick(kit, genre, used_names, llm_call=None, cfg=None, key=None, description=None):
+def pick(kit, genre, used_names, llm_call=None, cfg=None, key=None, description=None,
+         one_word=False):
     """Modo automático: la primera opción válida, o None si no hay ninguna."""
     options = propose(kit, genre, used_names, n=1, llm_call=llm_call, cfg=cfg, key=key,
-                      description=description)
+                      description=description, one_word=one_word)
     return options[0] if options else None
 
 
@@ -120,10 +125,14 @@ def track_link(url, content_id, source='youtube'):
 ENV_LLM_KEY = 'KIT_LLM_API_KEY'
 
 
-def for_pack(pack_name, pack_path, names_cfg, store, llm_call=None, key=None, description=None):
+def for_pack(pack_name, pack_path, names_cfg, store, llm_call=None, key=None, description=None,
+             one_word=False, budget=None):
     """Nombre del video para un kit, o ``(None, [])`` si no aplica o el LLM falla.
 
     ``description`` es la descripción del kit en el catálogo: contexto para el LLM.
+    ``one_word`` pide un nombre de una sola palabra, de marca o lugar.
+    ``budget`` (``kit_spend.Budget``): la llamada cuenta como costo de texto dentro del tope
+    mensual; si el tope no deja, no se llama y el video usa el nombre del pack.
 
     ``names_cfg`` es ``kit_preview.names`` (``genre`` obligatorio, más ``base_url``, ``model`` y
     ``key_file``); la clave sale de ``key``, de ``KIT_LLM_API_KEY`` o de ``key_file``. Los usados del
@@ -137,15 +146,25 @@ def for_pack(pack_name, pack_path, names_cfg, store, llm_call=None, key=None, de
         return None, []
     get_cycle = getattr(store, 'get_cycle', None)
     used = list(get_cycle(pack_path).get('used_names') or []) if get_cycle else []
+    if budget is not None:
+        try:
+            cost = budget.text_cost()
+            if budget.blocked(cost):
+                return None, used
+        except Exception:
+            return None, used
     try:
         # Tampoco se repite el nombre de un video de otro kit, si el store los conoce.
         others = getattr(store, 'used_video_names', None)
         name = pick(pack_name, genre, used + list(others() if others else []),
                     llm_call=llm_call, cfg=names_cfg,
-                    key=key or kit_cloud.secret(ENV_LLM_KEY) or None, description=description)
+                    key=key or kit_cloud.secret(ENV_LLM_KEY) or None, description=description,
+                    one_word=one_word)
     except Exception as exc:
         print(f"Nombre de video no generado ({type(exc).__name__}); se usa el del pack.")
-        return None, used
+        name = None
+    if budget is not None:
+        budget.charge(cost)  # un fallo dudoso se cuenta igual como cobrado
     return name, used
 
 

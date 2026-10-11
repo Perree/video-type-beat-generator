@@ -351,6 +351,49 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
 - Smokes: `scripts/smoke_kit_template_art.py` (nuevo, sin red) y los de `kit_art`, `kit_cover`, `kit_cover_wiring`,
   `kit_weekly` y `kit_panel` actualizados; el modo manual sigue igual.
 
+## Loop kits — SEO de títulos y descripción, capítulos y cantidad de videos ✅ COMPLETADA
+- `core/kit_seo.py` (nuevo, solo librería estándar): ficha por género en `kit_preview.seo.<genero>`
+  (`{phrase, artists[], tags[], title_template, examples[]}`, hasta 40 artistas/etiquetas de 80 caracteres).
+  `load` devuelve None sin ficha (el flujo sigue con la plantilla del canal) y `KitSeoError` si está mal formada.
+- `build_title(seo, name, used_variants, rng, recent_titles)`: nombre real del kit, frase dentro de los primeros 40
+  caracteres, máximo 100 (objetivo 90; recorta etiquetas, nunca el nombre ni la frase), sin `<>` ni espacios dobles,
+  sin repetir los últimos 20 títulos del canal. Rota el artista principal y la mezcla de etiquetas sin repetir una
+  variante del kit; determinístico con el rng. Si nada cumple las reglas devuelve `(None, None)` y se usa la plantilla
+  del canal, con aviso.
+- `chapters(segments)`: `0:00 Loop 1`… acumulando `end - start` (h:mm:ss si pasa la hora); con menos de 3 capítulos o
+  alguno de menos de 10 s devuelve '' y un aviso. `hook(...)`: una llamada de texto (modelo de `kit_preview.names`),
+  1-2 frases en inglés; se descarta con links o si nombra a un artista sin "inspired by" / "style of"; nunca corta el
+  video.
+- Cambios aditivos: `kit_publish` (`title`, `desc_vars` con `{hook}` / `{chapters}`, y `seo` para la corrida),
+  `kit_state` (campo `seo` por corrida), `kit_spend` (`text_cost_usd`, 0.01, dentro del mismo tope mensual),
+  `kit_names` (`one_word`). Sin esos argumentos todo queda igual.
+- `kit_week.make_video`: con ficha usa `kit_seo`; `kit_names` solo corre con `names.vary_name` (default false) y
+  entonces pide un nombre de una palabra. El gancho se pide después del render, para no pagar por un kit salteado.
+- `run_kit_weekly`: la corrida arma `min(horarios configurados, 3)` videos (antes siempre 3).
+- Panel y `kit_settings`: sección "SEO por género" (frase, artistas y etiquetas una por línea, plantilla y ejemplos) y
+  casilla "Variar también el nombre". Además, tres filas con el mismo horario cuentan como un solo horario (era la
+  única forma de cargar menos de 3 desde el panel). `main.py` no se tocó.
+- Decisiones propias: `phrase` es una sola frase por género (para varias frases, un género por frase); la variante
+  guardada incluye el título; las variantes usadas se miran en todo el historial del kit, no solo en el ciclo actual;
+  `kit_week` siempre pasa `desc_vars`, así un `{hook}` sin ficha no queda escrito en la descripción.
+- Pendiente del usuario: cargar la ficha de cada género en el panel, agregar `{hook}` y `{chapters}` a la descripción
+  del canal, una corrida real con un solo horario y, a las 2-3 semanas, comparar vistas por variante.
+- `scripts/run_kit_preview.py` (corrida local de un video) no usa la ficha: sigue con la plantilla del canal.
+- **Chequeo de bugs y seguridad hecho** (`/code-review high` y revisión de seguridad): sin hallazgos de seguridad;
+  los 8 de bugs quedaron aplicados. (1) Gancho y capítulos solo si la plantilla trae `{hook}` / `{chapters}`.
+  (2) Un fallo al armar el SEO no descarta el video ya renderizado: sale con la plantilla del canal y avisa.
+  (3) Sin frase no hay ficha: se guarda a medias y no se usa; una ficha huérfana y rota se descarta en vez de trabar
+  el guardado. (4) La frase que no entra en 40 caracteres se rechaza al guardar; el panel avisa qué artistas no
+  entran y `{artists}` se acorta para cumplir la regla. (5) El gancho se descarta con frases de autoría, cifras que
+  no están en la descripción del kit o artistas sin la fórmula pegada al nombre. (6) `kit_names` pasa por el tope
+  de gasto (también sin ficha: cada nombre generado suma `text_cost_usd`) y el tope que frena un texto se avisa.
+  (7) Un loop de menos de 10 s comparte capítulo con el vecino y la suma se redondea. (8) `{link}`, `{hook}` y
+  `{chapters}` se completan sin reinterpretar el nombre del kit ni tocar otros saltos de línea.
+- Sin hacer: un contador propio de llamadas de texto en el gasto del mes (cambiaría el formato del estado que
+  comparan los smokes de semana); el gasto de texto se suma al total en USD.
+- Smoke: `scripts/smoke_kit_seo.py` (nuevo, sin red); `smoke_kit_panel.py` suma los casos del panel. Los demás smokes
+  de kits pasan sin cambios.
+
 ## Loop kits — Revisión de seguridad ⏳ INFORME ENTREGADO, FALTA LA PRIMERA CORRIDA REAL
 - Revisión de solo lectura de todo lo agregado (workflow, worker, `core/kit_*`, panel).
 - Sin secretos, links de venta ni nombre de canal en los archivos a commitear; acciones fijadas por SHA (verificadas

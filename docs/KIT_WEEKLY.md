@@ -4,8 +4,8 @@
 (20:00 en Buenos Aires) o a mano con `workflow_dispatch` (inputs `channel` y `dry_run`). Nunca se dispara con
 `pull_request`. Con más de un canal, cada uno corre su día: ver "Varios canales" más abajo.
 
-Cada corrida toma el lock de `state.json` (Dropbox), calcula los próximos 3 slots lun/mié/vie 18:00 en
-`America/Argentina/Buenos_Aires` y, por slot, corre `run_preview` con un kit distinto. Sube en **privado** con la fecha
+Cada corrida toma el lock de `state.json` (Dropbox), calcula los próximos slots (uno por horario de
+`kit_preview.slots`, hasta 3; de fábrica lun/mié/vie 18:00) en `America/Argentina/Buenos_Aires` y, por slot, corre `run_preview` con un kit distinto. Sube en **privado** con la fecha
 propuesta como `publishAt`; si YouTube la rechaza queda `private_pending` y el slot propuesto se guarda igual en el
 estado, así una segunda corrida de la misma semana no duplica. Al final manda por Telegram un resumen con los links a
 YouTube Studio (o una alerta con el paso que falló) y libera el lock en un `finally`.
@@ -166,6 +166,54 @@ canal lleva `utm_source` y `utm_content` propios del video.
 
 En Actions la clave va en el secret `KIT_LLM_API_KEY` (tiene prioridad sobre `key_file`). Si el LLM
 falla, el video sale con el nombre del pack. Sin `names`, no cambia nada.
+
+## SEO por género: título, gancho y capítulos (opcional)
+
+Con una ficha en `kit_preview.seo.<genero>` (sección "SEO por género" del panel), el título de los
+videos de ese género lo arma `core/kit_seo.py`, sin modelo de lenguaje, con el **nombre real del kit**
+(`name` del catálogo). La ficha vive en la config del canal en Dropbox, no en el repo:
+
+```json
+"seo": {"<genero>": {"phrase": "…", "artists": ["…"], "tags": ["…"], "title_template": "…", "examples": ["…"]}}
+```
+
+- `phrase` (obligatoria) es la frase que la gente busca; `artists` y `tags` admiten hasta 40 entradas de
+  80 caracteres. `title_template` usa `{artist}`, `{artists}`, `{phrase}`, `{name}` y `{tags}`; sin ella
+  vale `[FREE] {artist} {phrase} - "{name}" | ({tags})`. `examples` son títulos de referencia para vos.
+- Reglas del título: la frase termina dentro de los primeros 40 caracteres, 100 como máximo (objetivo 90;
+  se recortan etiquetas, nunca el nombre ni la frase), sin `<` ni `>` ni espacios dobles, y sin repetir
+  uno de los últimos 20 títulos del canal. Si ningún título las cumple (nombre muy largo, plantilla que
+  deja la frase lejos) se usa la plantilla de título del canal y llega un aviso.
+- La frase tiene que entrar en esos 40 caracteres junto con lo que va antes: con la plantilla de fábrica
+  quedan 33 para artista más frase. Una frase que no entra ni sin artista se rechaza al guardar. Un
+  artista demasiado largo no sale de principal: el panel lo avisa al guardar y, si ninguno entra, el
+  título sale sin artista con un aviso por Telegram.
+- Una ficha sin frase se guarda pero no se usa (ese género sigue con la plantilla del canal).
+- **Rotación para medir:** cada video de un kit usa otro artista principal (cuando se agotan vuelve el
+  que hace más que no sale) y otra mezcla de 3 o 4 etiquetas; no se repite una variante ya usada por ese
+  kit. La variante queda en el estado, en la corrida, junto al `youtube_id`: `seo: {artist, artists,
+  tags, phrase, title}`.
+- **Descripción:** la plantilla de descripción del canal admite `{hook}` y `{chapters}`. Si el marcador
+  no está, no se agrega nada; si está y no hay contenido, se quita sin dejar huecos.
+  - `{chapters}`: `0:00 Loop 1`, `0:28 Loop 2`… con la duración exacta de cada tramo. Un loop de menos
+    de 10 s comparte capítulo con el siguiente (`Loops 3-4`). Hacen falta al menos 3 capítulos de 10 s
+    o más; si no, se omiten y llega un aviso.
+  - `{hook}`: 1 o 2 frases en inglés, una sola llamada al modelo de texto de `kit_preview.names`
+    (`base_url`, `model`; clave en `KIT_LLM_API_KEY`) con la descripción del kit, el género y las
+    palabras de la ficha. Se descarta si trae un link, una frase de autoría ("made by", "used by",
+    "feat."), una cifra que no está en la descripción del kit, o si nombra a un artista de la ficha sin
+    "inspired by" / "style of" delante o "-style" / "type" detrás. Cuesta `spend.text_cost_usd` (0.01)
+    dentro del tope mensual; si el tope no deja (llega un aviso), el modelo falla o no hay modelo
+    configurado, el video sale sin gancho, nunca sin título.
+  - Sin `{hook}` en la plantilla no se llama al modelo, y sin `{chapters}` no se arman capítulos.
+- Las llamadas de `kit_names` también cuentan como gasto de texto dentro del tope mensual (con o sin
+  ficha): si el tope no deja, el video sale con el nombre del kit y llega un aviso.
+- `names.vary_name` (casilla "Variar también el nombre", apagada de fábrica): reemplaza el nombre real
+  por uno de una sola palabra, de marca o lugar, propuesto por `kit_names`. Sin ficha para el género
+  nada de esto aplica: título y nombre salen como siempre.
+- Una ficha mal formada no corta la corrida: ese género usa la plantilla del canal y llega un aviso.
+
+Smoke: `py -3 scripts/smoke_kit_seo.py`.
 
 ## Fondo de portada con IA (opcional)
 

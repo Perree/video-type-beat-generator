@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Gasto estimado de las portadas con IA: contador por mes y topes (solo librería estándar).
+"""Gasto estimado de las llamadas pagas de IA (portadas y texto): contador por mes y topes (solo librería estándar).
 
 El gasto vive en el estado del canal (``state['spend'][<YYYY-MM>]``), así que cada canal
 lleva el suyo y un mes nuevo arranca en cero. Son estimaciones: el costo por imagen y por
@@ -8,7 +8,7 @@ llamada paga y ``record`` después. ``Budget`` junta las dos cosas para una corr
 máximo de imágenes por corrida.
 
 Config en ``kit_preview.spend``: ``monthly_cap_usd``, ``max_images_per_run``,
-``image_cost_usd`` y ``verify_cost_usd``.
+``image_cost_usd``, ``verify_cost_usd`` y ``text_cost_usd`` (gancho de la descripción).
 """
 from datetime import datetime
 
@@ -17,6 +17,7 @@ DEFAULTS = {
     'max_images_per_run': 6,
     'image_cost_usd': 0.25,    # estimado para una edición 1024x1024 en calidad alta
     'verify_cost_usd': 0.01,   # estimado para leer el título con un modelo con visión
+    'text_cost_usd': 0.01,     # estimado para una llamada corta de texto (gancho)
 }
 COUNTERS = ('images', 'verifications')
 REASON_MONTH, REASON_RUN, REASON_STATE = 'month', 'run', 'state'
@@ -134,6 +135,9 @@ class Budget:
 
     def verify_cost(self):
         return float(self.cfg['verify_cost_usd'])
+
+    def text_cost(self):
+        return float(self.cfg['text_cost_usd'])
 
     def charge(self, usd, images=0, verifications=0):
         """Anota un gasto ya hecho. Si no se puede guardar, corta las próximas llamadas."""

@@ -4,8 +4,9 @@
 Lee y escribe en Dropbox, vía ``kit_cloud``, dos JSON: ``kits.json`` (catálogo) y la config
 del worker, de la que solo toca las claves ``kit_preview.{channel, slots, genres, cover_mode,
 dropbox_root, scan_folders, loops_dirs, ignore_names, scan_max_depth}``,
-``kit_preview.art.{refs_root, prompt}`` y ``kit_preview.spend.{monthly_cap_usd,
-max_images_per_run}``. Los secretos (Telegram, YouTube, Dropbox, claves de API) viven
+``kit_preview.art.{refs_root, prompt}``, ``kit_preview.spend.{monthly_cap_usd,
+max_images_per_run}``, ``kit_preview.seo`` (ficha de SEO por género) y
+``kit_preview.names.vary_name``. Los secretos (Telegram, YouTube, Dropbox, claves de API) viven
 en variables de entorno / secretos de GitHub: aquí solo se pregunta si están presentes, sin
 leer su valor hacia ningún JSON ni mensaje.
 """
@@ -13,7 +14,8 @@ import copy
 import os
 from urllib.parse import urlparse
 
-from core import kit_catalog, kit_cloud, kit_notify, kit_source, kit_spend, kit_state
+from core import (kit_catalog, kit_cloud, kit_notify, kit_seo, kit_source, kit_spend,
+                  kit_state)
 
 CONFIG_PATH = os.environ.get('KIT_CONFIG_PATH') or '/loop_kits/_automation/config.json'
 KITS_PATH = os.environ.get('KIT_CATALOG_PATH') or '/loop_kits/_automation/kits.json'
@@ -157,14 +159,43 @@ def _validate_template(form):
     return out
 
 
+def _validate_seo(form, genres):
+    """Fichas de SEO por género y "variar el nombre"; solo las claves que trae el formulario.
+
+    Solo se validan las fichas de los géneros de la lista. Una ficha sin frase se guarda
+    como está cargada (el worker no la usa). La de un género que ya no está en la lista se
+    conserva si es válida y, si no, se descarta: no puede trabar el guardado porque el panel
+    ya no la muestra.
+    """
+    out = {}
+    if 'seo' in form:
+        table = form.get('seo')
+        if not isinstance(table, dict):
+            raise SettingsError('Las fichas de SEO no tienen el formato esperado.')
+        out['seo'] = {}
+        for genre, raw in table.items():
+            if kit_seo.is_empty(raw):
+                continue  # una ficha sin nada cargado no es una ficha
+            listed = kit_seo.find_key({g: None for g in genres}, genre) is not None
+            try:
+                out['seo'][str(genre)] = kit_seo.to_config(kit_seo.validate(raw, partial=True))
+            except kit_seo.KitSeoError as exc:
+                if listed:
+                    raise SettingsError(f'SEO de "{genre}": {exc}') from None
+    if 'vary_name' in form:
+        out['vary_name'] = bool(form.get('vary_name'))
+    return out
+
+
 def validate_settings(form):
     """Valida el formulario de configuración y devuelve un dict normalizado.
 
     Args:
         form: ``{channel, slots: [{weekday, hour, minute}], genres: [str], refs_root,
             cover_mode}`` y, opcionales, ``dropbox_root``, ``scan_folders``, ``loops_dirs``,
-            ``ignore_names``, ``scan_max_depth``, ``art_prompt``, ``monthly_cap_usd`` y
-            ``max_images_per_run`` (las que falten no se tocan al guardar).
+            ``ignore_names``, ``scan_max_depth``, ``art_prompt``, ``monthly_cap_usd``,
+            ``max_images_per_run``, ``seo`` (``{genero: ficha}``) y ``vary_name`` (las que
+            falten no se tocan al guardar).
     """
     slots, seen = [], set()
     for i, slot in enumerate(form.get('slots') or [], 1):
@@ -199,7 +230,7 @@ def validate_settings(form):
         raise SettingsError('El modo plantilla + fondo necesita la carpeta de referencias.')
     return {'channel': _text(form.get('channel')), 'slots': slots, 'genres': genres,
             'refs_root': refs_root, 'cover_mode': cover_mode, **_validate_scan(form),
-            **_validate_template(form)}
+            **_validate_template(form), **_validate_seo(form, genres)}
 
 
 def apply_to_config(config, settings):
@@ -240,6 +271,19 @@ def apply_to_config(config, settings):
         if not isinstance(spend, dict):
             spend = kit['spend'] = {}
         spend.update({key: settings[key] for key in SPEND_KEYS if key in settings})
+    if 'seo' in settings:
+        if settings['seo']:
+            kit['seo'] = copy.deepcopy(settings['seo'])
+        else:
+            kit.pop('seo', None)
+    if 'vary_name' in settings:
+        names = kit.get('names')
+        if isinstance(names, dict):
+            names['vary_name'] = settings['vary_name']
+        elif settings['vary_name']:
+            # Sin el modelo de texto no hay con qué proponer nombres: no se crea a medias.
+            raise SettingsError('"Variar también el nombre" necesita el modelo de texto '
+                                'configurado (kit_preview.names, ver docs/KIT_WEEKLY.md).')
     return new
 
 
@@ -253,7 +297,11 @@ def form_from_config(config):
     scan = kit_source.scan_settings(kit)
     spend = kit_spend.settings(kit)
     prompt = art.get('prompt')
-    return {'channel': str(kit.get('channel') or ''), 'channels': channels,
+    seo = kit.get('seo') if isinstance(kit.get('seo'), dict) else {}
+    names = kit.get('names') if isinstance(kit.get('names'), dict) else {}
+    return {'seo': {str(genre): kit_seo.form(raw) for genre, raw in seo.items()},
+            'vary_name': names.get('vary_name') is True,
+            'channel': str(kit.get('channel') or ''), 'channels': channels,
             'slots': [dict(s) for s in (kit.get('slots') or DEFAULT_SLOTS)],
             'genres': list(kit.get('genres') or []),
             'refs_root': str(art.get('refs_root') or ''),
@@ -313,6 +361,23 @@ def save_config(settings, dbx=None, paths=None):
         raise SettingsError('No hay config del worker en Dropbox: subí primero la config '
                             'completa (ver docs/KIT_WEEKLY.md).')
     return kit_cloud.write_json(path, apply_to_config(config, settings), rev=rev, dbx=dbx)
+
+
+def seo_notes(seo_table):
+    """Avisos para mostrar después de guardar: artistas que no pueden ir de principal."""
+    notes = []
+    for genre, raw in (seo_table or {}).items():
+        if kit_seo.is_blank(raw):
+            continue
+        try:
+            out = kit_seo.unfit_artists(kit_seo.validate(raw))
+        except kit_seo.KitSeoError:
+            continue
+        if out:
+            notes.append(f'SEO de "{genre}": {len(out)} artista(s) no dejan la frase dentro de '
+                         f'los primeros {kit_seo.PHRASE_WITHIN} caracteres y no van a salir en '
+                         f'el título ({", ".join(out)}).')
+    return notes
 
 
 def last_state_lines(state, limit=5, now=None, cap=None):

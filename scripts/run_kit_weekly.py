@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Worker semanal de loop kits: 3 previews en privado, estado en Dropbox, aviso por Telegram.
+"""Worker semanal de loop kits: un preview por horario configurado (hasta 3) en privado,
+estado en Dropbox, aviso por Telegram.
 
 Corre en GitHub Actions (UTC), por eso los horarios se calculan en hora de Buenos Aires y la
 zona se pasa explícita. El repo es público: no se imprime ningún nombre de kit ni mensaje de
@@ -158,7 +159,8 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
     now_local = now or datetime.now(tz).replace(tzinfo=None)
     kit_cfg = app_config.get('kit_preview') or {}
     slots_cfg = kit_cfg.get('slots') or list(DEFAULT_SLOTS)
-    slots = upcoming_slots(now_local, slots_cfg)
+    # Un video por horario configurado, hasta SLOTS_PER_WEEK: con un solo horario sale uno.
+    slots = upcoming_slots(now_local, slots_cfg, min(len(slots_cfg), SLOTS_PER_WEEK))
     proposed = [local_to_youtube_publish_at(True, slot, tz=tz) for slot in slots]
     store = CloudStore(dbx, now_local, paths.state if own else None)
     # Tope de gasto de las portadas con IA: uno por corrida, contra el mes del canal.

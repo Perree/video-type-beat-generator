@@ -339,6 +339,41 @@ def _check_panel(app):
     _wait(app, panel)
     check('USD 1.26 de 7.50' in panel.output.toPlainText(), 'gasto del mes contra el tope del panel')
 
+    # SEO por género: una ficha por género, y horarios repetidos = menos videos.
+    panel.genres.setPlainText('genre-a\ngenre-b')
+    check([panel.seo_genre.itemText(i) for i in range(panel.seo_genre.count())] == GENRES,
+          'el selector de SEO sigue a la lista de géneros')
+    panel.seo_phrase.setText('Smoke Loop Kit')
+    panel.seo_artists.setPlainText('Artist Uno\n\nSecond Act')
+    panel.seo_tags.setPlainText('Dark\nSad')
+    panel.seo_genre.setCurrentIndex(1)
+    check(panel.seo_phrase.text() == '' and panel.seo_artists.toPlainText() == '',
+          'cada género tiene su ficha')
+    panel.seo_genre.setCurrentIndex(0)
+    check(panel.seo_phrase.text() == 'Smoke Loop Kit' and not panel.vary_name.isChecked(),
+          'la ficha se conserva al cambiar de género y "variar el nombre" arranca apagado')
+    _catalog, settings = panel.serialize()
+    check(settings['seo'] == {'genre-a': {'phrase': 'Smoke Loop Kit', 'tags': ['Dark', 'Sad'],
+                                          'artists': ['Artist Uno', 'Second Act']}}
+          and settings['vary_name'] is False, f"serializa la ficha de SEO: {settings.get('seo')}")
+    panel.seo_template.setText('{phrase} sin nombre')
+    panel.save()
+    check(panel._task is None and 'SEO de "genre-a"' in panel.status.text(),
+          'una plantilla de título inválida no se guarda')
+    panel.seo_template.setText('')
+    for i in (1, 2):
+        panel.slot_day[i].setCurrentIndex(panel.slot_day[0].currentIndex())
+        panel.slot_time[i].setTime(panel.slot_time[0].time())
+    check(len(panel.serialize()[1]['slots']) == 1, 'tres filas con el mismo horario son un solo horario')
+    panel.set_form({**kit_settings.form_from_config({'kit_preview': {
+        'genres': ['genre-b'], 'names': {'vary_name': True},
+        'slots': [{'weekday': 3, 'hour': 9, 'minute': 15}],
+        'seo': {'Genre-B': {'phrase': 'Otra frase', 'artists': ['Uno']}}}}), 'categories': []})
+    check(panel.seo_phrase.text() == 'Otra frase' and panel.vary_name.isChecked()
+          and len(panel.form_values()['slots']) == 1
+          and list(panel.seo_values()) == ['genre-b'],
+          'la config guardada (un horario, ficha y variar nombre) se vuelve a cargar')
+
     check(TG_TOKEN not in _widget_texts(panel) and TG_CHAT not in _widget_texts(panel),
           'ningún secreto en la interfaz')
     check(all(w.echoMode() == QLineEdit.Normal for w in panel.findChildren(QLineEdit)),
