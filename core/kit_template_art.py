@@ -15,6 +15,7 @@ avisa. La clave viaja solo en el header Authorization y no aparece en mensajes n
 los avisos tampoco llevan títulos, nombres de kit ni de archivo.
 """
 import base64
+import inspect
 import io
 import json
 import os
@@ -74,14 +75,12 @@ _FALLBACK_TEXT = ("Loop kits: no se generó la portada con IA ({}). "
 _REVIEW_TEXT = ("Loop kits: el título de una portada generada no coincide con el pedido, "
                 "incluso después de un reintento. Se usó igual: revisala antes de programar "
                 "el video.")
+_REVIEW_NO_RETRY_TEXT = ("Loop kits: el título de una portada generada no coincide con el "
+                         "pedido y el reintento no se pudo hacer ({}). Se usó la primera "
+                         "imagen: revisala antes de programar el video.")
 
 
-class KitArtBudget(kit_art.KitArtConfig):
-    """El tope de gasto no deja hacer el pedido. ``reason`` es un ``kit_spend.REASON_*``."""
-
-    def __init__(self, reason):
-        super().__init__(kit_spend.REASON_TEXT.get(reason, 'tope de gasto'))
-        self.reason = reason
+KitArtBudget = kit_art.KitArtBudget
 
 
 # --- Prompt ---
@@ -102,14 +101,29 @@ def render_prompt(template, title):
 
 
 def _title_key(text):
+    """Letras y números del título, sin acentos, mayúsculas, espacios ni signos (``&`` = ``and``)."""
+    text = unicodedata.normalize('NFKC', str(text or '')).strip().strip(_QUOTES)
+    text = unicodedata.normalize('NFKD', text.replace('&', ' and '))
+    return ''.join(c for c in text.casefold() if c.isalnum() and not unicodedata.combining(c))
+
+
+def _loose_key(text):
     text = unicodedata.normalize('NFKC', str(text or '')).strip().strip(_QUOTES)
     return ''.join(text.casefold().split())
 
 
 def titles_match(expected, read):
-    """Compara dos títulos sin distinguir mayúsculas ni espacios."""
+    """Compara dos títulos sin distinguir mayúsculas, acentos, espacios ni signos.
+
+    El modelo con visión puede leer ``Nuit and Fog`` por ``Nuit & Fog`` o perder un acento: eso
+    no justifica generar (y cobrar) otra imagen. Un título sin letras ni números (solo
+    símbolos) se compara por su texto, sin distinguir mayúsculas ni espacios.
+    """
     key = _title_key(expected)
-    return bool(key) and key == _title_key(read)
+    if key:
+        return key == _title_key(read)
+    loose = _loose_key(expected)
+    return bool(loose) and loose == _loose_key(read)
 
 
 # --- Dropbox: portada modelo y fondos ---
@@ -218,19 +232,7 @@ def vision_client(image_path, cfg, key=None):
 
 def _paid_image(client, prompt, images, cfg, budget):
     """Un pedido a la API de imágenes, con el tope antes y el gasto anotado después."""
-    count = kit_art.image_count(cfg)
-    cost = budget.image_cost(count)
-    reason = budget.blocked(cost, images=count)
-    if reason:
-        raise KitArtBudget(reason)
-    try:
-        data = client(prompt, images, cfg)
-    except Exception as exc:
-        # Si no está claro que la API no cobró (timeout, 5xx), se cuenta como cobrado.
-        if getattr(exc, 'billable', True):
-            budget.charge(cost, images=count)
-        raise
-    budget.charge(cost, images=count)
+    data = kit_art.charged_call(client, prompt, images, cfg, budget)
     try:
         return Image.open(io.BytesIO(data)).convert('RGB')
     except Exception:
@@ -267,7 +269,8 @@ def cover(title, model, backgrounds, used, rng, client=None, *, cfg=None, out_di
         cfg: ``kit_preview.art`` (API, ``prompt``, ``ref_cooldown_days``, ``verify``).
         fetch: ``fetch(paths, dest_dir) -> rutas locales``; por defecto baja de Dropbox.
         report: dict opcional que recibe ``refs`` (el fondo elegido), ``warnings``,
-            ``prompt``, ``verified`` (True, False o None) y ``retried``.
+            ``prompt``, ``verified`` (True, False o None), ``retried`` y, si el reintento no
+            llegó a hacerse, ``retry_failed`` (motivo, sin datos privados).
         budget: ``kit_spend.Budget``; por defecto uno que solo cuenta esta llamada.
         verify: ``verify(image_path, cfg) -> título leído``; por defecto ``vision_client``.
 
@@ -308,7 +311,9 @@ def cover(title, model, backgrounds, used, rng, client=None, *, cfg=None, out_di
             info['retried'] = True
             try:
                 second = _paid_image(client, prompt, images, cfg, budget)
-            except Exception:
+            except Exception as exc:
+                info['retry_failed'] = (str(exc) if isinstance(exc, KitArtBudget)
+                                        else type(exc).__name__)
                 return out
             second.save(out, 'PNG')
             info['verified'] = _title_ok(out, title, vcfg, verify, budget)
@@ -317,16 +322,23 @@ def cover(title, model, backgrounds, used, rng, client=None, *, cfg=None, out_di
 
 # --- Entrada del worker ---
 
+def _accepts_photo(send):
+    """True si ``send`` recibe ``photo`` (por nombre o con ``**kwargs``)."""
+    try:
+        params = inspect.signature(send).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return any(p.name == 'photo' or p.kind is inspect.Parameter.VAR_KEYWORD for p in params)
+
+
 def _warn(notify, text, photo=None):
     send = notify or kit_notify.send
     try:
-        if photo:
-            try:
-                send(text, photo=photo)
-                return
-            except TypeError:  # un notificador que solo recibe texto
-                pass
-        send(text)
+        # Se mira la firma, no se atrapa TypeError: uno de adentro mandaría el aviso dos veces.
+        if photo and _accepts_photo(send):
+            send(text, photo=photo)
+        else:
+            send(text)
     except Exception as exc:
         print(f"Aviso por Telegram no enviado ({type(exc).__name__}).")
 
@@ -370,7 +382,9 @@ def for_video(kit_cfg, title, fallback_image, store, rng, work_dir, dbx=None, cl
         print(f"warning: {warning}")
     if report.get('verified') is False:
         print("warning: el título de la portada no coincide con el pedido.")
-        _warn(notify, _REVIEW_TEXT, photo=path)
+        failed = report.get('retry_failed')
+        _warn(notify, _REVIEW_NO_RETRY_TEXT.format(failed) if failed else _REVIEW_TEXT,
+              photo=path)
     elif verify_settings(art).get('enabled', True) is not False:
         print("warning: el título de la portada no se pudo verificar.")
     return path, list(report.get('refs') or []), True

@@ -26,7 +26,7 @@ from functools import partial
 
 from PIL import Image
 
-from core import dropbox_client, kit_cloud, kit_llm, kit_notify, kit_source
+from core import dropbox_client, kit_cloud, kit_llm, kit_notify, kit_source, kit_spend
 
 ENV_KEY = 'KIT_IMAGE_API_KEY'
 MODE_AUTO, MODE_MANUAL = 'auto', 'manual'
@@ -84,6 +84,37 @@ class KitArtRejected(KitArtError):
 class KitArtConfig(KitArtError):
     """Falta algo de la config o la clave: el pedido no llegó a salir."""
     billable = False
+
+
+class KitArtBudget(KitArtConfig):
+    """El tope de gasto no deja hacer el pedido. ``reason`` es un ``kit_spend.REASON_*``."""
+
+    def __init__(self, reason):
+        super().__init__(kit_spend.REASON_TEXT.get(reason, 'tope de gasto'))
+        self.reason = reason
+
+
+def charged_call(client, prompt, images, cfg, budget):
+    """Un pedido a la API de imágenes con el tope antes y el gasto anotado después.
+
+    Devuelve los bytes de la imagen. Con ``budget`` en None no controla nada. Si no está claro
+    que la API no cobró (timeout, 5xx), el pedido se cuenta como cobrado.
+    """
+    if budget is None:
+        return client(prompt, images, cfg)
+    count = image_count(cfg)
+    cost = budget.image_cost(count)
+    reason = budget.blocked(cost, images=count)
+    if reason:
+        raise KitArtBudget(reason)
+    try:
+        data = client(prompt, images, cfg)
+    except Exception as exc:
+        if getattr(exc, 'billable', True):
+            budget.charge(cost, images=count)
+        raise
+    budget.charge(cost, images=count)
+    return data
 
 
 # --- Referencias ---
@@ -305,7 +336,7 @@ def _prepare_ref(src, dest, max_side):
 
 
 def background(kit, genre, refs, used, rng, client=None, *, cfg=None, out_dir=None,
-               now=None, fetch=None, dbx=None, report=None):
+               now=None, fetch=None, dbx=None, report=None, budget=None):
     """Genera el fondo de un video y devuelve la ruta local del PNG.
 
     Args:
@@ -319,9 +350,11 @@ def background(kit, genre, refs, used, rng, client=None, *, cfg=None, out_dir=No
         out_dir: dónde dejar el PNG; por defecto un directorio temporal que borra el llamador.
         fetch: ``fetch(paths, dest_dir) -> rutas locales``; por defecto baja de Dropbox.
         report: dict opcional que recibe ``refs`` (rutas elegidas), ``warnings`` y ``prompt``.
+        budget: ``kit_spend.Budget``; si viene, el pedido respeta el tope y se anota el gasto.
 
     Raises:
-        KitArtRejected si la API rechaza el pedido; KitArtError ante cualquier otro fallo.
+        KitArtBudget si el tope no deja hacer el pedido; KitArtRejected si la API rechaza el
+        pedido; KitArtError ante cualquier otro fallo.
         Las referencias descargadas se borran siempre.
     """
     cfg = {**DEFAULTS, **(cfg or {})}
@@ -342,7 +375,7 @@ def background(kit, genre, refs, used, rng, client=None, *, cfg=None, out_dir=No
         except Exception as e:
             raise KitArtError(
                 f"No se pudieron preparar las referencias ({type(e).__name__}).") from None
-        data = client(prompt, prepared, cfg)
+        data = charged_call(client, prompt, prepared, cfg, budget)
     try:
         img = Image.open(io.BytesIO(data)).convert('RGB')
     except Exception:
@@ -375,7 +408,7 @@ def _warn(notify, text):
 
 
 def for_video(kit_cfg, kit, fallback_image, store, rng, work_dir, dbx=None, client=None,
-              notify=None, now=None):
+              notify=None, now=None, budget=None):
     """Fondo del video: ``(ruta, referencias usadas)``.
 
     Con ``cover_mode`` manual (o sin la clave) devuelve ``(fallback_image, [])`` sin llamar a
@@ -383,12 +416,15 @@ def for_video(kit_cfg, kit, fallback_image, store, rng, work_dir, dbx=None, clie
     ``names.genre``) bajo ``art.refs_root``. Si la API rechaza la referencia o algo falla, ese
     video cae a manual: devuelve ``(fallback_image, [])`` y avisa por Telegram (``notify(text)``,
     por defecto ``kit_notify.send``); nunca levanta. El aviso no lleva nombres ni mensajes de error.
-    El uso previo sale de ``store.ref_usage()`` si el store lo tiene.
+    El uso previo sale de ``store.ref_usage()`` si el store lo tiene. Respeta el tope de gasto
+    (``kit_spend``): sin ``budget`` usa uno de la config y del estado del ``store``; al llegar
+    al tope ese video sale con la imagen manual y el aviso se manda una sola vez por corrida.
     """
     if mode(kit_cfg) != MODE_AUTO:
         return fallback_image, []
     art = kit_cfg.get('art') or {}
     genre = str(art.get('genre') or (kit_cfg.get('names') or {}).get('genre') or '').strip()
+    budget = budget or kit_spend.Budget(kit_spend.settings(kit_cfg), store, now)
     report = {}
     try:
         if not genre or not art.get('refs_root'):
@@ -396,12 +432,19 @@ def for_video(kit_cfg, kit, fallback_image, store, rng, work_dir, dbx=None, clie
         refs = list_refs(art['refs_root'], genre, dbx=dbx)
         usage = getattr(store, 'ref_usage', None)
         path = background(kit, genre, refs, usage() if usage else {}, rng, client,
-                          cfg=art, out_dir=work_dir, now=now, dbx=dbx, report=report)
+                          cfg=art, out_dir=work_dir, now=now, dbx=dbx, report=report,
+                          budget=budget)
     except Exception as exc:
-        reason = ('pedido rechazado' if isinstance(exc, KitArtRejected)
-                  else type(exc).__name__)
+        if isinstance(exc, KitArtBudget):
+            reason, once = str(exc), exc.reason
+        else:
+            reason, once = ('pedido rechazado' if isinstance(exc, KitArtRejected)
+                            else type(exc).__name__), None
         print(f"Fondo con IA no generado ({reason}); se usa la imagen manual.")
-        _warn(notify, _FALLBACK_TEXT.format(reason))
+        if once not in budget.notified:
+            if once:
+                budget.notified.add(once)
+            _warn(notify, _FALLBACK_TEXT.format(reason))
         return fallback_image, []
     for warning in report.get('warnings') or []:
         print(f"warning: {warning}")
@@ -419,7 +462,7 @@ def for_cover(kit_cfg, kit, title, fallback_image, store, rng, work_dir, dbx=Non
     """
     if mode(kit_cfg) != MODE_TEMPLATE:
         path, refs = for_video(kit_cfg, kit, fallback_image, store, rng, work_dir, dbx=dbx,
-                               client=client, notify=notify, now=now)
+                               client=client, notify=notify, now=now, budget=budget)
         return path, refs, False
     from core import kit_template_art
     return kit_template_art.for_video(

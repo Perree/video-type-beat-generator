@@ -401,8 +401,11 @@ def frame_for_video(cfg, cover, work_dir):
     """Cuadro 16:9 y miniatura a partir de una portada cuadrada ya terminada.
 
     La usa la portada completa con IA (``cover_mode: template``), que no pasa por
-    ``compose``. De ``cfg`` (``kit_preview.cover``, puede faltar) solo se lee ``frame``.
+    ``compose``. De ``cfg`` (``kit_preview.cover``, puede faltar) se lee ``enabled`` y ``frame``.
+    Con ``enabled`` falso no cambia nada, igual que ``for_video``: devuelve ``(cover, None)``.
     """
+    if cfg and cfg.get('enabled', True) is False:
+        return cover, None
     frame = to_video_frame(cover, os.path.join(work_dir, 'kit_frame.png'),
                            (cfg or {}).get('frame'))
     thumb = os.path.join(work_dir, 'kit_thumb.jpg')

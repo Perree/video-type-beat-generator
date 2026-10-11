@@ -131,11 +131,8 @@ def _validate_template(form):
     """Prompt de la portada y topes de gasto; solo las claves que trae el formulario."""
     out = {}
     if 'art_prompt' in form:
-        from core import kit_template_art
         prompt = _text(form.get('art_prompt'))
-        if prompt and kit_template_art.MARKER not in prompt:
-            raise SettingsError(f'El prompt de la portada tiene que incluir '
-                                f'{kit_template_art.MARKER}.')
+        # Sin {titulo} el worker agrega el título al final (kit_template_art.render_prompt).
         if len(prompt) > MAX_PROMPT:
             raise SettingsError(f'El prompt de la portada admite hasta {MAX_PROMPT} caracteres.')
         # Igual al de fábrica no se guarda: así el worker sigue las mejoras del código.

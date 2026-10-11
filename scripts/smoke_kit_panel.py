@@ -256,8 +256,8 @@ def _check_panel(app):
     panel.cover_mode.setCurrentIndex(2)
     panel.art_prompt.setPlainText('Prompt propio sin marcador')
     panel.save()
-    check(panel._task is None and '{titulo}' in panel.status.text(),
-          'un prompt sin {titulo} no se guarda')
+    check(_wait(app, panel) and panel.status.text().startswith('Guardado'),
+          'un prompt sin {titulo} se guarda (el worker agrega el título al final)')
     panel.art_prompt.setPlainText('Prompt propio con {titulo}')
     panel.monthly_cap.setValue(7.5)
     panel.max_images.setValue(4)

@@ -221,9 +221,18 @@ def _check_prompt(tmp):
         pass
     check(kit_template_art.titles_match('Noche Rara #7', ' "noche  RARA#7" '),
           "la comparación distingue mayúsculas o espacios")
-    check(not kit_template_art.titles_match('Noche Rara #7', 'Noche Rara 7')
-          and not kit_template_art.titles_match('Noche Rara', ''),
+    check(not kit_template_art.titles_match('Noche Rara #7', 'Noche Rara 8')
+          and not kit_template_art.titles_match('Noche Rara', '')
+          and not kit_template_art.titles_match('Noche Rara', 'Noche Rora'),
           "la comparación acepta un título distinto")
+    # Acentos, signos y "&" no justifican otra imagen (que se cobra).
+    check(kit_template_art.titles_match('Café 24/7', 'CAFE 24 7')
+          and kit_template_art.titles_match('Nuit & Fog', 'Nuit and Fog')
+          and kit_template_art.titles_match('Noche Rara #7', 'Noche Rara 7')
+          and kit_template_art.titles_match('¡Ñandú!', 'nandu')
+          and kit_template_art.titles_match('???', '? ? ?') and not
+          kit_template_art.titles_match('???', '!!!'),
+          "la comparación se frena por acentos, signos o '&'")
 
 
 # --- Reintentos ---
@@ -467,6 +476,34 @@ def _check_for_video(tmp):
         check(len(sent) == 1 and 'revisala' in sent[0] and photos == [got[0]],
               "el aviso de revisión no salió con la portada")
 
+        # El reintento no se pudo hacer (tope): el aviso lo dice, no afirma que hubo uno.
+        sent, client = [], _client()
+        one = {**cfg, 'spend': {'max_images_per_run': 1}}
+        got = kit_art.for_cover(one, 'Kit Privado', TITLE, fallback, _Store(), random.Random(1),
+                                os.path.join(tmp, 'rev2'), client=client,
+                                notify=lambda text, photo=None: sent.append(text),
+                                now=NOW, verify=_verifier('Otro Titulo'))
+        check(got[2] and len(client.calls) == 1 and len(sent) == 1
+              and 'no se pudo hacer' in sent[0] and 'incluso' not in sent[0],
+              f"el aviso del reintento fallido no dice la causa: {sent!r}")
+
+        # Un TypeError de adentro del notificador no manda el aviso dos veces.
+        tries = []
+
+        def flaky(text, photo=None):
+            tries.append(photo)
+            raise TypeError('de adentro')
+        kit_art.for_cover(cfg, 'Kit Privado', TITLE, fallback, _Store(), random.Random(1),
+                          os.path.join(tmp, 'rev3'), client=_client(), notify=flaky, now=NOW,
+                          verify=_verifier('Otro Titulo'))
+        check(len(tries) == 1, f"el aviso se mandó {len(tries)} veces")
+        # Un notificador que solo recibe texto sigue funcionando (sin foto).
+        texts = []
+        kit_art.for_cover(cfg, 'Kit Privado', TITLE, fallback, _Store(), random.Random(1),
+                          os.path.join(tmp, 'rev4'), client=_client(), notify=texts.append,
+                          now=NOW, verify=_verifier('Otro Titulo'))
+        check(len(texts) == 1 and 'revisala' in texts[0], "un notificador de solo texto falló")
+
         # Config incompleta, carpeta inexistente o Telegram caído: manual, sin levantar.
         def broken(text, photo=None):
             raise RuntimeError(KEY)
@@ -654,7 +691,10 @@ def _check_description():
           "el formulario no carga el modo plantilla")
     check(kit_settings.form_from_config({})['art_prompt'] == default,
           "sin prompt en la config el formulario no muestra el de fábrica")
-    for bad in ({'art_prompt': 'sin marcador'}, {'art_prompt': '{titulo}' + 'x' * 4000},
+    # Sin {titulo} se guarda: el worker agrega el título al final.
+    check(kit_settings.validate_settings({**good, 'art_prompt': 'sin marcador'})['art_prompt']
+          == 'sin marcador', "un prompt sin {titulo} debe poder guardarse")
+    for bad in ({'art_prompt': '{titulo}' + 'x' * 4000},
                 {'monthly_cap_usd': -1}, {'monthly_cap_usd': 'x'}, {'max_images_per_run': 999},
                 {'refs_root': ''}):
         try:
@@ -666,12 +706,54 @@ def _check_description():
           "un formulario sin prompt no debe tocar el guardado")
 
 
+def _check_auto_budget(tmp):
+    """El tope de gasto también corta el modo auto (fondo con IA)."""
+    fallback = os.path.join(tmp, 'manual_auto.png')
+    Image.new('RGB', (10, 10)).save(fallback)
+    cfg = {'cover_mode': 'auto', 'art': {'refs_root': REFS_ROOT, 'genre': GENRE},
+           'spend': {'max_images_per_run': 2}}
+    real = (kit_art.list_refs, kit_art.kit_source.download_pack_files)
+    kit_art.list_refs = lambda root, genre, dbx=None: BGS
+    kit_art.kit_source.download_pack_files = lambda paths, dest, dbx=None: _fetch(paths, dest)
+    try:
+        sent, client, store = [], _client(), _Store()
+        budget = kit_spend.Budget(kit_spend.settings(cfg), store, NOW)
+        results = [kit_art.for_video(cfg, 'Kit Privado', fallback, store, random.Random(i),
+                                     os.path.join(tmp, f'auto{i}'), client=client,
+                                     notify=sent.append, now=NOW, budget=budget)
+                   for i in range(4)]
+        check(len(client.calls) == 2 and results[0][0] != fallback and results[1][0] != fallback
+              and results[2] == (fallback, []) and results[3] == (fallback, []),
+              f"el máximo por corrida no cortó el modo auto: {len(client.calls)} pedidos")
+        check(len(sent) == 1 and 'máximo' in sent[0], f"aviso del tope en auto: {sent!r}")
+        check(abs(store.spend_month(budget.month) - 0.5) < 1e-6,
+              "el gasto del modo auto no llegó al estado")
+        # Sin budget propio usa el estado del store: con el tope mensual alcanzado no genera.
+        sent, client, store = [], _client(), _Store(spent=9.9)
+        got = kit_art.for_video(cfg, 'Kit Privado', fallback, store, random.Random(1),
+                                os.path.join(tmp, 'auto_m'), client=client, notify=sent.append,
+                                now=NOW)
+        check(got == (fallback, []) and not client.calls and len(sent) == 1,
+              "con el tope mensual alcanzado el modo auto igual generó")
+        # Un error dudoso de la API en auto también se cobra; un rechazo, no.
+        for fail, charged in ((kit_art.KitArtRejected('x'), 0.0), (OSError('x'), 0.25)):
+            store = _Store()
+            budget = kit_spend.Budget(kit_spend.settings(cfg), store, NOW)
+            kit_art.for_video(cfg, 'Kit Privado', fallback, store, random.Random(1),
+                              os.path.join(tmp, 'auto_e'), client=_client(fail),
+                              notify=lambda t: None, now=NOW, budget=budget)
+            check(abs(budget.month_spent() - charged) < 1e-6,
+                  f"gasto en auto ante {type(fail).__name__}: {budget.month_spent()}")
+    finally:
+        kit_art.list_refs, kit_art.kit_source.download_pack_files = real
+
+
 def main():
     with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(OUT):
         for fn, args in ((_check_background, ()), (_check_prompt, (tmp,)),
                          (_check_retries, (tmp,)), (_check_spend, ()),
                          (_check_for_video, (tmp,)), (_check_api, (tmp,)),
-                         (_check_description, ())):
+                         (_check_description, ()), (_check_auto_budget, (tmp,))):
             try:
                 fn(*args)
             except Exception as e:

@@ -245,8 +245,8 @@ class LoopKitPanel(QWidget):
         self.max_images.setRange(0, kit_settings.MAX_IMAGES_PER_RUN)
         form.addRow("Máximo de imágenes por corrida:", self.max_images)
         hint = QLabel("Plantilla + fondo usa, en la carpeta de referencias de cada género, "
-                      "modelo.png y la subcarpeta fondos/. El prompt tiene que incluir {titulo}, "
-                      "que se reemplaza por el título del video. Al llegar a un tope no se "
+                      "modelo.png y la subcarpeta fondos/. {titulo} en el prompt se reemplaza por el "
+                      "título del video (si falta, se agrega al final). Al llegar a un tope no se "
                       "generan más portadas: esos videos salen con la imagen manual y llega un "
                       "aviso por Telegram. El gasto es una estimación, no la factura.")
         hint.setWordWrap(True)

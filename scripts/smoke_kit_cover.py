@@ -145,6 +145,11 @@ def _check_finished_cover(tmp, cover):
             work = os.path.join(tmp, f'finished{i}')
             os.makedirs(work)
             frame, thumb = kit_cover.frame_for_video(cfg, cover, work)
+            if cfg and cfg.get('enabled') is False:
+                # Portada apagada: igual que for_video, sin cuadro ni miniatura.
+                check(frame == cover and thumb is None,
+                      "frame_for_video ignora cover.enabled=false")
+                continue
             size = (640, 360) if cfg and cfg.get('frame') else (1920, 1080)
             check(Image.open(frame).size == size, f"frame_for_video: cuadro {size} con cfg={cfg}")
             check(thumb.endswith('.jpg') and Image.open(thumb).size == size,
