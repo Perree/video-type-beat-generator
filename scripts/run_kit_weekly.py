@@ -266,7 +266,7 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
     if failure:
         exc, step = failure
         _notify(notifier, kit_notify.alert(exc, step=step))
-        print(f"Fallo en {step} ({exc if isinstance(exc, str) else type(exc).__name__}).")
+        print(f"Fallo en {step} ({kit_notify.error_kind(exc)}).")
         return 1
     return 0
 

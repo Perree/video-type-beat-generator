@@ -91,8 +91,30 @@ def summary(videos):
     return '\n'.join(lines)
 
 
+def error_kind(error):
+    """Tipo del error para logs y alertas, sin mensaje (puede traer datos).
+
+    Si es un error de YouTube que viene de una respuesta HTTP, suma el código y la razón que
+    devuelve la API (por ejemplo ``HTTP 403 quotaExceeded``): son valores fijos, sin datos privados.
+    """
+    if isinstance(error, str):
+        return error
+    kind = type(error).__name__
+    cause = getattr(error, '__cause__', None)
+    status = getattr(getattr(cause, 'resp', None), 'status', None)
+    if not isinstance(status, int):
+        return kind
+    reason = ''
+    try:
+        items = json.loads(cause.content.decode('utf-8'))['error'].get('errors') or []
+        reason = ''.join(c for c in str(items[0].get('reason') or '') if c.isalnum())[:40]
+    except Exception:
+        pass
+    return f"{kind} HTTP {status}" + (f" {reason}" if reason else '')
+
+
 def alert(error, step=None):
     """Texto de alerta: paso que falló y tipo de error, sin mensaje (puede traer datos)."""
-    kind = error if isinstance(error, str) else type(error).__name__
+    kind = error_kind(error)
     where = f" en el paso '{step}'" if step else ''
     return f"Loop kits: fallo el worker semanal{where} ({kind}). Revisar el log de Actions."
