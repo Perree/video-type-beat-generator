@@ -45,6 +45,7 @@ from ui_theme import APPLICATION_STYLESHEET, style_primary_generate_button
 from section_nav import SectionNavBar
 from shorts_panel import ShortsPanel
 from loop_kit_panel import open_loop_kit_panel
+from core.beat_panel import open_beat_panel
 from core.sections import (
     DEFAULT_SECTION,
     SECTION_BEATS,
@@ -1012,6 +1013,9 @@ class MainWindow(QMainWindow):
         self.btn_kit_config = QPushButton("Configuración de automatización")
         self.btn_kit_config.clicked.connect(lambda: open_loop_kit_panel(self))
         left_layout.addWidget(self.btn_kit_config)
+        self.btn_beat_config = QPushButton("Automatizaciones de Beats")
+        self.btn_beat_config.clicked.connect(lambda: open_beat_panel(self))
+        left_layout.addWidget(self.btn_beat_config)
 
         self.beats_label = QLabel("Beats disponibles:")
         self.beats_label.setStyleSheet("font-weight: bold; padding: 5px;")
@@ -1248,6 +1252,8 @@ class MainWindow(QMainWindow):
         """Actualiza textos de la UI de trabajo según beats vs loop kits."""
         is_kits = getattr(self, 'current_section', DEFAULT_SECTION) == SECTION_LOOP_KITS
         self.btn_kit_config.setVisible(is_kits)
+        self.btn_beat_config.setVisible(
+            getattr(self, 'current_section', DEFAULT_SECTION) == SECTION_BEATS)
         if is_kits:
             self.beats_title.setText("Gestión de Loop kits")
             self.beats_label.setText("Loop kits disponibles:")

@@ -72,6 +72,27 @@ Esta fase prepara el roadmap aprobado de Type Beats sin cambiar el comportamient
 - Cierre autorizado después de la revisión. No se hizo una prueba con Dropbox real;
   la validación del adaptador usa el SDK oficial con un cliente falso.
 
+## Fase 3 — Panel de automatizaciones Type Beats ✅ COMPLETADA (2026-10-12, revisión aplicada)
+- Panel PyQt independiente en `core/beat_panel.py` y `beat_panel_form.py`:
+  perfil público, canales de Beats, horarios Buenos Aires, prioridad, tags, géneros,
+  carpeta local de imágenes, activa/pausada, estado y cuota global de seis intentos.
+- `beat_settings.py` guarda solo `beat_automation` en la configuración local,
+  mediante reemplazo atómico; simulación pura del buffer de 14 días con Fase 2.
+- `beat_tasks.py` analiza metadata pública con el extractor de Fase 1 en QThread,
+  con progreso, cancelación cooperativa, descarte de resultados y cierre diferido.
+  Lectura opcional del estado Dropbox de Beats, sin escrituras ni reservas.
+- Revisión de bugs aplicada: metadata/JSON inválidos, prioridades sin truncar,
+  resúmenes obsoletos, cancelación de backoff y estado remoto ausente. Tabla con
+  modelo `beat_job_model.py` para no crear miles de celdas en el hilo de UI.
+- Revisión independiente de seguridad: sin vulnerabilidades confirmadas.
+  Validación: 67 tests offline, smokes de secciones y panel Loopkits, carga de
+  `main.py` y whitespace aprobados. Uso y límites: `docs/TYPE_BEATS_PANEL.md`.
+- `main.py` contiene seis líneas nuevas de cableado; Loopkits y marca personal
+  sin cambios. No hay render, uploads ni worker de publicación. No se probaron
+  servicios reales durante el cierre; solicitudes en curso esperan su timeout.
+- Cierre y commit autorizados por el usuario después de revisión y correcciones.
+  Las fases históricas siguientes se conservan.
+
 ## Fase 0 histórica — Limpieza del repo (registrada previamente)
 La limpieza original de herramientas/configuración fue anotada como completada en una versión anterior del plan; se conserva
 como antecedente y no cuenta como cierre de la Fase 0 de preparación de automatización definida arriba.
