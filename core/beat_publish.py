@@ -7,6 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 from core.beat_state import BeatState
 from core.beat_schema import instant
+from core.beat_guard import active_channel, future_slot
 
 
 def journal(folder, job_id, outcome, youtube_id=None):
@@ -25,22 +26,25 @@ def journal(folder, job_id, outcome, youtube_id=None):
     return row
 
 
-def publish(cloud, job, media, seo, uploader, receipts, clock, *, thumbnailer=None):
+def publish(cloud, job, media, seo, uploader, receipts, clock, *, thumbnailer=None,
+            private_pilot=False):
     store = BeatState(cloud, clock)
+    active_channel(cloud, job['channel'])
     # Check journal writability BEFORE spending budget or calling YouTube.
     probe = journal(receipts, uuid4().hex, 'prepared')
     (Path(receipts) / (probe['job_sha256'] + '.json')).unlink()
-    if instant(job['slot']) <= instant(clock()):
-        raise ValueError('publication_slot_expired')
+    future_slot(job, clock)
     attempt = store.reserve_attempt(job['id'], uuid4().hex, exclusive=True)
     journal(receipts, job['id'], 'unknown')
-    # No insert may spend a reservation charged to a previous BA date.
+    active_channel(cloud, job['channel'])
+    future_slot(job, clock)
+    # The fresh config read can itself cross midnight. Check AFTER that I/O.
     if instant(attempt['reserved_at']).date() != instant(clock()).date():
         raise ValueError('upload_reservation_day_changed')
     try:
         result = uploader(channel=job['channel'], video_path=str(media['video']),
                           thumbnail=str(media['thumbnail']), **seo['selected'],
-                          privacy='private', publish_at=job['slot'])
+                          privacy='private', publish_at=None if private_pilot else job['slot'])
     except Exception:
         # Even a timeout could hide a successful insert. Never retry this job.
         return 'unknown'
@@ -62,7 +66,8 @@ def publish(cloud, job, media, seo, uploader, receipts, clock, *, thumbnailer=No
         if existing is not None and existing != video_id:
             raise ValueError('upload_receipt_conflict')
         current.update(status='uploaded', youtube_id=video_id,
-                       uploaded_at=uploaded_at)
+                       uploaded_at=uploaded_at,
+                       publication_mode='private_pilot' if private_pilot else 'scheduled')
     try:
         cloud.update('state', record)
     except Exception:

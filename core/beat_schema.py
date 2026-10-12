@@ -3,6 +3,7 @@ from copy import deepcopy
 from datetime import datetime, timezone, timedelta
 import json
 import re
+import math
 
 BA = timezone(timedelta(hours=-3), "America/Argentina/Buenos_Aires")
 VERSION = 1
@@ -93,10 +94,25 @@ def migrate(document, kind):
                 raise ValueError("invalid_job_identity")
             if job.get("status") not in ("planned", "uploaded", "failed", "cancelled"):
                 raise ValueError("invalid_job_status")
+            if 'publication_mode' in job and job['publication_mode'] not in ('scheduled', 'private_pilot'):
+                raise ValueError('invalid_publication_mode')
             pair = (job["channel"], instant(job["slot"]))
             if pair in occupied:
                 raise ValueError("duplicate_channel_slot")
             occupied.add(pair)
+            if 'selection' in job:
+                selection = job['selection']
+                if (type(selection) is not dict or set(selection) != {'bucket', 'score', 'report_hash'}
+                        or selection['bucket'] not in ('lru', 'top', 'middle', 'remaining')):
+                    raise ValueError('invalid_selection')
+                score = selection['score']
+                if score is not None and (type(score) not in (int, float)
+                        or not math.isfinite(score) or not 0 <= score <= 100):
+                    raise ValueError('invalid_selection')
+                report_hash = selection['report_hash']
+                if report_hash is not None and (type(report_hash) is not str
+                        or not re.fullmatch('[0-9a-f]{64}', report_hash)):
+                    raise ValueError('invalid_selection')
         tokens = set()
         for day, attempts in result["attempts"].items():
             datetime.strptime(day, "%Y-%m-%d")

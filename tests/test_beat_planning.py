@@ -107,10 +107,14 @@ class PlanningTests(unittest.TestCase):
         self.assertTrue(all(j["cycle"] == 1 for j in jobs))
         self.assertEqual(self.prepare(), [])
         self.now += timedelta(days=7)
+        self.assertEqual(self.prepare(), [])
+        self.cloud.update('state', lambda state: [j.update(status='uploaded')
+                          for j in state['jobs'].values()])
+        self.now += timedelta(days=180)
         additions = self.prepare()
-        self.assertEqual(len(additions), 2)
+        self.assertEqual(len(additions), 4)
         self.assertTrue(all(j["cycle"] == 2 for j in additions))
-        self.assertEqual(len({j["id"] for j in jobs + additions}), 6)
+        self.assertEqual(len({j["id"] for j in jobs + additions}), 8)
 
     def test_identity_offset_canonical_and_full_tuple(self):
         key = identity("TK1", "channel", 1, NOW)
@@ -275,7 +279,9 @@ class PlanningTests(unittest.TestCase):
 
     def test_cancelling_latest_cycle_never_regresses_cycle(self):
         self.prepare()
-        self.now += timedelta(days=7)
+        self.cloud.update('state', lambda state: [j.update(status='uploaded')
+                          for j in state['jobs'].values()])
+        self.now += timedelta(days=187)
         additions = self.prepare()
         self.assertTrue(all(j["cycle"] == 2 for j in additions))
         def cancel(state):

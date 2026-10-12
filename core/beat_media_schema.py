@@ -4,6 +4,18 @@ from core.beat_download import dropbox_path, duration
 
 
 def validate_media_state(state):
+    for job in state['jobs'].values():
+        visual = job.get('visual_snapshot')
+        if visual is not None:
+            if (not isinstance(visual, dict) or not isinstance(visual.get('path'), str)
+                    or not visual['path'] or len(visual['path']) > 4096
+                    or visual.get('source', 'dropbox') not in ('local', 'dropbox')):
+                raise ValueError('invalid_visual_snapshot')
+            if visual.get('source', 'dropbox') == 'dropbox':
+                dropbox_path(visual['path'])
+            if 'sha256' in visual and (type(visual['sha256']) is not str
+                    or not re.fullmatch('[0-9a-f]{64}', visual['sha256'])):
+                raise ValueError('invalid_visual_snapshot')
     associations = state.get('audio_associations', {})
     rotation = state.get('image_rotation', {})
     if not isinstance(associations, dict) or len(associations) > 10000 or not isinstance(rotation, dict):

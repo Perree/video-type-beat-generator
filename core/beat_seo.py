@@ -50,7 +50,7 @@ def candidates(track, profile, scores):
     return options
 
 
-def build_snapshot(job, track, channel, now, payload=None, cached=None):
+def build_snapshot(job, track, channel, now, payload=None, cached=None, *, previous_selected=None):
     """No network, LLM, report templates, eval, or free-text recommendations."""
     now = moment(now).isoformat()
     cid, profile = manual_profile(channel)
@@ -79,11 +79,17 @@ def build_snapshot(job, track, channel, now, payload=None, cached=None):
     scores = {row['tag'].casefold(): row['score'] for row in report['keywords']
               if row['tag'].casefold() in allowed} if report else {}
     options = candidates(track, profile, scores)
+    eligible = [option for option in options
+                if previous_selected is None or
+                (option['title'], option['tags']) !=
+                (previous_selected['title'], previous_selected['tags'])]
+    if not eligible:
+        raise ValueError('repeat_seo_exhausted')
     snapshot = {'schema_version': 1, 'job_id': job['id'], 'channel_id': cid,
         'track': track, 'manual': profile, 'as_of': now, 'source': source,
         'report_hash': digest(report) if report else None,
         'scores': scores, 'candidates': options,
-        'selected': dict(options[0], description=profile['description'])}
+        'selected': dict(eligible[0], description=profile['description'])}
     snapshot['sha256'] = digest(snapshot)
     cache = {'manual_hash': fingerprint, 'report': deepcopy(report)} if source == 'report' else None
     return snapshot, cache
@@ -119,9 +125,10 @@ def validate_snapshot(snapshot, job):
     # Pre-review v1 snapshots repeated the manual description in every option.
     # Accept that equivalent encoding on replay; new snapshots store it once.
     legacy = [dict(option, description=profile['description']) for option in options]
-    selected = dict(options[0], description=profile['description'])
+    selections = [dict(option, description=profile['description']) for option in
+                  (options if job['cycle'] > 1 else options[:1])]
     if (snapshot['candidates'] != options and snapshot['candidates'] != legacy
-            or snapshot['selected'] != selected):
+            or snapshot['selected'] not in selections):
         raise ValueError('seo_snapshot_invalid')
     body = {k: v for k, v in snapshot.items() if k != 'sha256'}
     if snapshot['sha256'] != digest(body):

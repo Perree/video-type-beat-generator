@@ -18,6 +18,9 @@ from core.beat_youtube import BeatYouTube
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--private-pilot', action='store_true',
+                        help='Try one job; private video without publishAt')
+    parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--receipts', default='exported_videos/type_beats/receipts')
     args = parser.parse_args(argv)
     summary = {'failed': 1, 'dry_run': args.dry_run}
@@ -47,9 +50,18 @@ def main(argv=None):
                     path.write_text(json.dumps(payload), encoding='utf-8')
                     os.chmod(path, 0o600)
                 client = BeatYouTube(folder)
-                summary = run_daily(BeatCloud(transport), channel, assets, client.upload,
+                cloud = BeatCloud(transport)
+                if not args.dry_run:
+                    config, config_rev = cloud.read('config')
+                    if config_rev is None:
+                        raise ValueError('beat_config_missing')
+                    spec = next(ch for ch in config['channels'] if ch['id'] == channel)
+                    if spec['active']:
+                        client.check_owner(channel, spec.get('youtube_channel_id'))
+                summary = run_daily(cloud, channel, assets, client.upload,
                     args.receipts, dry_run=args.dry_run, report_loader=loader,
-                    notify=notifier, thumbnailer=client.thumbnail)
+                    notify=notifier, thumbnailer=client.thumbnail, seed=args.seed,
+                    private_pilot=args.private_pilot)
         except Exception:
             # Bootstrap failures are also a sanitized alert when Telegram exists.
             if notifier is not None:

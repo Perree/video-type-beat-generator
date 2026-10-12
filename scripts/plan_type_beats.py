@@ -19,6 +19,9 @@ def main():
     parser.add_argument("--config", help="Local config fixture; required for --fake")
     parser.add_argument("--state", help="Local state fixture (only --fake)")
     parser.add_argument("--fake", action="store_true")
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--report", action="append", default=[], metavar="CHANNEL=FILE",
+                        help="Validated local channel report; repeat per channel")
     args = parser.parse_args()
     if (args.fake and not args.config) or (args.state and not args.fake):
         parser.error("--fake requires --config; --state requires --fake")
@@ -29,7 +32,14 @@ def main():
     if args.fake and args.state:
         transport.files["/type-beats/state.json"] = (Path(args.state).read_bytes(), "fixture")
     config = json.loads(Path(args.config).read_text(encoding="utf-8")) if args.config else cloud.read("config")[0]
-    print(json.dumps(BeatState(cloud).dry_run(config, tracks, now),
+    reports = {}
+    from core.beat_notion import read_report_file
+    for spec in args.report:
+        cid, separator, filename = spec.partition('=')
+        if not separator or not cid or not filename or cid in reports:
+            parser.error('--report requires unique CHANNEL=FILE')
+        reports[cid] = read_report_file(filename)
+    print(json.dumps(BeatState(cloud).dry_run(config, tracks, now, seed=args.seed, reports=reports),
                      sort_keys=True, ensure_ascii=False, indent=2))
 
 

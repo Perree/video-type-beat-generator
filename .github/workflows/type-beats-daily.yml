@@ -9,6 +9,10 @@ on:
         description: 'Read-only simulation, no uploads or Telegram'
         type: boolean
         default: true
+      private_pilot:
+        description: 'One eligible job per channel, private without scheduled publication'
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -65,8 +69,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
           python -m pip install --require-hashes -r requirements-worker.txt
-      - name: Offline end-to-end smokes
-        run: python scripts/smoke_beat_daily.py
+      - name: Offline Type Beats smokes (worker environment)
+        run: python scripts/smoke_beat_hardening.py --worker-only
       - name: Daily worker
         env:
           BEAT_CHANNEL_ID: ${{ secrets.BEAT_CHANNEL_ID }}
@@ -77,10 +81,13 @@ jobs:
           BEAT_NOTION_PAGE_ID: ${{ secrets.BEAT_NOTION_PAGE_ID }}
           BEAT_TELEGRAM_TOKEN: ${{ secrets.BEAT_TELEGRAM_TOKEN }}
           BEAT_TELEGRAM_CHAT_ID: ${{ secrets.BEAT_TELEGRAM_CHAT_ID }}
-          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+          DRY_RUN: ${{ (inputs.dry_run || (vars.BEAT_LIVE_ENABLED != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.private_pilot))) && 'true' || 'false' }}
+          PRIVATE_PILOT: ${{ github.event_name == 'workflow_dispatch' && inputs.private_pilot && 'true' || 'false' }}
         run: |
           if [ "$DRY_RUN" = "true" ]; then
             python scripts/run_beat_daily.py --dry-run
+          elif [ "$PRIVATE_PILOT" = "true" ]; then
+            python scripts/run_beat_daily.py --private-pilot
           else
             python scripts/run_beat_daily.py
           fi

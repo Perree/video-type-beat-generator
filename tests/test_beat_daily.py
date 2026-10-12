@@ -49,11 +49,18 @@ class DailyTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.receipts = Path(self.temp.name) / 'receipts'
         self.public = FakeTransport()
-        # Both real fixture tracks have compatible visuals for this smoke.
-        for page in self.public.fixture['pages']:
-            for track in page['profileTracks']['content']:
+        # Enough distinct beats for quota tests: Phase 7 forbids immediate repeats.
+        for page_index, page in enumerate(self.public.fixture['pages']):
+            data = page['profileTracks']
+            template = data['content'][0]
+            data['content'] = [copy.deepcopy(template) for _ in range(7)]
+            data['totalElements'] = 14
+            for index, track in enumerate(data['content']):
+                number = 101 + page_index * 7 + index
+                track.update(id=f'TK{number}', v2Id=number)
+                track['seoMetadata']['slug'] = f'fixture-{number}'
                 track['metadata']['tags'] = ['trap']
-        self.source = BeatStarsSource(self.public, Limits(page_size=1))
+        self.source = BeatStarsSource(self.public, Limits(page_size=7))
         self.assets_client = AssetsClient()
         self.process = Processes()
         self.hls = HLS()
@@ -118,6 +125,8 @@ class DailyTests(unittest.TestCase):
              patch.object(youtube, '_load_credentials', return_value=object()):
             summary = self.run_worker(uploader=youtube.upload)
         self.assertEqual(summary['uploaded'], 6)
+        self.assertEqual(summary['failed'], 0)
+        self.assertTrue(all(call['media_body'].stream().closed for call in calls))
         self.assertEqual(calls[0]['body']['status']['privacyStatus'], 'private')
         self.assertIn('publishAt', calls[0]['body']['status'])
 
@@ -148,6 +157,8 @@ class DailyTests(unittest.TestCase):
         self.assertEqual(summary['uploaded'], 6)
         self.assertEqual(summary['thumbnail_failed'], 6)
         self.assertEqual(summary['unknown'], 0)
+        self.assertEqual(summary['failed'], 0)
+        self.assertTrue(all(call['media_body'].stream().closed for call in inserts + thumbnails))
         self.assertEqual(len(inserts), 6)
         self.assertEqual(len(thumbnails), 6)
         rows = [json.loads(p.read_text()) for p in self.receipts.glob('*.json')]
@@ -331,6 +342,8 @@ class DailyTests(unittest.TestCase):
         config['channels'].append(second)
         self.cloud.write('config', config, rev)
         self.run_worker()
+        state, _ = self.cloud.read('state')
+        self.assertEqual({job['channel'] for job in state['jobs'].values()}, {'channel'})
         summary = run_daily(self.cloud, 'second', DropboxAssets(self.assets_client), self.upload,
                             self.receipts, source=self.source, renderer=self.renderer, clock=lambda: NOW)
         self.assertEqual(summary['uploaded'], 0)

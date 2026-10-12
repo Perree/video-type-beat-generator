@@ -4,6 +4,11 @@
 No usa `main.py`, los módulos `kit_*`, credenciales `KIT_*` ni el estado de Loopkits.
 El workflow independiente es `.github/workflows/type-beats-daily.yml`.
 
+Hardening y procedimientos vigentes: [operación de Fase 8](TYPE_BEATS_OPERATIONS.md).
+El cron ahora simula hasta que `BEAT_LIVE_ENABLED=true`; un piloto manual usa
+`--private-pilot` (un job, privado sin `publishAt`). El arranque real requiere
+`youtube_channel_id` en la configuración remota y verifica la cuenta OAuth.
+
 ## Comportamiento
 
 Lee `/type-beats/config.json` y `/type-beats/state.json` con las credenciales de
@@ -61,8 +66,9 @@ La eliminación o modificación externa de ese estado invalida la garantía.
 Para conciliar un orphan, buscar su digest entre los IDs del estado y confirmar
 el video en Studio. Registrar ese `youtube_id`, `uploaded_at` y `status=uploaded`
 mediante CAS manteniendo los intentos originales. Un `unknown` no se reintenta:
-primero verificar el resultado remoto. Esta fase no implementa reconciliación
-automática ni elimina videos.
+primero verificar el resultado remoto. La Fase 8 agrega el CLI
+`scripts/recover_type_beats.py`, con lectura autenticada de YouTube y CAS explícito;
+no hay reconciliación automática ni eliminación de videos.
 
 ## GitHub Actions
 
@@ -114,6 +120,7 @@ carpetas locales de imágenes permiten la lista de géneros vacía.
 ## Dry-run y verificación
 
 Desde Actions, `workflow_dispatch` tiene `dry_run=true` por defecto.
+También tiene `private_pilot=true`: con dry_run apagado el video permanece privado.
 Local: `python scripts/run_beat_daily.py --dry-run`, con credenciales de Dropbox
 y `BEAT_CHANNEL_ID`. No requiere token de YouTube ni Telegram. Puede consultar
 catálogo público, estado, catálogos visuales y Notion; no escribe en Dropbox,

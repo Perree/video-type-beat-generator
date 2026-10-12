@@ -3,6 +3,7 @@ from copy import deepcopy
 from core.beat_seo import build_snapshot, validate_snapshot
 from core.beat_video import reserved_job
 from core.beat_seo_report import validate_report, moment, fields
+from core.beat_rotation import previous_publication
 
 
 def _cache_date(row, channel, now):
@@ -17,8 +18,16 @@ def _cache_date(row, channel, now):
 def prepare_seo(cloud, job_id, track, channel, now, *, report_loader=None, dry_run=False):
     state, _ = cloud.read('state')
     _, job = reserved_job(state, job_id, track, channel)
+    publication = previous_publication(state, job)
+    if publication is not None and not publication.get('seo_snapshot'):
+        raise ValueError('previous_seo_unknown')
+    previous_selected = publication['seo_snapshot']['selected'] if publication else None
     if 'seo_snapshot' in job:
-        return validate_snapshot(job['seo_snapshot'], job)
+        snapshot = validate_snapshot(job['seo_snapshot'], job)
+        if previous_selected and (snapshot['selected']['title'], snapshot['selected']['tags']) == (
+                previous_selected['title'], previous_selected['tags']):
+            raise ValueError('repeat_seo_unchanged')
+        return snapshot
     payload = None
     if report_loader is not None:
         try:
@@ -27,14 +36,21 @@ def prepare_seo(cloud, job_id, track, channel, now, *, report_loader=None, dry_r
             pass
     caches = state.get('seo_last_good', {})
     cached = caches.get(channel['id']) if type(caches) is dict and len(caches) <= 100 else None
-    snapshot, cache = build_snapshot(job, track, channel, now, payload, cached)
+    snapshot, cache = build_snapshot(job, track, channel, now, payload, cached,
+                                     previous_selected=previous_selected)
     if dry_run:
         return snapshot
 
     def record(document):
         _, current = reserved_job(document, job_id, track, channel)
+        if previous_publication(document, current) != publication:
+            raise ValueError('seo_history_changed')
         if 'seo_snapshot' in current:
-            return validate_snapshot(current['seo_snapshot'], current)
+            result = validate_snapshot(current['seo_snapshot'], current)
+            if previous_selected and (result['selected']['title'], result['selected']['tags']) == (
+                    previous_selected['title'], previous_selected['tags']):
+                raise ValueError('repeat_seo_unchanged')
+            return result
         if current != job:
             raise ValueError('seo_reservation_changed')
         document['jobs'][job_id]['seo_snapshot'] = deepcopy(snapshot)

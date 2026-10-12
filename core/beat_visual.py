@@ -4,6 +4,7 @@ from pathlib import Path
 from core.beat_assets import IMAGE_SUFFIXES, select_image
 from core.beat_download import dropbox_path
 from core.beat_http import BeatError
+from core.beat_rotation import changed_image
 
 VIDEO_SUFFIXES = {'.mp4', '.mov', '.mkv', '.webm'}
 MAX_VIDEO_BYTES = 150 * 1024 * 1024
@@ -95,6 +96,13 @@ def image_resource(channel, genre, state, job, dropbox):
         rows = local_catalog(channel['images_folder'], IMAGE_SUFFIXES, 20 * 1024 * 1024)
         if not rows:
             raise BeatError('image_catalog_empty')
+        reserved = job.get('visual_snapshot')
+        if reserved:
+            selected = next((row for row in rows if row['path'] == reserved['path']), None)
+            if selected is None:
+                raise BeatError('reserved_image_missing')
+            return selected
+        rows = changed_image(rows, state, job)
         return rows[(job['cycle'] - 1) % len(rows)]
     return select_image(channel, genre, state, job, dropbox)
 

@@ -141,31 +141,39 @@ def upload(channel, video_path, title, description='', tags=None, thumbnail=None
     yt = _service(_load_credentials(channel, tokens_dir))
     media = MediaFileUpload(video_path, chunksize=8 * 1024 * 1024, resumable=True,
                             mimetype='video/mp4')
-    request = yt.videos().insert(part='snippet,status', body=body, media_body=media)
     response = None
     retries = 0
-    while response is None:
-        try:
-            st, response = request.next_chunk()
-            retries = 0
-            if st and progress:
-                progress(int(st.progress() * 100))
-        except HttpError as e:
-            if e.resp.status in (500, 502, 503, 504) and retries < 5:
-                retries += 1
-                continue
-            raise YouTubeError(f"Error de YouTube ({e.resp.status}): {e}") from e
+    try:
+        request = yt.videos().insert(part='snippet,status', body=body, media_body=media)
+        while response is None:
+            try:
+                st, response = request.next_chunk()
+                retries = 0
+                if st and progress:
+                    progress(int(st.progress() * 100))
+            except HttpError as e:
+                if e.resp.status in (500, 502, 503, 504) and retries < 5:
+                    retries += 1
+                    continue
+                raise YouTubeError(f"Error de YouTube ({e.resp.status}): {e}") from e
+    finally:
+        # Release the video before the worker removes its temporary directory,
+        # even if a request/traceback retains the media object on Windows.
+        media.stream().close()
     video_id = response['id']
     if progress:
         progress(100)
 
     thumb_error = ''
     if thumbnail and os.path.exists(thumbnail):
+        thumbnail_media = MediaFileUpload(thumbnail)
         try:
-            yt.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(thumbnail)).execute()
+            yt.thumbnails().set(videoId=video_id, media_body=thumbnail_media).execute()
         except HttpError as e:
             # Común: la cuenta no está verificada por teléfono (no permite miniaturas)
             thumb_error = str(e)
+        finally:
+            thumbnail_media.stream().close()
     return {
         'youtube_id': video_id,
         'url': f"https://youtu.be/{video_id}",

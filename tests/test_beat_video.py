@@ -4,6 +4,7 @@ import json
 import tempfile
 import time
 import unittest
+from datetime import timedelta
 from email.message import Message
 from pathlib import Path
 from types import SimpleNamespace
@@ -11,15 +12,17 @@ from unittest.mock import patch
 from PIL import Image
 
 from core.beat_assets import DropboxAssets, select_image
-from core.beat_cloud import BeatCloud
+from core.beat_cloud import BeatCloud, Transient
 from core.beat_download import download_hls, acquire_audio, MediaHTTP, MEDIA_HOSTS
 from core.beat_fakes import MemoryDropbox
 from core.beat_http import BeatError, check_url, _NoRedirect
 from core.beat_preview import PreviewResolver
 from core.beat_queries import PROFILE_QUERY
 from core.beat_render import MediaTools, compose
-from core.beat_schema import identity, migrate
+from core.beat_schema import identity, migrate, instant
 from core.beat_video import render_reserved
+from core.beat_seo_store import prepare_seo
+from core.beat_publish import publish
 
 URL = 'https://content.beatstars.com/fixture/index.m3u8'
 TS = (b'G' + b'\x00' * 187) * 3
@@ -144,6 +147,64 @@ class VideoTests(unittest.TestCase):
         self.assertIsNone(state['lock'])
         self.assertEqual(state['attempts'], {})
         self.assertEqual(len(state['image_rotation']['channel']['trap']), 1)
+        visual = next(iter(state['jobs'].values()))['visual_snapshot']
+        self.assertEqual(visual['path'], '/images/trap/a.png')
+        self.assertEqual(len(visual['sha256']), 64)
+
+    def test_visual_snapshot_persisted_after_lost_write_response(self):
+        cloud, client, process, context = self.run_video()
+        original = cloud.transport.write
+        pending = [True]
+        def losing(path, payload, rev):
+            document = json.loads(payload)
+            if pending and any(job.get('visual_snapshot') for job in document.get('jobs', {}).values()):
+                pending.pop()
+                cloud.transport.faults.append(('after_write', Transient()))
+            return original(path, payload, rev)
+        cloud.transport.write = losing
+        with context as media:
+            self.assertTrue(media['video'].exists())
+        self.assertEqual(pending, [])
+        state, _ = cloud.read('state')
+        self.assertTrue(next(iter(state['jobs'].values()))['visual_snapshot']['sha256'])
+        self.assertEqual(len(state['image_rotation']['channel']['trap']), 1)
+
+    def test_full_repeat_after_180_days_changes_image_and_seo(self):
+        cloud, key, track, channel = fixture()
+        track['tags'] = ['trap', 'drill']
+        channel['tags'] = ['trap', 'drill']
+        remote_channel = dict(channel, slots=[{'weekday': 0, 'hour': 18, 'minute': 0}])
+        cloud.write('config', migrate({'channels': [remote_channel]}, 'config'), None)
+        old_slot = instant('2026-10-12T18:00:00-03:00')
+        assets = AssetsClient()
+        def rendering(job_id):
+            return render_reserved(cloud, job_id, track, channel, 'trap',
+                'https://www.beatstars.com/fixture', DropboxAssets(assets),
+                resolver=Resolver(), http=HLS(), tools=MediaTools('fakeffmpeg', 'fakeprobe', Processes()))
+        prepare_seo(cloud, key, track, channel, old_slot.isoformat())
+        with rendering(key):
+            pass
+        cloud.update('state', lambda state: state['jobs'][key].update(status='uploaded'))
+        state, _ = cloud.read('state')
+        old = state['jobs'][key]
+        new_slot = old_slot + timedelta(days=181)
+        new_key = identity(track['id'], channel['id'], 2, new_slot)
+        new = dict(id=new_key, track_id=track['id'], channel=channel['id'], cycle=2,
+                   slot=new_slot.isoformat(), status='planned')
+        cloud.update('state', lambda state: state['jobs'].update({new_key: new}))
+        stream = io.BytesIO()
+        Image.new('RGB', (640, 360), 'red').save(stream, 'PNG')
+        assets.files['/images/trap/b.png'] = stream.getvalue()
+        now = new_slot - timedelta(hours=1)
+        seo = prepare_seo(cloud, new_key, track, channel, now.isoformat())
+        with tempfile.TemporaryDirectory() as receipts, rendering(new_key) as media:
+            outcome = publish(cloud, new, media, seo,
+                lambda **_: {'youtube_id': 'video000001'}, receipts, lambda: now)
+        self.assertEqual(outcome, 'uploaded')
+        state, _ = cloud.read('state')
+        current = state['jobs'][new_key]
+        self.assertNotEqual(current['visual_snapshot']['sha256'], old['visual_snapshot']['sha256'])
+        self.assertNotEqual(current['seo_snapshot']['selected']['tags'], old['seo_snapshot']['selected']['tags'])
 
     def test_dry_run_read_only(self):
         cloud, client, process, context = self.run_video(dry_run=True)
@@ -256,11 +317,12 @@ class VideoTests(unittest.TestCase):
         first = select_image(channel, 'trap', state, job, assets)
         state['image_rotation'] = {'channel': {'trap': [{'job_id': key, 'path': first['path'], 'rev': 'rev1'}]}}
         self.assertEqual(select_image(channel, 'trap', state, job, assets), first)
-        self.assertNotEqual(select_image(channel, 'trap', state, {'id': 'next'}, assets), first)
+        next_job = dict(job, id='next')
+        self.assertNotEqual(select_image(channel, 'trap', state, next_job, assets), first)
         other = dict(channel, id='other')
-        self.assertEqual(select_image(other, 'trap', state, {'id': 'next'}, assets), first)
+        self.assertEqual(select_image(other, 'trap', state, dict(next_job, channel='other'), assets), first)
         state['image_rotation']['channel']['trap'].append({'job_id': 'second', 'path': '/images/trap/b.png', 'rev': 'rev1'})
-        self.assertEqual(select_image(channel, 'trap', state, {'id': 'next'}, assets), first)
+        self.assertEqual(select_image(channel, 'trap', state, next_job, assets), first)
 
     def test_hosts_and_hls_rejections_before_download(self):
         bad_urls = ['http://content.beatstars.com/a', 'https://content.beatstars.com.evil.test/a',

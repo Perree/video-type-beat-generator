@@ -11,6 +11,7 @@ from core.beat_download import acquire_audio
 from core.beat_render import MediaTools, compose
 from core.beat_visual import options, image_resource, video_catalog, fetch, thumbnail_resource
 from core.beat_montage import render_montage, thumbnail_frame
+from core.beat_rotation import image_digest, previous_publication, publication_visual
 
 
 def reserved_job(state, job_id, track, channel):
@@ -36,7 +37,7 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
     owner = None
     try:
         if not dry_run:
-            owner = store.acquire(ttl=3600)
+            owner = store.acquire(ttl=3600, require_existing=True)
         state, _ = cloud.read('state')
         state, job = reserved_job(state, job_id, track, channel)
         spec = options(channel)
@@ -60,6 +61,13 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
             if image:
                 fetch(image, source_image, 20 * 1024 * 1024, dropbox)
                 compose(source_image, track.get('title'), frame, thumbnail)
+                image['sha256'] = image_digest(source_image)
+                prior = previous_publication(state, job)
+                prior_visual = publication_visual(state, prior) if prior else None
+                if prior_visual and prior_visual.get('sha256') == image['sha256']:
+                    raise BeatError('repeat_image_unchanged')
+                if job.get('visual_snapshot', {}).get('sha256') not in (None, image['sha256']):
+                    raise BeatError('reserved_image_changed')
                 tools.render(audio, frame, video, seconds)
             else:
                 montage = render_montage(audio, video, seconds, videos, spec, root, dropbox, tools, job_id,
@@ -74,8 +82,11 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
             def record(document):
                 store._lease(document, owner)
                 _, current = reserved_job(document, job_id, track, channel)
-                if current != job:
+                committed = dict(job, visual_snapshot=dict(image)) if image else job
+                if current != job and current != committed:
                     raise BeatError('reservation_changed')
+                if image:
+                    document['jobs'][job_id]['visual_snapshot'] = dict(image)
                 if image and image.get('source', 'dropbox') == 'dropbox':
                     rows = document.setdefault('image_rotation', {}).setdefault(channel['id'], {}).setdefault(genre, [])
                     if not any(row['job_id'] == job_id for row in rows):

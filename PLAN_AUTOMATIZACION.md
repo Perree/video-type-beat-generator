@@ -145,6 +145,54 @@ Esta fase prepara el roadmap aprobado de Type Beats sin cambiar el comportamient
 - Cierre autorizado por el usuario después de revisión y correcciones.
   Sin commit por instrucción explícita.
 
+## Fase 7 — Ciclos y selección por rendimiento Type Beats ✅ COMPLETADA (2026-10-12, revisión aplicada)
+- Cubrir el catálogo activo una vez por canal y por ciclo; las reservas cuentan
+  como usadas. No repetir hasta 180 días desde la publicación anterior, usando
+  el mayor de `slot` y `uploaded_at`; las reservas pendientes/ambiguas bloquean.
+- Definición aprobada en esta sesión: score = 50% vistas + 30% CTR + 20%
+  porcentaje visto, normalizados por rango percentil con promedio para empates.
+  El informe vigente de Fase 5 aporta métricas por etiqueta; el score del beat
+  es el promedio de sus etiquetas coincidentes. No se usa el `score` externo.
+- Tres grupos por score (tercios, redondeo hacia arriba): mejores, intermedios,
+  restantes. Tras la primera vuelta, cada bloque de diez decisiones solicita
+  7/2/1 grupos con orden reproducible por seed. Si falta evidencia para algún
+  beat activo o se agota el grupo solicitado, fallback LRU sin relajar el descanso.
+- Repeticiones con imagen y combinación título/tags distintas de la última
+  publicación del mismo beat/canal; si faltan alternativas o historial, bloquear.
+- Revisión local con la skill Bugbot aplicada: corregida persistencia del snapshot
+  visual (la validación devolvía una copia), planificación de canales ajenos sin
+  sus informes, cancelación de inserts ambiguos y tags mal formados en métricas.
+- Validación: 174 pruebas aprobadas y 2 omitidas; incluye repetición completa con
+  render/SEO/upload falsos, persistencia tras respuesta perdida, cancelación de
+  resultados desconocidos y aislamiento del buffer por canal. Sin servicios reales.
+- Cierre autorizado por el usuario después de revisión y correcciones.
+  Sin commit por instrucción explícita. Guía: `docs/TYPE_BEATS_ROTATION.md`.
+
+## Fase 8 — Hardening y operación Type Beats ✅ COMPLETADA (2026-10-12)
+- Revisión completa de catálogo, CAS/locks, cuota global, scheduler, HLS, imágenes/video,
+  SEO, YouTube, Telegram, workflow de Actions y receipts/orphans. Alcance limitado a
+  fallos reproducidos y procedimientos operativos; sin implementar otras fases.
+- Corregidos estado ausente reconstruido como ledger vacío (incluida liberación de lock),
+  pausa no observada tras render y slot/fecha Buenos Aires vencidos después de reservar.
+  Dropbox de estado usa HTTPS sin redirects/proxies y lectura por chunks acotada.
+- Verificación de cuenta OAuth contra `youtube_channel_id`; piloto de un job privado
+  sin `publishAt`. Cron en dry-run hasta `BEAT_LIVE_ENABLED=true`, despachos seguros por
+  defecto y suite de worker ampliada. No se habilitó producción ni se cambió Actions remoto.
+- Recuperación con CLI de solo lectura por defecto, consulta autenticada de YouTube y
+  aplicación explícita por CAS, sin reupload, devolución de intentos ni overwrite de IDs.
+  Uploader compartido: únicamente cierre explícito de streams para cleanup en Windows.
+- Validación: 198 pruebas Type Beats aprobadas, sin omisiones, incluidas dos con FFmpeg
+  real; smokes diarios (30) y de video/montaje (34) verdes; los 27 smokes de Loopkits y
+  los cuatro de Beats manuales aprobados. actionlint, sintaxis Python y whitespace verdes.
+- Lectura real en dry-run del catálogo configurado: 1138 tracks, segunda aplicación con
+  1138 sin cambios en SQLite temporal. Cero uploads reales, descargas de audio o mensajes.
+- Setup, dry-run, piloto, pausa, rollback, recuperación y límites documentados en
+  `docs/TYPE_BEATS_OPERATIONS.md`. Credenciales BEAT_* y aceptación del worker remoto
+  siguen pendientes del setup: no se afirma haber probado OAuth/Dropbox/Telegram/Actions reales.
+- El commit de cierre conserva los cambios de Fase 7 que ya estaban pendientes al iniciar
+  esta sesión, para versionar exactamente la base probada. `main.py`, `kit_*`, workflow y
+  dependencias de Loopkits sin cambios; sin cambios funcionales al flujo manual de Beats.
+
 ## Fase 0 histórica — Limpieza del repo (registrada previamente)
 La limpieza original de herramientas/configuración fue anotada como completada en una versión anterior del plan; se conserva
 como antecedente y no cuenta como cierre de la Fase 0 de preparación de automatización definida arriba.

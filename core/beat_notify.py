@@ -10,6 +10,8 @@ COUNTERS = ('planned', 'eligible', 'uploaded', 'orphan', 'unknown', 'failed',
 
 def message(summary):
     prefix = 'Type Beats DRY RUN' if summary.get('dry_run') else 'Type Beats daily'
+    if summary.get('private_pilot') and not summary.get('dry_run'):
+        prefix = 'Type Beats PRIVATE PILOT'
     return prefix + '\n' + '\n'.join(f'{key}: {summary.get(key, 0)}'
         for key in COUNTERS if type(summary.get(key, 0)) is int)
 

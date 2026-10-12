@@ -50,8 +50,11 @@ class AdapterTests(unittest.TestCase):
             @property
             def content(self):
                 return self.getvalue()
+            def iter_content(self, size):
+                while chunk := self.read(size):
+                    yield chunk
         response = Response(b"{}")
-        client = SimpleNamespace(files_download=lambda _: (SimpleNamespace(rev="rev"), response))
+        client = SimpleNamespace(files_download=lambda _: (SimpleNamespace(rev="rev", size=len(response.getvalue())), response))
         transport = DropboxTransport(client)
         self.assertEqual(transport.read("/type-beats/state.json"), (b"{}", "rev"))
         self.assertTrue(response.closed)

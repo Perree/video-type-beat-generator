@@ -100,7 +100,7 @@ class PanelTests(unittest.TestCase):
         self.assertEqual(self.panel.tags.text(), "trap, dark")
         config = self.panel.draft()
         self.assertEqual(config["channels"][1]["priority"], 12)
-        self.assertEqual(len(plan(config, {}, [{"id": "TK1"}], "2026-10-12T12:00:00-03:00")), 2)
+        self.assertEqual(len(plan(config, {}, [{"id": "TK1"}], "2026-10-12T12:00:00-03:00")), 1)
 
     def test_visual_options_per_channel_save_and_reload(self):
         self.configure()

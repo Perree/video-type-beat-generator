@@ -22,7 +22,7 @@ class BeatState:
         if not lock or lock["owner"] != owner or instant(lock["expires_at"]) <= instant(self.clock()):
             raise Locked("lease_lost")
 
-    def acquire(self, ttl=300):
+    def acquire(self, ttl=300, *, require_existing=False):
         if type(ttl) is not int or not 1 <= ttl <= 3600:
             raise ValueError("invalid_lock_ttl")
         owner = uuid4().hex
@@ -39,7 +39,7 @@ class BeatState:
         def guard(_):
             if instant(self.clock()) >= expires_at:
                 raise Locked("lease_expired_before_commit")
-        return self.cloud.update("state", mutate, guard=guard)
+        return self.cloud.update("state", mutate, guard=guard, require_existing=require_existing)
 
     def renew(self, owner, ttl=300):
         if type(ttl) is not int or not 1 <= ttl <= 3600:
@@ -53,9 +53,9 @@ class BeatState:
         def mutate(state):
             if state["lock"] and state["lock"]["owner"] == owner:
                 state["lock"] = None
-        self.cloud.update("state", mutate)
+        self.cloud.update("state", mutate, require_existing=True)
 
-    def fill_buffer(self, config, tracks, owner):
+    def fill_buffer(self, config, tracks, owner, *, seed=None, reports=None):
         tracks = list(tracks)
         proposed = {}
         def mutate(state):
@@ -64,7 +64,7 @@ class BeatState:
             # response; never return unrelated jobs added by another planner.
             recovered = [state["jobs"][key] for key, job in proposed.items()
                          if state["jobs"].get(key) == job]
-            additions = plan(config, state, tracks, self.clock())
+            additions = plan(config, state, tracks, self.clock(), seed=seed, reports=reports)
             proposed.update((job["id"], job) for job in additions)
             apply_plan(state, additions)
             return recovered + additions
@@ -90,6 +90,9 @@ class BeatState:
             job = state["jobs"].get(job_id)
             if not job or job["status"] not in ("planned", "failed"):
                 raise ValueError("job_not_uploadable")
+            if exclusive:
+                from core.beat_rotation import check_repeat
+                check_repeat(state, job, self.clock())
             # Daily worker: any previous intent, including an unknown outcome,
             # is a permanent barrier. Check and reserve in the SAME CAS write.
             if exclusive and any(entry['job_id'] == job_id
@@ -109,9 +112,9 @@ class BeatState:
                 raise ValueError('upload_reservation_day_changed')
         return self.cloud.update("state", mutate, guard=guard if exclusive else None)
 
-    def dry_run(self, config, tracks, now=None):
+    def dry_run(self, config, tracks, now=None, *, seed=None, reports=None):
         state, _ = self.cloud.read("state")
         now = instant(self.clock() if now is None else now)
         return {"as_of": now.isoformat(), "timezone": "America/Argentina/Buenos_Aires",
                 "buffer_days": 14, "upload_attempts_remaining": 6 - len(state["attempts"].get(now.date().isoformat(), {})),
-                "jobs": plan(config, state, tracks, now)}
+                "jobs": plan(config, state, tracks, now, seed=seed, reports=reports)}

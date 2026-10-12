@@ -1,7 +1,10 @@
 """Pure slot/buffer planning, one assignment per channel per priority round."""
 from copy import deepcopy
 from datetime import timedelta
+import hashlib
 from core.beat_schema import identity, instant, migrate
+from core.beat_rotation import repeat_ready, publication_time
+from core.beat_performance import performance, choose
 
 
 def slots(channel, now):
@@ -19,7 +22,9 @@ def slots(channel, now):
     return sorted(set(result))
 
 
-def plan(config, state, tracks, now):
+def plan(config, state, tracks, now, *, seed=None, reports=None):
+    if seed is not None and type(seed) not in (int, str):
+        raise ValueError('invalid_selection_seed')
     config, state = migrate(config, "config"), migrate(state, "state")
     tracks = list(tracks)
     if any(not isinstance(t, dict) or not isinstance(t.get("id"), str) or not t["id"]
@@ -32,6 +37,10 @@ def plan(config, state, tracks, now):
     queues = {ch["id"]: [s for s in slots(ch, now) if (ch["id"], s) not in occupied]
               for ch in channels}
     jobs = list(state["jobs"].values())
+    attempted_ids = {entry['job_id'] for entries in state['attempts'].values()
+                     for entry in entries.values()}
+    metrics = {ch['id']: performance((reports or {}).get(ch['id']), ch['id'],
+                                    tracks, instant(now)) for ch in channels}
     additions = []
     while ids and any(queues.values()):
         for ch in channels:
@@ -46,7 +55,24 @@ def plan(config, state, tracks, now):
                 cycle += 1
                 available = ids
             slot = queues[cid].pop(0).isoformat()
-            job = dict(track_id=available[0], channel=cid, cycle=cycle, slot=slot, status="planned")
+            available = [tid for tid in available if repeat_ready(history, tid, slot, attempted_ids)]
+            if not available:
+                continue
+            # Missing performance data: oldest public use first, stable ID ties.
+            def lru(tid):
+                dates = [publication_time(j) for j in history
+                         if j['track_id'] == tid and j['status'] == 'uploaded']
+                tie = tid if seed is None else hashlib.sha256(
+                    repr((seed, cid, cycle, slot, tid)).encode()).hexdigest()
+                return (max(dates) if dates else instant(now) - timedelta(days=100000), tie, tid)
+            tid, bucket = min(available, key=lru), 'lru'
+            scores, report_hash = metrics[cid]
+            if cycle > 1:
+                tid, bucket = choose(available, ids, scores, history, cid, seed, lru)
+            job = dict(track_id=tid, channel=cid, cycle=cycle, slot=slot, status="planned")
+            if cycle > 1:
+                job['selection'] = {'bucket': bucket, 'score': scores.get(tid),
+                                    'report_hash': report_hash}
             job["id"] = identity(job["track_id"], cid, cycle, slot)
             jobs.append(job)
             additions.append(job)

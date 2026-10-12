@@ -3,7 +3,8 @@ import os
 import time
 from pathlib import PurePosixPath
 from core.beat_download import dropbox_path
-from core.beat_http import BeatError, check_url
+from core.beat_http import BeatError
+from core.beat_rotation import changed_image
 
 IMAGE_SUFFIXES = {'.jpg', '.jpeg', '.png', '.webp'}
 
@@ -15,23 +16,12 @@ class DropboxAssets:
     @classmethod
     def from_env(cls):
         import dropbox
-        import requests
-
-        class Session(requests.Session):
-            def send(self, request, **kwargs):
-                check_url(request.url, {'api.dropboxapi.com', 'content.dropboxapi.com'})
-                kwargs['allow_redirects'] = False
-                response = super().send(request, **kwargs)
-                if 300 <= response.status_code < 400:
-                    response.close()
-                    raise BeatError('redirect_rejected')
-                return response
+        from core.beat_dropbox_http import DropboxSession
 
         key, token = (os.environ.get(k) for k in ('BEAT_DROPBOX_APP_KEY', 'BEAT_DROPBOX_REFRESH_TOKEN'))
         if not key or not token:
             raise BeatError('missing_beat_dropbox_credentials')
-        session = Session()
-        session.trust_env = False
+        session = DropboxSession()
         return cls(dropbox.Dropbox(app_key=key, oauth2_refresh_token=token,
                                   session=session, timeout=15, max_retries_on_error=0,
                                   max_retries_on_rate_limit=0))
@@ -119,5 +109,6 @@ def select_image(channel, genre, state, job, dropbox):
         if selected['rev'] != previous.get('rev'):
             raise BeatError('asset_changed')
         return selected
+    catalog = changed_image(catalog, state, job)
     used = {row['path']: i for i, row in enumerate(history)}
     return min(catalog, key=lambda row: (used.get(row['path'], -1), row['path']))

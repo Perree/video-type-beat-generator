@@ -53,12 +53,13 @@ class DropboxTransport:
     @classmethod
     def from_env(cls):
         import dropbox
+        from core.beat_dropbox_http import DropboxSession
         key = os.environ.get("BEAT_DROPBOX_APP_KEY")
         token = os.environ.get("BEAT_DROPBOX_REFRESH_TOKEN")
         if not key or not token:
             raise CloudError("missing_beat_dropbox_credentials")
         return cls(dropbox.Dropbox(app_key=key, oauth2_refresh_token=token,
-                                   timeout=30, max_retries_on_error=0,
+                                   session=DropboxSession(), timeout=30, max_retries_on_error=0,
                                    max_retries_on_rate_limit=0))
 
     def _call(self, operation):
@@ -89,9 +90,23 @@ class DropboxTransport:
     def read(self, path):
         meta, response = self._call(lambda: self.client.files_download(path))
         try:
-            if len(response.content) > 8 * 1024 * 1024:
+            limit = 8 * 1024 * 1024
+            if type(meta.size) is not int or not 0 < meta.size <= limit:
                 raise CloudError("document_too_large")
-            return response.content, meta.rev
+            data, deadline = bytearray(), time.monotonic() + 180
+            for chunk in response.iter_content(65536):
+                if time.monotonic() >= deadline:
+                    raise CloudError('document_timeout')
+                data.extend(chunk)
+                if len(data) > limit:
+                    raise CloudError('document_too_large')
+            if len(data) != meta.size:
+                raise CloudError('document_incomplete')
+            return bytes(data), meta.rev
+        except CloudError:
+            raise
+        except Exception:
+            raise CloudError('document_read_failed') from None
         finally:
             response.close()
 
@@ -148,10 +163,12 @@ class BeatCloud:
             return self.transport.write(self._path(kind), payload, rev)
         return self._retry(commit)
 
-    def update(self, kind, mutate, guard=None):
+    def update(self, kind, mutate, guard=None, *, require_existing=False):
         """Reapply pure mutation after CAS conflict, including lost write responses."""
         for _ in range(self.retries):
             document, rev = self.read(kind)
+            if require_existing and rev is None:
+                raise Missing('document_missing')
             source = deepcopy(document) if guard is not None else None
             before = json.dumps(document, sort_keys=True)
             result = mutate(document)
