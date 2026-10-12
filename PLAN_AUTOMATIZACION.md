@@ -54,6 +54,24 @@ Esta fase prepara el roadmap aprobado de Type Beats sin cambiar el comportamient
   Resolución/descarga de previews, UI y automatización de videos quedan para fases posteriores.
 - Sin cambios en `main.py`, `kit_*`, Loopkits ni marca personal. Las fases históricas siguientes se conservan.
 
+## Fase 2 — Estado y planificación Type Beats ✅ COMPLETADA (2026-10-12, revisión aplicada)
+- Implementación aislada en `core/beat_schema.py`, `beat_cloud.py`, `beat_state.py`,
+  `beat_schedule.py` y `beat_fakes.py`; configuración y estado versionados en `/type-beats/`
+  con credenciales `BEAT_DROPBOX_*`, sin reutilizar estado ni configuración de Loopkits.
+- Escrituras por rev, reintentos limitados, lock con vencimiento y token de dueño,
+  migración idempotente de esquema 0 a 1 y validación de documentos.
+- Slots Buenos Aires, buffer de 14 días, rondas por prioridad y ciclos por canal;
+  identidad track ID + canal + ciclo + slot. Presupuesto global atómico de seis
+  intentos diarios, cargados antes de cada futura llamada y sin devolución ante fallos.
+- Dry-run determinista: `scripts/plan_type_beats.py`, con dobles Dropbox y pruebas
+  de concurrencia sin red. Uso, decisiones y límites: `docs/TYPE_BEATS_PLANNING.md`.
+- Sin render, uploads ni integración con UI/workers. La Fase 2 histórica siguiente se conserva.
+- Revisión local aplicada (2026-10-12): corregidos documentos v1 incompletos/JSON ambiguo,
+  vencimiento de lock durante reintentos, resultado del plan tras respuesta perdida
+  y retroceso del ciclo por cancelación. 49 tests aprobados y dry-run determinista verificado.
+- Cierre autorizado después de la revisión. No se hizo una prueba con Dropbox real;
+  la validación del adaptador usa el SDK oficial con un cliente falso.
+
 ## Fase 0 histórica — Limpieza del repo (registrada previamente)
 La limpieza original de herramientas/configuración fue anotada como completada en una versión anterior del plan; se conserva
 como antecedente y no cuenta como cierre de la Fase 0 de preparación de automatización definida arriba.

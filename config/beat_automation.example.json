@@ -1,0 +1,18 @@
+{
+  "namespace": "type-beats",
+  "schema_version": 1,
+  "buffer_days": 14,
+  "daily_upload_attempts": 6,
+  "channels": [
+    {
+      "id": "channel-example",
+      "active": true,
+      "priority": 10,
+      "slots": [
+        {"weekday": 0, "hour": 18, "minute": 0},
+        {"weekday": 2, "hour": 18, "minute": 0},
+        {"weekday": 4, "hour": 18, "minute": 0}
+      ]
+    }
+  ]
+}
