@@ -93,6 +93,58 @@ Esta fase prepara el roadmap aprobado de Type Beats sin cambiar el comportamient
 - Cierre y commit autorizados por el usuario después de revisión y correcciones.
   Las fases históricas siguientes se conservan.
 
+## Fase 4 — Preview y render Type Beats ✅ COMPLETADA (2026-10-12, revisión aplicada)
+- Resolución pública HLS para un job ya reservado, descarga acotada y validación
+  de hosts, redirects, tipo, tamaño, duración y decodificación local.
+- Fallback Dropbox solo con asociación explícita por track ID en el estado;
+  catálogo y rotación de imágenes por canal/género, render 16:9 y miniatura.
+- Corrección visual revisada: imagen completamente fija (default),
+  montaje opcional de videos locales/Dropbox, fragmentos normalizados sin su audio,
+  loop hasta la duración del beat y opciones por canal en el panel de Beats.
+- Módulos pequeños `core/beat_preview.py`, `beat_download.py`, `beat_assets.py`,
+  `beat_media_schema.py`, `beat_render.py` y `beat_video.py`; temporales y cleanup.
+- CLI con dry-run y smokes offline con HLS, Dropbox y FFmpeg falsos.
+  Uso, límites y campos opcionales: `docs/TYPE_BEATS_RENDER.md`.
+- Revisión y correcciones aplicadas; 102 tests aprobados, incluidos dos con FFmpeg
+  real. Límites de validación real documentados en la guía.
+- Sin subida a YouTube ni cambios en Loopkits, Marca Personal o `main.py`.
+  Cierre autorizado por el usuario; sin commit por instrucción explícita.
+
+## Fase 5 — SEO seguro Type Beats ✅ COMPLETADA (2026-10-12, revisión aplicada)
+- Consumidor del JSON de Notion generado con Claude Code, vidIQ y YouTube Analytics:
+  validación estricta de versión, fecha, canal, tamaño, campos, tipos y rangos.
+- Candidatos deterministas desde tags reales del beat y ficha manual del canal;
+  el informe solo ordena coincidencias. Sin LLM ni texto libre del informe en SEO.
+- Fallback a última ficha buena del mismo canal/huella manual (30 días), luego manual;
+  snapshot reproducible e inmutable por reserva mediante CAS en estado de Beats.
+- Lector Notion aislado con `BEAT_NOTION_*`, export JSON local, CLI `--seo-only`
+  y `--dry-run`; documentación en `docs/TYPE_BEATS_SEO.md` y tests offline.
+- Revisión local y correcciones aplicadas: UTF-8 estricto, plazo durante lectura
+  de Notion, snapshots compactos compatibles y reemplazo de caché llena.
+  Validación: 129 tests aprobados y 2 omitidos, incluidos casos de regresión
+  e integración CLI offline. No se probaron Notion ni informes reales de Claude Code.
+- Cierre autorizado por el usuario; sin commit por instrucción explícita.
+
+## Fase 6 — Worker diario Type Beats ✅ COMPLETADA (2026-10-12, revisión aplicada)
+- Worker y workflow independientes de Loopkits: catálogo público, buffer CAS,
+  render y SEO de Fases 1–5 conectados con `core.youtube.upload`.
+- Presupuesto global previo al intento, reserva exclusiva por job, journal de
+  receipts/orphans y bloqueo de resultados ambiguos; resumen Telegram sanitizado.
+- Matriz por canal, Environments con verificación de restricción a master,
+  concurrency sin cancelación, acciones por SHA y permisos `contents: read`.
+- Dry-run sin efectos remotos y smokes end-to-end con servicios falsos.
+  Uso, conciliación y requisitos de GitHub: `docs/TYPE_BEATS_DAILY.md`.
+- Revisión aplicada: ID persistido antes de miniatura mediante adaptador propio,
+  selección visual compatible con tags de artistas/video sin géneros y guardas
+  de fecha Buenos Aires durante CAS y antes del upload. Hallazgo de miniatura
+  cerrado por revisión independiente de seguridad, sin regresiones confirmadas.
+- Validación: 30 smokes end-to-end y 129 pruebas de regresión aprobadas;
+  2 omitidas. Sintaxis Python y whitespace correctos.
+- Sin servicios reales ni cambios al worker/workflow de Loopkits. Quedan como
+  pendientes operativos Environments/secretos, dry-run en Actions y pruebas reales.
+- Cierre autorizado por el usuario después de revisión y correcciones.
+  Sin commit por instrucción explícita.
+
 ## Fase 0 histórica — Limpieza del repo (registrada previamente)
 La limpieza original de herramientas/configuración fue anotada como completada en una versión anterior del plan; se conserva
 como antecedente y no cuenta como cierre de la Fase 0 de preparación de automatización definida arriba.

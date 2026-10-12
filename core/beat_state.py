@@ -70,7 +70,7 @@ class BeatState:
             return recovered + additions
         return self.cloud.update("state", mutate, guard=lambda source: self._lease(source, owner))
 
-    def reserve_attempt(self, job_id, attempt_id):
+    def reserve_attempt(self, job_id, attempt_id, *, exclusive=False):
         """Reserve BEFORE an upload call. Failures/unknown outcomes never refund.
 
         Same attempt_id is only a retry of this reservation; each new external
@@ -78,23 +78,36 @@ class BeatState:
         """
         if not isinstance(attempt_id, str) or not attempt_id or len(attempt_id) > 200:
             raise ValueError("invalid_attempt_id")
+        reserved_day = None
         def mutate(state):
+            nonlocal reserved_day
             for entries in state["attempts"].values():
                 if attempt_id in entries:
                     if entries[attempt_id]["job_id"] != job_id:
                         raise ValueError("attempt_identity_conflict")
+                    reserved_day = instant(entries[attempt_id]['reserved_at']).date()
                     return dict(entries[attempt_id], replayed=True)
             job = state["jobs"].get(job_id)
             if not job or job["status"] not in ("planned", "failed"):
                 raise ValueError("job_not_uploadable")
+            # Daily worker: any previous intent, including an unknown outcome,
+            # is a permanent barrier. Check and reserve in the SAME CAS write.
+            if exclusive and any(entry['job_id'] == job_id
+                                 for entries in state['attempts'].values()
+                                 for entry in entries.values()):
+                raise ValueError('upload_already_attempted')
             now = instant(self.clock())
+            reserved_day = now.date()
             entries = state["attempts"].setdefault(now.date().isoformat(), {})
             if len(entries) >= 6:
                 raise BudgetExhausted("daily_upload_budget_exhausted")
             entry = {"job_id": job_id, "reserved_at": now.isoformat()}
             entries[attempt_id] = entry
             return dict(entry, replayed=False)
-        return self.cloud.update("state", mutate)
+        def guard(_):
+            if instant(self.clock()).date() != reserved_day:
+                raise ValueError('upload_reservation_day_changed')
+        return self.cloud.update("state", mutate, guard=guard if exclusive else None)
 
     def dry_run(self, config, tracks, now=None):
         state, _ = self.cloud.read("state")

@@ -2,6 +2,7 @@
 from copy import deepcopy
 from datetime import datetime, timezone, timedelta
 import json
+import re
 
 BA = timezone(timedelta(hours=-3), "America/Argentina/Buenos_Aires")
 VERSION = 1
@@ -112,4 +113,22 @@ def migrate(document, kind):
             if not isinstance(lock, dict) or not isinstance(lock.get("owner"), str) or not lock["owner"]:
                 raise ValueError("invalid_lock")
             instant(lock.get("expires_at"))
+        from core.beat_media_schema import validate_media_state
+        try:
+            validate_media_state(result)
+        except Exception:
+            raise ValueError("invalid_media_state") from None
+        from core.beat_seo import validate_snapshot
+        # Cache content is revalidated at use, so corruption can fall back to manual.
+        for job in result['jobs'].values():
+            if 'youtube_id' in job:
+                if (job['status'] != 'uploaded' or not isinstance(job['youtube_id'], str)
+                        or not re.fullmatch(r'[A-Za-z0-9_-]{11}', job['youtube_id'])):
+                    raise ValueError('invalid_upload_receipt')
+                instant(job.get('uploaded_at'))
+            if 'seo_snapshot' in job:
+                try:
+                    validate_snapshot(job['seo_snapshot'], job)
+                except Exception:
+                    raise ValueError('invalid_seo_snapshot') from None
     return result

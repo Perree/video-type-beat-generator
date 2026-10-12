@@ -8,11 +8,12 @@ from PyQt5.QtWidgets import (
     QAbstractItemView, QTableView,
 )
 from core.beat_job_model import BeatJobModel
+from core.beat_visual_form import BeatVisualForm
 
 DAYS = ("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
 
 
-class BeatPanelForm:
+class BeatPanelForm(BeatVisualForm):
     def _build(self):
         outer = QVBoxLayout(self)
         scroll = QScrollArea()
@@ -68,6 +69,7 @@ class BeatPanelForm:
         browse.clicked.connect(self.browse_images)
         folder_row.addWidget(browse)
         form.addRow("Carpeta de imágenes:", folder_row)
+        self._build_visual(form)
         self.slots = QTableWidget(0, 2)
         self.slots.setHorizontalHeaderLabels(("Día", "Hora Buenos Aires"))
         self.slots.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)

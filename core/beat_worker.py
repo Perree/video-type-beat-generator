@@ -1,0 +1,61 @@
+"""Cloud bootstrap and CLI; only fixed summaries reach the Actions log."""
+import argparse
+import contextlib
+import io
+import json
+import os
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from core import youtube
+from core.beat_assets import DropboxAssets
+from core.beat_cloud import BeatCloud, DropboxTransport, decode_document
+from core.beat_daily import run_daily
+from core.beat_notion import fetch_report
+from core.beat_notify import Telegram
+from core.beat_youtube import BeatYouTube
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--receipts', default='exported_videos/type_beats/receipts')
+    args = parser.parse_args(argv)
+    summary = {'failed': 1, 'dry_run': args.dry_run}
+    # Suppress dependency output, including HTTP errors containing URLs/tokens.
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        notifier = None
+        try:
+            notifier = None if args.dry_run else Telegram(os.environ['BEAT_TELEGRAM_TOKEN'],
+                                                         os.environ['BEAT_TELEGRAM_CHAT_ID'])
+            channel = os.environ['BEAT_CHANNEL_ID']
+            transport = DropboxTransport.from_env()
+            assets = DropboxAssets.from_env()
+            notion_env = {key: os.environ.get(key) for key in ('BEAT_NOTION_TOKEN', 'BEAT_NOTION_PAGE_ID')}
+            loader = (lambda: fetch_report(notion_env)) if notion_env['BEAT_NOTION_TOKEN'] else None
+            token = os.environ.get('BEAT_YT_TOKEN_JSON')
+            # Remove Beats credentials before any child process is launched.
+            for key in list(os.environ):
+                if key.startswith('BEAT_'):
+                    os.environ.pop(key)
+            with TemporaryDirectory(prefix='beat-oauth-') as folder:
+                os.chmod(folder, 0o700)
+                if not args.dry_run:
+                    payload = decode_document(token)
+                    if not isinstance(payload, dict):
+                        raise ValueError('youtube_token_invalid')
+                    path = Path(youtube._token_path(channel, folder))
+                    path.write_text(json.dumps(payload), encoding='utf-8')
+                    os.chmod(path, 0o600)
+                client = BeatYouTube(folder)
+                summary = run_daily(BeatCloud(transport), channel, assets, client.upload,
+                    args.receipts, dry_run=args.dry_run, report_loader=loader,
+                    notify=notifier, thumbnailer=client.thumbnail)
+        except Exception:
+            # Bootstrap failures are also a sanitized alert when Telegram exists.
+            if notifier is not None:
+                try:
+                    notifier(summary)
+                except Exception:
+                    pass
+    print(json.dumps(summary, sort_keys=True))
+    return 1 if any(summary.get(k, 0) for k in ('failed', 'orphan', 'unknown', 'expired')) else 0

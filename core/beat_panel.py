@@ -66,6 +66,7 @@ class BeatPanel(QWidget, BeatPanelForm):
         if self.selected < 0:
             return
         ch = self.config["channels"][self.selected]
+        self._store_visual(ch)
         try:
             priority = int(self.priority.text())
         except ValueError:
@@ -98,6 +99,7 @@ class BeatPanel(QWidget, BeatPanelForm):
         self.tags.setText(", ".join(ch.get("tags", [])))
         self.genres.setText(", ".join(ch.get("genres", [])))
         self.images.setText(ch.get("images_folder", ""))
+        self._load_visual(ch)
         self.slots.setRowCount(0)
         for slot in ch["slots"]:
             self._add_slot(slot)

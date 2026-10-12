@@ -6,7 +6,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from urllib.parse import urlsplit
-from core.beat_queries import PROFILE_QUERY, TRACKS_QUERY
+from core.beat_queries import PROFILE_QUERY, TRACKS_QUERY, PREVIEWS_QUERY
 
 ENDPOINT = "https://core.prod.beatstars.net/graphql"
 PROFILE_HOSTS = frozenset({"beatstars.com", "www.beatstars.com"})
@@ -65,7 +65,7 @@ class PublicTransport:
             urllib.request.ProxyHandler({}), _NoRedirect())
 
     def query(self, query, variables, deadline):
-        if query not in (PROFILE_QUERY, TRACKS_QUERY):
+        if query not in (PROFILE_QUERY, TRACKS_QUERY, PREVIEWS_QUERY):
             raise BeatError("query_rejected")
         check_url(ENDPOINT, API_HOSTS)
         remaining = deadline - time.monotonic()
