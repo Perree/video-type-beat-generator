@@ -36,13 +36,31 @@ Esta fase prepara el roadmap aprobado de Type Beats sin cambiar el comportamient
   sin publicar sus contenidos. No hay rutas personales concretas en la documentación vigente; el `app_config.json` local
   contiene rutas del equipo y permanece fuera del cambio para no alterar configuración ni comportamiento.
 
+## Fase 1 — Catálogo público de BeatStars para Type Beats ✅ COMPLETADA (2026-10-12)
+- Alcance de esta fase: extractor público en `core/beat_http.py`, `beat_queries.py`, `beat_source.py`,
+  `beat_catalog.py` y `beat_sync.py`, independiente de la UI y de la biblioteca histórica.
+- Lee el perfil configurado en `beat_automation.beatstars_profile_url`, sin login ni cambios en BeatStars:
+  queries públicas de solo lectura, sin descargar audios. Captura título, URL, tags, duración y referencias
+  estables para resolver el preview en otra fase; no guarda URLs de audio temporales ni datos privados del perfil.
+- Catálogo SQLite separado y versionado por perfil/ID estable: actualización incremental, altas, reactivaciones,
+  tracks inactivos y revisiones de las últimas 20 versiones. Solo aplica escaneos completos en una transacción.
+- Seguridad: destino HTTPS fijo, allowlist, sin redirects/cookies/auth/proxies del entorno, límites de recursos,
+  timeouts y errores con códigos fijos. Revisión de seguridad sin vulnerabilidades confirmadas en este alcance.
+- Bugbot: corregidos los dos hallazgos sobre duraciones enteras enormes y límite de tracks realmente acumulados.
+  Validación: 22 tests sin red con fixtures/fakes aprobados; prueba real del perfil configurado con 1138 tracks,
+  seguida de otra sincronización con 1138 sin cambios y la misma versión del catálogo.
+- Uso y límites: `docs/BEATSTARS_CATALOG.md`. Configuración y catálogo locales excluidos de Git.
+  Limitaciones: endpoint público sin contrato garantizado; plazo global comprobado entre operaciones de socket.
+  Resolución/descarga de previews, UI y automatización de videos quedan para fases posteriores.
+- Sin cambios en `main.py`, `kit_*`, Loopkits ni marca personal. Las fases históricas siguientes se conservan.
+
 ## Fase 0 histórica — Limpieza del repo (registrada previamente)
 La limpieza original de herramientas/configuración fue anotada como completada en una versión anterior del plan; se conserva
 como antecedente y no cuenta como cierre de la Fase 0 de preparación de automatización definida arriba.
 Incluía excluir `ffmpeg-8.0/` y `bin/ffmpeg.exe`, unificar PyQt en `requirements.txt` y evitar versionar configuración
 con rutas personales usando `config/app_config.example.json`.
 
-## Fase 1 — Biblioteca local + historial (Sonnet) — la base ✅ COMPLETADA
+## Fase 1 histórica — Biblioteca local + historial (Sonnet) — la base ✅ COMPLETADA
 - `core/library.py`: SQLite `library.db`. Tablas `beats` (id, nombre, ruta, hash, bpm, key, beatstars_url, notas, creado)
   y `uploads` (beat_id, canal, grupo, youtube_id, url, título, subido_en, estado).
 - Importar beats copiando el audio a `library/` (dedupe por hash).

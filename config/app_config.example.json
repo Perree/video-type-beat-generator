@@ -9,6 +9,9 @@
   "overlay_text": "{name} Type Beat",
   "cta_enabled": false,
   "cta_text": "Like | Subscribe | Link in description",
+  "beat_automation": {
+    "beatstars_profile_url": ""
+  },
   "shorts": {
     "whisper_model": "small",
     "whisper_device": "auto",

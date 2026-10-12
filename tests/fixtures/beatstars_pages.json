@@ -1,0 +1,16 @@
+{
+  "profile": {"profileByUsername": {"memberId": "MR100", "username": "fixtureproducer"}},
+  "pages": [
+    {"profileTracks": {"totalElements": 2, "totalPages": 2, "number": 0, "last": false, "content": [
+      {"id": "TK101", "v2Id": 101, "title": "Fixture Trap", "seoMetadata": {"slug": "fixture-trap-101"},
+       "metadata": {"tags": ["trap", "dark"]}, "profile": {"memberId": "MR100"},
+       "bundle": {"hls": {"duration": 180, "url": "https://untrusted.invalid/private?token=fixture-secret"}},
+       "private_unused_field": "fixture-secret"}
+    ]}},
+    {"profileTracks": {"totalElements": 2, "totalPages": 2, "number": 1, "last": true, "content": [
+      {"id": "TK102", "v2Id": 102, "title": "Fixture Guitar", "seoMetadata": {"slug": "fixture-guitar-102"},
+       "metadata": {"tags": ["guitar"]}, "profile": {"memberId": "MR100"},
+       "bundle": {"stream": {"duration": 125.5}}}
+    ]}}
+  ]
+}
