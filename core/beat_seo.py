@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 import unicodedata
+from core.beat_names import clean_name
 from core.beat_seo_report import fields, text, texts, moment, parse_report, validate_report
 
 
@@ -48,7 +49,7 @@ def beat_url(track):
 
 
 def render(value, track):
-    return value.replace('{name}', track['title']).replace('{url}', beat_url(track))
+    return value.replace('{name}', clean_name(track['title'])).replace('{url}', beat_url(track))
 
 
 def track_input(track):
