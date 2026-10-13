@@ -17,7 +17,7 @@ Agregar canal crea una automatización pausada con lunes a las 18:00. El formula
 conserva los cambios al cambiar de canal; guardar valida todos los canales y
 horarios. La carpeta puede quedar vacía, pero si se indica debe existir. El guardado
 relee la configuración y reemplaza únicamente `beat_automation`, mediante archivo
-temporal y reemplazo atómico. No escribe configuración en Dropbox.
+temporal y reemplazo atómico. **Guardar configuración local** no escribe en Dropbox.
 
 **Analizar perfil** usa el extractor público de Fase 1 en un `QThread`: muestra
 progreso por página y un resumen de tracks, duraciones disponibles y tags frecuentes.
@@ -29,7 +29,7 @@ termina el hilo a la fuerza; cerrar o Escape cancela y difiere el cierre hasta q
 el hilo termine. Los fallos de red no muestran respuestas ni URLs del servidor.
 
 **Consultar estado de Beats en Dropbox** hace solo una lectura en otro `QThread`,
-con las credenciales independientes `BEAT_DROPBOX_*` de Fase 2. Muestra cantidades
+con la conexión local de Dropbox descripta abajo. Muestra cantidades
 por estado, presencia de lock e intentos consumidos hoy. No inicializa documentos,
 toma locks ni reserva intentos. Si falla, conserva la última instantánea disponible;
 la cancelación interrumpe las esperas de reintento y descarta el resultado de una
@@ -49,7 +49,7 @@ Sin coincidencias no propone jobs para ese canal; los demás canales siguen su p
 Tags SEO, géneros e imágenes mantienen su función de metadata y recursos visuales.
 Se aceptan hasta 40 tags de selección, de hasta 100 caracteres cada uno.
 
-No hay render, subida, worker nuevo ni sincronización de configuración remota.
+El panel permite publicar configuración remota mediante el botón explícito descripto abajo.
 Fase cerrada el 2026-10-12 con autorización del usuario después de revisar y corregir.
 
 Validación offline:
@@ -83,3 +83,66 @@ whitespace. NumPy y watchdog, ya declarados por el proyecto, se instalaron únic
 en `.venv` para desbloquear las verificaciones. No se modificaron requisitos ni
 archivos de Loopkits o marca personal. No se hizo una consulta real a BeatStars o
 Dropbox durante el cierre: las verificaciones funcionales usan fixtures y dobles.
+
+## Corrección incremental: conexión local y configuración Dropbox
+
+El panel de Beats prioriza `tokens/dropbox_worker.json`, el archivo privado que
+ya usa Loopkits y genera `scripts/kit_dropbox_auth.py`. Lee su `app_key` y
+`refresh_token` en memoria, sin copiarlos al formulario, configuración local,
+logs o mensajes. No cambia el cliente ni el funcionamiento de Loopkits.
+Si el archivo existe pero está mal formado o la autorización falla, se informa
+un error sanitizado; no se cambia silenciosamente de cuenta. Si no existe,
+se usan `BEAT_DROPBOX_APP_KEY` y `BEAT_DROPBOX_REFRESH_TOKEN` del entorno local.
+Si tampoco están presentes, el guardado local sigue disponible.
+
+Los botones **Elegir carpeta Dropbox**, **Elegir carpeta Dropbox por género** y
+**Elegir archivo Dropbox** abren un navegador remoto. Doble clic abre carpetas;
+**Subir** vuelve al nivel anterior. Para videos/imágenes, abrir la carpeta deseada
+y seleccionar esa carpeta. Para la miniatura, seleccionar un archivo PNG, JPG,
+JPEG o WebP. La carpeta de imágenes se asigna al género ingresado; elegirla de
+nuevo reemplaza solo esa asignación. Seleccionar no guarda ni publica automáticamente.
+
+Las rutas tienen la forma `/Videos`, `/imagenes/trap`, `/imagenes/miniatura.png`:
+son relativas a la raíz visible de la app de Dropbox autorizada. Para una app
+de tipo App folder, no agregar `/Apps/<nombre de app>` ni una ruta del disco.
+La raíz se usa para navegar; seleccionar una carpeta requiere abrir una subcarpeta.
+Videos y miniatura pasan a origen Dropbox al seleccionarlos.
+
+**Recargar configuración de Dropbox** lee solo `/type-beats/config.json` y su
+revisión. Si existe, reemplaza el borrador del formulario: guardar localmente
+sigue siendo una acción separada. Si no existe, conserva el borrador local y
+habilita su creación por CAS. Una lectura fallida o cancelada no habilita publicación.
+La configuración remota debe ser válida para los canales locales; las rutas
+locales configuradas deben existir en este equipo.
+
+**Guardar configuración en Dropbox** exige esa lectura previa y hace un único
+CAS sobre `/type-beats/config.json`: creación estricta si estaba ausente o update
+con la revisión consultada. No cambia `config/app_config.json`. Un conflicto
+conserva el borrador y exige recargar antes de volver a publicar; nunca hay
+overwrite ni reintentos automáticos de conflicto. Tras cancelar o una respuesta
+incierta también se exige recargar: una solicitud enviada podría haber terminado.
+
+El panel **nunca inicializa, reemplaza, migra en Dropbox ni reconstruye
+`/type-beats/state.json`**. Consultarlo sigue siendo una lectura; si falta o es
+inválido, lo informa sin escribirlo. Publicar configuración no crea estado.
+La puesta en marcha del worker continúa siendo un procedimiento independiente.
+
+Todas las operaciones remotas corren en QThread. El listado no es recursivo y
+tiene topes por carpeta de 10 páginas, 2.000 entradas y 120 segundos, comprobados
+entre solicitudes. Un listado que supera el límite falla sin mostrar resultados
+parciales. Cancelar interrumpe nuevas solicitudes y descarta resultados; cerrar
+el navegador espera la finalización del hilo. Solicitudes en curso esperan su
+timeout (30 segundos por operación de socket); la lectura JSON conserva el
+límite de 8 MiB y plazo de 180 segundos del adaptador existente. Los errores
+no muestran respuestas, credenciales, cursores ni excepciones del SDK.
+
+GitHub Actions sigue usando exclusivamente **`BEAT_DROPBOX_APP_KEY`** y
+**`BEAT_DROPBOX_REFRESH_TOKEN`**. Para que Actions vea las mismas rutas elegidas
+en el panel, configurar allí los valores de la misma app autorizada en Loopkits,
+desde el archivo privado, sin pegarlos en documentos ni commits. No renombrar
+los secretos a `KIT_*`: ambos workers mantienen su configuración independiente.
+No se modificaron workflows, `main.py`, Loopkits ni Marca Personal.
+
+Pruebas offline específicas: `test_beat_panel_cloud.py` cubre credenciales locales,
+fallback, errores sanitizados, navegación paginada y limitada, carpetas/archivos,
+cancelación y cierre, CAS y preservación byte a byte del estado existente o ausente.

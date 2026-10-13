@@ -93,6 +93,20 @@ Esta fase prepara el roadmap aprobado de Type Beats sin cambiar el comportamient
 - Cierre y commit autorizados por el usuario después de revisión y correcciones.
   Las fases históricas siguientes se conservan.
 
+## Corrección incremental — Dropbox local del panel de Beats ✅ COMPLETADA (2026-10-12, /review-bugbot aplicada)
+- El panel reutiliza `tokens/dropbox_worker.json` en memoria; token inválido no
+  cambia de cuenta. Sin archivo usa `BEAT_DROPBOX_*`; Actions mantiene esos nombres.
+- Navegador remoto para videos, imágenes por género y miniatura, con rutas relativas
+  a la raíz visible de la app, QThread, límites de páginas/entradas/plazo y cancelación.
+- Guardado local separado de publicación explícita CAS de `/type-beats/config.json`.
+  Exige lectura previa y recarga ante conflicto o respuesta incierta; nunca overwrite.
+- Sin inicialización ni escrituras de estado remoto; no se modificaron Loopkits,
+  Marca Personal, `main.py`, workflows ni archivos privados de configuración/tokens.
+- Documentación operativa actualizada. 21 tests nuevos offline; suite final con
+  260 aprobados y 2 omitidos, smokes de panel Loopkits y secciones aprobados.
+- `/review-bugbot` en el mismo agente según la skill: sin bugs encontrados.
+  Sin llamadas a Dropbox real. Commit posterior a la revisión, según lo solicitado.
+
 ## Fase 4 — Preview y render Type Beats ✅ COMPLETADA (2026-10-12, revisión aplicada)
 - Resolución pública HLS para un job ya reservado, descarga acotada y validación
   de hosts, redirects, tipo, tamaño, duración y decodificación local.

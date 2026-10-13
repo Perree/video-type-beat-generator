@@ -12,15 +12,20 @@ from core.beat_schema import BA, migrate
 from core.beat_source import profile_username
 from core.beat_tasks import BeatTask, analyze, checkpoint, load_state
 from core.sections import SECTION_BEATS, channel_names_for_section
+from core.beat_remote_form import BeatRemoteForm
+from core.beat_panel_cloud import local_transport
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-class BeatPanel(QWidget, BeatPanelForm):
-    def __init__(self, parent=None, config_path=None, transport=None, state_reader=None):
+class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm):
+    def __init__(self, parent=None, config_path=None, transport=None, state_reader=None,
+                 cloud_provider=local_transport):
         super().__init__(parent)
         self.config_path = Path(config_path or ROOT / "config/app_config.json")
         self.transport, self.state_reader = transport, state_reader
+        self.cloud_provider = cloud_provider
+        self.cloud_rev, self.cloud_loaded = None, False
         self.task = None
         self.analysis = None
         self.state = None
@@ -43,7 +48,8 @@ class BeatPanel(QWidget, BeatPanelForm):
         except Exception:
             self.config_readable = False
             self.status.setText("No se pudo leer la configuración. No se sobrescribirá el archivo.")
-            for widget in (self.save_button, self.add_button, self.remove_button,
+            for widget in (self.save_button, self.cloud_save_button, self.cloud_reload_button,
+                           self.add_button, self.remove_button,
                            self.simulate_button, self.automations, self.editor):
                 widget.setEnabled(False)
 
@@ -157,6 +163,7 @@ class BeatPanel(QWidget, BeatPanelForm):
         self.task.progress.connect(self.status.setText)
         self.task.finished.connect(self._finished)
         for button in (self.analyze_button, self.state_button, self.simulate_button, self.save_button,
+                       self.cloud_save_button, self.cloud_reload_button,
                        self.add_button, self.remove_button):
             button.setEnabled(False)
         self.profile.setEnabled(False)
@@ -177,13 +184,15 @@ class BeatPanel(QWidget, BeatPanelForm):
         task, self.task = self.task, None
         task.deleteLater()
         for button in (self.analyze_button, self.state_button, self.simulate_button, self.save_button,
+                       self.cloud_save_button, self.cloud_reload_button,
                        self.add_button, self.remove_button):
             button.setEnabled(True)
         self.profile.setEnabled(True)
         self.editor.setEnabled(self.config_readable and self.selected >= 0)
         self.automations.setEnabled(self.config_readable)
         self.remote.setEnabled(True)
-        for widget in (self.save_button, self.add_button, self.remove_button, self.simulate_button):
+        for widget in (self.save_button, self.cloud_save_button, self.cloud_reload_button,
+                       self.add_button, self.remove_button, self.simulate_button):
             widget.setEnabled(self.config_readable)
         self.cancel_button.setEnabled(False)
         window = self.window()
@@ -223,7 +232,7 @@ class BeatPanel(QWidget, BeatPanelForm):
             if self.state_reader is not None:
                 state = self.state_reader()
             else:
-                state = load_state(event)
+                state = load_state(event, self.cloud_provider())
             checkpoint(event)
             return migrate(state, "state")
         self._start(read, self._state_loaded)

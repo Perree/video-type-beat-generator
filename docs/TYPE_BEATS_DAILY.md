@@ -107,7 +107,13 @@ Secretos de cada Environment:
   para corridas reales.
 - `BEAT_NOTION_TOKEN`, `BEAT_NOTION_PAGE_ID`: opcionales, informes de Fase 5.
 
-No guardar estos secretos a nivel repositorio. No pasar credenciales de Loopkits.
+No guardar estos secretos a nivel repositorio. Los tokens de YouTube deben
+corresponder al canal de Beats. Para Dropbox se puede autorizar la misma app usada
+por Loopkits y el panel local (`tokens/dropbox_worker.json`), configurando sus
+valores como `BEAT_DROPBOX_APP_KEY` y `BEAT_DROPBOX_REFRESH_TOKEN`, siempre en
+los Environments de Beats. No renombrar secretos ni compartir el estado de Loopkits:
+Beats conserva exclusivamente sus documentos bajo `/type-beats/`. Ver el flujo de
+publicación de configuración por CAS en `TYPE_BEATS_PANEL.md`; el panel no crea estado.
 El token de YouTube se escribe en un directorio temporal 0700 y archivo 0600,
 se usa con `tokens_dir` y se borra al finalizar. Los secretos `BEAT_*` salen del
 entorno antes del render. La salida de dependencias y sus errores se suprimen.

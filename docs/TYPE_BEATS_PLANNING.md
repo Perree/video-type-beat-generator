@@ -7,9 +7,12 @@ o sube videos. No se escribieron datos en Dropbox durante la implementación.
 ## Documentos y concurrencia
 
 `core/beat_cloud.py` usa un cliente propio del SDK de Dropbox. Lee exclusivamente
-`BEAT_DROPBOX_APP_KEY` y `BEAT_DROPBOX_REFRESH_TOKEN`; configurar una app independiente
-de tipo App folder, con permisos de lectura y escritura de archivos. No hay fallback
-a tokens generales ni a `KIT_*`. Rutas fijas relativas a esa app:
+`BEAT_DROPBOX_APP_KEY` y `BEAT_DROPBOX_REFRESH_TOKEN` en workers; configurar una app
+de tipo App folder, con permisos de lectura y escritura de archivos. Puede ser la
+misma app de Dropbox que usa Loopkits, manteniendo los nombres `BEAT_*` en Actions.
+El adaptador del worker no tiene fallback a archivos locales ni a `KIT_*`.
+El panel de escritorio reutiliza `tokens/dropbox_worker.json` cuando existe;
+ver `TYPE_BEATS_PANEL.md`. Rutas fijas relativas a la raíz visible de esa app:
 
 - `/type-beats/config.json`: canales, prioridad, slots, esquema y límites.
 - `/type-beats/state.json`: jobs, lock y todas las reservas diarias de todos los canales.
@@ -35,6 +38,8 @@ del adaptador no incluyen credenciales ni respuestas del servidor.
 la 1, preservando campos existentes. Versiones futuras y namespaces ajenos se rechazan.
 Repetir la inicialización de documentos ya migrados no escribe otra revisión.
 Inicialización y edición son explícitas; el dry-run nunca las ejecuta.
+El panel nunca llama `initialize()` ni escribe estado: publica exclusivamente config
+por CAS, con recarga obligatoria ante conflictos.
 Los documentos v1 deben contener todos sus campos obligatorios, incluyendo las
 opciones de cada canal; no se reconstruyen contadores ni se activan canales por
 campos faltantes. Se rechazan claves JSON duplicadas y números no finitos.
