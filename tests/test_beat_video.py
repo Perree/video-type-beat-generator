@@ -462,3 +462,19 @@ class HTTPTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class PlainThumbnailTests(unittest.TestCase):
+    def test_plain_compose_keeps_artwork_without_caption_banner(self):
+        from PIL import Image
+        from core.beat_render import compose
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            Image.new('RGB', (1920, 1080), (200, 10, 10)).save(root / 'art.png')
+            compose(root / 'art.png', 'Some Title', root / 'f.png', root / 't.jpg', plain=True)
+            thumb = Image.open(root / 't.jpg')
+            self.assertEqual(thumb.size, (1280, 720))
+            red, _, _ = thumb.getpixel((100, 700))
+            self.assertGreater(red, 150)
+            compose(root / 'art.png', 'Some Title', root / 'f.png', root / 't2.jpg')
+            self.assertLess(Image.open(root / 't2.jpg').getpixel((100, 700))[0], 60)

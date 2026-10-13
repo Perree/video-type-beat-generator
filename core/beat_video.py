@@ -66,7 +66,7 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
             montage = {}
             if image:
                 fetch(image, source_image, 20 * 1024 * 1024, dropbox)
-                compose(source_image, track.get('title'), frame, thumbnail)
+                compose(source_image, track.get('title'), frame, thumbnail, plain=spec['mode'] == 'video')
                 image['sha256'] = image_digest(source_image)
                 prior = previous_publication(state, job)
                 prior_visual = publication_visual(state, prior) if prior else None
@@ -84,7 +84,7 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
                     compose(source_image, track.get('title'), frame, thumbnail)
             if custom_thumbnail:
                 fetch(custom_thumbnail, root / 'thumbnail-source.bin', 20 * 1024 * 1024, dropbox)
-                compose(root / 'thumbnail-source.bin', track.get('title'), root / 'thumbnail-frame.png', thumbnail)
+                compose(root / 'thumbnail-source.bin', track.get('title'), root / 'thumbnail-frame.png', thumbnail, plain=True)
 
             def record(document):
                 store._lease(document, owner)

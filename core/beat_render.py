@@ -70,7 +70,8 @@ class MediaTools:
             raise BeatError('render_output_missing')
 
 
-def compose(image, title, frame, thumbnail):
+def compose(image, title, frame, thumbnail, plain=False):
+    """plain=True keeps finished artwork untouched: no caption banner, only resized."""
     from PIL import Image, ImageOps, ImageDraw, ImageFont
     if not isinstance(title, str) or not title.strip() or len(title) > 500:
         raise BeatError('title_rejected')
@@ -84,6 +85,10 @@ def compose(image, title, frame, thumbnail):
                 source.load()
                 picture = ImageOps.fit(ImageOps.exif_transpose(source).convert('RGB'), (1920, 1080))
                 picture.info.clear()
+        if plain:
+            picture.save(frame, 'PNG')
+            picture.resize((1280, 720)).save(thumbnail, 'JPEG', quality=90)
+            return
         draw = ImageDraw.Draw(picture)
         draw.rectangle((0, 780, 1920, 1080), fill=(15, 15, 20))
         # A bundled/system font may be supplied later; Pillow's default is portable.

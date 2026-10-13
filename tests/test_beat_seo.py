@@ -35,6 +35,38 @@ def payload(value=None):
     return json.dumps(report() if value is None else value).encode()
 
 
+class TemplateTests(unittest.TestCase):
+    CHANNEL = {'id': 'beats', 'seo': {
+        'tags': ['one type beat', 'two type beat', 'three'],
+        'title_template': '[FREE] Style Type Beat "{name}"',
+        'description': 'Link: {url}\nTitle: {name}'}}
+
+    def test_fixed_title_tags_and_beat_link(self):
+        track = {'id': 'TK18425328', 'title': 'New York', 'tags': ['unrelated']}
+        job = dict(JOB, track_id='TK18425328')
+        job['id'] = identity('TK18425328', 'beats', 1, NOW)
+        snapshot, _ = build_snapshot(job, track, self.CHANNEL, NOW)
+        selected = snapshot['selected']
+        self.assertEqual(selected['title'], '[FREE] Style Type Beat "New York"')
+        self.assertEqual(selected['tags'], ['one type beat', 'two type beat', 'three'])
+        self.assertEqual(selected['description'],
+                         'Link: https://www.beatstars.com/beat/new-york-18425328\nTitle: New York')
+        validate_snapshot(snapshot, job)
+
+    def test_repeat_rotates_tags_and_template_is_validated(self):
+        track = {'id': 'TK7', 'title': 'Night', 'tags': []}
+        job = dict(JOB, track_id='TK7', cycle=2)
+        job['id'] = identity('TK7', 'beats', 2, NOW)
+        first, _ = build_snapshot(job, track, self.CHANNEL, NOW)
+        again, _ = build_snapshot(job, track, self.CHANNEL, NOW, previous_selected=first['selected'])
+        self.assertNotEqual(first['selected']['tags'], again['selected']['tags'])
+        self.assertEqual(sorted(again['selected']['tags']), sorted(first['selected']['tags']))
+        bad = deepcopy(self.CHANNEL)
+        bad['seo']['title_template'] = 'no placeholder'
+        with self.assertRaises(ValueError):
+            build_snapshot(job, track, bad, NOW)
+
+
 class ReportTests(unittest.TestCase):
     def test_valid(self):
         self.assertEqual(parse_report(payload(), 'beats', NOW), report())

@@ -3,6 +3,7 @@ from copy import deepcopy
 import hashlib
 import json
 import re
+import unicodedata
 from core.beat_seo_report import fields, text, texts, moment, parse_report, validate_report
 
 
@@ -11,18 +12,43 @@ def digest(value):
         separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
 
 
+PLACEHOLDERS = ('{name}', '{url}')
+
+
+def _plain(value):
+    for token in PLACEHOLDERS:
+        value = value.replace(token, 'x')
+    return value
+
+
 def manual_profile(channel):
     cid = text(channel.get('id'), 200)
     profile = deepcopy(channel.get('seo', {
         'tags': channel.get('tags', []), 'description': ''}))
-    fields(profile, ('tags', 'description'))
+    # title_template is optional so snapshots created before it existed stay valid.
+    fields(profile, ('tags', 'description') + (('title_template',) if 'title_template' in profile else ()))
     texts(profile['tags'])
     description = profile['description']
     if description != '':
         if type(description) is not str:
             raise ValueError('seo_text_invalid')
-        text(description.replace('\n', ' '), 4000)
+        text(_plain(description).replace(chr(10), ' '), 4000)
+    if 'title_template' in profile:
+        template = profile['title_template']
+        if type(template) is not str or '{name}' not in template:
+            raise ValueError('seo_text_invalid')
+        text(_plain(template), 90)
     return cid, profile
+
+
+def beat_url(track):
+    """BeatStars page URL: slug(title)-numeric id (matches all public catalog tracks)."""
+    ascii_title = unicodedata.normalize('NFKD', track['title']).encode('ascii', 'ignore').decode().lower()
+    return f'https://www.beatstars.com/beat/{re.sub("[^a-z0-9]+", "-", ascii_title).strip("-")}-{track["id"][2:]}'
+
+
+def render(value, track):
+    return value.replace('{name}', track['title']).replace('{url}', beat_url(track))
 
 
 def track_input(track):
@@ -33,6 +59,14 @@ def track_input(track):
 
 
 def candidates(track, profile, scores):
+    template = profile.get('title_template')
+    if template:
+        # Fixed title and tag list; only the beat name and link change. Repeats rotate the tag order.
+        title = render(template, track)
+        if len(title) > 100:
+            raise ValueError('seo_title_too_long')
+        base = list(profile['tags'])
+        return [{'title': title, 'tags': base[i:] + base[:i]} for i in range(max(1, len(base)))]
     # Intersection prevents unrelated manual artists or report keywords being invented.
     allowed = {v.casefold() for v in profile['tags']}
     tags = [v for v in track['tags'] if v.casefold() in allowed]
@@ -89,7 +123,7 @@ def build_snapshot(job, track, channel, now, payload=None, cached=None, *, previ
         'track': track, 'manual': profile, 'as_of': now, 'source': source,
         'report_hash': digest(report) if report else None,
         'scores': scores, 'candidates': options,
-        'selected': dict(eligible[0], description=profile['description'])}
+        'selected': dict(eligible[0], description=render(profile['description'], track))}
     snapshot['sha256'] = digest(snapshot)
     cache = {'manual_hash': fingerprint, 'report': deepcopy(report)} if source == 'report' else None
     return snapshot, cache
@@ -124,8 +158,8 @@ def validate_snapshot(snapshot, job):
     options = candidates(track, profile, scores)
     # Pre-review v1 snapshots repeated the manual description in every option.
     # Accept that equivalent encoding on replay; new snapshots store it once.
-    legacy = [dict(option, description=profile['description']) for option in options]
-    selections = [dict(option, description=profile['description']) for option in
+    legacy = [dict(option, description=render(profile['description'], track)) for option in options]
+    selections = [dict(option, description=render(profile['description'], track)) for option in
                   (options if job['cycle'] > 1 else options[:1])]
     if (snapshot['candidates'] != options and snapshot['candidates'] != legacy
             or snapshot['selected'] not in selections):
