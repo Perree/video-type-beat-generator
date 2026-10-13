@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import sys
 import urllib.request
 from core.beat_notion import NoRedirect
 
@@ -45,8 +46,10 @@ def check_environment(env=None, opener=None):
     def read(url):
         # Public repo: anonymous GET works without granting Actions read.
         # Private repo: fail closed rather than broadening contents: read.
-        request = urllib.request.Request(url, headers={
-            'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'})
+        headers = {'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'}
+        if env.get('GH_TOKEN'):  # job token: only raises the shared-runner rate limit, no extra permission
+            headers['Authorization'] = 'Bearer ' + env['GH_TOKEN']
+        request = urllib.request.Request(url, headers=headers)
         with opener.open(request, timeout=15) as response:
             if response.status != 200:
                 raise ValueError('environment_unverified')
@@ -69,6 +72,8 @@ def main():
         else:
             check_environment()
         return 0
-    except Exception:
+    except Exception as exc:
         print('type_beats_actions_validation_failed')
+        # Class name and HTTP status only: never the message, URL or headers.
+        print('detail:', type(exc).__name__, getattr(exc, 'code', ''), file=sys.stderr)
         return 1
