@@ -23,6 +23,8 @@ from core.beat_publish import publish
 from core.beat_render import MediaTools
 from core.beat_schema import instant, migrate
 from core.beat_schedule import plan, apply_plan
+from core.beat_selection import TrackNotMatching
+from core.beat_seo_store import prepare_seo
 from core.beat_source import BeatStarsSource
 from core.beat_state import BeatState
 from core.beat_video import render_reserved
@@ -105,6 +107,299 @@ class DailyTests(unittest.TestCase):
         again = self.run_worker()
         self.assertEqual(again['uploaded'], 0)
         self.assertEqual(len(self.calls), 6)
+
+    def test_no_selection_matches_blocks_before_any_reservation_or_render(self):
+        self.cloud.update('config', lambda config: config['channels'][0].update(
+            selection_tags=['SENSITIVE-selection-tag']))
+        # Existing quota and legacy jobs must also remain untouched.
+        store = BeatState(self.cloud, lambda: NOW)
+        owner = store.acquire()
+        jobs = store.fill_buffer(CONFIG, [{'id': 'TK101'}], owner)
+        store.release(owner)
+        store.reserve_attempt(jobs[0]['id'], 'existing-attempt')
+        before = self.cloud.read('state')
+        with patch.object(BeatState, 'acquire') as acquire, \
+             patch.object(BeatState, 'fill_buffer') as fill, \
+             patch.object(BeatState, 'reserve_attempt') as reserve, \
+             patch.object(self, 'renderer') as render, \
+             patch('core.beat_daily.prepare_seo') as seo:
+            summary = self.run_worker(report_loader=lambda: self.fail('SEO report loaded'))
+        for call in (acquire, fill, reserve, render, seo):
+            call.assert_not_called()
+        self.assertEqual(summary['no_matching_tracks'], 1)
+        self.assertEqual(summary['blocked'], 1)
+        for key in ('planned', 'eligible', 'uploaded', 'failed', 'budget'):
+            self.assertEqual(summary[key], 0)
+        self.assertEqual(self.cloud.read('state'), before)
+        self.assertEqual(self.calls, [])
+        self.assertFalse(self.hls.calls)
+        self.assertFalse(self.receipts.exists())
+        self.assertEqual(self.notifications, [summary])
+        safe = message(dict(summary, selection_tags=['SENSITIVE-selection-tag'],
+                            error='SENSITIVE-error', channel='SENSITIVE-channel'))
+        self.assertIn('no_matching_tracks: 1', safe)
+        self.assertNotIn('SENSITIVE', safe)
+
+    def test_selection_no_matches_dry_run_is_read_only(self):
+        self.cloud.update('config', lambda config: config['channels'][0].update(
+            selection_tags=['missing']))
+        before = self.cloud.read('state')
+        summary = self.run_worker(dry_run=True)
+        self.assertEqual(summary['no_matching_tracks'], 1)
+        self.assertEqual(self.cloud.read('state'), before)
+        self.assertEqual(self.notifications, [])
+        self.assertEqual(self.calls, [])
+
+    def test_selection_matching_subset_excludes_legacy_buffer_jobs(self):
+        # Reserve the old full catalog, then narrow the channel's selection.
+        self.cloud.update('state', lambda state: apply_plan(state, plan(
+            CONFIG, state, [{'id': f'TK{number}'} for number in range(101, 115)], NOW)))
+        self.cloud.update('config', lambda config: config['channels'][0].update(
+            selection_tags=['  AMBIENT  ']))
+        self.public.fixture['pages'][0]['profileTracks']['content'][0]['metadata']['tags'] = ['Ambient']
+        summary = self.run_worker()
+        self.assertEqual(summary['uploaded'], 1)
+        self.assertEqual(summary['eligible'], 1)
+        self.assertEqual(summary['blocked'], 13)
+        self.assertEqual(summary['failed'], 0)
+        state, _ = self.cloud.read('state')
+        entries = list(state['attempts'][NOW.date().isoformat()].values())
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(state['jobs'][entries[0]['job_id']]['track_id'], 'TK101')
+        self.assertTrue(all(job['status'] == 'planned' for job in state['jobs'].values()
+                            if job['track_id'] != 'TK101'))
+
+    def test_selection_blocks_only_its_channel_and_leaves_quota_for_other_channel(self):
+        second = dict(CONFIG['channels'][0], id='second', selection_tags=[' TRAP '])
+        self.cloud.update('config', lambda config: (
+            config['channels'][0].update(selection_tags=['missing']),
+            config['channels'].append(second)))
+        summary = self.run_worker()
+        self.assertEqual(summary['no_matching_tracks'], 1)
+        self.assertEqual(self.cloud.read('state')[0]['jobs'], {})
+        other = run_daily(self.cloud, 'second', DropboxAssets(self.assets_client), self.upload,
+                          self.receipts, source=self.source, renderer=self.renderer, clock=lambda: NOW)
+        self.assertEqual(other['uploaded'], 6)
+        self.assertEqual(other['no_matching_tracks'], 0)
+        self.assertEqual(other['failed'], 0)
+        state, _ = self.cloud.read('state')
+        self.assertEqual({job['channel'] for job in state['jobs'].values()}, {'second'})
+        self.assertEqual(len(state['attempts'][NOW.date().isoformat()]), 6)
+
+    def test_empty_selection_tags_preserves_legacy_worker_behavior(self):
+        self.cloud.update('config', lambda config: config['channels'][0].update(selection_tags=[]))
+        summary = self.run_worker()
+        self.assertEqual(summary['uploaded'], 6)
+        self.assertEqual(summary['failed'], 0)
+        self.assertEqual(summary['no_matching_tracks'], 0)
+
+    def test_selection_change_during_scan_blocks_before_reserving_jobs(self):
+        scan = self.source.scan
+        def change(*args):
+            snapshot = scan(*args)
+            self.cloud.update('config', lambda config: config['channels'][0].update(
+                selection_tags=['missing']))
+            return snapshot
+        before = self.cloud.read('state')
+        with patch.object(self.source, 'scan', side_effect=change), \
+             patch.object(self, 'renderer') as renderer:
+            summary = self.run_worker()
+        renderer.assert_not_called()
+        self.assertEqual(summary['blocked'], 1)
+        self.assertEqual(summary['planned'], 0)
+        self.assertEqual(summary['failed'], 0)
+        self.assertEqual(self.cloud.read('state'), before)
+        self.assertEqual(self.calls, [])
+
+    def test_selection_change_during_seo_report_blocks_before_reserving_jobs(self):
+        before = self.cloud.read('state')
+        def report():
+            self.cloud.update('config', lambda config: config['channels'][0].update(
+                selection_tags=['missing']))
+        with patch.object(self, 'renderer') as renderer:
+            summary = self.run_worker(report_loader=report)
+        renderer.assert_not_called()
+        self.assertEqual(summary['blocked'], 1)
+        self.assertEqual(summary['planned'], 0)
+        self.assertEqual(self.cloud.read('state'), before)
+
+    def test_selection_change_before_next_render_blocks_pending_jobs(self):
+        original = self.renderer
+        @contextmanager
+        def change(*args, **kwargs):
+            with original(*args, **kwargs) as media:
+                yield media
+            # The first insert already happened; later pending jobs must stop.
+            self.cloud.update('config', lambda config: config['channels'][0].update(
+                selection_tags=['missing']))
+        with patch.object(self, 'renderer', side_effect=change) as renderer:
+            summary = self.run_worker()
+        self.assertEqual(summary['uploaded'], 1)
+        self.assertEqual(summary['blocked'], 1)
+        self.assertEqual(summary['failed'], 0)
+        self.assertEqual(renderer.call_count, 1)
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual(len(self.cloud.read('state')[0]['attempts'][NOW.date().isoformat()]), 1)
+
+    def test_selection_change_during_buffer_acquire_cannot_reserve_jobs(self):
+        acquire = BeatState.acquire
+        def change(store, *args, **kwargs):
+            owner = acquire(store, *args, **kwargs)
+            self.cloud.update('config', lambda config: config['channels'][0].update(selection_tags=['missing']))
+            return owner
+        with patch.object(BeatState, 'acquire', change), patch.object(self, 'renderer') as renderer:
+            summary = self.run_worker()
+        renderer.assert_not_called()
+        self.assertEqual(summary['blocked'], 1)
+        self.assertEqual(summary['planned'], 0)
+        state = self.cloud.read('state')[0]
+        self.assertEqual(state['jobs'], {})
+        self.assertEqual(state['attempts'], {})
+        self.assertIsNone(state['lock'])
+
+    def test_selection_change_during_job_seo_blocks_before_render(self):
+        def change(*args, **kwargs):
+            snapshot = prepare_seo(*args, **kwargs)
+            self.cloud.update('config', lambda config: config['channels'][0].update(selection_tags=['missing']))
+            return snapshot
+        with patch('core.beat_daily.prepare_seo', side_effect=change), \
+             patch.object(self, 'renderer') as renderer:
+            summary = self.run_worker()
+        renderer.assert_not_called()
+        self.assertEqual(summary['blocked'], 1)
+        self.assertEqual(summary['failed'], 0)
+        self.assertEqual(self.cloud.read('state')[0]['attempts'], {})
+        self.assertEqual(self.calls, [])
+
+    def test_selection_change_during_render_or_lease_renewal_spends_no_attempt(self):
+        original = self.renderer
+        for phase in ('render', 'renew'):
+            with self.subTest(phase=phase):
+                self.cloud.update('config', lambda config: config['channels'][0].pop('selection_tags', None))
+                @contextmanager
+                def change(*args, **kwargs):
+                    with original(*args, **kwargs) as media:
+                        def changed():
+                            self.cloud.update('config', lambda config: config['channels'][0].update(
+                                selection_tags=['missing']))
+                        if phase == 'render':
+                            changed()
+                        else:
+                            fence = media['before_upload']
+                            def renew():
+                                fence()
+                                changed()
+                            media = dict(media, before_upload=renew)
+                        yield media
+                with patch.object(self, 'renderer', side_effect=change) as renderer:
+                    summary = self.run_worker()
+                self.assertEqual(summary['blocked'], 1)
+                self.assertEqual(summary['failed'], 0)
+                self.assertEqual(renderer.call_count, 1)
+                self.assertEqual(self.calls, [])
+                self.assertEqual(self.cloud.read('state')[0]['attempts'], {})
+                self.assertFalse(list(self.receipts.glob('*.json')))
+
+    def test_selection_change_after_intent_blocks_upload_and_keeps_ledger(self):
+        def write(*args, **kwargs):
+            row = journal(*args, **kwargs)
+            if args[2] == 'unknown':
+                self.cloud.update('config', lambda config: config['channels'][0].update(
+                    selection_tags=['missing']))
+            return row
+        with patch('core.beat_publish.journal', side_effect=write):
+            summary = self.run_worker()
+        self.assertEqual(summary['blocked'], 1)
+        self.assertEqual(summary['failed'], 0)
+        self.assertEqual(self.calls, [])
+        before = self.cloud.read('state')
+        self.assertEqual(len(before[0]['attempts'][NOW.date().isoformat()]), 1)
+        again = self.run_worker()
+        self.assertEqual(again['no_matching_tracks'], 1)
+        self.assertEqual(self.cloud.read('state'), before)
+        self.assertEqual(self.calls, [])
+
+    def test_other_channel_filter_changes_do_not_block_this_channel(self):
+        self.cloud.update('config', lambda config: config['channels'].append(
+            dict(config['channels'][0], id='other', selection_tags=['missing'])))
+        scan = self.source.scan
+        def change(*args):
+            snapshot = scan(*args)
+            self.cloud.update('config', lambda config: config['channels'][1].update(selection_tags=['trap']))
+            return snapshot
+        with patch.object(self.source, 'scan', side_effect=change):
+            summary = self.run_worker()
+        self.assertEqual(summary['uploaded'], 6)
+        self.assertEqual(summary['blocked'], 0)
+        self.assertEqual(summary['failed'], 0)
+
+    def test_selection_old_job_direct_seo_and_render_are_blocked_before_writes(self):
+        job = self.prepare_job()
+        self.cloud.update('config', lambda config: config['channels'][0].update(selection_tags=['missing']))
+        channel = self.cloud.read('config')[0]['channels'][0]
+        track = self.source.scan(CONFIG['beatstars_profile_url']).tracks[0].payload()
+        before = self.cloud.read('state')
+        for dry_run in (False, True):
+            with self.subTest(dry_run=dry_run):
+                with self.assertRaises(TrackNotMatching):
+                    prepare_seo(self.cloud, job['id'], track, channel, NOW.isoformat(), dry_run=dry_run)
+                with patch.object(BeatState, 'acquire') as acquire:
+                    with self.assertRaises(TrackNotMatching):
+                        with self.renderer(self.cloud, job['id'], track, channel, 'trap',
+                                           CONFIG['beatstars_profile_url'], DropboxAssets(self.assets_client),
+                                           dry_run=dry_run):
+                            self.fail('excluded job rendered')
+                acquire.assert_not_called()
+                self.assertEqual(self.cloud.read('state'), before)
+                self.assertEqual(self.process.calls, [])
+                self.assertEqual(self.hls.calls, [])
+                self.assertEqual(self.assets_client.downloads, [])
+
+    def test_selection_direct_publish_rejects_excluded_or_unknown_track_without_quota(self):
+        job = self.prepare_job()
+        self.cloud.update('config', lambda config: config['channels'][0].update(selection_tags=['ambient']))
+        before = self.cloud.read('state')
+        for track in ({'id': job['track_id'], 'tags': ['trap']},
+                      {'id': 'TK999', 'tags': ['ambient']}, None):
+            with self.subTest(track=track):
+                with self.assertRaises(TrackNotMatching):
+                    publish(self.cloud, job, {'video': 'fake', 'thumbnail': 'fake'},
+                            {'track': track, 'selected': {'title': 'Fixture'}}, self.upload,
+                            self.receipts, lambda: NOW)
+                self.assertEqual(self.cloud.read('state'), before)
+                self.assertEqual(self.calls, [])
+                self.assertFalse(self.receipts.exists())
+
+    def test_selection_direct_publish_rechecks_filter_after_intent(self):
+        job = self.prepare_job()
+        self.cloud.update('config', lambda config: config['channels'][0].update(selection_tags=['trap']))
+        def write(*args, **kwargs):
+            row = journal(*args, **kwargs)
+            if args[2] == 'unknown':
+                self.cloud.update('config', lambda config: config['channels'][0].update(selection_tags=['missing']))
+            return row
+        with patch('core.beat_publish.journal', side_effect=write):
+            with self.assertRaises(TrackNotMatching):
+                publish(self.cloud, job, {'video': 'fake', 'thumbnail': 'fake'},
+                        {'track': {'id': job['track_id'], 'tags': ['trap']}, 'selected': {'title': 'Fixture'}},
+                        self.upload, self.receipts, lambda: NOW)
+        self.assertEqual(self.calls, [])
+        self.assertEqual(len(self.cloud.read('state')[0]['attempts'][NOW.date().isoformat()]), 1)
+
+    def test_selection_direct_publish_backoff_cannot_spend_quota_under_stale_filter(self):
+        job = self.prepare_job()
+        self.cloud.update('config', lambda config: config['channels'][0].update(selection_tags=['trap']))
+        before = self.cloud.read('state')
+        self.memory.faults.append(('write', Transient()))
+        self.cloud.sleep = lambda _: self.cloud.update('config', lambda config:
+            config['channels'][0].update(selection_tags=['missing']))
+        with self.assertRaises(TrackNotMatching):
+            publish(self.cloud, job, {'video': 'fake', 'thumbnail': 'fake'},
+                    {'track': {'id': job['track_id'], 'tags': ['trap']}, 'selected': {'title': 'Fixture'}},
+                    self.upload, self.receipts, lambda: NOW)
+        self.assertEqual(self.calls, [])
+        self.assertEqual(self.cloud.read('state'), before)
+        self.assertFalse(list(self.receipts.glob('*.json')))
 
     def test_real_youtube_upload_contract_with_fake_google_service(self):
         calls = []

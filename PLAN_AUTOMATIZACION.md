@@ -203,6 +203,28 @@ Esta fase prepara el roadmap aprobado de Type Beats sin cambiar el comportamient
   `docs/TYPE_BEATS_OPERATIONS.md`. Sin hallazgos confirmados pendientes en código;
   cero uploads reales, mensajes o cambios remotos durante la revisión.
 
+## Corrección postimplementación — Filtro de selección de beats por canal ✅ COMPLETADA (2026-10-12, revisión aplicada)
+
+- Campo opcional `selection_tags` independiente por canal, editable como **Tags de selección**;
+  `tags` conserva su función SEO y los géneros conservan su función visual. Un track activo
+  es elegible si al menos un tag coincide exactamente tras `strip().casefold()`, sin coincidencias
+  parciales ni etiquetas hardcodeadas. Campo ausente o vacío conserva el comportamiento anterior.
+- Filtrado antes de planificar y reservar; también protege jobs antiguos pendientes y consumidores
+  directos de SEO/render/publicación. Sin coincidencias: `no_matching_tracks` bloquea solo ese canal,
+  sin jobs nuevos, consumo de cuota, render, uploads ni fallback al catálogo completo. Telegram
+  recibe únicamente códigos fijos y contadores, sin títulos, URLs, tokens ni datos sensibles.
+- `/review` con Bugbot aplicado: dos hallazgos medios reproducidos y corregidos. El filtro
+  desactualizado durante escaneo/render ahora se verifica antes de cada transición y escritura CAS,
+  incluidos reintentos. El bypass de jobs excluidos desde CLI/API ahora falla cerrado con guardas
+  compartidas. Un intento ya confirmado conserva su ledger aunque se bloquee el insert.
+- Validación: **241 pruebas Type Beats aprobadas, sin omisiones**, con FFmpeg real habilitado;
+  incluye coincidencia exacta, rechazo de parciales, cuota intacta, aislamiento, compatibilidad,
+  jobs anteriores, carreras y Telegram sanitizado. Sintaxis Python y whitespace correctos.
+  Servicios externos falsos: cero uploads, mensajes o cambios remotos reales.
+- Archivos nuevos `core/beat_selection.py` y `tests/test_beat_selection.py`; documentación operativa
+  actualizada. Cierre y único commit autorizados por el usuario después de la revisión.
+  Sin cambios en Loopkits, Marca Personal ni `main.py`; no se habilita producción.
+
 ## Fase 0 histórica — Limpieza del repo (registrada previamente)
 La limpieza original de herramientas/configuración fue anotada como completada en una versión anterior del plan; se conserva
 como antecedente y no cuenta como cierre de la Fase 0 de preparación de automatización definida arriba.

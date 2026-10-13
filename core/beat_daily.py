@@ -16,6 +16,8 @@ from core.beat_publish import publish
 from core.beat_notify import COUNTERS
 from core.beat_visual import options
 from core.beat_guard import ChannelPaused, PublicationExpired
+from core.beat_selection import (eligible_tracks, selection_tags, ensure_selection,
+                                 selection_fence, SelectionChanged, TrackNotMatching)
 
 
 def visual_genre(channel, track):
@@ -58,6 +60,13 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
             catalog = BeatCatalog(Path(folder) / 'catalog.sqlite')
             catalog.apply(snapshot)
             tracks = {track['id']: track for track in catalog.tracks(snapshot.member_id)}
+        ensure_selection(cloud, channel)
+        filtered = bool(selection_tags(channel))
+        tracks = {track['id']: track for track in eligible_tracks(channel, tracks.values())}
+        if filtered and not tracks:
+            summary['blocked'] += 1
+            summary['no_matching_tracks'] += 1
+            return summary
         payload = None
         if report_loader is not None:
             try:
@@ -68,6 +77,8 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
         # Each matrix runner owns only its channel's report/credentials. Let
         # other runners reserve their own buffers with their own metrics.
         planning_config = dict(config, channels=[channel])
+        selection_cloud = cloud
+        ensure_selection(selection_cloud, channel)
         if dry_run:
             additions = plan(planning_config, state, tracks.values(), clock(), seed=seed, reports=reports)
             apply_plan(state, additions)
@@ -78,7 +89,9 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
             store = BeatState(cloud, clock)
             owner = store.acquire(require_existing=True)
             try:
-                additions = store.fill_buffer(planning_config, tracks.values(), owner, seed=seed, reports=reports)
+                ensure_selection(selection_cloud, channel)
+                additions = store.fill_buffer(planning_config, tracks.values(), owner, seed=seed, reports=reports,
+                    before_commit=lambda: ensure_selection(selection_cloud, channel))
             finally:
                 store.release(owner)
             state, _ = cloud.read('state')
@@ -94,6 +107,11 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
             # One eligible job only, even if persistence fails after the insert.
             if private_pilot and summary['eligible'] >= 1:
                 break
+            # Buffers created before a filter change may contain unrelated tracks.
+            # Keep their ledger untouched, but never render or attempt them.
+            if filtered and job['track_id'] not in tracks:
+                summary['blocked'] += 1
+                continue
             if job['id'] in attempted:
                 summary['blocked'] += 1
                 continue
@@ -113,18 +131,23 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
                 continue
             try:
                 track = tracks[job['track_id']]
+                ensure_selection(selection_cloud, channel)
                 genre = visual_genre(channel, track)
                 seo = prepare_seo(cloud, job['id'], track, channel, clock().isoformat(),
                                   report_loader=lambda: payload, dry_run=dry_run)
+                ensure_selection(selection_cloud, channel)
                 with renderer(cloud, job['id'], track, channel, genre,
                               config.get('beatstars_profile_url'), assets, dry_run=dry_run) as media:
                     if dry_run:
                         remaining -= 1
                         continue
                     # The global CAS reservation is authoritative across the matrix.
+                    media = dict(media, before_upload=selection_fence(
+                        selection_cloud, channel, media.get('before_upload')),
+                        selection_guard=lambda: ensure_selection(selection_cloud, channel))
                     outcome = publish(cloud, job, media, seo, uploader, receipts, clock,
                                       thumbnailer=thumbnailer, private_pilot=private_pilot,
-                                      expected_owner=channel.get('youtube_channel_id'))
+                                      expected_owner=channel.get('youtube_channel_id'), selection_track=track)
                     summary[outcome] += 1
                     if outcome == 'thumbnail_failed':
                         summary['uploaded'] += 1
@@ -135,10 +158,15 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
             except ChannelPaused:
                 summary['blocked'] += 1
                 break
+            except (SelectionChanged, TrackNotMatching):
+                summary['blocked'] += 1
+                break
             except PublicationExpired:
                 summary['expired'] += 1
             except Exception:
                 summary['failed'] += 1
+    except SelectionChanged:
+        summary['blocked'] += 1
     except Exception:
         summary['failed'] += 1
     finally:

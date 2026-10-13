@@ -8,7 +8,8 @@ Configuración local en `config/app_config.json`, clave `beat_automation`:
 
 - Perfil público HTTPS de BeatStars para el catálogo compartido.
 - Una automatización por canal: activa/pausada, prioridad, horarios semanales en
-  Buenos Aires, tags y géneros separados por comas, carpeta local de imágenes.
+  Buenos Aires, **Tags de selección**, tags SEO y géneros separados por comas,
+  carpeta local de imágenes. `selection_tags` es independiente de `tags` (SEO).
 - Cuota global fija de **6 intentos diarios**, incluyendo fallos, y buffer de
   **14 días**, según el contrato de Fase 2. No son límites editables por canal.
 
@@ -40,8 +41,13 @@ La casilla para usar estado remoto exige haberlo consultado; usa esa instantáne
 no un estado en tiempo real. Muestra slots, canal, track ID y ciclo, junto al
 presupuesto disponible hoy. La simulación no cambia el estado ni el archivo de
 configuración. Fase 2 planifica slots independientemente de la cuota: los intentos
-se cuentan al subir. Tags, géneros e imágenes se guardan como metadata, sin agregar
-filtros nuevos al algoritmo de Fase 2.
+se cuentan al subir. **Tags de selección** restringe los tracks activos del canal:
+basta que un tag del track coincida exactamente con uno de `selection_tags`,
+ignorando mayúsculas y espacios exteriores. No busca fragmentos ni palabras dentro
+de otro tag. Ausente o vacío conserva la selección anterior del catálogo activo.
+Sin coincidencias no propone jobs para ese canal; los demás canales siguen su plan.
+Tags SEO, géneros e imágenes mantienen su función de metadata y recursos visuales.
+Se aceptan hasta 40 tags de selección, de hasta 100 caracteres cada uno.
 
 No hay render, subida, worker nuevo ni sincronización de configuración remota.
 Fase cerrada el 2026-10-12 con autorización del usuario después de revisar y corregir.

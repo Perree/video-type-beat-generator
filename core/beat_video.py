@@ -12,11 +12,13 @@ from core.beat_render import MediaTools, compose
 from core.beat_visual import options, image_resource, video_catalog, fetch, thumbnail_resource
 from core.beat_montage import render_montage, thumbnail_frame
 from core.beat_rotation import image_digest, previous_publication, publication_visual
+from core.beat_selection import require_track
 
 
 def reserved_job(state, job_id, track, channel):
     if channel.get('active') is False:
         raise BeatError('channel_paused')
+    require_track(channel, track)
     state = migrate(state, 'state')
     job = state['jobs'].get(job_id)
     if (not job or job['status'] not in ('planned', 'failed')
@@ -33,6 +35,7 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
     Dry-run reads reservation + selected visual catalog; no downloads or writes.
     Successful rendering commits image selection under a fenced Beats lease.
     """
+    require_track(channel, track)
     store = BeatState(cloud)
     owner = None
     try:

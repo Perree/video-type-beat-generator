@@ -5,6 +5,7 @@ import hashlib
 from core.beat_schema import identity, instant, migrate
 from core.beat_rotation import repeat_ready, publication_time
 from core.beat_performance import performance, choose
+from core.beat_selection import eligible_tracks
 
 
 def slots(channel, now):
@@ -30,23 +31,26 @@ def plan(config, state, tracks, now, *, seed=None, reports=None):
     if any(not isinstance(t, dict) or not isinstance(t.get("id"), str) or not t["id"]
            or type(t.get("active", True)) is not bool for t in tracks):
         raise ValueError("invalid_track_id")
-    ids = sorted({t["id"] for t in tracks if t.get("active", True)})
     channels = sorted((ch for ch in config["channels"] if ch["active"]),
                       key=lambda ch: (-ch["priority"], ch["id"]))
+    pools = {ch['id']: eligible_tracks(ch, tracks) for ch in channels}
+    catalog_ids = {cid: sorted({track['id'] for track in pool}) for cid, pool in pools.items()}
     occupied = {(j["channel"], instant(j["slot"])) for j in state["jobs"].values()}
-    queues = {ch["id"]: [s for s in slots(ch, now) if (ch["id"], s) not in occupied]
+    queues = {ch["id"]: [s for s in slots(ch, now)
+                         if pools[ch['id']] and (ch["id"], s) not in occupied]
               for ch in channels}
     jobs = list(state["jobs"].values())
     attempted_ids = {entry['job_id'] for entries in state['attempts'].values()
                      for entry in entries.values()}
     metrics = {ch['id']: performance((reports or {}).get(ch['id']), ch['id'],
-                                    tracks, instant(now)) for ch in channels}
+                                    pools[ch['id']], instant(now)) for ch in channels}
     additions = []
-    while ids and any(queues.values()):
+    while any(queues.values()):
         for ch in channels:
             cid = ch["id"]
             if not queues[cid]:
                 continue
+            ids = catalog_ids[cid]
             history = [j for j in jobs if j["channel"] == cid]
             cycle = max((j["cycle"] for j in history), default=1)
             used = {j["track_id"] for j in history if j["cycle"] == cycle and j["status"] != "cancelled"}

@@ -55,7 +55,7 @@ class BeatState:
                 state["lock"] = None
         self.cloud.update("state", mutate, require_existing=True)
 
-    def fill_buffer(self, config, tracks, owner, *, seed=None, reports=None):
+    def fill_buffer(self, config, tracks, owner, *, seed=None, reports=None, before_commit=None):
         tracks = list(tracks)
         proposed = {}
         def mutate(state):
@@ -68,9 +68,13 @@ class BeatState:
             proposed.update((job["id"], job) for job in additions)
             apply_plan(state, additions)
             return recovered + additions
-        return self.cloud.update("state", mutate, guard=lambda source: self._lease(source, owner))
+        def guard(source):
+            if before_commit is not None:
+                before_commit()
+            self._lease(source, owner)
+        return self.cloud.update("state", mutate, guard=guard)
 
-    def reserve_attempt(self, job_id, attempt_id, *, exclusive=False):
+    def reserve_attempt(self, job_id, attempt_id, *, exclusive=False, before_commit=None):
         """Reserve BEFORE an upload call. Failures/unknown outcomes never refund.
 
         Same attempt_id is only a retry of this reservation; each new external
@@ -108,9 +112,11 @@ class BeatState:
             entries[attempt_id] = entry
             return dict(entry, replayed=False)
         def guard(_):
-            if instant(self.clock()).date() != reserved_day:
+            if before_commit is not None:
+                before_commit()
+            if exclusive and instant(self.clock()).date() != reserved_day:
                 raise ValueError('upload_reservation_day_changed')
-        return self.cloud.update("state", mutate, guard=guard if exclusive else None)
+        return self.cloud.update("state", mutate, guard=guard if exclusive or before_commit else None)
 
     def dry_run(self, config, tracks, now=None, *, seed=None, reports=None):
         state, _ = self.cloud.read("state")

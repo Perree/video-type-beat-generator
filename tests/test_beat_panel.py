@@ -102,6 +102,40 @@ class PanelTests(unittest.TestCase):
         self.assertEqual(config["channels"][1]["priority"], 12)
         self.assertEqual(len(plan(config, {}, [{"id": "TK1"}], "2026-10-12T12:00:00-03:00")), 1)
 
+    def test_selection_tags_are_independent_per_channel_and_persist(self):
+        self.configure()
+        self.panel.selection_tags.setText(' Ambient , Artist Alpha ')
+        self.panel.add_channel()
+        self.assertEqual(self.panel.selection_tags.text(), '')
+        self.panel.selection_tags.setText('Jazz')
+        self.panel.automations.setCurrentRow(0)
+        self.assertEqual(self.panel.selection_tags.text(), 'Ambient, Artist Alpha')
+        self.assertEqual(self.panel.tags.text(), 'trap, dark')
+        self.panel.save()
+        saved = beat_settings.read_app(self.path)
+        channels = saved['beat_automation']['channels']
+        self.assertEqual(channels[0]['selection_tags'], ['Ambient', 'Artist Alpha'])
+        self.assertEqual(channels[0]['tags'], ['trap', 'dark'])
+        self.assertEqual(channels[1]['selection_tags'], ['Jazz'])
+        self.assertEqual(saved['kit_preview'], self.app['kit_preview'])
+        self.assertEqual(saved['personal'], self.app['personal'])
+        reopened = BeatPanel(config_path=self.path)
+        self.addCleanup(reopened.deleteLater)
+        self.assertEqual(reopened.selection_tags.text(), 'Ambient, Artist Alpha')
+        reopened.automations.setCurrentRow(1)
+        self.assertEqual(reopened.selection_tags.text(), 'Jazz')
+
+    def test_legacy_channel_loads_without_selection_filter(self):
+        self.app['beat_automation'] = {'beatstars_profile_url': 'https://www.beatstars.com/testproducer',
+            'channels': [{'id': 'beat-a', 'tags': ['trap'],
+                          'slots': [{'weekday': 0, 'hour': 18, 'minute': 0}]}]}
+        self.path.write_text(json.dumps(self.app), encoding='utf-8')
+        self.panel.reload()
+        self.assertEqual(self.panel.selection_tags.text(), '')
+        self.assertEqual(self.panel.tags.text(), 'trap')
+        self.assertTrue(plan(self.panel.draft(), {}, [{'id': 'TK1', 'tags': ['other']}],
+                             '2026-10-12T12:00:00-03:00'))
+
     def test_visual_options_per_channel_save_and_reload(self):
         self.configure()
         self.panel.visual_mode.setCurrentIndex(1)

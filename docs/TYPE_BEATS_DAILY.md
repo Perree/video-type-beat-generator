@@ -17,8 +17,16 @@ horarios, géneros y recursos visuales de Fases 2–5. El panel de Fase 3 sigue
 siendo el editor local; esta fase consume su configuración publicada en Dropbox.
 No copia automáticamente la configuración local al servicio remoto.
 
-Escanea el perfil con Fase 1 y sincroniza un catálogo SQLite temporal. Llena el
-buffer global de 14 días bajo el lease de Fase 2. Cada canal procesa sus reservas
+Escanea el perfil con Fase 1 y sincroniza un catálogo SQLite temporal. Filtra los
+tracks activos por `selection_tags` de ese canal antes de planificar o reservar;
+la coincidencia es exacta tras quitar espacios exteriores e ignorar mayúsculas.
+Ausente o `[]` conserva el comportamiento anterior; `tags` sigue siendo SEO.
+Si no hay coincidencias, termina solo ese canal con `blocked: 1` y
+`no_matching_tracks: 1`, sin escrituras de estado, intentos, render ni fallback
+al catálogo completo. Telegram incluye esos contadores fijos, sin tags ni datos
+del catálogo. Los jobs anteriores que ya no coinciden quedan bloqueados antes
+del render y conservan su ledger. Ver [selección operativa](TYPE_BEATS_OPERATIONS.md#selección-por-canal).
+Llena el buffer global de 14 días bajo el lease de Fase 2. Cada canal procesa sus reservas
 futuras en orden de slot, prepara el snapshot SEO inmutable de Fase 5 y renderiza
 con Fase 4. El video se inserta privado con `publishAt` del slot; la política de
 auditoría de YouTube puede impedir la publicación pública automática.

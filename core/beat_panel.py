@@ -74,6 +74,7 @@ class BeatPanel(QWidget, BeatPanelForm):
         ch.update(id=self.channel.currentText(), active=self.active.isChecked(),
                   priority=priority,
                   tags=[s.strip() for s in self.tags.text().split(",") if s.strip()],
+                  selection_tags=[s.strip() for s in self.selection_tags.text().split(",") if s.strip()],
                   genres=[s.strip() for s in self.genres.text().split(",") if s.strip()],
                   images_folder=self.images.text().strip(),
                   slots=[{"weekday": self.slots.cellWidget(i, 0).currentIndex(),
@@ -97,6 +98,7 @@ class BeatPanel(QWidget, BeatPanelForm):
         self.active.setChecked(ch["active"])
         self.priority.setText(str(ch["priority"]))
         self.tags.setText(", ".join(ch.get("tags", [])))
+        self.selection_tags.setText(", ".join(ch.get("selection_tags", [])))
         self.genres.setText(", ".join(ch.get("genres", [])))
         self.images.setText(ch.get("images_folder", ""))
         self._load_visual(ch)
@@ -116,7 +118,7 @@ class BeatPanel(QWidget, BeatPanelForm):
         if not free:
             self.status.setText("No hay canales libres de Beats. Crealos en Gestionar Canales.")
             return
-        self.config["channels"].append(dict(id=free[0], active=False, priority=0,
+        self.config["channels"].append(dict(id=free[0], active=False, priority=0, selection_tags=[],
                                             slots=[dict(weekday=0, hour=18, minute=0)]))
         self._refresh_list(len(self.config["channels"]) - 1)
 
@@ -260,7 +262,8 @@ class BeatPanel(QWidget, BeatPanelForm):
                                  f'Estado: {"instantánea de Dropbox" if remote else "vacío, escenario local"}.\n'
                                  f'Jobs nuevos: {len(jobs)}. Intentos disponibles hoy: {result["remaining"]}/6.\n'
                                  "La cuota se consume al intentar subir, no al planificar slots.\n"
-                                 "Tags, géneros e imágenes se guardan como metadata; Fase 2 no filtra por ellos.")
+                                 "Tags de selección filtran por coincidencia exacta, sin mayúsculas ni espacios exteriores.\n"
+                                 "Sin tags de selección se conserva el catálogo activo completo; tags SEO y géneros no filtran.")
         self.status.setText("Simulación terminada; no se reservaron jobs ni intentos.")
 
 

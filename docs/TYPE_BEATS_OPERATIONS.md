@@ -174,6 +174,71 @@ decisión operativa explícita posterior.
    privados, quitar la programación en Studio y confirmar la visibilidad allí.
    Pausar el worker no modifica videos existentes.
 
+## Selección por canal
+
+En **Automatizaciones de Beats**, editar **Tags de selección** separados por comas.
+El campo persistido es `selection_tags` en cada canal de `beat_automation.channels`;
+`tags` permanece reservado al SEO. Por ejemplo, `"selection_tags": ["Ambient", "Jazz"]`
+admite un track con cualquiera de esos tags completos. `" ambient "` coincide con
+`"Ambient"`; `"Ambient type beat"` no coincide con `"Ambient"`. Solo se ignoran
+mayúsculas y espacios exteriores, sin modificar espacios interiores, acentos ni
+buscar fragmentos. Límite: 40 valores de 100 caracteres, sin valores en blanco.
+
+El panel guarda localmente; publicar el mismo campo en `/type-beats/config.json`
+mediante el procedimiento CAS habitual para que lo use Actions. Validar primero
+con **Simular 14 días** y con el dry-run del worker. Guardar localmente no sincroniza
+Dropbox. Cada canal conserva su propio filtro y los campos SEO no lo reemplazan.
+
+El filtro se aplica al catálogo activo antes de planificar o reservar. Si ningún
+track coincide, el resumen real de Telegram incluye `no_matching_tracks: 1` y
+`blocked: 1`, con cero jobs nuevos, renders e intentos. No incluye etiquetas,
+IDs, rutas, URLs ni excepciones. El bloqueo afecta solamente al canal de esa
+corrida; la cuota global queda disponible para los otros canales. No se escribe
+el estado ni se toma lock en esa salida. Dry-run informa el código sin enviar Telegram.
+
+Ante ese código, revisar los tags completos del catálogo en el panel y corregir
+el filtro del canal; no borrar intentos ni reconstruir estado. No existe fallback
+automático al catálogo completo. Si el campo no existe o es `[]`, se conserva el
+comportamiento anterior con todos los tracks activos: dejarlo vacío habilita ese
+comportamiento explícitamente. Configuraciones previas siguen en schema_version=1.
+
+Los jobs reservados antes de cambiar el filtro se conservan, con sus slots e
+historial; si el track ya no coincide, el worker los cuenta como `blocked` antes
+del SEO, render e intento. No los cancela ni reasigna automáticamente. Los intentos
+históricos nunca se devuelven. Un cambio de filtro ocupa el mismo buffer, por lo
+que puede requerir revisar slots existentes siguiendo la recuperación habitual.
+
+El worker fija el filtro del canal para la corrida y verifica que siga vigente
+después del escaneo, antes de planificar y renderizar, en cada escritura CAS de
+jobs/intentos (incluidos los reintentos) y antes del insert. Si cambia durante la
+corrida, informa `blocked` y la detiene; la siguiente corrida aplica el nuevo filtro.
+Reordenar tags o cambiar solo mayúsculas/espacios exteriores no altera la regla;
+cambiar filtros de otros canales, tags SEO o géneros tampoco aborta ese canal.
+Si el cambio se detecta antes de confirmar el intento, no gasta cuota. Un intento
+ya confirmado se conserva aunque se bloquee el insert. No se puede deshacer un
+render o un upload ya comenzado: pausar y esperar las corridas antes de editar.
+Config y estado son documentos CAS distintos; estas guardas no son una transacción
+atómica entre ambos documentos.
+
+El CLI de render y los consumidores directos del job también verifican la selección
+antes de preparar SEO o tomar el lock de render. Publicar comprueba el canal vigente
+y los tags reales del track, nunca sus tags SEO seleccionados. Sin metadata válida
+del mismo track, un canal con filtro falla cerrado antes de consumir cuota.
+
+Revisión Bugbot aplicada al diff de `selection_tags`: dos hallazgos de severidad
+media reproducidos con servicios falsos y corregidos. Uno permitía reservas/uploads
+con filtro desactualizado durante escaneo/render; el otro permitía render directo
+de jobs antiguos excluidos sin pasar por el worker. Cierre y commit autorizados
+por el usuario después de la revisión; no se habilita producción.
+
+Resultado posterior a correcciones: **241 pruebas Type Beats aprobadas**, sin
+omisiones, con `BEAT_REAL_FFMPEG_SMOKE=1` y
+`unittest discover -s tests -p 'test_beat_*.py' -v`. Incluye 29 regresiones nuevas
+desde la base anterior a `selection_tags`; se ajustó la regresión de medianoche
+para cruzar la fecha tras confirmar el intento, sin depender del número de lecturas.
+Sintaxis Python y `git diff --check` correctos. Sin servicios remotos.
+Log local excluido de Git: `exported_videos/type_beats_selection_review_tests.log`.
+
 ## Rollback
 
 Pausar como arriba, esperar a las corridas en curso y conservar config, estado con

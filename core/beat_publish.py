@@ -8,6 +8,7 @@ from uuid import uuid4
 from core.beat_state import BeatState
 from core.beat_schema import instant
 from core.beat_guard import active_channel, future_slot
+from core.beat_selection import require_track
 
 
 def journal(folder, job_id, outcome, youtube_id=None):
@@ -27,9 +28,10 @@ def journal(folder, job_id, outcome, youtube_id=None):
 
 
 def publish(cloud, job, media, seo, uploader, receipts, clock, *, thumbnailer=None,
-            private_pilot=False, expected_owner=None):
+            private_pilot=False, expected_owner=None, selection_track=None):
     store = BeatState(cloud, clock)
-    active_channel(cloud, job['channel'], expected_owner)
+    track = selection_track if selection_track is not None else seo.get('track')
+    require_track(active_channel(cloud, job['channel'], expected_owner), track, job['track_id'])
     fence = media.get('before_upload')
     if fence is not None:
         fence()
@@ -37,9 +39,15 @@ def publish(cloud, job, media, seo, uploader, receipts, clock, *, thumbnailer=No
     probe = journal(receipts, uuid4().hex, 'prepared')
     (Path(receipts) / (probe['job_sha256'] + '.json')).unlink()
     future_slot(job, clock)
-    attempt = store.reserve_attempt(job['id'], uuid4().hex, exclusive=True)
+    def selection_guard():
+        guard = media.get('selection_guard')
+        if guard is not None:
+            guard()
+        require_track(active_channel(cloud, job['channel'], expected_owner), track, job['track_id'])
+    attempt = store.reserve_attempt(job['id'], uuid4().hex, exclusive=True,
+                                    before_commit=selection_guard)
     journal(receipts, job['id'], 'unknown')
-    active_channel(cloud, job['channel'], expected_owner)
+    require_track(active_channel(cloud, job['channel'], expected_owner), track, job['track_id'])
     if fence is not None:
         fence()
     future_slot(job, clock)

@@ -53,7 +53,7 @@ para empates; asigna un track al primer slot libre de cada canal. Después empie
 siguiente ronda, hasta llenar el buffer o quedarse sin tracks activos. IDs de track
 ordenados hacen el resultado estable ante cambios de orden del catálogo.
 
-Cada canal tiene ciclos independientes: utiliza todos los tracks activos una vez
+Cada canal tiene ciclos independientes: utiliza todos sus tracks activos elegibles una vez
 antes de iniciar el ciclo siguiente. Las reservas planificadas y fallidas cuentan
 como usadas; el futuro worker reintentará el mismo job. Los jobs cancelados conservan
 su slot ocupado, pero no consumen el track del ciclo. El buffer puede contener varios
@@ -62,6 +62,14 @@ Un track nuevo entra al ciclo vigente si todavía no fue asignado; uno inactivo 
 de participar en nuevas asignaciones. Los jobs existentes no se borran ni reasignan
 por cambios posteriores del catálogo o de la configuración.
 Cancelar todos los jobs del ciclo más reciente no hace retroceder el número de ciclo.
+
+El campo opcional `selection_tags` define la elegibilidad por canal antes de crear
+jobs: basta una coincidencia exacta con un tag del track tras `strip().casefold()`.
+Sin el campo o con `[]`, todos los activos siguen elegibles. `tags` pertenece al SEO
+y no filtra. Sin coincidencias, ese canal no recibe nuevas reservas; el resto de
+las rondas continúa. La rotación y los grupos de rendimiento usan solo el catálogo
+elegible del canal, sin fallback al catálogo completo. El worker también bloquea
+antes del render los jobs existentes cuyo track dejó de ser elegible.
 
 Identidad: JSON canónico de `[track ID, canal, ciclo, slot con offset -03:00]`.
 Así, títulos/URLs cambiantes no afectan la identidad. Un slot de canal solo puede

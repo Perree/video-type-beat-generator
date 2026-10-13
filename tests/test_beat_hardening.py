@@ -110,14 +110,15 @@ class HardeningTests(unittest.TestCase):
         case = self.case
         job = case.prepare_job()
         now = [instant('2026-10-11T23:59:59-03:00')]
-        calls, config_reads = [], []
+        calls, crossed = [], []
         original = case.cloud.read
         def reading(kind):
             value = original(kind)
-            if kind == 'config':
-                config_reads.append(kind)
-                if len(config_reads) == 2:
-                    now[0] += timedelta(seconds=2)
+            # Selection guards add reads before the intent. Cross midnight on
+            # the first config read AFTER it is durable, independent of count.
+            if kind == 'config' and not crossed and original('state')[0]['attempts']:
+                crossed.append(True)
+                now[0] += timedelta(seconds=2)
             return value
         with patch.object(case.cloud, 'read', side_effect=reading):
             with self.assertRaisesRegex(ValueError, 'upload_reservation_day_changed'):
