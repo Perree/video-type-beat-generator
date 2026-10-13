@@ -27,16 +27,21 @@ def journal(folder, job_id, outcome, youtube_id=None):
 
 
 def publish(cloud, job, media, seo, uploader, receipts, clock, *, thumbnailer=None,
-            private_pilot=False):
+            private_pilot=False, expected_owner=None):
     store = BeatState(cloud, clock)
-    active_channel(cloud, job['channel'])
+    active_channel(cloud, job['channel'], expected_owner)
+    fence = media.get('before_upload')
+    if fence is not None:
+        fence()
     # Check journal writability BEFORE spending budget or calling YouTube.
     probe = journal(receipts, uuid4().hex, 'prepared')
     (Path(receipts) / (probe['job_sha256'] + '.json')).unlink()
     future_slot(job, clock)
     attempt = store.reserve_attempt(job['id'], uuid4().hex, exclusive=True)
     journal(receipts, job['id'], 'unknown')
-    active_channel(cloud, job['channel'])
+    active_channel(cloud, job['channel'], expected_owner)
+    if fence is not None:
+        fence()
     future_slot(job, clock)
     # The fresh config read can itself cross midnight. Check AFTER that I/O.
     if instant(attempt['reserved_at']).date() != instant(clock()).date():
@@ -72,7 +77,11 @@ def publish(cloud, job, media, seo, uploader, receipts, clock, *, thumbnailer=No
         cloud.update('state', record)
     except Exception:
         return 'orphan'
-    journal(receipts, job['id'], 'uploaded', video_id)
+    try:
+        journal(receipts, job['id'], 'uploaded', video_id)
+    except Exception:
+        # The cloud receipt is authoritative; keep the orphan journal if present.
+        pass
     if thumbnailer is not None:
         try:
             thumbnailer(job['channel'], video_id, media['thumbnail'])

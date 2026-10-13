@@ -149,8 +149,7 @@ class DailyTests(unittest.TestCase):
                     raise TimeoutError('SECRET')
                 return SimpleNamespace(execute=timeout)
         client = BeatYouTube(self.temp.name)
-        with patch.object(youtube, '_service', return_value=Google()), \
-             patch.object(youtube, '_load_credentials', return_value=object()):
+        with patch.object(client, 'service', return_value=Google()):
             summary = run_daily(self.cloud, 'channel', DropboxAssets(self.assets_client), client.upload,
                 self.receipts, source=self.source, renderer=self.renderer, clock=lambda: NOW,
                 thumbnailer=client.thumbnail)
@@ -482,7 +481,8 @@ class ActionsTests(unittest.TestCase):
                     data = {'deployment_branch_policy': policy} if '/deployment-branch-policies' not in req.full_url else rules
                     return Response(data)
             return check_environment({'GITHUB_REF': ref, 'BEAT_SLUG': 'one',
-                'GITHUB_REPOSITORY': 'owner/repo'}, Opener())
+                'GITHUB_REPOSITORY': 'Perree/video-type-beat-generator',
+                'GITHUB_EVENT_NAME': 'schedule'}, Opener())
         policy = {'protected_branches': False, 'custom_branch_policies': True}
         rules = {'total_count': 1, 'branch_policies': [{'name': 'master', 'type': 'branch'}]}
         check(policy, rules)

@@ -34,6 +34,7 @@ def visual_genre(channel, track):
 def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
               source=None, renderer=render_reserved, report_loader=None,
               notify=None, thumbnailer=None, seed=None, private_pilot=False,
+              expected_owner=None,
               clock=lambda: datetime.now(timezone.utc)):
     summary = dict.fromkeys(COUNTERS, 0)
     summary['dry_run'] = dry_run
@@ -44,6 +45,8 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
         if rev is None:
             raise ValueError('beat_config_missing')
         channel = next(ch for ch in config['channels'] if ch['id'] == channel_id)
+        if expected_owner is not None and channel.get('youtube_channel_id') != expected_owner:
+            raise ValueError('youtube_destination_changed')
         if not channel['active']:
             summary['blocked'] += 1
             return summary
@@ -120,7 +123,8 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
                         continue
                     # The global CAS reservation is authoritative across the matrix.
                     outcome = publish(cloud, job, media, seo, uploader, receipts, clock,
-                                      thumbnailer=thumbnailer, private_pilot=private_pilot)
+                                      thumbnailer=thumbnailer, private_pilot=private_pilot,
+                                      expected_owner=channel.get('youtube_channel_id'))
                     summary[outcome] += 1
                     if outcome == 'thumbnail_failed':
                         summary['uploaded'] += 1

@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   plan:
-    if: github.ref == 'refs/heads/master'
+    if: github.repository == 'Perree/video-type-beat-generator' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -41,7 +41,7 @@ jobs:
 
   daily:
     needs: plan
-    if: github.ref == 'refs/heads/master'
+    if: github.repository == 'Perree/video-type-beat-generator' && github.ref == 'refs/heads/master'
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -70,9 +70,12 @@ jobs:
           sudo apt-get install -y -qq ffmpeg
           python -m pip install --require-hashes -r requirements-worker.txt
       - name: Offline Type Beats smokes (worker environment)
+        env:
+          BEAT_REAL_FFMPEG_SMOKE: '1'
         run: python scripts/smoke_beat_hardening.py --worker-only
       - name: Daily worker
         env:
+          BEAT_SLUG: ${{ matrix.channel }}
           BEAT_CHANNEL_ID: ${{ secrets.BEAT_CHANNEL_ID }}
           BEAT_YT_TOKEN_JSON: ${{ secrets.BEAT_YT_TOKEN_JSON }}
           BEAT_DROPBOX_APP_KEY: ${{ secrets.BEAT_DROPBOX_APP_KEY }}

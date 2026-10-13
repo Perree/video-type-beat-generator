@@ -53,7 +53,7 @@ def migrate(document, kind):
         channels = result["channels"]
         if not isinstance(channels, list) or len(channels) > 100:
             raise ValueError("invalid_channels")
-        seen = set()
+        seen, slugs = set(), set()
         for ch in channels:
             if not isinstance(ch, dict):
                 raise ValueError("invalid_channel")
@@ -63,6 +63,12 @@ def migrate(document, kind):
             if not isinstance(cid, str) or not cid.strip() or len(cid) > 200 or cid in seen:
                 raise ValueError("invalid_channel_id")
             seen.add(cid)
+            if 'actions_slug' in ch:
+                slug = ch['actions_slug']
+                if (type(slug) is not str or not re.fullmatch('[a-z][a-z0-9-]{0,39}', slug)
+                        or slug in slugs):
+                    raise ValueError('invalid_actions_slug')
+                slugs.add(slug)
             ch.setdefault("active", True)
             ch.setdefault("priority", 0)
             if type(ch["active"]) is not bool or type(ch["priority"]) is not int:

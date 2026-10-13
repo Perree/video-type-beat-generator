@@ -1,13 +1,11 @@
 """Operator recovery: verify an existing video, preview reconciliation, opt in to CAS."""
 import argparse
-import contextlib
-import io
 import json
 from pathlib import Path
-from core import youtube
 from core.beat_cloud import BeatCloud, DropboxTransport, decode_document
 from core.beat_recovery import reconcile
 from core.beat_youtube import BeatYouTube
+from core.beat_logs import quiet_dependencies
 
 
 def main(argv=None):
@@ -19,7 +17,7 @@ def main(argv=None):
     parser.add_argument('--apply', action='store_true')
     args = parser.parse_args(argv)
     result = {'outcome': 'recovery_failed'}
-    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+    with quiet_dependencies():
         try:
             with Path(args.receipt).open('rb') as stream:
                 payload = stream.read(4097)
@@ -31,8 +29,9 @@ def main(argv=None):
             channel = next(ch for ch in config['channels'] if ch['id'] == args.channel)
             if channel['active']:
                 raise ValueError('recovery_requires_paused_channel')
-            BeatYouTube(args.tokens_dir).check_owner(args.channel, channel.get('youtube_channel_id'))
-            service = youtube._service(youtube._load_credentials(args.channel, args.tokens_dir))
+            client = BeatYouTube(args.tokens_dir)
+            client.check_owner(args.channel, channel.get('youtube_channel_id'))
+            service = client.service(args.channel)
             rows = service.videos().list(part='snippet,status', id=receipt['youtube_id']).execute()['items']
             if len(rows) != 1:
                 raise ValueError('recovery_video_unverified')

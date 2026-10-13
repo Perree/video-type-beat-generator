@@ -33,6 +33,10 @@ falsos y FFmpeg local se distinguen de las verificaciones con servicios reales.
    CAS: el panel no sincroniza cambios automáticamente. Configurar perfil público,
    ID del canal, `active`, prioridad, slots, tags/SEO y recursos visuales. Agregar
    `youtube_channel_id` con el ID real `UC` + 22 caracteres del canal de YouTube.
+   Para Actions, agregar `actions_slug` igual al slug de su Environment. Los slugs
+   deben ser únicos: un secreto `BEAT_CHANNEL_ID` de otro Environment falla antes
+   del render, también en dry-run. Cambiar el destino de YouTube durante una corrida
+   bloquea el insert; pausar antes de modificar la cuenta.
    Es distinto del nombre/ID interno `BEAT_CHANNEL_ID`. El arranque real verifica
    `channels.list(mine=True)` contra ese ID antes de renderizar o consumir intentos.
    En Actions, imágenes, videos y miniaturas personalizadas deben estar en Dropbox;
@@ -85,6 +89,12 @@ falsos y FFmpeg local se distinguen de las verificaciones con servicios reales.
    Conservar `BEAT_LIVE_ENABLED` ausente o distinto de `true` durante el setup:
    el cron simula y no programa publicación pública. El despacho manual tiene
    `dry_run=true` y `private_pilot=true` por defecto.
+
+   El workflow y el worker aceptan únicamente `Perree/video-type-beat-generator`,
+   `master` y eventos `schedule`/`workflow_dispatch`. Un fork requiere un proyecto
+   y estado independientes y una revisión explícita de esa política; no trasladar
+   secretos productivos ni cambiar la guarda para probarlo. El worker recibe
+   `BEAT_SLUG` desde la matriz y lo contrasta con `actions_slug` remoto.
 
 ## Dry-run
 
@@ -217,9 +227,18 @@ Sin ledger completo no reactivar uploads. Corrupción y JSON ambiguo fallan cerr
 
 **Lock vencido:** un nuevo dueño toma el lease mediante CAS después del vencimiento.
 No borrar el lock para acelerar una corrida en curso. Planner usa 300 s; render
-3600 s con checkpoints en montaje. El fencing impide confirmar con un dueño viejo;
+3600 s con checkpoints en montaje y renovación antes de reservar el intento y antes
+del insert. Si pierde el lease, no inserta; si ya reservó, conserva ese intento.
+El fencing impide confirmar con un dueño viejo;
 la liberación anterior no borra el lock de otro runner. Si una solicitud de red
 está en curso, esperar su timeout y conciliar intents antes de reanudar.
+
+El transporte Google exclusivo de Beats limita cada solicitud a 30 s y cada upload
+a un plazo de 1800 s, sin proxies del entorno ni redirects, incluidos endpoints de
+refresh y sesiones resumibles. Los reintentos 5xx continúan la misma sesión hasta
+cinco veces, con esperas de 1/2/4/8/16 s. Un timeout queda `unknown`, sin reinsertar.
+Dropbox respeta Retry-After de hasta 30 s; ante una demora mayor o inválida aborta,
+sin dormir indefinidamente ni reintentar antes de lo indicado por el servidor.
 
 **Slot vencido sin intento:** se informa `expired`, nunca se sube con fecha pasada.
 Con todos los workers detenidos, verificar que no exista intento para el job y
@@ -230,6 +249,12 @@ permanece bloqueado aun si se cancela; requiere la conciliación anterior.
 en Studio o usar una llamada específica a `thumbnails.set`. No volver a ejecutar
 `videos.insert`. **Telegram fallido:** revisar summary/artifact en Actions y reparar
 la configuración; repetir un job no es un método de reenviar la notificación.
+
+**Disco fallido después del upload:** si Dropbox confirmó el ID, su receipt es la
+fuente de verdad. Un fallo al reemplazar el journal local final conserva `uploaded`
+y permite la miniatura; el journal anterior puede seguir diciendo `orphan`.
+Conciliarlo es idempotente. Si tampoco hubo confirmación remota, recuperar como
+orphan/unknown según el procedimiento anterior; nunca repetir el insert.
 
 ## Verificación y alcance de la revisión
 
@@ -310,3 +335,48 @@ ejecutada en dry-run. Los logs locales de pruebas viven bajo `exported_videos/`
 (excluido de Git); no contienen credenciales. Entorno local: Python 3.13 con PyQt
 y el lock del worker instalado por hashes. Actions configura Python 3.12, y su
 ejecución remota sigue pendiente de setup.
+
+### Auditoría adicional del diff de Fase 8 — 2026-10-12
+
+Al solicitar la revisión, el árbol estaba limpio y Fase 8 ya estaba en `1615c5f`.
+Se auditó ese diff antes de editar. Evidencia reproducida sin servicios reales:
+
+- **Alta, secretos en logs:** `beat_worker.main` y `beat_recover_cli.main` redirigían
+  streams a StringIO; un handler ya creado de `googleapiclient.http` seguía emitiendo
+  un secreto ficticio. El SDK puede registrar cuerpos de respuesta. Corregido con
+  logging deshabilitado durante la operación y descarte en devnull, sin acumular
+  cuerpos en memoria. Prueba: `test_prebound_logging_handler_cannot_emit_secret`.
+- **Alta, aislamiento de Actions:** las guardas aceptaban cualquier repositorio con
+  master y no contrastaban Environment/canal. Corregidos repo/evento/ref permitidos,
+  binding `actions_slug`, slugs únicos y rechazo antes del render. Pruebas:
+  `test_forks_other_refs_and_untrusted_events_rejected` y
+  `test_worker_crossed_environment_aborts_before_render`.
+- **Media, lease perdido:** quitar el lock antes de `publish` todavía permitía un
+  insert. Ahora se verifica y renueva desde el contexto de render en dos puntos.
+  Pruebas de pérdida antes/después del intent conservan cero inserts y el ledger.
+- **Media, destino cambiado:** la cuenta se comprobaba solo al arrancar y una nueva
+  config podía cambiar el destino antes del render/insert. Se fija el ID verificado
+  a través de bootstrap, daily y publish. Pruebas de cambio después de verificar
+  cuenta y durante el render bloquean sin gastar cuota ni subir.
+- **Media, límites de red/retries:** `Transient(1000000)` solicitaba dormir un millón
+  de segundos; el loop de YouTube no tenía plazo total. Corregidos los presupuestos
+  anteriores y transporte Google específico de Beats. Pruebas de backoff inválido,
+  deadline, hosts, proxies, redirects y retries de una única sesión.
+- **Media, resultado tras fallo local:** un OSError del journal final propagaba fallo
+  aunque Dropbox ya decía uploaded, y omitía la miniatura. Ahora respeta el receipt
+  remoto. La regresión comprueba seis IDs, seis miniaturas y cero reuploads.
+
+Las regresiones están en [test_beat_review.py](../tests/test_beat_review.py).
+No se modifican Loopkits, Marca personal, main.py ni el uploader compartido en esta
+revisión. El cierre de streams de `core/youtube.py` pertenece al commit anterior y
+sigue cubierto por las regresiones manuales. No quedan hallazgos confirmados
+pendientes en el código revisado; la aceptación remota continúa como setup/piloto
+privado, sin afirmar ejecuciones reales con credenciales ausentes.
+
+Resultado de esta revisión: **212/212 pruebas Type Beats**, sin omisiones,
+**191/191 en modo worker**, 30/30 del smoke diario y 34/34 de video/montaje.
+Pasaron los 27 smokes Loopkits y los cuatro manuales, con FFmpeg real cuando
+corresponde; actionlint 1.7.12, compileall y whitespace correctos. Construcción
+offline del servicio con el SDK Google real y planificación con fixtures en
+dry-run verificadas. Logs locales en `exported_videos/type_beats_review_*.log`.
+Cero uploads reales, envíos de Telegram o cambios de configuración remota.

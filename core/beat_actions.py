@@ -5,6 +5,22 @@ import re
 import urllib.request
 from core.beat_notion import NoRedirect
 
+TRUSTED_REPOSITORY = 'Perree/video-type-beat-generator'
+
+
+def check_context(env=None):
+    env = os.environ if env is None else env
+    if (env.get('GITHUB_REPOSITORY') != TRUSTED_REPOSITORY
+            or env.get('GITHUB_REF') != 'refs/heads/master'
+            or env.get('GITHUB_EVENT_NAME') not in ('schedule', 'workflow_dispatch')):
+        raise ValueError('untrusted_actions_context')
+
+
+def bind_channel(channel, slug):
+    matrix(json.dumps([slug]))
+    if channel.get('actions_slug') != slug:
+        raise ValueError('environment_channel_mismatch')
+
 
 def matrix(raw):
     channels = json.loads(raw)
@@ -17,8 +33,7 @@ def matrix(raw):
 
 def check_environment(env=None, opener=None):
     env = os.environ if env is None else env
-    if env.get('GITHUB_REF') != 'refs/heads/master':
-        raise ValueError('master_required')
+    check_context(env)
     slug = matrix(json.dumps([env['BEAT_SLUG']]))[0]['channel']
     repo = env['GITHUB_REPOSITORY']
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repo):
@@ -47,6 +62,7 @@ def check_environment(env=None, opener=None):
 def main():
     try:
         if os.environ.get('BEAT_ACTIONS_MODE') == 'matrix':
+            check_context()
             print('matrix=' + json.dumps(matrix(os.environ['BEAT_CHANNELS']), separators=(',', ':')))
         else:
             check_environment()

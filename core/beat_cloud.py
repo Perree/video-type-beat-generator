@@ -131,6 +131,10 @@ class BeatCloud:
             except Transient as exc:
                 if n + 1 == self.retries:
                     raise CloudError("retry_exhausted") from None
+                if (type(exc.delay) not in (int, float) or not math.isfinite(exc.delay)
+                        or not 0 <= exc.delay <= 30):
+                    # Fail instead of retrying earlier than a long Retry-After.
+                    raise CloudError('retry_delay_exceeds_budget') from None
                 # Never retry earlier than Dropbox's Retry-After.
                 self.sleep(max(0.1 * 2 ** n, exc.delay))
 

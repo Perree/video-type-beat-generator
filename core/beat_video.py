@@ -94,6 +94,7 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
                         del rows[:-5000]
             cloud.update('state', record, guard=lambda doc: store._lease(doc, owner))
             yield {'dry_run': False, 'job_id': job_id, 'video': video,
+                   'before_upload': lambda: store.renew(owner, ttl=3600),
                    'thumbnail': thumbnail, 'seconds': seconds, 'audio_source': provider,
                    'visual_mode': spec['mode'], 'skipped_videos': montage.get('skipped_videos', 0),
                    'uploads': False}

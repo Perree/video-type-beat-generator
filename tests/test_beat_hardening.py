@@ -136,8 +136,7 @@ class HardeningTests(unittest.TestCase):
                 calls.append({'body': kwargs['body']})
                 return SimpleNamespace(next_chunk=lambda: (None, {'id': 'video000001'}))
         client = BeatYouTube(self.case.temp.name)
-        with patch.object(youtube, '_service', return_value=Google()), \
-             patch.object(youtube, '_load_credentials', return_value=object()):
+        with patch.object(client, 'service', return_value=Google()):
             summary = self.case.run_worker(uploader=client.upload, private_pilot=True)
         self.assertEqual(summary['uploaded'], 1)
         self.assertEqual(summary['failed'], 0)
@@ -177,16 +176,14 @@ class HardeningTests(unittest.TestCase):
         client = BeatYouTube(self.case.temp.name)
         service = SimpleNamespace(channels=lambda: SimpleNamespace(list=lambda **kw:
                   SimpleNamespace(execute=lambda: {'items': [{'id': 'UC' + 'b' * 22}]})))
-        with patch.object(youtube, '_service', return_value=service), \
-             patch.object(youtube, '_load_credentials', return_value=object()):
+        with patch.object(client, 'service', return_value=service):
             with self.assertRaisesRegex(ValueError, 'youtube_owner_mismatch'):
                 client.check_owner('channel', expected)
             with self.assertRaisesRegex(ValueError, 'youtube_owner_unconfigured'):
                 client.check_owner('channel', None)
         service = SimpleNamespace(channels=lambda: SimpleNamespace(list=lambda **kw:
                   SimpleNamespace(execute=lambda: {'items': [{'id': expected}]})))
-        with patch.object(youtube, '_service', return_value=service), \
-             patch.object(youtube, '_load_credentials', return_value=object()):
+        with patch.object(client, 'service', return_value=service):
             client.check_owner('channel', expected)
 
     def test_shared_upload_closes_video_on_chunk_and_insert_creation_failure(self):
@@ -327,8 +324,7 @@ class HardeningTests(unittest.TestCase):
         before = copy.deepcopy(case.memory.files)
         with patch('core.beat_recover_cli.DropboxTransport.from_env', return_value=case.memory), \
              patch.object(BeatYouTube, 'check_owner') as owner, \
-             patch.object(youtube, '_service', return_value=service), \
-             patch.object(youtube, '_load_credentials', return_value=object()), patch('sys.stdout', output):
+             patch.object(BeatYouTube, 'service', return_value=service), patch('sys.stdout', output):
             code = main(['--receipt', str(target), '--channel', 'channel',
                          '--uploaded-at', daily_fixtures.NOW.isoformat()])
         self.assertEqual(code, 0)

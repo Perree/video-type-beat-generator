@@ -1,7 +1,5 @@
 """Cloud bootstrap and CLI; only fixed summaries reach the Actions log."""
 import argparse
-import contextlib
-import io
 import json
 import os
 from pathlib import Path
@@ -13,6 +11,8 @@ from core.beat_daily import run_daily
 from core.beat_notion import fetch_report
 from core.beat_notify import Telegram
 from core.beat_youtube import BeatYouTube
+from core.beat_logs import quiet_dependencies
+from core.beat_actions import check_context, bind_channel
 
 
 def main(argv=None):
@@ -25,9 +25,13 @@ def main(argv=None):
     args = parser.parse_args(argv)
     summary = {'failed': 1, 'dry_run': args.dry_run}
     # Suppress dependency output, including HTTP errors containing URLs/tokens.
-    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+    with quiet_dependencies():
         notifier = None
         try:
+            actions = os.environ.get('GITHUB_ACTIONS') == 'true'
+            slug = os.environ.get('BEAT_SLUG')
+            if actions:
+                check_context()
             notifier = None if args.dry_run else Telegram(os.environ['BEAT_TELEGRAM_TOKEN'],
                                                          os.environ['BEAT_TELEGRAM_CHAT_ID'])
             channel = os.environ['BEAT_CHANNEL_ID']
@@ -51,17 +55,21 @@ def main(argv=None):
                     os.chmod(path, 0o600)
                 client = BeatYouTube(folder)
                 cloud = BeatCloud(transport)
-                if not args.dry_run:
+                expected_owner = None
+                if actions or not args.dry_run:
                     config, config_rev = cloud.read('config')
                     if config_rev is None:
                         raise ValueError('beat_config_missing')
                     spec = next(ch for ch in config['channels'] if ch['id'] == channel)
-                    if spec['active']:
-                        client.check_owner(channel, spec.get('youtube_channel_id'))
+                    if actions:
+                        bind_channel(spec, slug)
+                    if not args.dry_run:
+                        expected_owner = spec.get('youtube_channel_id')
+                        client.check_owner(channel, expected_owner)
                 summary = run_daily(cloud, channel, assets, client.upload,
                     args.receipts, dry_run=args.dry_run, report_loader=loader,
                     notify=notifier, thumbnailer=client.thumbnail, seed=args.seed,
-                    private_pilot=args.private_pilot)
+                    private_pilot=args.private_pilot, expected_owner=expected_owner)
         except Exception:
             # Bootstrap failures are also a sanitized alert when Telegram exists.
             if notifier is not None:

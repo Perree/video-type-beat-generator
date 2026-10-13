@@ -181,7 +181,8 @@ Esta fase prepara el roadmap aprobado de Type Beats sin cambiar el comportamient
 - Recuperación con CLI de solo lectura por defecto, consulta autenticada de YouTube y
   aplicación explícita por CAS, sin reupload, devolución de intentos ni overwrite de IDs.
   Uploader compartido: únicamente cierre explícito de streams para cleanup en Windows.
-- Validación: 198 pruebas Type Beats aprobadas, sin omisiones, incluidas dos con FFmpeg
+- Validación final tras auditoría: 212 pruebas Type Beats aprobadas, sin omisiones,
+  incluidas dos con FFmpeg
   real; smokes diarios (30) y de video/montaje (34) verdes; los 27 smokes de Loopkits y
   los cuatro de Beats manuales aprobados. actionlint, sintaxis Python y whitespace verdes.
 - Lectura real en dry-run del catálogo configurado: 1138 tracks, segunda aplicación con
@@ -192,6 +193,15 @@ Esta fase prepara el roadmap aprobado de Type Beats sin cambiar el comportamient
 - El commit de cierre conserva los cambios de Fase 7 que ya estaban pendientes al iniciar
   esta sesión, para versionar exactamente la base probada. `main.py`, `kit_*`, workflow y
   dependencias de Loopkits sin cambios; sin cambios funcionales al flujo manual de Beats.
+- Revisión adicional de `1615c5f` antes de editar: corregidos logging con handlers previos,
+  forks/eventos no confiables, Environment cruzado, destino OAuth cambiado durante la
+  corrida, lease perdido antes del insert, backoff ilimitado, plazo total de YouTube
+  y falso fallo tras confirmar el receipt remoto. Se suman 14 regresiones; 191 pruebas
+  en modo worker verdes. Transporte Google exclusivo de Beats, sin modificar
+  uploader compartido, Loopkits ni Marca personal durante esta revisión.
+- Evidencia, severidades y nuevos campos de setup (`actions_slug`) documentados en
+  `docs/TYPE_BEATS_OPERATIONS.md`. Sin hallazgos confirmados pendientes en código;
+  cero uploads reales, mensajes o cambios remotos durante la revisión.
 
 ## Fase 0 histórica — Limpieza del repo (registrada previamente)
 La limpieza original de herramientas/configuración fue anotada como completada en una versión anterior del plan; se conserva

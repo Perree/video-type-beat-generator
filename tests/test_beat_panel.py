@@ -284,7 +284,7 @@ class PanelTests(unittest.TestCase):
             def read(self, path):
                 self.calls += 1
                 entered.set()
-                raise Transient(delay=3600)
+                raise Transient(delay=30)
         transport = TransientReader()
         values = []
         self.panel._start(lambda event, progress: load_state(event, transport), values.append)
