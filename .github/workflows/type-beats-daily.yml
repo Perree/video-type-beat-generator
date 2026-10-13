@@ -47,7 +47,7 @@ jobs:
       max-parallel: 1
       matrix:
         include: ${{ fromJSON(needs.plan.outputs.matrix) }}
-    environment: type-beats-${{ matrix.channel }}
+    environment: kit-weekly # shared with Loopkits; must match ENVIRONMENT in core/beat_actions.py
     concurrency:
       group: type-beats-daily-${{ matrix.channel }}
       cancel-in-progress: false
@@ -78,12 +78,12 @@ jobs:
           BEAT_SLUG: ${{ matrix.channel }}
           BEAT_CHANNEL_ID: ${{ secrets.BEAT_CHANNEL_ID }}
           BEAT_YT_TOKEN_JSON: ${{ secrets.BEAT_YT_TOKEN_JSON }}
-          BEAT_DROPBOX_APP_KEY: ${{ secrets.BEAT_DROPBOX_APP_KEY }}
-          BEAT_DROPBOX_REFRESH_TOKEN: ${{ secrets.BEAT_DROPBOX_REFRESH_TOKEN }}
+          BEAT_DROPBOX_APP_KEY: ${{ secrets.KIT_DROPBOX_APP_KEY }}
+          BEAT_DROPBOX_REFRESH_TOKEN: ${{ secrets.KIT_DROPBOX_REFRESH_TOKEN }}
           BEAT_NOTION_TOKEN: ${{ secrets.BEAT_NOTION_TOKEN }}
           BEAT_NOTION_PAGE_ID: ${{ secrets.BEAT_NOTION_PAGE_ID }}
-          BEAT_TELEGRAM_TOKEN: ${{ secrets.BEAT_TELEGRAM_TOKEN }}
-          BEAT_TELEGRAM_CHAT_ID: ${{ secrets.BEAT_TELEGRAM_CHAT_ID }}
+          BEAT_TELEGRAM_TOKEN: ${{ secrets.KIT_TELEGRAM_TOKEN }}
+          BEAT_TELEGRAM_CHAT_ID: ${{ secrets.KIT_TELEGRAM_CHAT_ID }}
           DRY_RUN: ${{ (inputs.dry_run || (vars.BEAT_LIVE_ENABLED != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.private_pilot))) && 'true' || 'false' }}
           PRIVATE_PILOT: ${{ github.event_name == 'workflow_dispatch' && inputs.private_pilot && 'true' || 'false' }}
         run: |

@@ -6,6 +6,8 @@ import urllib.request
 from core.beat_notion import NoRedirect
 
 TRUSTED_REPOSITORY = 'Perree/video-type-beat-generator'
+# Shared with Loopkits for now (same Dropbox/Telegram secrets); rename together with the workflow.
+ENVIRONMENT = 'kit-weekly'
 
 
 def check_context(env=None):
@@ -38,7 +40,7 @@ def check_environment(env=None, opener=None):
     repo = env['GITHUB_REPOSITORY']
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repo):
         raise ValueError('invalid_repository')
-    base = f'https://api.github.com/repos/{repo}/environments/type-beats-{slug}'
+    base = f'https://api.github.com/repos/{repo}/environments/{ENVIRONMENT}'
     opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
     def read(url):
         # Public repo: anonymous GET works without granting Actions read.

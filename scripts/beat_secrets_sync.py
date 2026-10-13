@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Carga con ``gh`` el Environment y los secretos de un canal de Type Beats.
+"""Carga con ``gh`` los secretos propios de un canal de Type Beats en el Environment compartido.
 
 Uso: ``py -3 scripts/beat_secrets_sync.py --channel "ey mat" --slug ey-mat``.
 
-Reutiliza la app y el refresh token de Dropbox de Loopkits (``tokens/dropbox.json`` +
-``config/dropbox_app.json``) y el token de YouTube del canal (``tokens/<canal>.json``). Telegram sale de
-``tokens/kit_secrets.json`` (``KIT_TELEGRAM_*``), del entorno (``BEAT_TELEGRAM_*``) o de un prompt sin eco.
-Cada valor viaja a ``gh`` por stdin: nunca va en un argumento ni se imprime. Crea el Environment
-``type-beats-<slug>`` restringido a la rama principal y agrega el slug a la variable ``BEAT_CHANNELS``.
+Dropbox y Telegram ya viven en el Environment ``kit-weekly`` (``KIT_*``) y el workflow de Beats los
+reutiliza; aquí solo se suben ``BEAT_CHANNEL_ID`` y ``BEAT_YT_TOKEN_JSON`` (``tokens/<canal>.json``) y se
+agrega el slug a la variable ``BEAT_CHANNELS``. Mientras comparta Environment, hay un solo canal de Beats
+por Environment. Cada valor viaja a ``gh`` por stdin: nunca va en un argumento ni se imprime.
 """
 import argparse
-import getpass
 import json
 import os
 import re
@@ -24,27 +22,12 @@ if ROOT not in sys.path:
 
 from scripts import kit_secrets_sync as kit
 
-DROPBOX_FILE = os.path.join(ROOT, 'tokens', 'dropbox.json')
-APP_FILE = os.path.join(ROOT, 'config', 'dropbox_app.json')
-TELEGRAM = (('BEAT_TELEGRAM_TOKEN', 'KIT_TELEGRAM_TOKEN', 'Token del bot de Telegram'),
-            ('BEAT_TELEGRAM_CHAT_ID', 'KIT_TELEGRAM_CHAT_ID', 'Chat id de Telegram'))
+ENVIRONMENT = 'kit-weekly'  # must match core.beat_actions.ENVIRONMENT
 
 
-def values_for(channel, yt_token_file=None, env=None, ask=getpass.getpass):
-    env = os.environ if env is None else env
-    dropbox, app = kit._load_json(DROPBOX_FILE), kit._load_json(APP_FILE)
-    shared = kit._load_json(kit.SHARED_FILE)
-    values = {'BEAT_CHANNEL_ID': channel,
-              'BEAT_DROPBOX_REFRESH_TOKEN': str(dropbox.get('refresh_token') or '').strip(),
-              'BEAT_DROPBOX_APP_KEY': str(app.get('app_key') or '').strip(),
-              'BEAT_YT_TOKEN_JSON': kit.youtube_token(channel, yt_token_file)}
-    for name, kit_name, label in TELEGRAM:
-        value = str(env.get(name) or shared.get(kit_name) or '').strip() or ask(f"{label}: ").strip()
-        values[name] = value
-    missing = [name for name, value in values.items() if not value]
-    if missing:
-        raise kit.SyncError(f"Faltan valores: {', '.join(missing)}.")
-    return values
+def values_for(channel, yt_token_file=None):
+    return {'BEAT_CHANNEL_ID': channel,
+            'BEAT_YT_TOKEN_JSON': kit.youtube_token(channel, yt_token_file)}
 
 
 def add_channel_variable(slug, repo=None, runner=kit._gh):
@@ -76,7 +59,7 @@ def main(argv=None, runner=kit._gh):
     if not re.fullmatch('[a-z][a-z0-9-]{0,39}', args.slug):
         print("El slug debe ser minúsculas, números y guiones.")
         return 1
-    env_name = f'type-beats-{args.slug}'
+    env_name = ENVIRONMENT
     try:
         values = values_for(args.channel.strip(), args.yt_token_file)
         if kit.ensure_environment(env_name, args.repo, args.branch, runner):

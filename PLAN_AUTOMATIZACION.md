@@ -648,5 +648,5 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
   (misma rotación y anti-repetición que el modo imagen). Test nuevo en `tests/test_beat_montage.py`.
 - Config del canal publicada en `/type-beats/config.json` y estado inicializado (instalación nueva); copia local
   en `tokens/beat_automation.local.json`. Dry-run real: 14 jobs planificados, 0 fallos.
-- `scripts/beat_secrets_sync.py`: crea el Environment `type-beats-<slug>` (rama master), carga secretos y `BEAT_CHANNELS`.
+- Beats usa el Environment `kit-weekly` (constante `ENVIRONMENT` en `core/beat_actions.py`): reutiliza `KIT_DROPBOX_*` y `KIT_TELEGRAM_*`; `scripts/beat_secrets_sync.py` solo sube `BEAT_CHANNEL_ID`, `BEAT_YT_TOKEN_JSON` y `BEAT_CHANNELS`. Un solo canal de Beats por Environment mientras se comparta; renombrar luego.
 - Pendiente: push a master, correr el script, dry-run en Actions, piloto privado y `BEAT_LIVE_ENABLED=true`.
