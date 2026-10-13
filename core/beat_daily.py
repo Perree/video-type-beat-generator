@@ -11,6 +11,7 @@ from core.beat_source import BeatStarsSource
 from core.beat_state import BeatState, BudgetExhausted
 from core.beat_schedule import plan, apply_plan
 from core.beat_seo_store import prepare_seo
+from core.beat_seo import beat_url
 from core.beat_video import render_reserved
 from core.beat_publish import publish
 from core.beat_notify import COUNTERS
@@ -36,7 +37,7 @@ def visual_genre(channel, track):
 def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
               source=None, renderer=render_reserved, report_loader=None,
               notify=None, thumbnailer=None, seed=None, private_pilot=False,
-              expected_owner=None,
+              expected_owner=None, share_links=None,
               clock=lambda: datetime.now(timezone.utc)):
     summary = dict.fromkeys(COUNTERS, 0)
     summary['dry_run'] = dry_run
@@ -145,6 +146,11 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
                     media = dict(media, before_upload=selection_fence(
                         selection_cloud, channel, media.get('before_upload')),
                         selection_guard=lambda: ensure_selection(selection_cloud, channel))
+                    selected = seo['selected']
+                    link = share_links.get(track['id'], config.get('beatstars_profile_url')) if share_links else None
+                    # Short link when BeatStars exposes it; otherwise the beat page URL (always valid).
+                    seo = dict(seo, selected=dict(selected, description=selected['description'].replace(
+                        '{url}', link or beat_url(track))))
                     outcome = publish(cloud, job, media, seo, uploader, receipts, clock,
                                       thumbnailer=thumbnailer, private_pilot=private_pilot,
                                       expected_owner=channel.get('youtube_channel_id'), selection_track=track)

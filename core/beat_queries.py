@@ -10,6 +10,14 @@ TRACKS_QUERY = """query($memberId:String!,$page:Int,$size:Int){
   }
 }"""
 
+# Short links (bsta.rs) for the description: read-only, separate from catalog sync.
+SHARE_QUERY = """query($memberId:String!,$page:Int,$size:Int){
+  profileTracks(memberId:$memberId,page:$page,size:$size){
+    totalElements totalPages number last
+    content{id shareUrl profile{memberId}}
+  }
+}"""
+
 # Public preview resolution is separate from catalog sync; URLs are never stored.
 PREVIEWS_QUERY = """query($memberId:String!,$page:Int,$size:Int){
   profileTracks(memberId:$memberId,page:$page,size:$size){

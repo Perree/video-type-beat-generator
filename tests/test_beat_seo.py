@@ -50,7 +50,7 @@ class TemplateTests(unittest.TestCase):
         self.assertEqual(selected['title'], '[FREE] Style Type Beat "New York"')
         self.assertEqual(selected['tags'], ['one type beat', 'two type beat', 'three'])
         self.assertEqual(selected['description'],
-                         'Link: https://www.beatstars.com/beat/new-york-18425328\nTitle: New York')
+                         'Link: {url}\nTitle: New York')
         validate_snapshot(snapshot, job)
 
     def test_repeat_rotates_tags_and_template_is_validated(self):

@@ -48,8 +48,10 @@ def beat_url(track):
     return f'https://www.beatstars.com/beat/{re.sub("[^a-z0-9]+", "-", ascii_title).strip("-")}-{track["id"][2:]}'
 
 
-def render(value, track):
-    return value.replace('{name}', clean_name(track['title'])).replace('{url}', beat_url(track))
+def render(value, track, link=None):
+    """{url} stays a placeholder (resolved to the short link at upload) unless a link is given."""
+    value = value.replace('{name}', clean_name(track['title']))
+    return value.replace('{url}', link) if link else value
 
 
 def track_input(track):
@@ -160,8 +162,10 @@ def validate_snapshot(snapshot, job):
     # Pre-review v1 snapshots repeated the manual description in every option.
     # Accept that equivalent encoding on replay; new snapshots store it once.
     legacy = [dict(option, description=render(profile['description'], track)) for option in options]
-    selections = [dict(option, description=render(profile['description'], track)) for option in
-                  (options if job['cycle'] > 1 else options[:1])]
+    chosen = options if job['cycle'] > 1 else options[:1]
+    # Early snapshots stored the page URL instead of the {url} placeholder.
+    selections = [dict(option, description=render(profile['description'], track, link))
+                  for option in chosen for link in (None, beat_url(track))]
     if (snapshot['candidates'] != options and snapshot['candidates'] != legacy
             or snapshot['selected'] not in selections):
         raise ValueError('seo_snapshot_invalid')

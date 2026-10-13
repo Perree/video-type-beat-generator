@@ -8,6 +8,7 @@ from core import youtube
 from core.beat_assets import DropboxAssets
 from core.beat_cloud import BeatCloud, DropboxTransport, decode_document
 from core.beat_daily import run_daily
+from core.beat_share import ShareLinks
 from core.beat_notion import fetch_report
 from core.beat_notify import Telegram
 from core.beat_youtube import BeatYouTube
@@ -69,7 +70,8 @@ def main(argv=None):
                 summary = run_daily(cloud, channel, assets, client.upload,
                     args.receipts, dry_run=args.dry_run, report_loader=loader,
                     notify=notifier, thumbnailer=client.thumbnail, seed=args.seed,
-                    private_pilot=args.private_pilot, expected_owner=expected_owner)
+                    private_pilot=args.private_pilot, expected_owner=expected_owner,
+                    share_links=ShareLinks())
         except Exception:
             # Bootstrap failures are also a sanitized alert when Telegram exists.
             if notifier is not None:
