@@ -8,6 +8,8 @@ from core.beat_rotation import changed_image
 
 IMAGE_SUFFIXES = {'.jpg', '.jpeg', '.png', '.webp'}
 
+MAX_VIDEO_BYTES = 256 * 1024 * 1024
+
 
 class DropboxAssets:
     def __init__(self, client):
@@ -30,7 +32,7 @@ class DropboxAssets:
         return self._list_assets(folder, IMAGE_SUFFIXES, 20 * 1024 * 1024)
 
     def list_videos(self, folder):
-        return self._list_assets(folder, {'.mp4', '.mov', '.mkv', '.webm'}, 150 * 1024 * 1024)
+        return self._list_assets(folder, {'.mp4', '.mov', '.mkv', '.webm'}, MAX_VIDEO_BYTES)
 
     def _list_assets(self, folder, suffixes, max_bytes):
         folder = dropbox_path(folder)

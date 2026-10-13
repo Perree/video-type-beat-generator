@@ -640,3 +640,13 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
 - Sigue abierto: el token de YouTube incluye `youtube.readonly` (está en `core/youtube.py`, módulo compartido).
 - Falta para cerrar la fase: los pasos manuales de (3) y (4), dry-run en Actions revisando el log, una corrida real de
   un solo video y la primera semana completa.
+
+## Setup del canal "ey mat" en la nube ✅ CÓDIGO COMPLETADO (2026-10-13), falta cargar GitHub y pilotar
+- Reutiliza la app/token de Dropbox y el proyecto OAuth de Google de Loopkits (solo cambian los nombres `BEAT_*`).
+- Límite por video de Dropbox 150 → 256 MiB (`MAX_VIDEO_BYTES` en `core/beat_assets.py`).
+- Modo video + carpeta `dropbox_images` del género y miniatura `auto`: las imágenes rotan como miniaturas
+  (misma rotación y anti-repetición que el modo imagen). Test nuevo en `tests/test_beat_montage.py`.
+- Config del canal publicada en `/type-beats/config.json` y estado inicializado (instalación nueva); copia local
+  en `tokens/beat_automation.local.json`. Dry-run real: 14 jobs planificados, 0 fallos.
+- `scripts/beat_secrets_sync.py`: crea el Environment `type-beats-<slug>` (rama master), carga secretos y `BEAT_CHANNELS`.
+- Pendiente: push a master, correr el script, dry-run en Actions, piloto privado y `BEAT_LIVE_ENABLED=true`.

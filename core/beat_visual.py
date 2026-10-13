@@ -1,13 +1,12 @@
 """Per-channel visual options and bounded local/Dropbox resource acquisition."""
 import math
 from pathlib import Path
-from core.beat_assets import IMAGE_SUFFIXES, select_image
+from core.beat_assets import IMAGE_SUFFIXES, MAX_VIDEO_BYTES, select_image
 from core.beat_download import dropbox_path
 from core.beat_http import BeatError
 from core.beat_rotation import changed_image
 
 VIDEO_SUFFIXES = {'.mp4', '.mov', '.mkv', '.webm'}
-MAX_VIDEO_BYTES = 150 * 1024 * 1024
 
 
 def options(channel):

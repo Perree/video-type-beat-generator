@@ -44,7 +44,10 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
         state, _ = cloud.read('state')
         state, job = reserved_job(state, job_id, track, channel)
         spec = options(channel)
-        image = image_resource(channel, genre, state, job, dropbox) if spec['mode'] == 'image' else None
+        # Video mode with a Dropbox image folder for the genre: rotate those images as thumbnails.
+        folder_thumbnail = (spec['mode'] == 'video' and spec['thumbnail_source'] == 'auto'
+                            and genre in channel.get('dropbox_images', {}))
+        image = image_resource(channel, genre, state, job, dropbox) if spec['mode'] == 'image' or folder_thumbnail else None
         videos = video_catalog(spec, dropbox) if spec['mode'] == 'video' else []
         custom_thumbnail = thumbnail_resource(spec)
         if dry_run:
@@ -71,11 +74,12 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
                     raise BeatError('repeat_image_unchanged')
                 if job.get('visual_snapshot', {}).get('sha256') not in (None, image['sha256']):
                     raise BeatError('reserved_image_changed')
+            if spec['mode'] == 'image':
                 tools.render(audio, frame, video, seconds)
             else:
                 montage = render_montage(audio, video, seconds, videos, spec, root, dropbox, tools, job_id,
                                          checkpoint=lambda: store.renew(owner, ttl=3600))
-                if not custom_thumbnail:
+                if not custom_thumbnail and not image:
                     thumbnail_frame(montage['first_clip'], source_image, tools)
                     compose(source_image, track.get('title'), frame, thumbnail)
             if custom_thumbnail:

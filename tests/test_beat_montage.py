@@ -168,6 +168,21 @@ class MontageTests(unittest.TestCase):
         self.assertNotIn('image_rotation', cloud.read('state')[0])
         self.assertTrue(all(response.closed for response in client.responses))
 
+    def test_video_mode_rotates_dropbox_image_folder_as_thumbnail(self):
+        cloud, key, track, channel = fixture()
+        channel['visual'] = dict(mode='video', video_source='dropbox', videos_folder='/videos',
+                                 clip_min_seconds=.5, clip_max_seconds=.5)
+        self.assertIn('trap', channel['dropbox_images'])
+        client = AssetsClient()
+        client.files.update({'/videos/a.mp4': MP4})
+        with render_reserved(cloud, key, track, channel, 'trap', 'https://beatstars.com/fixture',
+            DropboxAssets(client), resolver=Resolver(), http=HLS(),
+            tools=MediaTools('fakeffmpeg', 'fakeprobe', MontageProcesses())) as result:
+            self.assertEqual(result['visual_mode'], 'video')
+            self.assertTrue(result['thumbnail'].is_file())
+        self.assertTrue(any(path.startswith('/images/trap/') for path in client.downloads))
+        self.assertTrue(cloud.read('state')[0]['image_rotation'][channel['id']]['trap'])
+
     def test_local_pipeline_auto_thumbnail_and_dry_run(self):
         cloud, key, track, channel = fixture()
         with tempfile.TemporaryDirectory() as folder:
