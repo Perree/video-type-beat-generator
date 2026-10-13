@@ -17,7 +17,7 @@ def main():
     os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
     suite = unittest.TestSuite()
     for path in sorted((root / 'tests').glob('test_beat_*.py')):
-        if args.worker_only and path.name == 'test_beat_panel.py':
+        if args.worker_only and path.name in ('test_beat_panel.py', 'test_beat_panel_cloud.py'):
             continue
         suite.addTests(unittest.defaultTestLoader.discover(str(root / 'tests'), pattern=path.name))
     success = unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful()
