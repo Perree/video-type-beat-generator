@@ -6,7 +6,7 @@ from core.beat_download import dropbox_path
 from core.beat_http import BeatError
 from core.beat_rotation import changed_image
 
-IMAGE_SUFFIXES = {'.jpg', '.jpeg', '.png', '.webp'}
+IMAGE_SUFFIXES = {'.jpg', '.jpeg', '.jfif', '.png', '.webp'}
 
 MAX_VIDEO_BYTES = 256 * 1024 * 1024
 

@@ -63,7 +63,7 @@ class BeatVisualForm:
 
     def _browse_thumbnail(self):
         path, _ = QFileDialog.getOpenFileName(self, 'Miniatura', self.thumbnail_path.text(),
-                                             'Imágenes (*.png *.jpg *.jpeg *.webp)')
+                                             'Imágenes (*.png *.jpg *.jpeg *.jfif *.webp)')
         if path:
             self.thumbnail_source.setCurrentIndex(1)
             self.thumbnail_path.setText(path)

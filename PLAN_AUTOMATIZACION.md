@@ -669,3 +669,17 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
 - Pendiente operativo: imágenes/videos/miniatura Dropbox, ID real y OAuth de YouTube al final,
   preparar Environments (incluido canal actual), publicar configuración por CAS, dry-run y piloto.
   Sin push, escrituras remotas, uploads, habilitación de producción ni cambios en marca personal.
+
+## Recursos de mattwyyre y soporte JFIF ✅ PREPARACIÓN LOCAL COMPLETADA (2026-10-14)
+- Los links compartidos se resolvieron por files_list_folder(shared_link=...)
+  con la conexión de Dropbox del escritorio; sharing_get_shared_link_metadata
+  no estaba autorizado. No se cambió la autorización ni se modificó Dropbox.
+- Rutas asignadas al canal local pausado: 28 imágenes para fondos/miniaturas
+  y 4 videos, todos aceptados por extensión/tamaño. Configuración privada excluida de Git.
+- Beats admite .jfif en su catálogo y selector. La decodificación mantiene
+  validación de JPEG/PNG/WebP; no se modificaron módulos de Loopkits ni marca personal.
+- Validación: prueba JFIF de catálogo → video → miniatura y las 22 pruebas de render aprobadas.
+  No se descargaron ni decodificaron los medios reales en esta preparación;
+  la comprobación remota fue de metadata. git diff --check correcto.
+- Pendiente: OAuth/ID de YouTube de mattwyyre, conexión del worker a las mismas carpetas,
+  preparación de Environments, configuración remota por CAS, dry-run y piloto antes de activar.

@@ -60,3 +60,15 @@ Pendiente: recursos visuales en Dropbox, elección de miniatura, ID real de YouT
 (confirmado al autorizar), conexión OAuth, nuevos Environments, publicación de config
 por CAS conservando el estado vigente, dry-run y piloto antes de activar producción.
 El alta no escribe en Dropbox ni cambia Actions remoto.
+
+### Recursos recibidos (2026-10-14)
+
+Las carpetas compartidas de mattwyyre quedaron asignadas en la configuración local,
+con el canal pausado. Listado real: 28 imágenes JFIF y 4 videos compatibles por
+extensión y tamaño. Las imágenes se usan como fondos y como miniaturas rotativas
+para el modo video; la alternancia semanal sigue configurada.
+Beats admite la extensión .jfif; compose valida el contenido JPEG al renderizar.
+La prueba usa un JPEG real generado localmente, además de las pruebas de render existentes.
+Las carpetas fueron consultadas con la conexión Dropbox del escritorio; antes de activar
+Actions hay que confirmar que su autorización ve esas mismas rutas. No se copió ningún
+refresh token ni se publicó configuración en Dropbox durante este paso.
