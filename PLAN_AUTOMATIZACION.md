@@ -701,3 +701,22 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
   publicar workflow, incorporar slug, dry-run, piloto privado y activación del canal.
   La revisión automática rechazó la primera transferencia por requerir aprobación del payload
   y destino; se solicitó confirmación. No se transfirieron tokens ni se publicaron videos.
+
+## Plantillas guardadas del canal para la automatización de Beats ✅ CÓDIGO COMPLETADO (2026-10-14)
+- core/beat_templates.py vincula los modelos de Gestionar canales al perfil SEO del worker
+  mediante use_channel_templates=true, solo para mattwyyre. Se aplica al leer, validar y guardar.
+  Conserva la descripción completa y adapta {beatstars_url} a {url}; el nombre se rellena por beat.
+- Plantilla de título y descripción reales publicadas en la configuración remota con el canal
+  pausado durante la corrección. La aplicación seguirá compilando los cambios guardados en el
+  modelo al abrir/guardar el panel; la publicación remota continúa siendo explícita.
+- core/beat_metadata.py renueva únicamente snapshots pendientes sin intentos; archiva el
+  snapshot anterior y conserva IDs, cuotas, intentos, archivos visuales y subidas existentes.
+  Rechaza cambios durante un render. Se archivó una ficha pendiente después de terminar el lote.
+- Verificación: 290 tests Beats, 288 aprobados y 2 omitidos, incluidas 4 pruebas de plantillas
+  y 2 de renovación sin alterar el ledger. Sin modificaciones en Loopkits ni marca personal.
+- Estado operativo previo a esta corrección: piloto privado Emboscada exitoso y DECISIÓN
+  subido/programado para 2026-10-17 10:00 Buenos Aires; otros cuatro jobs siguen pendientes.
+- Pendiente externo: editar la metadata de esos dos videos ya subidos. El token actual solo
+  tiene upload/readonly y videos.update devolvió 403 por scopes insuficientes, sin cambios.
+  Computer Use no pudo verificar la URL del navegador y detuvo la sesión; no se editaron
+  mediante UI. Las próximas subidas usarán el modelo corregido al reanudar.

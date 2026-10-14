@@ -13,6 +13,7 @@ from core.sections import SECTION_BEATS, channel_names_for_section
 from core.beat_cloud import decode_document
 from core.beat_visual import options
 from core.beat_download import dropbox_path
+from core.beat_templates import apply_channel_templates
 
 
 def read_app(path):
@@ -26,6 +27,7 @@ def read_app(path):
 def settings(app):
     result = migrate(app.get("beat_automation", {}), "config")
     for channel in result["channels"]:
+        apply_channel_templates(channel, app.get("channels", {}).get(channel["id"]))
         _metadata(channel)
     return result
 
@@ -60,6 +62,7 @@ def validate(config, app):
     for channel in result["channels"]:
         if channel["id"] not in available:
             raise ValueError("Elegí un canal de la sección Beats.")
+        apply_channel_templates(channel, app.get("channels", {}).get(channel["id"]))
         _metadata(channel)
         spec = options(channel)
         if spec['mode'] in ('video', 'alternate') and channel.get('active', True):

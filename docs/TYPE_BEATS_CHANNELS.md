@@ -54,3 +54,17 @@ La configuración remota incluye el canal pausado, preservando el canal actual y
 Rutas, links, snapshots e informes privados permanecen en config/ y tokens/, fuera de Git.
 La conexión OAuth por sí sola no habilita cron: faltan los secretos seleccionados por slug,
 publicar el workflow, dry-run y piloto. La activación se registra separadamente.
+
+## Título y descripción modelo del canal
+
+Para mattwyyre, use_channel_templates=true compila title_template y description_template
+que se guardan en Gestionar canales. El perfil SEO enviado al worker conserva ese modelo,
+rellena {name} con el nombre limpio del beat y usa {beatstars_url} como enlace del track.
+La configuración de otros canales queda intacta. Para cambios posteriores, abrir/guardar
+Automatizaciones de Beats y publicar la configuración en Dropbox como antes.
+
+Cambiar un modelo no reemplaza automáticamente snapshots SEO ya reservados. Una renovación
+explícita, con el canal pausado y sin render activo, archiva las fichas de jobs pendientes
+que no tengan intentos. No se eliminan reservas, cuotas ni historial de subidas.
+Para videos ya subidos, la edición necesita un scope de YouTube admitido por videos.update;
+youtube.upload/youtube.readonly no alcanzan. Editarlos en Studio es una alternativa manual.
