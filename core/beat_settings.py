@@ -62,7 +62,7 @@ def validate(config, app):
             raise ValueError("Elegí un canal de la sección Beats.")
         _metadata(channel)
         spec = options(channel)
-        if spec['mode'] == 'video':
+        if spec['mode'] in ('video', 'alternate') and channel.get('active', True):
             folder = spec['videos_folder']
             if not folder or (spec['video_source'] == 'local' and not Path(folder).is_dir()):
                 raise ValueError('Configurá una carpeta de videos existente o una ruta Dropbox.')

@@ -17,7 +17,9 @@ def options(channel):
                   clip_min_seconds=3, clip_max_seconds=6,
                   thumbnail_source='auto', thumbnail_path='')
     result.update(raw)
-    if (result['mode'] not in ('image', 'video')
+    if type(result.get('plain_image', False)) is not bool:
+        raise ValueError('invalid_plain_image')
+    if (result['mode'] not in ('image', 'video', 'alternate')
             or result['video_source'] not in ('local', 'dropbox')
             or result['thumbnail_source'] not in ('auto', 'local', 'dropbox')):
         raise ValueError('invalid_visual_mode')

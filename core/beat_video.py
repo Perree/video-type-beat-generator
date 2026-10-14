@@ -13,6 +13,7 @@ from core.beat_visual import options, image_resource, video_catalog, fetch, thum
 from core.beat_montage import render_montage, thumbnail_frame
 from core.beat_rotation import image_digest, previous_publication, publication_visual
 from core.beat_selection import require_track
+from core.beat_visual_schedule import job_options
 
 
 def reserved_job(state, job_id, track, channel):
@@ -43,7 +44,18 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
             owner = store.acquire(ttl=3600, require_existing=True)
         state, _ = cloud.read('state')
         state, job = reserved_job(state, job_id, track, channel)
-        spec = options(channel)
+        spec = job_options(channel, job)
+        if options(channel)['mode'] == 'alternate' and not dry_run and not job.get('visual_mode_snapshot'):
+            def freeze_mode(document):
+                store._lease(document, owner)
+                _, current = reserved_job(document, job_id, track, channel)
+                if current != job and current != dict(job, visual_mode_snapshot=spec['mode']):
+                    raise BeatError('reservation_changed')
+                document['jobs'][job_id]['visual_mode_snapshot'] = spec['mode']
+            cloud.update('state', freeze_mode, guard=lambda doc: store._lease(doc, owner))
+            state, _ = cloud.read('state')
+            state, job = reserved_job(state, job_id, track, channel)
+            spec = job_options(channel, job)
         # Video mode with a Dropbox image folder for the genre: rotate those images as thumbnails.
         folder_thumbnail = (spec['mode'] == 'video' and spec['thumbnail_source'] == 'auto'
                             and genre in channel.get('dropbox_images', {}))
@@ -66,7 +78,7 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
             montage = {}
             if image:
                 fetch(image, source_image, 20 * 1024 * 1024, dropbox)
-                compose(source_image, track.get('title'), frame, thumbnail, plain=spec['mode'] == 'video')
+                compose(source_image, track.get('title'), frame, thumbnail, plain=spec['mode'] == 'video' or spec.get('plain_image', False))
                 image['sha256'] = image_digest(source_image)
                 prior = previous_publication(state, job)
                 prior_visual = publication_visual(state, prior) if prior else None

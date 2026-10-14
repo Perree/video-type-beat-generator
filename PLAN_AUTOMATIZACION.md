@@ -650,3 +650,22 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
   en `tokens/beat_automation.local.json`. Dry-run real: 14 jobs planificados, 0 fallos.
 - Beats usa el Environment `kit-weekly` (constante `ENVIRONMENT` en `core/beat_actions.py`): reutiliza `KIT_DROPBOX_*` y `KIT_TELEGRAM_*`; `scripts/beat_secrets_sync.py` solo sube `BEAT_CHANNEL_ID`, `BEAT_YT_TOKEN_JSON` y `BEAT_CHANNELS`. Un solo canal de Beats por Environment mientras se comparta; renombrar luego.
 - Pendiente: push a master, correr el script, dry-run en Actions, piloto privado y `BEAT_LIVE_ENABLED=true`.
+
+## Alta de otro canal de Beats y conexiones independientes ✅ CÓDIGO COMPLETADO (2026-10-14)
+- Workflow exclusivo de Beats: Environment `type-beats-<slug>` y secretos BEAT_* por canal.
+  Sustituye el setup compartido de Beats del 2026-10-13; antes de usarlo, migrar también
+  el canal existente a su Environment propio. No se modifican secretos ni código de Loopkits.
+- El verificador consulta el Environment del slug; el script de carga conserva los canales
+  existentes y aborta si no puede leer la lista o falla la carga de credenciales.
+- Nuevo modo visual alternate en módulos core/beat_* y en el panel de Beats: alternancia
+  por slots entre semanas, formato congelado por job y soporte de imagen simple.
+  Canales pausados permiten preparar carpetas de video pendientes sin activar publicaciones.
+- mattwyyre agregado localmente, pausado: martes/jueves/sábados a las 10:00 Buenos Aires,
+  perfil público compartido, filtro de 16 tags solicitado y variantes cercanas. Análisis real
+  de 1.138 tracks: 132 elegibles. Simulación local de 6 slots futuros, sin reservar estado remoto.
+- Validación: suite completa de 281 tests Beats, 279 aprobados y 2 omitidos; prueba adicional
+  de la rama video/miniatura en alternate aprobada (4 tests de alternancia). git diff --check correcto.
+- Guía: docs/TYPE_BEATS_CHANNELS.md. Configuración privada y reportes permanecen excluidos de Git.
+- Pendiente operativo: imágenes/videos/miniatura Dropbox, ID real y OAuth de YouTube al final,
+  preparar Environments (incluido canal actual), publicar configuración por CAS, dry-run y piloto.
+  Sin push, escrituras remotas, uploads, habilitación de producción ni cambios en marca personal.

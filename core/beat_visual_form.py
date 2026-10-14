@@ -8,6 +8,7 @@ class BeatVisualForm:
         self.visual_mode = QComboBox()
         self.visual_mode.addItem('Imagen fija', 'image')
         self.visual_mode.addItem('Montaje de videos', 'video')
+        self.visual_mode.addItem('Alternar imagen y video', 'alternate')
         form.addRow('Modo visual:', self.visual_mode)
         self.dropbox_images = QPlainTextEdit()
         self.dropbox_images.setMaximumHeight(80)
