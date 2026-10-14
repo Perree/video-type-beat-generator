@@ -80,56 +80,24 @@ no hay reconciliación automática ni eliminación de videos.
 
 ## GitHub Actions
 
-Variable del repositorio `BEAT_CHANNELS`: array JSON de slugs, por ejemplo
-`["channel-a","channel-b"]`. Los slugs aceptan letras minúsculas, números y guiones;
-deben comenzar con una letra. Un Environment por slug: `type-beats-<slug>`.
+BEAT_CHANNELS es un array JSON de slugs. El Environment compartido `kit-weekly`
+conserva Dropbox y Telegram; cada slug selecciona sus propios secretos de YouTube.
+Ver TYPE_BEATS_CHANNELS.md para el setup vigente (sustituye Environments por canal).
 
-Antes de habilitar la corrida real, configurar **cada Environment** en Settings:
-Deployment branches and tags → Selected branches and tags → una sola regla de
-tipo **Branch** con nombre exacto **master**, sin reglas de tags ni comodines.
-El YAML no puede crear estas restricciones administrativas. El workflow consulta
-su política antes de ejecutar el worker y falla si falta, permite otras ramas o
-no puede verificarse. Usa consultas anónimas de recursos públicos para conservar
-`permissions: contents: read`; para un repositorio privado no verificado se
-detiene, sin ampliar permisos.
+- BEAT_CHANNEL_ID_<SLUG> y BEAT_YT_TOKEN_JSON_<SLUG>: secretos independientes
+  de cada canal. SLUG es mayúsculas con guiones convertidos a guiones bajos.
+- KIT_DROPBOX_APP_KEY y KIT_DROPBOX_REFRESH_TOKEN: conexión existente de Dropbox,
+  mapeada a BEAT_* únicamente en el worker. Estado exclusivo bajo /type-beats/.
+- KIT_TELEGRAM_TOKEN y KIT_TELEGRAM_CHAT_ID: bot existente, sin reconfiguración.
+- BEAT_NOTION_TOKEN y BEAT_NOTION_PAGE_ID: opcionales, informes de SEO.
 
-Referencias oficiales:
-[Environments](https://docs.github.com/en/rest/deployments/environments),
-[Deployment branch policies](https://docs.github.com/en/rest/deployments/branch-policies).
-
-Secretos de cada Environment:
-
-- `BEAT_CHANNEL_ID`: ID exacto del canal en la configuración de Beats.
-- `BEAT_YT_TOKEN_JSON`: token OAuth autorizado del canal correspondiente.
-- `BEAT_DROPBOX_APP_KEY`, `BEAT_DROPBOX_REFRESH_TOKEN`: todos los Environments
-  deben acceder al **mismo** estado de Beats para compartir el presupuesto.
-- `BEAT_TELEGRAM_TOKEN`, `BEAT_TELEGRAM_CHAT_ID`: resumen y alertas obligatorios
-  para corridas reales.
-- `BEAT_NOTION_TOKEN`, `BEAT_NOTION_PAGE_ID`: opcionales, informes de Fase 5.
-
-No guardar estos secretos a nivel repositorio. Los tokens de YouTube deben
-corresponder al canal de Beats. Para Dropbox se puede autorizar la misma app usada
-por Loopkits y el panel local (`tokens/dropbox_worker.json`), configurando sus
-valores como `BEAT_DROPBOX_APP_KEY` y `BEAT_DROPBOX_REFRESH_TOKEN`, siempre en
-los Environments de Beats. No renombrar secretos ni compartir el estado de Loopkits:
-Beats conserva exclusivamente sus documentos bajo `/type-beats/`. Ver el flujo de
-publicación de configuración por CAS en `TYPE_BEATS_PANEL.md`; el panel no crea estado.
-El token de YouTube se escribe en un directorio temporal 0700 y archivo 0600,
-se usa con `tokens_dir` y se borra al finalizar. Los secretos `BEAT_*` salen del
-entorno antes del render. La salida de dependencias y sus errores se suprimen.
-Telegram recibe exclusivamente etiquetas fijas y contadores; alerta por `orphan`,
-`unknown`, errores, bloqueos, vencidos y miniaturas fallidas sin incluir textos
-de las excepciones. Un fallo de Telegram nunca dispara otro upload.
-
-El cron corre a las 22:00 UTC (19:00 Buenos Aires). Solo corre en `master`, sin
-eventos de PR. Matriz por canal, `fail-fast: false`, canales serializados por el
-lease global y concurrency global y por canal con `cancel-in-progress: false`.
-Todas las acciones están fijadas por SHA; las dependencias usan el lock existente
-con `--require-hashes`, sin modificar el worker/workflow ni el lock de Loopkits.
-Las carpetas visuales se eligen entre los géneros configurados del canal:
-prioriza una coincidencia con los tags, luego la primera carpeta configurada.
-No exige tags de género para procesar beats con tags de artistas; video y
-carpetas locales de imágenes permiten la lista de géneros vacía.
+El workflow y el verificador usan kit-weekly restringido exclusivamente a Branch master.
+workflow_dispatch acepta channel para probar un slug; vacío ejecuta todos.
+El cron corre a las 22:00 UTC (19:00 Buenos Aires), con matriz serializada y locks globales.
+BEAT_LIVE_ENABLED controla el modo real del cron; la pausa del canal se consulta en Dropbox.
+Las acciones están fijadas por SHA y las dependencias usan --require-hashes.
+Los secretos salen del entorno antes del render; el token temporal se elimina al finalizar.
+Telegram recibe contadores, nunca credenciales, textos de excepciones ni catálogo privado.
 
 ## Dry-run y verificación
 

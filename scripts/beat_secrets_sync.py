@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Carga con ``gh`` los secretos propios de un canal de Type Beats en el Environment propio del canal.
+"""Carga con ``gh`` los secretos propios de un canal de Type Beats en el Environment existente.
 
 Uso: ``py -3 scripts/beat_secrets_sync.py --channel "ey mat" --slug ey-mat``.
 
-Cada canal usa type-beats-<slug> con su propia autorización de YouTube.
-Configurar Dropbox y Telegram como secretos BEAT_* en ese Environment.
-Todos los canales comparten la misma app de Dropbox y estado.
+Cada canal usa secretos BEAT_CHANNEL_ID_<SLUG> y BEAT_YT_TOKEN_JSON_<SLUG>
+en kit-weekly. Dropbox y Telegram conservan sus secretos KIT_* existentes.
+El script no modifica los secretos KIT_* ni la conexión anterior de Beats.
 Cada valor viaja a gh por stdin: nunca va en un argumento ni se imprime.
 """
 import argparse
@@ -22,12 +22,13 @@ if ROOT not in sys.path:
 
 from scripts import kit_secrets_sync as kit
 
-from core.beat_actions import environment, matrix
+from core.beat_actions import environment, matrix, secret_names
 
 
-def values_for(channel, yt_token_file=None):
-    return {'BEAT_CHANNEL_ID': channel,
-            'BEAT_YT_TOKEN_JSON': kit.youtube_token(channel, yt_token_file)}
+def values_for(channel, yt_token_file=None, *, slug):
+    names = secret_names(slug)
+    return {names['channel_secret']: channel,
+            names['youtube_secret']: kit.youtube_token(channel, yt_token_file)}
 
 
 def add_channel_variable(slug, repo=None, runner=kit._gh):
@@ -74,7 +75,7 @@ def main(argv=None, runner=kit._gh):
         return 1
     env_name = environment(args.slug)
     try:
-        values = values_for(args.channel.strip(), args.yt_token_file)
+        values = values_for(args.channel.strip(), args.yt_token_file, slug=args.slug)
         if kit.ensure_environment(env_name, args.repo, args.branch, runner):
             print("Environment creado y restringido a la rama.")
         failed = kit.sync(env_name, values, args.repo, runner)

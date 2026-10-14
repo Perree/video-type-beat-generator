@@ -2,15 +2,25 @@ import json
 import unittest
 from unittest.mock import patch
 from types import SimpleNamespace
-from core.beat_actions import environment, check_environment
+from core.beat_actions import environment, check_environment, secret_names, credential_matrix
 from scripts import beat_secrets_sync as sync
 
 class BeatChannelsTests(unittest.TestCase):
-    def test_channels_use_different_environments(self):
-        self.assertEqual(environment('ey-mat'), 'type-beats-ey-mat')
-        self.assertEqual(environment('mattwyyre'), 'type-beats-mattwyyre')
+    def test_channels_use_distinct_youtube_secrets_and_existing_services(self):
+        self.assertEqual(environment('ey-mat'), 'kit-weekly')
+        self.assertEqual(environment('mattwyyre'), 'kit-weekly')
+        self.assertNotEqual(secret_names('ey-mat'), secret_names('mattwyyre'))
+        rows=credential_matrix('["ey-mat","mattwyyre"]')
+        self.assertEqual(rows[0]['youtube_secret'],'BEAT_YT_TOKEN_JSON_EY_MAT')
+        self.assertEqual(rows[1]['youtube_secret'],'BEAT_YT_TOKEN_JSON_MATTWYYRE')
         for slug in ('../kit-weekly', '', '$(token)', 'UPPER'):
             with self.assertRaises(ValueError): environment(slug)
+
+    def test_manual_pilot_targets_only_requested_channel(self):
+        rows = credential_matrix('["ey-mat","mattwyyre"]', 'mattwyyre')
+        self.assertEqual([row['channel'] for row in rows], ['mattwyyre'])
+        for value in ('unknown', '../kit-weekly'):
+            with self.assertRaises(ValueError): credential_matrix('["ey-mat"]', value)
 
     def test_policy_checks_environment_of_selected_channel(self):
         urls=[]
@@ -27,7 +37,7 @@ class BeatChannelsTests(unittest.TestCase):
                     return Response({'total_count':1,'branch_policies':[{'name':'master','type':'branch'}]})
                 return Response({'deployment_branch_policy':{'protected_branches':False,'custom_branch_policies':True}})
         check_environment({'GITHUB_REPOSITORY':'Perree/video-type-beat-generator','GITHUB_REF':'refs/heads/master','GITHUB_EVENT_NAME':'schedule','BEAT_SLUG':'mattwyyre'},Opener())
-        self.assertTrue(all('/environments/type-beats-mattwyyre' in url for url in urls))
+        self.assertTrue(all('/environments/kit-weekly' in url for url in urls))
 
     def test_add_keeps_existing_channels(self):
         writes=[]

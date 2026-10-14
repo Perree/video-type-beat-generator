@@ -33,7 +33,7 @@ falsos y FFmpeg local se distinguen de las verificaciones con servicios reales.
    CAS: el panel no sincroniza cambios automáticamente. Configurar perfil público,
    ID del canal, `active`, prioridad, slots, tags/SEO y recursos visuales. Agregar
    `youtube_channel_id` con el ID real `UC` + 22 caracteres del canal de YouTube.
-   Para Actions, agregar `actions_slug` igual al slug de su Environment. Los slugs
+   Para Actions, agregar `actions_slug` igual al slug que selecciona sus secretos de YouTube. Los slugs
    deben ser únicos: un secreto `BEAT_CHANNEL_ID` de otro Environment falla antes
    del render, también en dry-run. Cambiar el destino de YouTube durante una corrida
    bloquea el insert; pausar antes de modificar la cuenta.
@@ -67,7 +67,7 @@ falsos y FFmpeg local se distinguen de las verificaciones con servicios reales.
 
 5. Autorizar un token OAuth de YouTube por canal según
    [YOUTUBE_SETUP.md](YOUTUBE_SETUP.md). Guardar el token local en `tokens/`; en
-   Actions, cargar `BEAT_YT_TOKEN_JSON` en su Environment. El worker usa un directorio
+   Actions, cargar `BEAT_YT_TOKEN_JSON_<SLUG>` en kit-weekly (slug en mayúsculas, guiones como guiones bajos). El worker usa un directorio
    temporal privado y elimina las variables `BEAT_*` antes de lanzar FFmpeg.
    La autorización OAuth en modo Testing puede caducar; verificar el estado de
    la aplicación y la cuenta antes de operar sin supervisión. El token actual
@@ -81,9 +81,10 @@ falsos y FFmpeg local se distinguen de las verificaciones con servicios reales.
    caché válida del mismo canal/ficha y luego a la ficha manual; no inserta texto
    libre del informe en los metadatos. Ver [SEO](TYPE_BEATS_SEO.md).
 
-7. En GitHub: `BEAT_CHANNELS` es un array JSON de slugs. Cada slug usa un Environment
-   `type-beats-<slug>`, restringido a una sola regla **Branch: master**. Todos los
-   secretos anteriores van en esos Environments. La consulta administrativa de
+7. En GitHub: `BEAT_CHANNELS` es un array JSON de slugs. Cada slug selecciona secretos
+   BEAT_CHANNEL_ID_<SLUG> y BEAT_YT_TOKEN_JSON_<SLUG> en el Environment
+   existente kit-weekly, restringido a una sola regla **Branch: master**. Dropbox y Telegram conservan
+   los secretos KIT_* existentes; el worker los recibe como BEAT_*. Ver TYPE_BEATS_CHANNELS.md. La consulta administrativa de
    comprobación es anónima y falla cerrada si no puede verificar el Environment
    (incluidos repositorios privados). No ampliar permisos para evitar la guarda.
    Conservar `BEAT_LIVE_ENABLED` ausente o distinto de `true` durante el setup:

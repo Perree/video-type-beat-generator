@@ -683,3 +683,21 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
   la comprobación remota fue de metadata. git diff --check correcto.
 - Pendiente: OAuth/ID de YouTube de mattwyyre, conexión del worker a las mismas carpetas,
   preparación de Environments, configuración remota por CAS, dry-run y piloto antes de activar.
+
+## Activación de mattwyyre: servicios existentes y secretos por slug ✅ CÓDIGO COMPLETADO (2026-10-14)
+- Sustituye la propuesta de Environments por canal: Beats conserva kit-weekly y reutiliza
+  KIT_DROPBOX_* / KIT_TELEGRAM_* sin modificar esos secretos ni el funcionamiento de Loopkits.
+- Cada slug selecciona BEAT_CHANNEL_ID_<SLUG> y BEAT_YT_TOKEN_JSON_<SLUG> independientes.
+  El worker mantiene la comprobación del ID real de YouTube y el bind del slug remoto.
+- workflow_dispatch admite channel para limitar dry-run/piloto al canal nuevo. El cron
+  sigue procesando todos los slugs; no se ejecuta un piloto extra en el canal actual.
+- OAuth de mattwyyre verificado contra el handle y su ID; configuración publicada pausada
+  por CAS en Dropbox, conservando ey mat activo, sus campos y todo el historial existente.
+- Las 28 imágenes reales descargadas temporalmente fueron decodificadas y generaron
+  frames/miniaturas de prueba correctamente. No se modificaron los originales remotos.
+- Validación: 284 tests Beats, 282 aprobados y 2 omitidos, incluidas 6 pruebas de aislamiento
+  y filtro de canal. Sin cambios en main.py, workflows/módulos de Loopkits o marca personal.
+- Pendiente: autorización explícita para transferir tokens locales a los secretos de GitHub,
+  publicar workflow, incorporar slug, dry-run, piloto privado y activación del canal.
+  La revisión automática rechazó la primera transferencia por requerir aprobación del payload
+  y destino; se solicitó confirmación. No se transfirieron tokens ni se publicaron videos.

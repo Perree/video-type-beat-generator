@@ -7,12 +7,29 @@ import urllib.request
 from core.beat_notion import NoRedirect
 
 TRUSTED_REPOSITORY = 'Perree/video-type-beat-generator'
-ENV_PREFIX = 'type-beats-'
+ENVIRONMENT = 'kit-weekly'
 
 
 def environment(slug):
     matrix(json.dumps([slug]))
-    return ENV_PREFIX + slug
+    return ENVIRONMENT
+
+
+def secret_names(slug):
+    matrix(json.dumps([slug]))
+    suffix = slug.upper().replace('-', '_')
+    return {'channel_secret': 'BEAT_CHANNEL_ID_' + suffix,
+            'youtube_secret': 'BEAT_YT_TOKEN_JSON_' + suffix}
+
+
+def credential_matrix(raw, selected=''):
+    rows = matrix(raw)
+    if selected:
+        matrix(json.dumps([selected]))
+        rows = [row for row in rows if row['channel'] == selected]
+        if not rows:
+            raise ValueError('selected_channel_missing')
+    return [dict(row, **secret_names(row['channel'])) for row in rows]
 
 
 def check_context(env=None):
@@ -72,7 +89,7 @@ def main():
     try:
         if os.environ.get('BEAT_ACTIONS_MODE') == 'matrix':
             check_context()
-            print('matrix=' + json.dumps(matrix(os.environ['BEAT_CHANNELS']), separators=(',', ':')))
+            print('matrix=' + json.dumps(credential_matrix(os.environ['BEAT_CHANNELS'], os.environ.get('BEAT_SELECTED_CHANNEL', '')), separators=(',', ':')))
         else:
             check_environment()
         return 0
