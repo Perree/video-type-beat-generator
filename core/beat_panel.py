@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import QWidget, QDialog, QVBoxLayout, QFileDialog
 
 from core import beat_settings
@@ -14,11 +15,14 @@ from core.beat_tasks import BeatTask, analyze, checkpoint, load_state
 from core.sections import SECTION_BEATS, channel_names_for_section
 from core.beat_remote_form import BeatRemoteForm
 from core.beat_panel_cloud import local_transport
+from core.channel_wizard import BEATS, ChannelWizardHost
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm):
+class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
+    wizard_kind = BEATS
+
     def __init__(self, parent=None, config_path=None, transport=None, state_reader=None,
                  cloud_provider=local_transport):
         super().__init__(parent)
@@ -32,6 +36,8 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm):
         self.config = migrate({}, "config")
         self.selected = -1
         self.config_readable = True
+        self._publish_after_local = False
+        self._pending_cloud_publish = False
         self._build()
         self.reload()
 
@@ -45,12 +51,13 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm):
             self._refresh_list()
             self.config_readable = True
             self.status.setText("Configuración local. Analizá el perfil para simular; el estado remoto se consulta explícitamente.")
+            self.refresh_publish_readiness()
         except Exception:
             self.config_readable = False
             self.status.setText("No se pudo leer la configuración. No se sobrescribirá el archivo.")
-            for widget in (self.save_button, self.cloud_save_button, self.cloud_reload_button,
-                           self.add_button, self.remove_button,
-                           self.simulate_button, self.automations, self.editor):
+            for widget in (self.save_button, self.save_publish_button, self.cloud_save_button,
+                           self.cloud_reload_button, self.add_button, self.remove_button,
+                           self.simulate_button, self.automations, self.editor, self.seo_editor):
                 widget.setEnabled(False)
 
     def _profile_changed(self):
@@ -62,11 +69,73 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm):
         self.automations.blockSignals(True)
         self.automations.clear()
         for ch in self.config["channels"]:
-            self.automations.addItem(f'{ch["id"]} — {"Activa" if ch["active"] else "Pausada"}')
+            self.automations.addItem(self._list_text(ch))
         self.automations.setCurrentRow(selected)
         self.automations.blockSignals(False)
         self.selected = -1
         self._select(self.automations.currentRow())
+        self.reload_connection_channels()
+        self.refresh_channel_chips()
+
+    def _list_text(self, ch):
+        """Texto de la lista: estado de la automatización + chip de avance del alta (5 pasos)."""
+        text, _color = self.channel_chip(ch["id"], ch.get("actions_slug", "") or "", ch["id"])
+        return f'{ch["id"]} — {"Activa" if ch["active"] else "Pausada"} · {text}'
+
+    def refresh_channel_chips(self):
+        """Repinta texto y color del chip de cada canal (se llama al cambiar flags o conexiones)."""
+        for row, ch in enumerate(self.config["channels"]):
+            item = self.automations.item(row)
+            if item is None:
+                continue
+            item.setText(self._list_text(ch))
+            _text, color = self.channel_chip(ch["id"], ch.get("actions_slug", "") or "", ch["id"])
+            item.setForeground(QColor(color))
+
+    # --- Hooks del asistente de alta (core/channel_wizard.py) ---
+
+    def wizard_target(self):
+        """``(canal, slug, clave de flags)`` del canal elegido en la lista."""
+        if self.selected < 0:
+            return "", "", ""
+        channel = self.channel.currentText()
+        return channel, self.config["channels"][self.selected].get("actions_slug", "") or "", channel
+
+    def wizard_focus(self, channel, slug, key):
+        """Elige en la lista y en Conexiones el canal congelado del asistente."""
+        row = next((i for i, ch in enumerate(self.config["channels"]) if ch["id"] == channel), -1)
+        if row < 0:
+            return
+        if self.automations.currentRow() != row:
+            self.automations.setCurrentRow(row)
+        self.conn_channel.setCurrentText(channel)
+
+    def wizard_set_slug(self, channel, slug):
+        """Escribe el slug en la fila de ``channel``, no en la que esté seleccionada ahora."""
+        if not self.wizard_bind(channel, slug, channel):
+            return False
+        row = next((i for i, ch in enumerate(self.config["channels"]) if ch["id"] == channel), -1)
+        if row < 0:
+            return False
+        self.config["channels"][row]["actions_slug"] = slug
+        self.refresh_connections()
+        self.refresh_channel_chips()
+        return True
+
+    def wizard_activate(self):
+        """Activa la fila del asistente (ya bindeada) y publica. El éxito lo avisa Dropbox."""
+        row = next((i for i, ch in enumerate(self.config["channels"])
+                    if ch["id"] == getattr(self._wizard, 'channel', None)), -1)
+        if row < 0:
+            return False
+        if self.selected != row:
+            return False
+        self.active.setChecked(True)
+        return self.save_and_publish() is not False
+
+    def open_wizard_clicked(self):
+        self._store_editor()
+        self.open_channel_wizard()
 
     def _store_editor(self):
         if self.selected < 0:
@@ -87,14 +156,17 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm):
                           "hour": self.slots.cellWidget(i, 1).time().hour(),
                           "minute": self.slots.cellWidget(i, 1).time().minute()}
                          for i in range(self.slots.rowCount())])
-        self.automations.item(self.selected).setText(
-            f'{ch["id"]} — {"Activa" if ch["active"] else "Pausada"}')
+        self.automations.item(self.selected).setText(self._list_text(ch))
+        self.reload_connection_channels()
+        self.refresh_publish_readiness()
 
     def _select(self, index):
         self._store_editor()
         self.selected = index
         self.editor.setEnabled(index >= 0)
+        self.seo_editor.setEnabled(index >= 0)
         if index < 0:
+            self.refresh_publish_readiness()
             return
         ch = self.config["channels"][index]
         # Retain an unavailable ID so it cannot silently become another channel.
@@ -111,6 +183,7 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm):
         self.slots.setRowCount(0)
         for slot in ch["slots"]:
             self._add_slot(slot)
+        self.refresh_publish_readiness()
 
     def add_channel(self):
         self._store_editor()
@@ -153,17 +226,50 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm):
         except Exception as exc:
             self.status.setText(f"No se guardó: {exc}" if isinstance(exc, ValueError) else "No se pudo guardar la configuración.")
 
+    def save_and_publish(self):
+        """Guarda ``app_config.json`` local y publica ``/type-beats/config.json`` por CAS."""
+        if not self.config_readable:
+            self.wizard_notify(False, 'No se pudo leer la configuración.')
+            return False
+        try:
+            beat_settings.save(self.config_path, self.draft())
+        except Exception as exc:
+            text = (f"No se guardó: {exc}" if isinstance(exc, ValueError)
+                    else "No se pudo guardar la configuración.")
+            self.status.setText(text)
+            self.wizard_notify(False, text)
+            return False
+        if not self.cloud_loaded:
+            self._publish_after_local = True
+            self.status.setText('Configuración local guardada. Leyendo revisión de Dropbox…')
+            self.reload_cloud_config()
+            return True
+        self.status.setText('Configuración local guardada. Publicando en Dropbox…')
+        self.save_cloud_config()
+        return True
+
+    def _cloud_config_loaded(self, result):
+        # Encadenado desde Publicar al robot: solo hace falta la rev CAS.
+        # Recargar el formulario pisaría el borrador ya persistido en disco.
+        if self._publish_after_local:
+            _config, self.cloud_rev = result
+            self.cloud_loaded = True
+            self._publish_after_local = False
+            self._pending_cloud_publish = True
+            return
+        BeatRemoteForm._cloud_config_loaded(self, result)
+
     def _start(self, fn, done):
         if self.task is not None:
             return
         self.task = BeatTask(fn, self)
         self.task.done.connect(lambda value: self._deliver(value, done))
-        self.task.failed.connect(self.status.setText)
-        self.task.cancelled.connect(lambda: self.status.setText("Operación cancelada; resultado descartado."))
+        self.task.failed.connect(self._task_failed)
+        self.task.cancelled.connect(self._task_cancelled)
         self.task.progress.connect(self.status.setText)
         self.task.finished.connect(self._finished)
         for button in (self.analyze_button, self.state_button, self.simulate_button, self.save_button,
-                       self.cloud_save_button, self.cloud_reload_button,
+                       self.save_publish_button, self.cloud_save_button, self.cloud_reload_button,
                        self.add_button, self.remove_button):
             button.setEnabled(False)
         self.profile.setEnabled(False)
@@ -184,20 +290,37 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm):
         task, self.task = self.task, None
         task.deleteLater()
         for button in (self.analyze_button, self.state_button, self.simulate_button, self.save_button,
-                       self.cloud_save_button, self.cloud_reload_button,
+                       self.save_publish_button, self.cloud_save_button, self.cloud_reload_button,
                        self.add_button, self.remove_button):
             button.setEnabled(True)
         self.profile.setEnabled(True)
         self.editor.setEnabled(self.config_readable and self.selected >= 0)
         self.automations.setEnabled(self.config_readable)
         self.remote.setEnabled(True)
-        for widget in (self.save_button, self.cloud_save_button, self.cloud_reload_button,
-                       self.add_button, self.remove_button, self.simulate_button):
+        for widget in (self.save_button, self.save_publish_button, self.cloud_save_button,
+                       self.cloud_reload_button, self.add_button, self.remove_button, self.simulate_button):
             widget.setEnabled(self.config_readable)
+        if self._publish_after_local and self.task is None:
+            self._publish_after_local = False
+            self.wizard_notify(False, 'No se pudo leer Dropbox.')
+        if self._pending_cloud_publish and self.task is None:
+            self._pending_cloud_publish = False
+            if self.cloud_loaded:
+                self.save_cloud_config()
+            else:
+                self.wizard_notify(False, 'No se pudo leer Dropbox.')
         self.cancel_button.setEnabled(False)
         window = self.window()
         if getattr(window, "close_pending", False):
             window.close()
+
+    def _task_failed(self, text):
+        self.status.setText(text)
+        self.wizard_notify(False, text)
+
+    def _task_cancelled(self):
+        self.status.setText("Operación cancelada; resultado descartado.")
+        self.wizard_notify(False, 'Publicación cancelada.')
 
     def cancel(self):
         if self.task:
@@ -298,7 +421,7 @@ class BeatDialog(QDialog):
 def open_beat_panel(parent=None):
     dialog = BeatDialog(parent)
     dialog.setAttribute(Qt.WA_DeleteOnClose)
-    dialog.setWindowTitle("Beats: configuración de automatizaciones")
+    dialog.setWindowTitle('Automatizaciones de Beats')
     dialog.resize(900, 850)
     dialog.panel = BeatPanel(dialog)
     layout = QVBoxLayout(dialog)

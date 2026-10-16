@@ -68,3 +68,10 @@ explícita, con el canal pausado y sin render activo, archiva las fichas de jobs
 que no tengan intentos. No se eliminan reservas, cuotas ni historial de subidas.
 Para videos ya subidos, la edición necesita un scope de YouTube admitido por videos.update;
 youtube.upload/youtube.readonly no alcanzan. Editarlos en Studio es una alternativa manual.
+
+## Sincronización desde el panel y Notion
+
+La pestaña Conexiones del panel ejecuta el mismo `beat_secrets_sync.py`. Si existe
+`tokens/beat_secrets.json` con `BEAT_NOTION_TOKEN` y `BEAT_NOTION_PAGE_ID` válidos, el sync también
+los carga en `kit-weekly` (opcionales, solo SEO); si faltan o son inválidos se omiten sin error.
+Los valores viajan por stdin a `gh` y no se imprimen.

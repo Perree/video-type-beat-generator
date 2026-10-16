@@ -4,6 +4,15 @@ from core.beat_visual import options
 
 
 class BeatVisualForm:
+    def _build_seo(self, form):
+        """Campos de filtro y metadata SEO por canal (pestaña SEO y tendencias)."""
+        self.selection_tags = QLineEdit()
+        self.selection_tags.setPlaceholderText("Separados por comas; vacío conserva la selección anterior")
+        self.tags = QLineEdit()
+        self.tags.setPlaceholderText("Separados por comas")
+        form.addRow("Tags de selección:", self.selection_tags)
+        form.addRow("Tags (SEO):", self.tags)
+
     def _build_visual(self, form):
         self.visual_mode = QComboBox()
         self.visual_mode.addItem('Imagen fija', 'image')

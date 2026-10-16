@@ -78,7 +78,8 @@ def _wait(app, panel, timeout=10):
 
 def _widget_texts(panel):
     texts = [panel.status.text(), panel.output.toPlainText(), panel.telegram.text(),
-             panel.ref_folders.text(), panel.genres.toPlainText(), panel.refs_root.text()]
+             panel.ref_folders.text(), panel.genres.toPlainText(), panel.refs_root.text(),
+             panel.checklist.text(), panel.conn_log.toPlainText()]
     for r in range(panel.table.rowCount()):
         texts += [panel._cell(r, c) for c in range(4)]
     return '\n'.join(texts)
@@ -167,6 +168,18 @@ def _check_panel(app):
     dbx.files[kit_settings.KITS_PATH] = ('0000000000a2', json.dumps([_kit('f1')]).encode())
     panel = LoopKitPanel(dbx_provider=lambda: dbx)
 
+    check([panel.tabs.tabText(i) for i in range(panel.tabs.count())] ==
+          ['Conexiones', 'Canal', 'SEO y tendencias', 'Avanzado'],
+          'las 4 pestañas del panel de kits')
+    check(panel.save_publish_button.text() == 'Publicar al robot'
+          and panel.btn_save.text() == 'Publicar solo en Dropbox'
+          and panel.btn_dry.text() == 'Probar sin subir'
+          and panel.btn_reload.text() == 'Recargar desde Dropbox',
+          'CTA primario en la barra y acciones sueltas en Avanzado')
+    from core import automation_status as st
+    check(st.kit_telegram_status(env={'KIT_TELEGRAM_TOKEN': TG_TOKEN,
+                                      'KIT_TELEGRAM_CHAT_ID': TG_CHAT}) == st.OK,
+          'status de Telegram sin red')
     check('Configurado' in panel.telegram.text(), 'Telegram muestra solo "configurado"')
 
     panel.reload()
@@ -229,6 +242,9 @@ def _check_panel(app):
 
     panel.save()
     check(_wait(app, panel), 'el guardado termina')
+    panel.save_and_publish()
+    check(_wait(app, panel) and panel.status.text().startswith('Guardado'),
+          'guardar y publicar usa el mismo flujo CAS')
     saved_kits = json.loads(dbx.files[kit_settings.KITS_PATH][1])
     saved_cfg = json.loads(dbx.files[kit_settings.CONFIG_PATH][1])
     check([k['folder'] for k in saved_kits] == ['f1', 'f2', 'f3'], 'kits.json guardado')
@@ -376,8 +392,9 @@ def _check_panel(app):
 
     check(TG_TOKEN not in _widget_texts(panel) and TG_CHAT not in _widget_texts(panel),
           'ningún secreto en la interfaz')
-    check(all(w.echoMode() == QLineEdit.Normal for w in panel.findChildren(QLineEdit)),
-          'el panel no tiene campos de contraseña')
+    secrets = [w for w in panel.findChildren(QLineEdit) if w.echoMode() == QLineEdit.Password]
+    check(secrets and all(not w.text() for w in secrets),
+          'los campos de secreto existen y quedan vacíos')
     panel.shutdown()
 
 

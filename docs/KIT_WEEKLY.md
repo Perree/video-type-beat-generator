@@ -32,7 +32,7 @@ Qué kits salen y cómo se arma cada video lo decide `core/kit_week.py`:
 - Renombrar la carpeta de un kit en Dropbox lo convierte en un kit nuevo: hay que actualizar `folder` en `kits.json`.
 
 En la PC, sin variables `KIT_*`, el worker usa `tokens/` y `config/` locales; `--cloud-config` lee la config de Dropbox
-aunque exista `config/app_config.json` (así corre el "Probar dry-run" del panel).
+aunque exista `config/app_config.json` (así corre **Probar sin subir** del panel).
 
 - `--dry-run`: elige kits y slots; no toma el lock, no renderiza, no sube y no escribe en Dropbox. Manda un único aviso.
 - Sin `config/app_config.json` (está ignorado por git) la config se lee de Dropbox (`KIT_CONFIG_PATH`, por defecto
@@ -47,6 +47,23 @@ aunque exista `config/app_config.json` (así corre el "Probar dry-run" del panel
   los secretos del entorno al arrancar, así ffmpeg no los hereda. Smoke: `scripts/smoke_kit_hardening.py`.
 
 Smoke: `py -3 scripts/smoke_kit_weekly.py`.
+
+## Panel de la app
+
+El diálogo *Loop kits > Configuración de automatización* usa las mismas pestañas que Beats:
+
+| Pestaña | Contenido |
+|---|---|
+| Conexiones | Semáforos (YouTube, Dropbox worker, Telegram, Notion, LLM, imágenes, `gh`). Conectar YouTube, wizard de Dropbox (`scripts/kit_dropbox_auth.py`), guardar Telegram/Notion/LLM/imagen en `tokens/kit_secrets.json` (nunca se muestran los valores), probar Telegram, sincronizar secretos a Actions. |
+| Canal | Canal y horarios, carpeta de kits, tabla, géneros/referencias y **Portada** (modo y prompt). |
+| SEO y tendencias | Ficha por género (frase, artistas, etiquetas, plantilla). |
+| Avanzado | Topes de gasto e IA, recargar, **Publicar solo en Dropbox**, **Probar sin subir**, último estado y log. |
+
+A diferencia de Beats, Loop kits no guarda una copia local del catálogo: **Publicar al robot** (barra inferior)
+sube `kits.json` y la config del worker con el mismo CAS que el botón de Avanzado. La barra muestra el
+checklist `readiness_kits` y si el canal está listo para piloto (conexiones + informe SEO válido).
+
+La UI solo escribe claves SHARED conocidas (`KIT_TELEGRAM_*`, `KIT_NOTION_*`, `KIT_LLM_API_KEY`, `KIT_IMAGE_API_KEY`). Dropbox worker sigue en `tokens/dropbox_worker.json`. El botón *Sincronizar secretos del canal* corre `py -3 scripts/kit_secrets_sync.py --env kit-weekly-<slug> --channel "<canal>" --no-prompt` (sin shell). Si no hay `gh`, hay que instalar GitHub CLI y hacer `gh auth login` a mano. Smoke del panel: `py -3 scripts/smoke_kit_panel.py`.
 
 ## Varios canales
 
@@ -68,11 +85,13 @@ El canal por defecto no cambia nada de lo que ya tenía. Para sumar un canal:
    Dropbox su config mínima (carpeta de kits y géneros del canal por defecto, horarios de fábrica y las plantillas
    del canal) y lo deja elegido en el selector de arriba. Marca de la portada, `names`, `art` y demás opcionales no
    se copian: se agregan a mano en la config de ese canal. Después se cargan sus kits y se guarda.
-2. `py -3 scripts/kit_secrets_sync.py --env kit-weekly-<slug> --channel "<canal>"`: crea el Environment (limitado
-   a `master`) si no existe y carga los secretos, con los mismos nombres que en el canal por defecto. Los compartidos
-   salen de `tokens/kit_secrets.json` (`{"KIT_LLM_API_KEY": "…", …}`, fuera de git), de `tokens/dropbox_worker.json`,
-   del entorno o de un prompt sin eco (Enter no toca ese secreto); el token de YouTube, de `tokens/<canal>.json`.
-   Los valores viajan a `gh` por stdin. Un Environment que ya existe no se modifica: solo se cargan secretos.
+2. En la pestaña Conexiones, *Sincronizar secretos del canal* (o a mano
+   `py -3 scripts/kit_secrets_sync.py --env kit-weekly-<slug> --channel "<canal>" --no-prompt`): crea el Environment
+   (limitado a `master`) si no existe y carga los secretos, con los mismos nombres que en el canal por defecto. Los
+   compartidos salen de `tokens/kit_secrets.json` (`{"KIT_LLM_API_KEY": "…", …}`, fuera de git), de
+   `tokens/dropbox_worker.json`, del entorno o de un prompt sin eco (Enter no toca ese secreto; `--no-prompt` no pide
+   nada); el token de YouTube, de `tokens/<canal>.json`. Los valores viajan a `gh` por stdin. Un Environment que ya
+   existe no se modifica: solo se cargan secretos.
 3. Sumar el canal a la variable del repo `KIT_CHANNELS` (es una variable, no un secreto):
    `gh variable set KIT_CHANNELS --body "default,<slug>"`.
 
@@ -328,3 +347,5 @@ En Dropbox, dentro de la carpeta de referencias de cada género (`<refs_root>/<g
 Cada entrada de `kits.json` admite un `description` opcional (1 o 2 líneas, hasta 200 caracteres; columna
 "Descripción" del panel). Se manda al modelo de lenguaje como contexto para que el nombre del video se
 relacione con el kit. No se imprime ni va a los avisos.
+
+Ver también [CLAUDE_SEO_REPORT.md](CLAUDE_SEO_REPORT.md): estado e import del informe de tendencias desde la pestaña SEO y tendencias del panel.

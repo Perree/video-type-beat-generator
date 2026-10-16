@@ -79,6 +79,31 @@ class PanelTests(unittest.TestCase):
         self.panel.tags.setText("trap, dark")
         self.panel.genres.setText("Trap")
 
+    def test_tab_shell_and_save_simulate_smoke(self):
+        self.assertEqual(self.panel.tabs.count(), 4)
+        self.assertEqual(
+            [self.panel.tabs.tabText(i) for i in range(4)],
+            ["Conexiones", "Canal", "SEO y tendencias", "Avanzado"],
+        )
+        self.assertEqual(self.panel.save_publish_button.text(), 'Publicar al robot')
+        self.assertEqual(self.panel.simulate_button.text(), 'Probar sin subir')
+        self.assertEqual(self.panel.cloud_save_button.text(), 'Publicar solo en Dropbox')
+        self.assertEqual(self.panel.cloud_reload_button.text(), 'Recargar desde Dropbox')
+        self.configure()
+        self.panel.save()
+        self.assertEqual(
+            beat_settings.read_app(self.path)["beat_automation"]["channels"][0]["tags"],
+            ["trap", "dark"],
+        )
+        self.panel.transport = Transport()
+        username = self.panel.transport.pages["profile"]["profileByUsername"]["username"]
+        self.panel.profile.setText("https://www.beatstars.com/" + username)
+        self.panel.analyze_profile()
+        pump(lambda: self.panel.task is None)
+        self.panel.simulate()
+        pump(lambda: self.panel.task is None)
+        self.assertGreater(self.panel.job_model.rowCount(), 0)
+
     def test_save_preserves_other_sections_and_channel_edits(self):
         self.configure()
         latest = dict(self.app, last_section="personal")
@@ -302,6 +327,7 @@ class PanelTests(unittest.TestCase):
         self.path.write_text(json.dumps(app), encoding="utf-8")
         reopened = BeatPanel(config_path=self.path)
         self.assertFalse(reopened.save_button.isEnabled())
+        self.assertFalse(reopened.save_publish_button.isEnabled())
         self.assertFalse(reopened.config_readable)
         reopened.deleteLater()
 
@@ -385,6 +411,47 @@ class PanelTests(unittest.TestCase):
             namespace["_apply_workflow_ui"](fake)
             self.assertEqual(not fake.btn_beat_config.isHidden(), section == "beats")
             self.assertEqual(not fake.btn_kit_config.isHidden(), section == "loop_kits")
+
+    def test_publish_checklist_follows_live_channel_combo(self):
+        self.configure()
+        self.panel.config["channels"][0]["actions_slug"] = "alpha-slug"
+        self.panel.add_channel()
+        self.panel.automations.setCurrentRow(0)
+        self.assertEqual(self.panel.channel.currentText(), "beat-a")
+        captured = []
+        from core import beat_panel_form as form_mod
+        orig = form_mod.status.readiness_beats
+
+        def spy(channel, slug, *args, **kwargs):
+            captured.append((channel, slug))
+            return orig(channel, slug, *args, **kwargs)
+
+        form_mod.status.readiness_beats = spy
+        try:
+            self.panel.channel.setCurrentText("beat-b")
+        finally:
+            form_mod.status.readiness_beats = orig
+        self.assertEqual(self.panel.channel.currentText(), "beat-b")
+        self.assertEqual(captured[-1], ("beat-b", "alpha-slug"))
+
+    def test_connections_follow_channel_list(self):
+        self.panel.add_channel()
+        self.panel.add_channel()
+        self.panel.config["channels"].append({
+            "id": "beat-c", "active": False, "priority": 0, "selection_tags": [],
+            "actions_slug": "cee", "slots": [{"weekday": 0, "hour": 18, "minute": 0}],
+        })
+        for ch in self.panel.config["channels"]:
+            ch.setdefault("actions_slug", ch["id"])
+        self.panel.reload_connection_channels()
+        self.panel.conn_channel.setCurrentText("beat-b")
+        del self.panel.config["channels"][1]
+        self.assertEqual(self.panel.conn_channel.currentText(), "beat-b")
+        self.assertEqual(self.panel._conn_selection(), ("", ""))
+        self.panel.remove_channel()
+        names = [self.panel.conn_channel.itemText(i) for i in range(self.panel.conn_channel.count())]
+        self.assertEqual(names, [ch["id"] for ch in self.panel.config["channels"]])
+        self.assertEqual(self.panel._conn_selection()[0], self.panel.conn_channel.currentText())
 
     def test_no_late_result_after_cancel(self):
         delivered = []

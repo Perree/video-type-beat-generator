@@ -720,3 +720,35 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
   tiene upload/readonly y videos.update devolvió 403 por scopes insuficientes, sin cambios.
   Computer Use no pudo verificar la URL del navegador y detuvo la sesión; no se editaron
   mediante UI. Las próximas subidas usarán el modelo corregido al reanudar.
+
+## Automation Hub — Fase 1: shell UI Beats (pestañas) ✅ COMPLETADA (2026-10-15)
+- Panel de Beats reorganizado en `QTabWidget`: Conexiones (placeholder), Canal, SEO y tendencias, Avanzado.
+- Tags de selección y SEO movidos a su pestaña; guardado local, Dropbox, simulación, output y jobs en Avanzado.
+- Sin cambios de handlers ni de Loop kits/`main.py`. Docs en `docs/TYPE_BEATS_PANEL.md` y smoke en `tests/test_beat_panel.py`.
+## Automation Hub — Fase 2: módulo de conexiones + pestaña Conexiones ✅ COMPLETADA (2026-10-15)
+- `core/automation_status.py` (sin Qt) y `core/beat_connections_form.py`: semáforos, Conectar YouTube, Guardar Notion (`tokens/beat_secrets.json`), sync por `QProcess` y checklist.
+- `scripts/beat_secrets_sync.py` incluye `BEAT_NOTION_*`. Tests: `tests/test_automation_status.py`; smoke: `scripts/smoke_automation_status.py`.
+- TODO manual: `gh auth login`. Sin commit; pendiente Bugbot y security-review.
+
+## Automation Hub — Fase 3: shell + Conexiones Loop kits ✅ COMPLETADA (2026-10-15)
+- `loop_kit_panel.py` con las mismas 4 pestañas (Portada en Canal; topes/IA, Dropbox y dry-run en Avanzado).
+- `core/kit_connections_form.py` y extensiones de `automation_status`: Telegram (estado y prueba), wizard Dropbox, YouTube, Notion/LLM/Image en `tokens/kit_secrets.json`, sync `QProcess` a `kit_secrets_sync.py --no-prompt`.
+- Smoke `scripts/smoke_kit_panel.py`; docs en `docs/KIT_WEEKLY.md`. Sin commit; pendiente Bugbot.
+## Automation Hub — Fase 4: puente informe Claude Code (SEO) ✅ COMPLETADA (2026-10-15)
+- `core/seo_report_status.py` (sin Qt, reusa `beat_seo_report`/`kit_trends`) y `core/seo_report_box.py`, cableado en la pestaña SEO de Beats y Loop kits: edad, origen, errores por código, import local a `tokens/seo_reports/`, copiar schema y sugerencias de solo lectura.
+- Docs en `docs/CLAUDE_SEO_REPORT.md`; smoke `scripts/smoke_seo_report_status.py`. Sin commit; pendiente Bugbot.
+## Automation Hub — Fase 5: guardado unificado + checklist piloto ✅ COMPLETADA (2026-10-15)
+- `core/automation_save_bar.py`: barra inferior con **Guardar y publicar**, checklist `readiness_*` e indicador de piloto (conexiones + informe SEO válido).
+- Beats: el CTA guarda local y publica `/type-beats/config.json` por CAS (recarga remota si hace falta); Avanzado conserva acciones sueltas. Loop kits: el mismo CTA publica solo en Dropbox (kits + config del worker).
+- Tests: `test_beat_panel_cloud.py` (cadena y conflicto CAS); smokes `smoke_kit_panel.py` y `test_beat_panel.py`. Sin commit; pendiente Bugbot.
+
+## Automation Hub — Fase 6: asistente de alta de canal + chips ✅ COMPLETADA (2026-10-15)
+- `core/channel_wizard.py`: lógica sin Qt (5 pasos, gate de activación, chips) y diálogo no modal que reusa `automation_status`, OAuth de YouTube, sync por `QProcess` y guardar y publicar de la Fase 5. Flags de sesión (secretos, config en Dropbox, dry-run) marcados por los handlers existentes.
+- **Activar** solo con el checklist final en verde (config en Dropbox, secretos GH, dry-run; en Beats el dry-run de Actions se confirma a mano). Chips en la lista de Beats y en el selector de Loop kits (color + tooltip; el texto del combo no cambia).
+- Smoke: `scripts/smoke_channel_wizard.py`. TODO manual: `gh auth login` y sumar el slug a `KIT_CHANNELS` en kits. Sin commit; pendiente Bugbot.
+
+## Automation Hub — Fase 7: copy + miniaturas (solo lectura) ✅ COMPLETADA (2026-10-16)
+- CTAs unificados: barra inferior **Publicar al robot**; pruebas **Probar sin subir** (simulación Beats y dry-run kits). Avanzado conserva acciones sueltas (local, Dropbox, recargar).
+- Labels alineados con `main.py`: **Automatizaciones de Beats**, diálogo kits **Configuración de automatización**, recarga **Recargar desde Dropbox**.
+- `SeoReportBox`: bloque **Recomendaciones de miniaturas** vía `seo_report_status.thumbnail_recommendations` (`thumbnail_suggestions` / `suggestions` del informe local o nota fija); sin autoaplicar ni cambios de render.
+- Asserts de labels en `tests/test_beat_panel.py` y `scripts/smoke_kit_panel.py`. Sin commit.

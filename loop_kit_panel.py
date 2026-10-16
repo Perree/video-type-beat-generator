@@ -11,15 +11,23 @@ import os
 import sys
 
 from PyQt5.QtCore import QProcess, Qt, QThread, QTime, pyqtSignal
+from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QDialog, QDoubleSpinBox,
                              QFormLayout, QGroupBox,
                              QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit,
                              QListWidget, QListWidgetItem, QPlainTextEdit, QPushButton,
-                             QScrollArea, QSpinBox, QTableWidget, QTableWidgetItem, QTimeEdit,
-                             QVBoxLayout, QWidget)
+                             QScrollArea, QSpinBox, QTabWidget, QTableWidget, QTableWidgetItem,
+                             QTimeEdit, QVBoxLayout, QWidget)
 
 from core import (kit_channel, kit_channel_setup, kit_cloud, kit_detect, kit_seo, kit_settings,
-                  kit_source, kit_spend, kit_state)
+                  kit_source, kit_spend, kit_state, kit_trends)
+from core.automation_status import AutomationError
+from core import automation_status as status
+from core.automation_save_bar import AutomationSaveBar, KITS_PILOT_REQUIRED
+from core.kit_connections_form import KitConnectionsForm
+from core.channel_wizard import KITS, ChannelWizardHost
+from core.seo_report_box import SeoReportBox
+from core.seo_report_status import KITS, local_status
 
 _ROOT = os.path.dirname(os.path.abspath(__file__))
 _HEADERS = ("Carpeta", "Nombre", "Link de PayHip", "Género", "Descripción", "Activo")
@@ -32,7 +40,7 @@ _DRY_RUN_TIMEOUT_MS = 10 * 60 * 1000
 def _error_text(exc):
     """Mensaje seguro: los errores propios se muestran, el resto solo por tipo."""
     if isinstance(exc, (kit_settings.SettingsError, kit_cloud.KitCloudError,
-                        kit_channel_setup.ChannelSetupError)):
+                        kit_channel_setup.ChannelSetupError, AutomationError)):
         return str(exc)
     return f"Error ({type(exc).__name__})."
 
@@ -53,8 +61,9 @@ class _Task(QThread):
             self.failed.emit(_error_text(exc))
 
 
-class LoopKitPanel(QWidget):
+class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizardHost):
     """Formulario de canal, horarios, carpeta de kits, kits, géneros, SEO, portada y estado."""
+    wizard_kind = KITS
 
     def __init__(self, parent=None, dbx_provider=None, python=None, script_dir=None):
         super().__init__(parent)
@@ -67,6 +76,7 @@ class LoopKitPanel(QWidget):
         self._proc = None
         self._seo = {}            # fichas de SEO por género, tal como están en el formulario
         self._seo_current = None  # género cuya ficha se ve en los campos
+        self._trends_max_age = None  # kit_preview.trends.max_age_days, cuando la config ya cargó
         self._build()
 
     # --- Construcción ---
@@ -79,29 +89,60 @@ class LoopKitPanel(QWidget):
         self.automation.addItem("Canal por defecto", '')
         self.automation.currentIndexChanged.connect(lambda _i: self.reload())
         top.addWidget(self.automation, 1)
+        self.chip_label = QLabel("")
+        top.addWidget(self.chip_label)
         self.btn_new = QPushButton("Crear automatización…")
         self.btn_new.clicked.connect(self.ask_new_automation)
         top.addWidget(self.btn_new)
+        self.btn_wizard = QPushButton("Asistente de alta…")
+        self.btn_wizard.clicked.connect(lambda: self.open_channel_wizard())
+        top.addWidget(self.btn_wizard)
         outer.addLayout(top)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        body = QWidget()
-        col = QVBoxLayout(body)
-        col.addWidget(self._build_channel_box())
-        col.addWidget(self._build_source_box())
-        col.addWidget(self._build_kits_box(), 1)
-        col.addWidget(self._build_genres_box())
-        col.addWidget(self._build_seo_box())
-        col.addWidget(self._build_cover_box())
-        col.addWidget(self._build_telegram_box())
-        scroll.setWidget(body)
-        outer.addWidget(scroll, 1)
+        self.tabs = QTabWidget()
 
+        connections = QWidget()
+        conn_layout = QVBoxLayout(connections)
+        self._build_connections(conn_layout)
+        conn_scroll = QScrollArea()
+        conn_scroll.setWidgetResizable(True)
+        conn_scroll.setFrameShape(QScrollArea.NoFrame)
+        conn_scroll.setWidget(connections)
+        conn_tab = QWidget()
+        conn_tab_layout = QVBoxLayout(conn_tab)
+        conn_tab_layout.setContentsMargins(0, 0, 0, 0)
+        conn_tab_layout.addWidget(conn_scroll)
+        self.tabs.addTab(conn_tab, "Conexiones")
+
+        canal_body = QWidget()
+        canal_col = QVBoxLayout(canal_body)
+        canal_col.addWidget(self._build_channel_box())
+        canal_col.addWidget(self._build_source_box())
+        canal_col.addWidget(self._build_kits_box(), 1)
+        canal_col.addWidget(self._build_genres_box())
+        canal_col.addWidget(self._build_cover_box())
+        self.tabs.addTab(self._scroll_tab(canal_body), "Canal")
+
+        seo_body = QWidget()
+        seo_col = QVBoxLayout(seo_body)
+        seo_col.addWidget(self._build_seo_box())
+        # Informe de Claude Code: clave = slug de la automatización ('' = canal por defecto).
+        self.seo_report_box = SeoReportBox(KITS, lambda: {
+            'key': self.automation.currentData() or '',
+            'names': kit_settings.parse_genres(self.genres.toPlainText()),
+            'max_age_days': self._trends_max_age})
+        seo_col.addWidget(self.seo_report_box)
+        self.automation.currentIndexChanged.connect(lambda _i: self.seo_report_box.refresh())
+        self.tabs.currentChanged.connect(lambda _i: self.seo_report_box.refresh())
+        seo_col.addStretch()
+        self.tabs.addTab(self._scroll_tab(seo_body), "SEO y tendencias")
+
+        advanced = QWidget()
+        advanced_layout = QVBoxLayout(advanced)
+        advanced_layout.addWidget(self._build_spend_box())
         buttons = QHBoxLayout()
-        self.btn_reload = QPushButton("Recargar")
-        self.btn_save = QPushButton("Guardar en Dropbox")
-        self.btn_dry = QPushButton("Probar dry-run")
+        self.btn_reload = QPushButton("Recargar desde Dropbox")
+        self.btn_save = QPushButton("Publicar solo en Dropbox")
+        self.btn_dry = QPushButton('Probar sin subir')
         self.btn_state = QPushButton("Ver último estado")
         for btn in (self.btn_reload, self.btn_save, self.btn_dry, self.btn_state):
             btn.setMinimumHeight(32)
@@ -110,16 +151,100 @@ class LoopKitPanel(QWidget):
         self.btn_save.clicked.connect(self.save)
         self.btn_dry.clicked.connect(self.run_dry_run)
         self.btn_state.clicked.connect(self.show_last_state)
-        outer.addLayout(buttons)
-
-        self.status = QLabel("")
-        self.status.setWordWrap(True)
-        outer.addWidget(self.status)
+        advanced_layout.addLayout(buttons)
         self.output = QPlainTextEdit()
         self.output.setReadOnly(True)
         self.output.setMaximumBlockCount(500)
         self.output.setMinimumHeight(90)
-        outer.addWidget(self.output)
+        advanced_layout.addWidget(self.output, 1)
+        self.tabs.addTab(advanced, "Avanzado")
+
+        outer.addWidget(self.tabs, 1)
+        self._build_save_bar(outer)
+        self.status = QLabel("")
+        self.status.setWordWrap(True)
+        outer.addWidget(self.status)
+        self.channel.currentTextChanged.connect(self.refresh_connections)
+        self.automation.currentIndexChanged.connect(lambda _i: self.refresh_publish_readiness())
+        self.refresh_connections()
+
+    def refresh_publish_readiness(self):
+        """Checklist de piloto del canal/automatización actual (barra inferior)."""
+        channel = (self.channel.currentText() or '').strip()
+        slug = self.automation.currentData() or ''
+        items = status.readiness_kits(channel, slug)
+        seo = local_status(KITS, slug, max_age_days=self._trends_max_age,
+                           notion_state=status.kit_notion_status())
+        self._refresh_publish_readiness(items, seo['state'], KITS_PILOT_REQUIRED)
+        self.refresh_channel_chips()
+
+    # --- Hooks del asistente de alta (core/channel_wizard.py) ---
+
+    def wizard_target(self):
+        """``(canal, slug, clave de flags)``: la clave es el slug ('' = canal por defecto)."""
+        slug = self.automation.currentData() or ''
+        return (self.channel.currentText() or '').strip(), slug, slug
+
+    def wizard_focus(self, channel, slug, key):
+        """Vuelve el selector y el combo de YouTube al canal del asistente.
+
+        Cambiar de automatización dispara ``reload()`` asíncrono: ``wizard_bind``
+        fallará hasta que termine.
+        """
+        idx = self.automation.findData(slug)
+        if idx < 0:
+            return
+        if self.automation.currentIndex() != idx:
+            self.automation.setCurrentIndex(idx)
+        name = (self.channel.currentText() or '').strip()
+        if channel and name != channel:
+            found = self.channel.findText(channel)
+            if found >= 0:
+                self.channel.setCurrentIndex(found)
+            else:
+                self.channel.setEditText(channel)
+
+    def wizard_activate(self):
+        """Publica el canal bindeado. El éxito lo avisa Dropbox, no este return."""
+        if self._task is not None:
+            return False
+        return self.save_and_publish() is not False
+
+    def refresh_channel_chips(self):
+        """Color y tooltip del chip por automatización en el selector, y chip del canal actual.
+
+        El texto del combo no cambia: otras partes lo usan como nombre del canal.
+        """
+        if not getattr(self, 'chip_label', None):
+            return
+        current = self.automation.currentIndex()
+        for i in range(self.automation.count()):
+            slug = self.automation.itemData(i) or ''
+            # El nombre del canal por defecto solo se conoce cuando está elegido.
+            name = self.automation.itemText(i) if slug else ''
+            if i == current:
+                name = (self.channel.currentText() or '').strip() or name
+            text, color = self.channel_chip(name, slug, slug)
+            self.automation.setItemData(i, QColor(color), Qt.ForegroundRole)
+            self.automation.setItemData(i, text, Qt.ToolTipRole)
+            if i == current:
+                self.chip_label.setText(f'<span style="color:{color}">{text}</span>')
+
+    def save_and_publish(self):
+        """Publica kits y config del worker en Dropbox (no hay copia local de kits)."""
+        self.save()
+
+    def _scroll_tab(self, body):
+        """Pestaña con scroll, sin marco, para no achicar los formularios largos."""
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setWidget(body)
+        tab = QWidget()
+        lay = QVBoxLayout(tab)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(scroll)
+        return tab
 
     def _build_channel_box(self):
         box = QGroupBox("Canal y horarios")
@@ -331,19 +456,10 @@ class LoopKitPanel(QWidget):
         row.addWidget(self.btn_prompt)
         row.addStretch(1)
         form.addRow("", row)
-        self.monthly_cap = QDoubleSpinBox()
-        self.monthly_cap.setRange(0, kit_settings.MAX_MONTHLY_CAP)
-        self.monthly_cap.setDecimals(2)
-        self.monthly_cap.setPrefix("USD ")
-        form.addRow("Tope mensual estimado:", self.monthly_cap)
-        self.max_images = QSpinBox()
-        self.max_images.setRange(0, kit_settings.MAX_IMAGES_PER_RUN)
-        form.addRow("Máximo de imágenes por corrida:", self.max_images)
         hint = QLabel("Plantilla + fondo usa, en la carpeta de referencias de cada género, "
                       "modelo.png y la subcarpeta fondos/. {titulo} en el prompt se reemplaza por el "
-                      "título del video (si falta, se agrega al final). Al llegar a un tope no se "
-                      "generan más portadas: esos videos salen con la imagen manual y llega un "
-                      "aviso por Telegram. El gasto es una estimación, no la factura.")
+                      "título del video (si falta, se agrega al final). Los topes de gasto están "
+                      "en Avanzado.")
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #888;")
         form.addRow(hint)
@@ -352,17 +468,23 @@ class LoopKitPanel(QWidget):
     def restore_prompt(self):
         self.art_prompt.setPlainText(kit_settings.default_prompt())
 
-    def _build_telegram_box(self):
-        box = QGroupBox("Telegram")
-        lay = QVBoxLayout(box)
-        self.telegram = QLabel("")
-        lay.addWidget(self.telegram)
-        note = QLabel("Token y chat se cargan como secretos de GitHub o variables de entorno; "
-                      "no se muestran ni se guardan acá.")
-        note.setWordWrap(True)
-        note.setStyleSheet("color: #888;")
-        lay.addWidget(note)
-        self.refresh_telegram()
+    def _build_spend_box(self):
+        box = QGroupBox("Topes de gasto e IA")
+        form = QFormLayout(box)
+        self.monthly_cap = QDoubleSpinBox()
+        self.monthly_cap.setRange(0, kit_settings.MAX_MONTHLY_CAP)
+        self.monthly_cap.setDecimals(2)
+        self.monthly_cap.setPrefix("USD ")
+        form.addRow("Tope mensual estimado:", self.monthly_cap)
+        self.max_images = QSpinBox()
+        self.max_images.setRange(0, kit_settings.MAX_IMAGES_PER_RUN)
+        form.addRow("Máximo de imágenes por corrida:", self.max_images)
+        hint = QLabel("Al llegar a un tope no se generan más portadas: esos videos salen con la "
+                      "imagen manual y llega un aviso por Telegram. El gasto es una estimación, "
+                      "no la factura. Las claves LLM/imagen se cargan en Conexiones.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #888;")
+        form.addRow(hint)
         return box
 
     # --- Tabla de kits ---
@@ -472,6 +594,7 @@ class LoopKitPanel(QWidget):
         self.ignore_names.setText(', '.join(form.get('ignore_names') or []))
         self.scan_depth.setValue(int(form.get('scan_max_depth') or kit_source.DEFAULT_MAX_DEPTH))
         self._refresh_seo_genres()
+        self.refresh_connections()
 
     def set_kits(self, kits):
         self.table.setRowCount(0)
@@ -483,11 +606,6 @@ class LoopKitPanel(QWidget):
             self.refs_root.text().strip(), kit_settings.parse_genres(self.genres.toPlainText()))
         self.ref_folders.setText('\n'.join(folders) if folders else '(sin carpeta de referencias)')
 
-    def refresh_telegram(self):
-        ok = kit_settings.telegram_configured()
-        self.telegram.setText("Configurado en esta PC." if ok else
-                              "No configurado en esta PC (el worker usa los secretos de GitHub).")
-
     def serialize(self):
         """Valida todo y devuelve ``(catalogo, ajustes)``; SettingsError si algo está mal."""
         settings = kit_settings.validate_settings(self.form_values())
@@ -498,9 +616,15 @@ class LoopKitPanel(QWidget):
     # --- Dropbox (en hilo aparte) ---
 
     def _busy(self, on):
-        for btn in (self.btn_reload, self.btn_save, self.btn_state, self.btn_new,
-                    self.automation, self.btn_categories, self.btn_detect):
+        widgets = [self.btn_reload, self.btn_save, self.btn_state, self.btn_dry, self.btn_new,
+                   self.automation, self.btn_categories, self.btn_detect, self.save_publish_button,
+                   self.sync_button, self.connect_youtube_button, self.dbx_start_button,
+                   self.dbx_finish_button, self.save_telegram_button, self.test_telegram_button,
+                   self.save_kit_notion_button, self.save_keys_button]
+        for btn in widgets:
             btn.setEnabled(not on)
+        if not on:
+            self.refresh_connections()
 
     # --- Canal elegido ---
 
@@ -517,6 +641,7 @@ class LoopKitPanel(QWidget):
             self.automation.addItem(row['name'], row['slug'])
         self.automation.setCurrentIndex(max(0, self.automation.findData(current)))
         self.automation.blockSignals(False)
+        self.refresh_channel_chips()
 
     def _local_config(self):
         try:
@@ -580,6 +705,7 @@ class LoopKitPanel(QWidget):
         self._busy(False)
         if error:
             self._say(error, error=True)
+            self.wizard_notify(False, error)
         elif on_done:
             on_done(result)
 
@@ -612,11 +738,15 @@ class LoopKitPanel(QWidget):
         self._set_automations(data['registry'])
         if not data['own']:
             self._base_config = data['config']
+        kit = (data.get('config') or {}).get('kit_preview') if isinstance(data.get('config'), dict) else None
+        # La misma edad que usa el worker (default 10 si la config no la trae o es inválida).
+        self._trends_max_age = kit_trends.settings(kit if isinstance(kit, dict) else {})['max_age_days']
         self.set_form({**kit_settings.form_from_config(data['config']),
                        'categories': data['categories']})
         # Un canal con automatización propia no puede apuntar a otro canal.
         self.channel.setEnabled(not data['own'])
         self.set_kits(data['kits'])
+        self.seo_report_box.refresh()
         self._say(note or "Configuración cargada." if data['config'] is not None else
                   "No hay config del worker en Dropbox: se pueden editar los kits, pero no "
                   "los ajustes hasta subirla (docs/KIT_WEEKLY.md).",
@@ -627,11 +757,13 @@ class LoopKitPanel(QWidget):
             catalog, settings = self.serialize()
         except kit_settings.SettingsError as exc:
             self._say(str(exc), error=True)
-            return
+            self.wizard_notify(False, str(exc))
+            return False
         # Las filas vacías ya no están en el catálogo: se reflejan en la tabla.
         self.set_kits(catalog)
         rev = self._kits_rev
         paths = self.paths()
+        slug_key = self.automation.currentData() or ''  # misma clave que wizard_target
         paths = None if paths.is_default else paths
         notes = kit_settings.seo_notes(settings.get('seo'))
 
@@ -654,8 +786,12 @@ class LoopKitPanel(QWidget):
             problems, self._kits_rev = result
             self._say(" ".join(["Guardado en Dropbox."] + notes) if not problems else
                       "No se guardó todo — " + " ".join(problems), error=bool(problems))
+            if not problems:
+                self.pilot_flag_set(slug_key, 'config')  # flag del asistente de alta
+            self.wizard_notify(not problems, '' if not problems else ' '.join(problems))
 
         self._run(work, done, "Guardando en Dropbox…")
+        return True
 
     # --- Carpeta de kits ---
 
@@ -703,6 +839,10 @@ class LoopKitPanel(QWidget):
 
     def shutdown(self):
         """Espera la tarea en curso y corta el dry-run antes de destruir el panel."""
+        if self.conn_process is not None:
+            self.conn_process.kill()
+            self.conn_process.waitForFinished(3000)
+            self.conn_process = None
         if self._proc is not None:
             self._proc.kill()
             self._proc.waitForFinished(3000)
@@ -723,6 +863,7 @@ class LoopKitPanel(QWidget):
         proc.finished.connect(lambda code, _status: self._dry_run_done(code))
         proc.errorOccurred.connect(lambda _e: self._dry_run_done(-1))
         self._proc = proc
+        self._dry_key = self.automation.currentData() or ''
         self.btn_dry.setEnabled(False)
         self.output.setPlainText("")
         self._say("Corriendo dry-run (no renderiza ni sube)…")
@@ -738,6 +879,8 @@ class LoopKitPanel(QWidget):
         self.output.setPlainText('\n'.join(text.splitlines()[-40:]))
         self.btn_dry.setEnabled(True)
         proc.deleteLater()
+        if code == 0:
+            self.pilot_flag_set(self._dry_key, 'dryrun')
         self._say("Dry-run terminado." if code == 0 else
                   "El dry-run falló; revisá el detalle de abajo.", error=code != 0)
 
@@ -745,7 +888,7 @@ class LoopKitPanel(QWidget):
 def open_loop_kit_panel(parent=None):
     """Abre el panel en un diálogo y carga lo guardado en Dropbox."""
     dialog = QDialog(parent)
-    dialog.setWindowTitle("Loop kits: configuración de la automatización")
+    dialog.setWindowTitle('Configuración de automatización')
     dialog.resize(820, 760)
     lay = QVBoxLayout(dialog)
     panel = LoopKitPanel(dialog)

@@ -4,6 +4,17 @@ En la sección **Beats**, el botón **Automatizaciones de Beats** abre un diálo
 independiente. Solo muestra canales pertenecientes a Beats, incluyendo los canales
 históricos sin sección explícita. Loopkits y marca personal conservan sus paneles.
 
+El panel usa cuatro pestañas (misma lógica y handlers que antes; solo cambia el layout):
+
+| Pestaña | Contenido |
+| --- | --- |
+| **Conexiones** | Placeholder para el hub de APIs (fase siguiente). |
+| **Canal** | Perfil BeatStars, lista de automatizaciones, canal activo/pausado, prioridad, géneros, carpeta e imágenes locales, opciones visuales y horarios semanales. |
+| **SEO y tendencias** | Tags de selección y tags SEO por canal. |
+| **Avanzado** | Guardado local, consulta de estado y configuración en Dropbox, simulación de 14 días, resumen de análisis y tabla de jobs planificados. |
+
+La barra de estado bajo las pestañas resume la operación en curso o errores de lectura.
+
 Configuración local en `config/app_config.json`, clave `beat_automation`:
 
 - Perfil público HTTPS de BeatStars para el catálogo compartido.
@@ -17,7 +28,9 @@ Agregar canal crea una automatización pausada con lunes a las 18:00. El formula
 conserva los cambios al cambiar de canal; guardar valida todos los canales y
 horarios. La carpeta puede quedar vacía, pero si se indica debe existir. El guardado
 relee la configuración y reemplaza únicamente `beat_automation`, mediante archivo
-temporal y reemplazo atómico. **Guardar configuración local** no escribe en Dropbox.
+temporal y reemplazo atómico. **Guardar solo local** (Avanzado) no escribe en Dropbox.
+La barra inferior muestra el checklist de preparación (`readiness_beats` + informe SEO)
+y si el canal está listo para piloto.
 
 **Analizar perfil** usa el extractor público de Fase 1 en un `QThread`: muestra
 progreso por página y un resumen de tracks, duraciones disponibles y tags frecuentes.
@@ -35,7 +48,7 @@ toma locks ni reserva intentos. Si falla, conserva la última instantánea dispo
 la cancelación interrumpe las esperas de reintento y descarta el resultado de una
 operación en curso. Si el documento no existe, lo informa sin crearlo.
 
-**Simular 14 días** usa `beat_schedule.plan`, sobre el borrador del formulario y el
+**Probar sin subir** (simulación de 14 días) usa `beat_schedule.plan`, sobre el borrador del formulario y el
 perfil analizado. Por defecto muestra explícitamente un escenario con estado vacío.
 La casilla para usar estado remoto exige haberlo consultado; usa esa instantánea,
 no un estado en tiempo real. Muestra slots, canal, track ID y ciclo, junto al
@@ -115,7 +128,12 @@ habilita su creación por CAS. Una lectura fallida o cancelada no habilita publi
 La configuración remota debe ser válida para los canales locales; las rutas
 locales configuradas deben existir en este equipo.
 
-**Guardar configuración en Dropbox** exige esa lectura previa y hace un único
+**Publicar al robot** (barra inferior) guarda primero la configuración local y
+después publica en Dropbox con el mismo CAS que **Publicar solo en Dropbox** en Avanzado.
+Si aún no se recargó la revisión remota, la lectura ocurre automáticamente entre ambos pasos
+y solo toma la revisión: no reemplaza el borrador del formulario.
+
+**Publicar solo en Dropbox** exige esa lectura previa y hace un único
 CAS sobre `/type-beats/config.json`: creación estricta si estaba ausente o update
 con la revisión consultada. No cambia `config/app_config.json`. Un conflicto
 conserva el borrador y exige recargar antes de volver a publicar; nunca hay
@@ -146,3 +164,19 @@ No se modificaron workflows, `main.py`, Loopkits ni Marca Personal.
 Pruebas offline específicas: `test_beat_panel_cloud.py` cubre credenciales locales,
 fallback, errores sanitizados, navegación paginada y limitada, carpetas/archivos,
 cancelación y cierre, CAS y preservación byte a byte del estado existente o ausente.
+
+
+## Pestaña Conexiones (Automation Hub, Fase 2)
+
+Muestra por canal de Beats semáforos de YouTube (`tokens/<canal>.json`), Dropbox worker
+(`tokens/dropbox_worker.json`), Notion Beats y GitHub CLI, más un checklist de preparación.
+La lógica está en `core/automation_status.py` (sin Qt, solo códigos `ok/missing/invalid/unknown`);
+los widgets, en `core/beat_connections_form.py`.
+
+- **Conectar YouTube**: reusa `ConnectChannelWorker` (OAuth en el navegador).
+- **Guardar Notion**: token y page ID van a `tokens/beat_secrets.json` (no versionado); los campos
+  se limpian al guardar y nunca se vuelven a mostrar.
+- **Sincronizar secretos del canal**: `QProcess` a `scripts/beat_secrets_sync.py --channel --slug`
+  (lista de argumentos, sin shell, sin stdin). El log se sanitiza y recorta.
+- El canal necesita `actions_slug` en la configuración para poder sincronizar.
+- TODO (manual): instalar GitHub CLI y correr `gh auth login` antes de sincronizar.

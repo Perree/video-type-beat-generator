@@ -70,11 +70,13 @@ class BeatRemoteForm:
     def save_cloud_config(self):
         if not self.cloud_loaded:
             self.status.setText('Recargá la configuración de Dropbox antes de publicar.')
+            self.wizard_notify(False, 'Recargá la configuración de Dropbox antes de publicar.')
             return
         try:
             config, rev = self.draft(), self.cloud_rev
         except Exception:
             self.status.setText('Revisá la configuración antes de publicar.')
+            self.wizard_notify(False, 'Revisá la configuración antes de publicar.')
             return
 
         def write(event, progress):
@@ -89,4 +91,8 @@ class BeatRemoteForm:
 
     def _cloud_config_saved(self, rev):
         self.cloud_rev, self.cloud_loaded = rev, True
+        # Flag del asistente de alta: la config (de todos los canales) ya está en Dropbox.
+        for ch in self.config.get('channels', []):
+            self.pilot_flag_set(ch['id'], 'config')
         self.status.setText('Configuración guardada en /type-beats/config.json. Estado remoto sin cambios.')
+        self.wizard_notify(True)

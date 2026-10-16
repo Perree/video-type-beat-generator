@@ -39,6 +39,11 @@ SHARED = (
     ('KIT_NOTION_PAGE_ID', 'Id de la página de Notion del informe de tendencias'),
 )
 _DROPBOX_FIELDS = {'KIT_DROPBOX_REFRESH_TOKEN': 'refresh_token', 'KIT_DROPBOX_APP_KEY': 'app_key'}
+# Con --no-prompt no se puede completar por stdin: sin estos nombres el Environment queda roto.
+_REQUIRED_NO_PROMPT = (
+    'KIT_DROPBOX_REFRESH_TOKEN', 'KIT_DROPBOX_APP_KEY',
+    'KIT_TELEGRAM_TOKEN', 'KIT_TELEGRAM_CHAT_ID',
+)
 
 
 class SyncError(Exception):
@@ -126,24 +131,37 @@ def main(argv=None, runner=_gh):
     parser.add_argument('--shared-file', help='JSON con secretos compartidos (fuera de git).')
     parser.add_argument('--repo', help='owner/repo (por defecto, el de esta carpeta).')
     parser.add_argument('--branch', default='master', help='Rama que puede usar el Environment.')
+    parser.add_argument('--no-prompt', action='store_true',
+                        help='No pedir secretos por stdin (para la UI; Enter equivale a omitir).')
     args = parser.parse_args(argv)
+    ask_shared = (lambda _label: '') if args.no_prompt else getpass.getpass
+    ask_path = (lambda _label: '') if args.no_prompt else input
 
     try:
-        channel = (args.channel or input("Nombre del canal: ")).strip()
+        channel = (args.channel or ('' if args.no_prompt else input("Nombre del canal: "))).strip()
         if not channel:
             raise SyncError("Falta el nombre del canal.")
         own = kit_channel.environment(kit_channel.slug(channel))
         if args.env not in (kit_channel.ENV_PREFIX, own):
             raise SyncError("Ese Environment no es el de este canal: usá kit-weekly (canal por "
                             "defecto) o kit-weekly-<slug del canal>.")
-        values = shared_values(args.shared_file)
+        values = shared_values(args.shared_file, ask=ask_shared)
         values['KIT_YT_CHANNEL'] = channel
-        values['KIT_YT_TOKEN_JSON'] = youtube_token(channel, args.yt_token_file)
+        values['KIT_YT_TOKEN_JSON'] = youtube_token(channel, args.yt_token_file, ask=ask_path)
+        if args.no_prompt:
+            missing = [name for name in _REQUIRED_NO_PROMPT if not values.get(name)]
+            if missing:
+                raise SyncError('Faltan secretos obligatorios: ' + ', '.join(missing)
+                                + '. Completá Conexiones o tokens/ y repetí.')
         if ensure_environment(args.env, args.repo, args.branch, runner):
             print("Environment creado y restringido a la rama.")
         failed = sync(args.env, values, args.repo, runner)
     except (SyncError, kit_channel.KitChannelError) as exc:
         print(exc)
+        return 1
+    except EOFError:
+        # Sin stdin (p. ej. lanzado desde la UI) no se puede pedir un secreto por prompt.
+        print('Falta un secreto o el token de YouTube: cargalo en la app y repetí.')
         return 1
     if failed:
         print(f"{len(failed)} secreto(s) no se cargaron.")

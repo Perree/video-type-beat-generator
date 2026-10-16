@@ -213,6 +213,55 @@ class RemotePanelTests(unittest.TestCase):
         self.assertEqual(config['dropbox_images'], {'trap': '/Art/new'})
         self.assertNotIn(SECRET, self.path.read_text(encoding='utf-8'))
 
+    def test_save_and_publish_keeps_local_draft_when_remote_exists(self):
+        self.configure()
+        memory = MemoryDropbox()
+        self.panel.cloud_provider = lambda: memory
+        stale = self.panel.draft()
+        stale['channels'][0]['tags'] = ['stale-remote']
+        BeatCloud(memory).write('config', stale, None)
+        self.panel.tags.setText('local-draft')
+        self.panel.save_and_publish()
+        for _ in range(5):
+            pump(lambda: self.panel.task is None)
+            if '/type-beats/config.json' in memory.files:
+                remote = json.loads(memory.files['/type-beats/config.json'][0].decode())
+                if remote['channels'][0]['tags'] == ['local-draft']:
+                    break
+        self.assertEqual(self.panel.tags.text(), 'local-draft')
+        remote = json.loads(memory.files['/type-beats/config.json'][0].decode())
+        self.assertEqual(remote['channels'][0]['tags'], ['local-draft'])
+        saved = json.loads(self.path.read_text(encoding='utf-8'))['beat_automation']
+        self.assertEqual(saved['channels'][0]['tags'], ['local-draft'])
+
+    def test_save_and_publish_chains_local_cas_and_conflict(self):
+        self.configure()
+        memory = MemoryDropbox()
+        self.panel.cloud_provider = lambda: memory
+        local_before = self.path.read_bytes()
+        self.panel.tags.setText('published-tag')
+        self.panel.save_and_publish()
+        for _ in range(5):
+            pump(lambda: self.panel.task is None)
+            if self.panel.cloud_loaded:
+                break
+        self.assertTrue(self.panel.cloud_loaded)
+        self.assertNotEqual(self.path.read_bytes(), local_before)
+        remote = json.loads(memory.files['/type-beats/config.json'][0].decode())
+        self.assertEqual(remote['channels'][0]['tags'], ['published-tag'])
+        BeatCloud(memory).write('config', self.panel.draft(), self.panel.cloud_rev)
+        self.panel.tags.setText('keep-draft')
+        self.panel.save_and_publish()
+        for _ in range(5):
+            pump(lambda: self.panel.task is None)
+            if 'Conflicto' in self.panel.status.text():
+                break
+        self.assertIn('Conflicto', self.panel.status.text())
+        self.assertFalse(self.panel.cloud_loaded)
+        self.assertEqual(self.panel.tags.text(), 'keep-draft')
+        self.assertEqual(json.loads(memory.files['/type-beats/config.json'][0].decode())['channels'][0]['tags'],
+                         ['published-tag'])
+
     def test_panel_cas_requires_reload_and_preserves_local_and_state(self):
         self.configure()
         memory = MemoryDropbox()

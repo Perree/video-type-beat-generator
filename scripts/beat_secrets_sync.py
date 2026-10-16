@@ -22,6 +22,7 @@ if ROOT not in sys.path:
 
 from scripts import kit_secrets_sync as kit
 
+from core import automation_status
 from core.beat_actions import environment, matrix, secret_names
 
 
@@ -29,6 +30,11 @@ def values_for(channel, yt_token_file=None, *, slug):
     names = secret_names(slug)
     return {names['channel_secret']: channel,
             names['youtube_secret']: kit.youtube_token(channel, yt_token_file)}
+
+
+def notion_values(path=None):
+    """Secretos BEAT_NOTION_* de tokens/beat_secrets.json si son válidos (opcionales)."""
+    return automation_status.read_beat_notion(path)
 
 
 def add_channel_variable(slug, repo=None, runner=kit._gh):
@@ -76,6 +82,7 @@ def main(argv=None, runner=kit._gh):
     env_name = environment(args.slug)
     try:
         values = values_for(args.channel.strip(), args.yt_token_file, slug=args.slug)
+        values.update(notion_values())
         if kit.ensure_environment(env_name, args.repo, args.branch, runner):
             print("Environment creado y restringido a la rama.")
         failed = kit.sync(env_name, values, args.repo, runner)
@@ -85,6 +92,10 @@ def main(argv=None, runner=kit._gh):
         slugs = add_channel_variable(args.slug, args.repo, runner)
     except kit.SyncError as exc:
         print(exc)
+        return 1
+    except EOFError:
+        # Sin stdin (p. ej. lanzado desde la UI) no se puede pedir una ruta por prompt.
+        print('Falta el token de YouTube del canal: conectalo en la app.')
         return 1
     print(f"Listo: {len(values)} secreto(s) en {env_name}; BEAT_CHANNELS={slugs}.")
     return 0

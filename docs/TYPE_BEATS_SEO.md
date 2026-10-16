@@ -125,3 +125,5 @@ snapshots compactos con replay compatible, y renovación de caché llena sin
 bloquear trabajos. Casos de regresión y CLI `--seo-only`/`--dry-run` offline.
 Validación: 129 tests aprobados y 2 omitidos. Cierre autorizado por el usuario
 el 2026-10-12; no se hizo commit por instrucción explícita.
+
+Ver también [CLAUDE_SEO_REPORT.md](CLAUDE_SEO_REPORT.md): estado, import local y schema desde el panel.
