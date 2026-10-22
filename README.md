@@ -16,7 +16,6 @@ Desktop app (PyQt5 + FFmpeg) that turns beats and loop kits into YouTube videos:
 - **Subida a YouTube.** Multicuenta, con descripción por plantilla, miniatura y registro de cada subida.
 - **Dropbox.** Importa audios directamente desde carpetas de Dropbox.
 - **Loop kits.** Una sección aparte para packs de loops, con previews automáticos ([ver docs/KIT_PREVIEW.md](docs/KIT_PREVIEW.md)).
-- **Shorts / clips verticales 9:16.** Recorte vertical con subtítulos (en desarrollo).
 
 ## Requisitos
 

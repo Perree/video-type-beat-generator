@@ -1,5 +1,4 @@
-"""Phase 3 offline integration: settings isolation, planner and Qt task lifetime."""
-import ast
+"""Phase 3 offline integration over an in-memory Dropbox: no app_config.json is read or written."""
 import json
 import os
 from pathlib import Path
@@ -12,7 +11,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt5.QtCore import QTimer
 from PyQt5.QtWidgets import QApplication
 
-from core import beat_settings
+from core import beat_settings, cloud_registry
 from core.beat_panel import BeatDialog, BeatPanel
 from core.beat_schema import migrate
 from core.beat_schedule import plan
@@ -51,18 +50,50 @@ class Transport:
         return self.pages["pages"][variables["page"]]
 
 
+CONFIG_PATH = "/type-beats/config.json"
+
+
+def registry_doc():
+    rows = [dict(slug=slug, tipo=tipo, clave=clave, nombre=clave, activo=True)
+            for slug, tipo, clave in (("beat-a", "beats", "beat-a"), ("beat-b", "beats", "beat-b"),
+                                      ("kits", "loops", "kits"))]
+    return cloud_registry.normalize("canales", dict(cloud_registry.empty("canales"), canales=rows))
+
+
+def seed(memory, config=None):
+    memory.files[cloud_registry.PATHS["canales"]] = (cloud_registry.payload(registry_doc()), "rev-reg-1")
+    if config is not None:
+        memory.files[CONFIG_PATH] = (json.dumps(config).encode(), "rev-cfg-1")
+    return memory
+
+
+def open_panel(memory, **kwargs):
+    panel = BeatPanel(cloud_provider=lambda: memory, **kwargs)
+    pump(lambda: panel.task is None)
+    return panel
+
+
 class PanelTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.path = Path(self.tmp.name) / "app.json"
-        self.app = {"channels": {"beat-a": {}, "beat-b": {"section": "beats"},
-                                 "kits": {"section": "loop_kits"},
-                                 "personal": {"section": "personal"}},
-                    "kit_preview": {"sentinel": [1, 2]}, "personal": {"sentinel": 3}}
-        self.path.write_text(json.dumps(self.app), encoding="utf-8")
-        self.panel = BeatPanel(config_path=self.path)
+        self.memory = seed(MemoryDropbox())
+        self.panel = open_panel(self.memory)
         self.addCleanup(self.cleanup_panel)
+
+    def remote(self):
+        return json.loads(self.memory.files[CONFIG_PATH][0].decode())
+
+    def remote_bytes(self):
+        return self.memory.files.get(CONFIG_PATH)
+
+    def publish(self, panel=None):
+        panel = panel or self.panel
+        panel.save_and_publish()
+        pump(lambda: panel.task is None)
+
+    def reopen(self):
+        panel = open_panel(self.memory)
+        self.addCleanup(panel.deleteLater)
+        return panel
 
     def cleanup_panel(self):
         if self.panel.task:
@@ -87,14 +118,12 @@ class PanelTests(unittest.TestCase):
         )
         self.assertEqual(self.panel.save_publish_button.text(), 'Publicar al robot')
         self.assertEqual(self.panel.simulate_button.text(), 'Probar sin subir')
-        self.assertEqual(self.panel.cloud_save_button.text(), 'Publicar solo en Dropbox')
         self.assertEqual(self.panel.cloud_reload_button.text(), 'Recargar desde Dropbox')
+        self.assertFalse(hasattr(self.panel, 'save_button'))
+        self.assertFalse(hasattr(self.panel, 'config_path'))
         self.configure()
-        self.panel.save()
-        self.assertEqual(
-            beat_settings.read_app(self.path)["beat_automation"]["channels"][0]["tags"],
-            ["trap", "dark"],
-        )
+        self.publish()
+        self.assertEqual(self.remote()["channels"][0]["tags"], ["trap", "dark"])
         self.panel.transport = Transport()
         username = self.panel.transport.pages["profile"]["profileByUsername"]["username"]
         self.panel.profile.setText("https://www.beatstars.com/" + username)
@@ -104,17 +133,59 @@ class PanelTests(unittest.TestCase):
         pump(lambda: self.panel.task is None)
         self.assertGreater(self.panel.job_model.rowCount(), 0)
 
-    def test_save_preserves_other_sections_and_channel_edits(self):
+    def test_combo_lists_only_beats_channels_of_the_registry(self):
+        names = [self.panel.channel.itemText(i) for i in range(self.panel.channel.count())]
+        self.assertEqual(names, ["beat-a", "beat-b"])
+
+    def test_publish_touches_only_dropbox_documents(self):
         self.configure()
-        latest = dict(self.app, last_section="personal")
-        self.path.write_text(json.dumps(latest), encoding="utf-8")
-        self.panel.save()
-        saved = beat_settings.read_app(self.path)
-        self.assertEqual({k: v for k, v in saved.items() if k != "beat_automation"}, latest)
-        self.assertEqual(saved["beat_automation"]["channels"][0]["tags"], ["trap", "dark"])
-        reopened = BeatPanel(config_path=self.path)
-        self.assertEqual(reopened.tags.text(), "trap, dark")
-        reopened.deleteLater()
+        cwd_files = set(os.listdir("."))
+        self.publish()
+        self.assertEqual(set(self.memory.files),
+                         {CONFIG_PATH, cloud_registry.PATHS["canales"]})
+        self.assertEqual(self.memory.files[cloud_registry.PATHS["canales"]][1], "rev-reg-1")
+        self.assertEqual(set(os.listdir(".")), cwd_files)
+        self.assertEqual(self.reopen().tags.text(), "trap, dark")
+
+    def test_templates_are_edited_in_seo_tab_and_saved_to_registry(self):
+        self.configure()
+        self.panel.use_templates.setChecked(True)
+        self.panel.title_template.setText('[X] {name} | Free')
+        self.panel.description_template.setPlainText('{name}\n{beatstars_url}\n{socials}')
+        self.panel.socials.setText('IG @x')
+        self.publish()
+        registry = json.loads(self.memory.files[cloud_registry.PATHS["canales"]][0])
+        row = next(r for r in registry["canales"] if r["clave"] == "beat-a")
+        self.assertEqual(row["plantillas"]["title_template"], '[X] {name} | Free')
+        seo = self.remote()["channels"][0]["seo"]
+        self.assertEqual(seo["title_template"], '[X] {name} | Free')
+        self.assertEqual(seo["description"], '{name}\n{url}\nIG @x')
+        reopened = self.reopen()
+        self.assertTrue(reopened.use_templates.isChecked())
+        self.assertEqual(reopened.socials.text(), 'IG @x')
+
+    def test_new_channel_goes_to_registry_as_beats(self):
+        self.configure()
+        self.panel.add_channel()
+        self.panel.ask_new_channel_name = lambda: "Canal Nuevo"
+        self.panel.add_channel()
+        self.assertEqual(self.panel.channel.currentText(), "canal-nuevo")
+        self.panel.ask_new_channel_name = lambda: "Beat A"  # slug beat-a ya existe
+        self.panel.add_channel()
+        self.assertEqual(len(self.panel.config["channels"]), 3)
+        self.publish()
+        registry = json.loads(self.memory.files[cloud_registry.PATHS["canales"]][0])
+        row = next(r for r in registry["canales"] if r["slug"] == "canal-nuevo")
+        self.assertEqual((row["tipo"], row["clave"], row["nombre"]), ("beats", "canal-nuevo", "Canal Nuevo"))
+        self.assertEqual([c["id"] for c in self.remote()["channels"]], ["beat-a", "beat-b", "canal-nuevo"])
+
+    def test_save_preserves_other_documents_and_channel_edits(self):
+        self.configure()
+        self.memory.files["/type-beats/state.json"] = (b"opaque", "rev-state")
+        self.publish()
+        self.assertEqual(self.memory.files["/type-beats/state.json"], (b"opaque", "rev-state"))
+        self.assertEqual(self.remote()["channels"][0]["tags"], ["trap", "dark"])
+        self.assertEqual(self.reopen().tags.text(), "trap, dark")
 
     def test_channel_switch_preserves_draft_and_pause(self):
         self.configure()
@@ -136,26 +207,22 @@ class PanelTests(unittest.TestCase):
         self.panel.automations.setCurrentRow(0)
         self.assertEqual(self.panel.selection_tags.text(), 'Ambient, Artist Alpha')
         self.assertEqual(self.panel.tags.text(), 'trap, dark')
-        self.panel.save()
-        saved = beat_settings.read_app(self.path)
-        channels = saved['beat_automation']['channels']
+        self.publish()
+        channels = self.remote()['channels']
         self.assertEqual(channels[0]['selection_tags'], ['Ambient', 'Artist Alpha'])
         self.assertEqual(channels[0]['tags'], ['trap', 'dark'])
         self.assertEqual(channels[1]['selection_tags'], ['Jazz'])
-        self.assertEqual(saved['kit_preview'], self.app['kit_preview'])
-        self.assertEqual(saved['personal'], self.app['personal'])
-        reopened = BeatPanel(config_path=self.path)
-        self.addCleanup(reopened.deleteLater)
+        reopened = self.reopen()
         self.assertEqual(reopened.selection_tags.text(), 'Ambient, Artist Alpha')
         reopened.automations.setCurrentRow(1)
         self.assertEqual(reopened.selection_tags.text(), 'Jazz')
 
     def test_legacy_channel_loads_without_selection_filter(self):
-        self.app['beat_automation'] = {'beatstars_profile_url': 'https://www.beatstars.com/testproducer',
+        seed(self.memory, {'beatstars_profile_url': 'https://www.beatstars.com/testproducer',
             'channels': [{'id': 'beat-a', 'tags': ['trap'],
-                          'slots': [{'weekday': 0, 'hour': 18, 'minute': 0}]}]}
-        self.path.write_text(json.dumps(self.app), encoding='utf-8')
+                          'slots': [{'weekday': 0, 'hour': 18, 'minute': 0}]}]})
         self.panel.reload()
+        pump(lambda: self.panel.task is None)
         self.assertEqual(self.panel.selection_tags.text(), '')
         self.assertEqual(self.panel.tags.text(), 'trap')
         self.assertTrue(plan(self.panel.draft(), {}, [{'id': 'TK1', 'tags': ['other']}],
@@ -175,34 +242,30 @@ class PanelTests(unittest.TestCase):
         self.assertEqual(self.panel.visual_mode.currentData(), 'image')
         self.panel.automations.setCurrentRow(0)
         self.assertEqual(self.panel.visual_mode.currentData(), 'video')
-        self.panel.save()
-        saved = beat_settings.read_app(self.path)
-        self.assertEqual(saved['kit_preview'], self.app['kit_preview'])
-        self.assertEqual(saved['personal'], self.app['personal'])
-        reopened = BeatPanel(config_path=self.path)
-        self.addCleanup(reopened.deleteLater)
+        self.publish()
+        reopened = self.reopen()
         self.assertEqual(reopened.videos_folder.text(), '/type-beats/videos/channel-a')
         self.assertEqual(reopened.thumbnail_path.text(), '/type-beats/thumbnails/channel-a.png')
         self.assertEqual(reopened.clip_min.value(), 1.5)
         self.assertEqual(reopened.clip_max.value(), 4.5)
 
-    def test_invalid_visual_settings_preserve_file(self):
+    def test_invalid_visual_settings_preserve_remote(self):
         self.configure()
-        self.panel.save()
-        before = self.path.read_bytes()
+        self.publish()
+        before = self.remote_bytes()
         self.panel.clip_min.setValue(8)
         self.panel.clip_max.setValue(2)
-        self.panel.save()
-        self.assertEqual(self.path.read_bytes(), before)
+        self.publish()
+        self.assertEqual(self.remote_bytes(), before)
         self.panel.clip_min.setValue(1)
         self.panel.dropbox_images.setPlainText('not a mapping')
-        self.panel.save()
-        self.assertEqual(self.path.read_bytes(), before)
+        self.publish()
+        self.assertEqual(self.remote_bytes(), before)
 
     def test_invalid_visual_drafts_survive_channel_switch(self):
         self.configure()
-        self.panel.save()
-        before = self.path.read_bytes()
+        self.publish()
+        before = self.remote_bytes()
         self.panel.clip_min.setValue(8)
         self.panel.clip_max.setValue(2)
         self.panel.dropbox_images.setPlainText('not a mapping')
@@ -211,24 +274,27 @@ class PanelTests(unittest.TestCase):
         self.assertEqual(self.panel.clip_min.value(), 8)
         self.assertEqual(self.panel.clip_max.value(), 2)
         self.assertEqual(self.panel.dropbox_images.toPlainText(), 'not a mapping')
-        self.panel.save()
-        self.assertEqual(self.path.read_bytes(), before)
+        self.publish()
+        self.assertEqual(self.remote_bytes(), before)
         self.panel.clip_min.setValue(1)
         self.panel.dropbox_images.setPlainText('Trap=/type-beats/images/trap')
-        self.panel.save()
-        self.assertNotEqual(self.path.read_bytes(), before)
+        self.publish()
+        self.assertNotEqual(self.remote_bytes(), before)
 
     def test_validation_rejects_duplicate_slots_and_non_beats(self):
         self.configure()
         self.panel._add_slot()
-        before = self.path.read_bytes()
-        self.panel.save()
-        self.assertEqual(self.path.read_bytes(), before)
+        self.publish()
+        self.assertIsNone(self.remote_bytes())
         self.panel.slots.removeRow(1)
         config = self.panel.draft()
-        config["channels"][0]["id"] = "kits"
-        with self.assertRaises(ValueError):
-            beat_settings.validate(config, self.app)
+        for bad in ("kits", "personal", "no-registrado"):
+            config["channels"][0]["id"] = bad
+            with self.assertRaises(ValueError):
+                beat_settings.validate(config, self.panel.registry)
+        config["channels"][0].update(id="beat-a", actions_slug="otro-slug")
+        with self.assertRaisesRegex(ValueError, "registro"):
+            beat_settings.validate(config, self.panel.registry)
 
     def test_simulation_matches_pure_planner_without_mutation(self):
         self.configure()
@@ -282,7 +348,7 @@ class PanelTests(unittest.TestCase):
 
     def test_close_defers_until_task_exits(self):
         dialog = BeatDialog()
-        panel = BeatPanel(dialog, config_path=self.path)
+        panel = open_panel(self.memory, parent=dialog)
         dialog.panel = panel
         release = Event()
         dialog.show()
@@ -313,29 +379,30 @@ class PanelTests(unittest.TestCase):
     def test_priority_larger_than_qt_integer_preserved(self):
         self.configure()
         self.panel.priority.setText("1000000000000000000000000")
-        self.panel.save()
-        reopened = BeatPanel(config_path=self.path)
+        self.publish()
+        reopened = self.reopen()
         self.assertEqual(reopened.priority.text(), "1000000000000000000000000")
         self.assertEqual(reopened.draft()["channels"][0]["priority"], 10 ** 24)
-        reopened.deleteLater()
 
     def test_loaded_bad_metadata_cannot_be_silently_rewritten(self):
         self.configure()
-        self.panel.save()
-        app = beat_settings.read_app(self.path)
-        app["beat_automation"]["channels"][0]["tags"] = "trap"
-        self.path.write_text(json.dumps(app), encoding="utf-8")
-        reopened = BeatPanel(config_path=self.path)
-        self.assertFalse(reopened.save_button.isEnabled())
+        self.publish()
+        config = self.remote()
+        config["channels"][0]["tags"] = "trap"
+        self.memory.files[CONFIG_PATH] = (json.dumps(config).encode(), "rev-bad")
+        reopened = self.reopen()
         self.assertFalse(reopened.save_publish_button.isEnabled())
         self.assertFalse(reopened.config_readable)
-        reopened.deleteLater()
+        reopened.save_and_publish()
+        self.assertIsNone(reopened.task)
+        self.assertEqual(self.memory.files[CONFIG_PATH][1], "rev-bad")
 
-    def test_config_root_and_ambiguous_json_rejected(self):
-        for content in ('[]', '{"channels": {}, "channels": {}}', '{"x": NaN}'):
-            self.path.write_text(content, encoding="utf-8")
-            with self.assertRaises(ValueError):
-                beat_settings.read_app(self.path)
+    def test_registry_and_config_reject_ambiguous_json(self):
+        for content in (b'[]', b'{"canales": [], "canales": []}', b'{"x": NaN}'):
+            self.memory.files[cloud_registry.PATHS["canales"]] = (content, "rev-x")
+            reopened = self.reopen()
+            self.assertFalse(reopened.config_readable)
+            self.assertFalse(reopened.save_publish_button.isEnabled())
 
     def test_cancel_cloud_retry_after_without_another_request(self):
         entered = Event()
@@ -384,33 +451,14 @@ class PanelTests(unittest.TestCase):
 
     def test_invalid_config_cannot_be_overwritten_after_task(self):
         self.panel.deleteLater()
-        self.path.write_text('{"broken":', encoding="utf-8")
-        self.panel = BeatPanel(config_path=self.path, state_reader=lambda: migrate({}, "state"))
+        self.memory.files[CONFIG_PATH] = (b'{"broken":', "rev-broken")
+        self.panel = open_panel(self.memory, state_reader=lambda: migrate({}, "state"))
         self.panel.read_state()
         pump(lambda: self.panel.task is None)
-        self.assertFalse(self.panel.save_button.isEnabled())
+        self.assertFalse(self.panel.save_publish_button.isEnabled())
         self.assertFalse(self.panel.add_button.isEnabled())
-        self.panel.save()
-        self.assertEqual(self.path.read_text(encoding="utf-8"), '{"broken":')
-
-    def test_main_wiring_button_visible_only_in_beats(self):
-        # Exercise the actual wiring method without launching watchers or loading
-        # personal configuration through MainWindow.__init__.
-        tree = ast.parse(Path("main.py").read_text(encoding="utf-8"))
-        cls = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "MainWindow")
-        method = next(node for node in cls.body if isinstance(node, ast.FunctionDef) and node.name == "_apply_workflow_ui")
-        namespace = {"SECTION_BEATS": "beats", "SECTION_LOOP_KITS": "loop_kits", "DEFAULT_SECTION": "beats"}
-        exec(compile(ast.Module(body=[method], type_ignores=[]), "main.py", "exec"), namespace)
-        from types import SimpleNamespace
-        from PyQt5.QtWidgets import QPushButton, QLabel
-        fake = SimpleNamespace(btn_beat_config=QPushButton(), btn_kit_config=QPushButton(),
-                               beats_title=QLabel(), beats_label=QLabel(), assigned_label=QLabel(),
-                               btn_load_beats=QPushButton())
-        for section in ("beats", "loop_kits", "personal"):
-            fake.current_section = section
-            namespace["_apply_workflow_ui"](fake)
-            self.assertEqual(not fake.btn_beat_config.isHidden(), section == "beats")
-            self.assertEqual(not fake.btn_kit_config.isHidden(), section == "loop_kits")
+        self.panel.save_and_publish()
+        self.assertEqual(self.memory.files[CONFIG_PATH], (b'{"broken":', "rev-broken"))
 
     def test_publish_checklist_follows_live_channel_combo(self):
         self.configure()

@@ -2,41 +2,43 @@
 
 Never initializes cloud documents. Workers keep using DropboxTransport.from_env.
 """
-from pathlib import Path
 import time
 
-from core.beat_cloud import BeatCloud, CloudError, Conflict, DropboxTransport, decode_document
+from core.beat_cloud import BeatCloud, CloudError, Conflict, DropboxTransport
 from core.beat_download import dropbox_path
 from core.beat_tasks import checkpoint, Cancelled
 
-TOKEN_FILE = Path(__file__).resolve().parents[1] / 'tokens/dropbox_worker.json'
+def _valid(value, limit):
+    return (isinstance(value, str) and 1 <= len(value) <= limit
+            and not any(c.isspace() or ord(c) < 32 for c in value))
 
 
-def local_transport(token_path=None):
-    path = Path(token_path) if token_path is not None else TOKEN_FILE
+def local_transport(credentials=None):
+    """Transporte de Dropbox del escritorio: llavero de Windows; si no, ``BEAT_DROPBOX_*``.
+
+    Nunca lee ``tokens/``. ``credentials`` (``{app_key, refresh_token}``) solo para tests.
+    """
     try:
-        if not path.exists():
+        if credentials is None:
+            from core import cloud_login
+            try:
+                credentials = cloud_login.dropbox_credentials()
+            except cloud_login.LoginError:
+                credentials = None  # sin llavero: queda el entorno
+        if credentials is None:
             return DropboxTransport.from_env()
-        with path.open('rb') as stream:
-            raw = stream.read(16385)
-        if len(raw) > 16384:
+        if not isinstance(credentials, dict) or not all(
+                _valid(credentials.get(k), 4096) for k in ('app_key', 'refresh_token')):
             raise ValueError()
-        data = decode_document(raw)
-        if not isinstance(data, dict):
-            raise ValueError()
-        for field in ('app_key', 'refresh_token'):
-            value = data.get(field)
-            if (not isinstance(value, str) or not 1 <= len(value) <= 4096
-                    or any(c.isspace() or ord(c) < 32 for c in value)):
-                raise ValueError()
         import dropbox
         from core.beat_dropbox_http import DropboxSession
         return DropboxTransport(dropbox.Dropbox(
-            app_key=data['app_key'], oauth2_refresh_token=data['refresh_token'],
+            app_key=credentials['app_key'], oauth2_refresh_token=credentials['refresh_token'],
             session=DropboxSession(), timeout=30, max_retries_on_error=0,
             max_retries_on_rate_limit=0))
     except Exception:
-        raise CloudError('No se pudo conectar Dropbox. Revisá la autorización local o BEAT_DROPBOX_*.') from None
+        raise CloudError('No se pudo conectar Dropbox. Conectalo en Conexiones '
+                         '(o definí BEAT_DROPBOX_*).') from None
 
 
 class PanelCloud:
@@ -105,3 +107,42 @@ class PanelCloud:
             raise
         except Exception:
             raise CloudError('No se confirmó el guardado en Dropbox. Recargá antes de reintentar.') from None
+
+    def read_all(self, event):
+        """Config de Beats + registro de canales + ajustes, todo de Dropbox (sin escribir)."""
+        from core.cloud_registry import CloudRegistry, RegistryError
+        try:
+            checkpoint(event)
+            registry = CloudRegistry(self.transport)
+            canales, canales_rev = registry.read('canales')
+            checkpoint(event)
+            ajustes, ajustes_rev = registry.read('ajustes')
+            checkpoint(event)
+            config, rev = BeatCloud(self.transport, retries=1).read('config')
+            checkpoint(event)
+            return dict(config=config, rev=rev, registry=canales, registry_rev=canales_rev,
+                        ajustes=ajustes, ajustes_rev=ajustes_rev)
+        except Cancelled:
+            raise
+        except RegistryError as exc:
+            raise CloudError(f'Registro de canales inválido en Dropbox: {exc}') from None
+        except Exception:
+            raise CloudError('No se pudo cargar la configuración de Dropbox.') from None
+
+    def save_registry(self, mine, base, rev, event):
+        """``canales.json`` por CAS con merge por campo ante un conflicto de rev."""
+        from core.cloud_registry import CloudRegistry
+        checkpoint(event)
+        return CloudRegistry(self.transport).save('canales', mine, base, rev)
+
+    def save_config_merged(self, config, base, rev, registry, event):
+        """``/type-beats/config.json`` por CAS; ante Conflict relee y fusiona con ``base``."""
+        from core import beat_settings, cloud_merge
+        cloud = BeatCloud(self.transport, retries=1)
+        checkpoint(event)
+        return cloud_merge.save_merged(
+            lambda: cloud.read('config'),
+            lambda doc, current: cloud.write('config', doc, current,
+                                             before_write=lambda: checkpoint(event)),
+            base, config, rev, (Conflict,),
+            prepare=lambda doc: beat_settings.validate(doc, registry))

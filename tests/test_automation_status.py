@@ -1,124 +1,142 @@
-"""Pruebas del módulo puro de estado de conexiones (sin Qt, sin red, sin gh)."""
-import json
-import os
-import tempfile
+"""Pruebas del módulo puro de estado de conexiones (sin Qt, sin red, con gh y llavero falsos)."""
 import unittest
 
-from core import automation_status as st
+from core import automation_status as st, cloud_login, gh_status
 from core.automation_save_bar import pilot_ready, BEATS_PILOT_REQUIRED
+from core.cloud_fakes import FakeGhRun, MemoryKeyring
 
 TOKEN = 'secret_' + 'a' * 40
 PAGE = 'a' * 32
 
 
-def write(path, data):
-    with open(path, 'w', encoding='utf-8') as f:
-        f.write(data if isinstance(data, str) else json.dumps(data))
-
-
 class AutomationStatusTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.dir = self.tmp.name
-        self.addCleanup(self.tmp.cleanup)
+        self.fake = FakeGhRun()
+        self.gh = gh_status.GhStatus(run=self.fake)
+        self.previous = cloud_login.set_backend(MemoryKeyring())
+        self.addCleanup(cloud_login.set_backend, self.previous)
 
-    def path(self, name):
-        return os.path.join(self.dir, name)
+    def put(self, env, *names):
+        self.fake.put(env, *names)
+        self.gh.invalidate()
 
-    def test_youtube_codes(self):
-        self.assertEqual(st.youtube_token_status('', self.dir), st.UNKNOWN)
-        self.assertEqual(st.youtube_token_status('ey mat', self.dir), st.MISSING)
-        write(self.path('ey mat.json'), '{bad')
-        self.assertEqual(st.youtube_token_status('ey mat', self.dir), st.INVALID)
-        write(self.path('ey mat.json'), {'client_id': 'x'})
-        self.assertEqual(st.youtube_token_status('ey mat', self.dir), st.INVALID)
-        write(self.path('ey mat.json'), {'refresh_token': 'r'})
-        self.assertEqual(st.youtube_token_status('ey mat', self.dir), st.OK)
+    def test_youtube_codes_come_from_secret_names(self):
+        self.assertEqual(st.beat_youtube_status('', self.gh), st.UNKNOWN)
+        self.assertEqual(st.beat_youtube_status('../x', self.gh), st.UNKNOWN)
+        self.assertEqual(st.beat_youtube_status('ey-mat', self.gh), st.MISSING)
+        self.put('kit-weekly', 'BEAT_YT_TOKEN_JSON_EY_MAT')
+        self.assertEqual(st.beat_youtube_status('ey-mat', self.gh), st.OK)
+        self.assertEqual(st.kit_youtube_status('kit-weekly', self.gh), st.MISSING)
+        self.put('kit-weekly', 'KIT_YT_CHANNEL')
+        self.assertEqual(st.kit_youtube_status('kit-weekly', self.gh), st.INVALID)
+        self.put('kit-weekly', 'KIT_YT_TOKEN_JSON')
+        self.assertEqual(st.kit_youtube_status('kit-weekly', self.gh), st.OK)
 
-    def test_youtube_path_traversal_stays_inside(self):
-        # Los separadores se sanean: nunca debe leer fuera de tokens_dir.
-        self.assertEqual(st.youtube_token_status('../../etc/passwd', self.dir), st.MISSING)
+    def test_status_reads_only_names_and_dates(self):
+        self.put('kit-weekly', *st.KIT_DROPBOX_KEYS)
+        self.assertEqual(st.dropbox_worker_status(gh=self.gh), st.OK)
+        code, text = st.secrets_badge(st.KIT_DROPBOX_KEYS, gh=self.gh)
+        self.assertEqual((code, text), (st.OK, 'cargado ✓ (2026-10-13)'))
+        self.assertTrue(all(a[:2] in (['secret', 'list'], ['auth', 'status'])
+                            for a, _ in self.fake.calls))
 
-    def test_dropbox_codes(self):
-        p = self.path('dbx.json')
-        self.assertEqual(st.dropbox_worker_status(p), st.MISSING)
-        write(p, {'refresh_token': 'r'})
-        self.assertEqual(st.dropbox_worker_status(p), st.INVALID)
-        write(p, {'refresh_token': 'r', 'app_key': 'k'})
-        self.assertEqual(st.dropbox_worker_status(p), st.OK)
+    def test_unknown_without_gh_session(self):
+        gh = gh_status.GhStatus(run=FakeGhRun(logged_in=False))
+        self.assertEqual(st.dropbox_worker_status(gh=gh), st.UNKNOWN)
+        self.assertEqual(st.gh_auth_status(gh), st.MISSING)
+        with self.assertRaises(st.AutomationError):
+            st.save_beat_notion(TOKEN, PAGE, gh)
 
-    def test_notion_save_and_status(self):
-        p = self.path('beat_secrets.json')
-        self.assertEqual(st.beat_notion_status(p), st.MISSING)
-        write(p, {'OTHER': 'keep'})
-        st.save_beat_notion(TOKEN, PAGE, p)
-        self.assertEqual(st.beat_notion_status(p), st.OK)
-        with open(p, encoding='utf-8') as f:
-            data = json.load(f)
-        self.assertEqual(data['OTHER'], 'keep')
-        self.assertEqual(st.read_beat_notion(p)['BEAT_NOTION_PAGE_ID'], PAGE)
+    def test_notion_save_goes_to_secrets_by_stdin(self):
+        self.assertEqual(st.beat_notion_status(self.gh), st.MISSING)
+        st.save_beat_notion(TOKEN, PAGE, self.gh)
+        self.assertEqual(st.beat_notion_status(self.gh), st.OK)
+        self.assertEqual(self.fake.value('kit-weekly', 'BEAT_NOTION_TOKEN'), TOKEN)
+        self.assertNotIn(TOKEN, repr([a for a, _ in self.fake.calls]))
 
     def test_notion_rejects_bad_values_without_leaking(self):
-        p = self.path('beat_secrets.json')
         for token, page in (('', PAGE), (TOKEN, 'not-a-uuid'), ('con espacio', PAGE)):
             with self.assertRaises(st.AutomationError) as ctx:
-                st.save_beat_notion(token, page, p)
+                st.save_beat_notion(token, page, self.gh)
             self.assertNotIn(token or 'x-none', str(ctx.exception))
-        self.assertFalse(os.path.exists(p))
-        write(p, {'BEAT_NOTION_TOKEN': TOKEN, 'BEAT_NOTION_PAGE_ID': 'bad'})
-        self.assertEqual(st.beat_notion_status(p), st.INVALID)
-        write(p, '[1]')
-        self.assertEqual(st.beat_notion_status(p), st.INVALID)
+        self.assertFalse(any(a[:2] == ['secret', 'set'] for a, _ in self.fake.calls))
 
     def test_gh_and_readiness(self):
         self.assertEqual(st.gh_available(lambda _: 'C:/gh.exe'), st.OK)
         self.assertEqual(st.gh_available(lambda _: None), st.MISSING)
-        write(self.path('ch.json'), {'refresh_token': 'r'})
-        items = st.readiness_beats('ch', 'ch', self.dir, self.path('no.json'),
-                                   self.path('no2.json'), which=lambda _: None)
-        by_id = {i['id']: i['ok'] for i in items}
+        self.put('kit-weekly', 'BEAT_YT_TOKEN_JSON_CH')
+        by_id = {i['id']: i['ok'] for i in st.readiness_beats('ch', 'ch', self.gh)}
         self.assertEqual(by_id, {'slug': True, 'youtube': True, 'dropbox': False,
-                                 'gh': False, 'notion': False})
-        bad = st.readiness_beats('ch', '../x', self.dir, which=lambda _: None)
+                                 'gh': True, 'notion': False})
+        bad = st.readiness_beats('ch', '../x', self.gh)
         self.assertFalse(bad[0]['ok'])
 
-    def test_kit_secrets_allowlist_and_status(self):
-        p = self.path('kit_secrets.json')
-        self.assertEqual(st.kit_telegram_status(p, {}), st.MISSING)
-        self.assertEqual(st.kit_llm_status(p, {}), st.MISSING)
+    def test_kit_secrets_allowlist_and_all_environments(self):
+        self.fake.envs['kit-weekly-mi-canal'] = {}
+        self.gh.invalidate()
+        self.assertEqual(st.kit_telegram_status(gh=self.gh), st.MISSING)
         with self.assertRaises(st.AutomationError) as ctx:
-            st.save_kit_keys({'NOT_A_KEY': TOKEN}, p)
+            st.save_kit_keys({'NOT_A_KEY': TOKEN}, self.gh)
         self.assertNotIn(TOKEN, str(ctx.exception))
-        self.assertFalse(os.path.exists(p))
-        st.save_kit_keys({'KIT_TELEGRAM_TOKEN': TOKEN, 'KIT_TELEGRAM_CHAT_ID': '-1001',
-                          'KIT_LLM_API_KEY': TOKEN, 'KIT_IMAGE_API_KEY': TOKEN}, p)
-        st.save_kit_notion(TOKEN, PAGE, p)
-        with open(p, encoding='utf-8') as f:
-            data = json.load(f)
-        self.assertTrue(set(data) <= set(st.KIT_SHARED_KEYS))
-        self.assertEqual(st.kit_telegram_status(p, {}), st.OK)
-        self.assertEqual(st.kit_llm_status(p, {}), st.OK)
-        self.assertEqual(st.kit_image_status(p, {}), st.OK)
-        self.assertEqual(st.kit_notion_status(p, {}), st.OK)
-        labels = ' '.join(i['label'] for i in st.readiness_kits(
-            'ch', '', self.dir, self.path('no.json'), p, which=lambda _: None, env={}))
+        envs = st.save_kit_keys({'KIT_TELEGRAM_TOKEN': TOKEN, 'KIT_TELEGRAM_CHAT_ID': '-1001',
+                                 'KIT_LLM_API_KEY': TOKEN, 'KIT_IMAGE_API_KEY': TOKEN}, self.gh)
+        st.save_kit_notion(TOKEN, PAGE, self.gh)
+        self.assertEqual(envs, ['kit-weekly', 'kit-weekly-mi-canal'])
+        for env in envs:
+            self.assertTrue(set(self.fake.envs[env]) <= set(st.KIT_SHARED_KEYS))
+            self.assertEqual(st.kit_telegram_status(env, self.gh), st.OK)
+            self.assertEqual(st.kit_llm_status(env, self.gh), st.OK)
+            self.assertEqual(st.kit_image_status(env, self.gh), st.OK)
+            self.assertEqual(st.kit_notion_status(env, self.gh), st.OK)
+        labels = ' '.join(i['label'] for i in st.readiness_kits('ch', '', self.gh))
         self.assertNotIn(TOKEN, labels)
         self.assertEqual(st.kit_env_name(''), 'kit-weekly')
         self.assertEqual(st.kit_env_name('mi-canal'), 'kit-weekly-mi-canal')
         self.assertIsNone(st.kit_env_name('../x'))
 
+    def test_env_values_still_checked_in_memory(self):
+        self.assertEqual(st.kit_telegram_status(env={}), st.MISSING)
+        self.assertEqual(st.kit_telegram_status(env={'KIT_TELEGRAM_TOKEN': TOKEN,
+                                                     'KIT_TELEGRAM_CHAT_ID': '1'}), st.OK)
+
     def test_kit_sync_blockers(self):
-        write(self.path('ch.json'), {'refresh_token': 'r'})
-        blockers = st.kit_sync_blockers('ch', '', self.dir, self.path('no.json'),
-                                        self.path('no2.json'), which=lambda _: None, env={})
-        self.assertIn('Telegram', ' '.join(blockers))
-        self.assertIn('Dropbox', ' '.join(blockers))
+        gh = gh_status.GhStatus(run=FakeGhRun(logged_in=False))
+        blockers = st.kit_sync_blockers('ch', '../x', gh)
+        self.assertIn('GitHub', ' '.join(blockers))
+        self.assertIn('Environment', ' '.join(blockers))
+        self.assertEqual(st.kit_sync_blockers('ch', '', self.gh), [])
+
+    def test_worker_dropbox_goes_to_every_environment_not_the_keyring(self):
+        self.fake.envs['kit-weekly-mi-canal'] = {}
+        self.gh.invalidate()
+        envs = st.save_worker_dropbox({'app_key': 'key', 'refresh_token': TOKEN}, self.gh)
+        self.assertEqual(envs, ['kit-weekly', 'kit-weekly-mi-canal'])
+        self.assertEqual(self.fake.value('kit-weekly-mi-canal', 'KIT_DROPBOX_REFRESH_TOKEN'), TOKEN)
+        self.assertIsNone(cloud_login.dropbox_credentials())
+        with self.assertRaises(st.AutomationError):
+            st.save_worker_dropbox({'app_key': 'key', 'refresh_token': ''}, self.gh)
+
+    def test_beat_slug_belongs_to_one_channel(self):
+        rows = [{'id': 'ey mat', 'actions_slug': 'ey-mat'}, {'id': 'nuevo', 'actions_slug': 'ey-mat'}]
+        registry = {'canales': [{'slug': 'ey-mat', 'tipo': 'beats', 'clave': 'ey mat'}]}
+        self.assertIsNone(st.beat_slug_error('ey mat', 'ey-mat', rows[:1], registry))
+        self.assertIn('ey mat', st.beat_slug_error('nuevo', 'ey-mat', rows, None))
+        self.assertIn('registro', st.beat_slug_error('nuevo', 'ey-mat', [], registry))
+        self.assertIn('registro', st.beat_slug_error('ey mat', 'otro', [], registry))
+        self.assertIsNotNone(st.beat_slug_error('ey mat', '../x'))
+
+    def test_kit_default_channel_and_identity(self):
+        registry = {'canales': [{'slug': 'w', 'tipo': 'loops', 'clave': 'W', 'legacy_default': True}]}
+        self.assertEqual(st.kit_default_channel(registry, {'kit_preview': {'channel': 'X'}}), 'W')
+        self.assertEqual(st.kit_default_channel(None, {'kit_preview': {'channel': 'X'}}), 'X')
+        self.assertIsNone(st.kit_default_channel(None, None))
+        self.assertIsNone(st.youtube_identity_error(None, 'UC1'))
+        self.assertIsNone(st.youtube_identity_error('UC1', 'UC1'))
+        self.assertIsNotNone(st.youtube_identity_error('UC1', 'UC2'))
 
     def test_pilot_ready_requires_connections_and_seo(self):
-        write(self.path('ch.json'), {'refresh_token': 'r'})
-        write(self.path('dbx.json'), {'refresh_token': 'r', 'app_key': 'k'})
-        items = st.readiness_beats('ch', 'ch', self.dir, self.path('dbx.json'),
-                                   which=lambda _: 'gh')
+        self.put('kit-weekly', 'BEAT_YT_TOKEN_JSON_CH', *st.KIT_DROPBOX_KEYS)
+        items = st.readiness_beats('ch', 'ch', self.gh)
         self.assertFalse(pilot_ready(items, BEATS_PILOT_REQUIRED, st.MISSING))
         self.assertTrue(pilot_ready(items, BEATS_PILOT_REQUIRED, st.OK))
 

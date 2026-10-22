@@ -7,10 +7,10 @@ armar el selector. El worker no lee el índice: cada corrida conoce solo su prop
 """
 import posixpath
 
-from core import kit_channel, kit_cloud
+from core import channel_kind, kit_channel, kit_cloud
 from core.kit_publish import DEFAULT_SLOTS
 
-SECTION = 'loop_kits'
+SECTION = channel_kind.SECTION_OF[channel_kind.LOOPS]
 _REGISTRY_NAME = 'channels.json'
 # Lo único que se copia de un canal ya configurado en esta PC: sus plantillas.
 _CHANNEL_KEYS = ('title_template', 'description_template', 'tags', 'socials', 'hashtags', 'link')
@@ -41,13 +41,24 @@ def load_registry(dbx=None):
 
 
 def loop_kit_channels(*configs):
-    """Nombres de los canales de la sección Loop kits en las configs dadas, sin repetir."""
+    """Nombres de los canales de Loops en las configs dadas, sin repetir.
+
+    Un canal sin ``section`` (o con una desconocida) es un error, no se lo salta.
+    """
     names = []
     for config in configs:
         for name, data in ((config or {}).get('channels') or {}).items():
-            if isinstance(data, dict) and data.get('section') == SECTION and name not in names:
+            if channel_kind.is_loops_section(data) and name not in names:
                 names.append(name)
     return names
+
+
+def registry_config(registry):
+    """Plantillas de los canales Loops del registro con la forma de un config de kits."""
+    channels = {}
+    for row in channel_kind.channels_of(registry, channel_kind.LOOPS):
+        channels[row['clave']] = dict(row.get('plantillas') or {}, section=SECTION)
+    return {'channels': channels}
 
 
 def minimal_config(name, base_config=None, local_config=None):

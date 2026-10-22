@@ -113,10 +113,20 @@ def worker_token(path=None):
 
 
 def client():
-    """Cliente de Dropbox para loop kits: la app del worker si está conectada, si no la general."""
-    token = None if in_cloud() else worker_token()
-    if token is None:
+    """Cliente de Dropbox para loop kits.
+
+    En el runner (``in_cloud``) sigue el camino de siempre. En el escritorio usa solo el
+    llavero de Windows (``core/cloud_login``): ya no lee ``tokens/``.
+    """
+    if in_cloud():
         return dropbox_client._client()
+    from core import cloud_login
+    try:
+        token = cloud_login.dropbox_credentials()
+    except cloud_login.LoginError:
+        token = None
+    if token is None:
+        raise KitCloudError('Dropbox no está conectado en esta PC: conectalo en Conexiones.')
     import dropbox
     return dropbox.Dropbox(oauth2_refresh_token=token['refresh_token'], app_key=token['app_key'])
 

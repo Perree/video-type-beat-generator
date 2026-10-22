@@ -161,6 +161,13 @@ def _check_validation():
 
 
 def _check_panel(app):
+    # Sin gh real ni llavero de Windows (core/cloud_fakes).
+    from core import cloud_login, gh_status
+    from core.cloud_fakes import FakeGhRun, MemoryKeyring
+    fake = FakeGhRun()
+    fake.put('kit-weekly', 'KIT_TELEGRAM_TOKEN', 'KIT_TELEGRAM_CHAT_ID')
+    gh_status.set_default(gh_status.GhStatus(run=fake))
+    cloud_login.set_backend(MemoryKeyring())
     os.environ['KIT_TELEGRAM_TOKEN'] = TG_TOKEN
     os.environ['KIT_TELEGRAM_CHAT_ID'] = TG_CHAT
     dbx = StoreDropbox()
@@ -315,14 +322,32 @@ def _check_panel(app):
     check('Kit 1' in panel.status.text(), 'el error de validación se muestra')
     panel.set_kits([_kit('f1')])
 
-    # Otro proceso cambió kits.json: no se pisa.
+    # Otra PC cambió kits.json: merge de 3 vías por kit (folder) y por campo.
     panel.reload()
     _wait(app, panel)
-    dbx.files[kit_settings.KITS_PATH] = ('0000000000ff', b'[]')
+    loaded = json.loads(dbx.files[kit_settings.KITS_PATH][1])
+    check(bool(loaded), 'hay kits guardados para probar el merge')
+    theirs = [dict(loaded[0], name='Nombre de otra PC')] + loaded[1:]
+    dbx.files[kit_settings.KITS_PATH] = ('0000000000ff', json.dumps(theirs).encode())
+    panel.set_kits([dict(loaded[0], payhip_url='https://example.com/mio')] + loaded[1:])
+    panel.save()
+    _wait(app, panel)
+    merged = json.loads(dbx.files[kit_settings.KITS_PATH][1])
+    check(merged[0]['name'] == 'Nombre de otra PC' and merged[0]['payhip_url'] == 'https://example.com/mio',
+          f'campos distintos se fusionan ({panel.status.text()})')
+    check(panel.kit_rows()[0]['name'] == 'Nombre de otra PC', 'la tabla muestra lo fusionado')
+    # El mismo campo cambiado en las dos PCs: choque, no se pisa.
+    panel.reload()
+    _wait(app, panel)
+    loaded = json.loads(dbx.files[kit_settings.KITS_PATH][1])
+    dbx.files[kit_settings.KITS_PATH] = ('0000000000fe', json.dumps(
+        [dict(loaded[0], name='Ajeno')] + loaded[1:]).encode())
+    before = dbx.files[kit_settings.KITS_PATH]
+    panel.set_kits([dict(loaded[0], name='Mío')] + loaded[1:])
     panel.save()
     _wait(app, panel)
     check('recargá' in panel.status.text(), 'conflicto de edición detectado')
-    check(dbx.files[kit_settings.KITS_PATH][1] == b'[]', 'el cambio ajeno queda intacto')
+    check(dbx.files[kit_settings.KITS_PATH] == before, 'el cambio ajeno queda intacto')
 
     # Sin config en Dropbox los kits igual se guardan y se avisa de los ajustes.
     del dbx.files[kit_settings.CONFIG_PATH]

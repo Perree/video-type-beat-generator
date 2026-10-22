@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """Subida a YouTube (Data API v3) con un token OAuth por canal de la app.
 
-Cada canal de la app (config/app_config.json) se conecta a una cuenta de Google distinta;
-el token queda en tokens/<canal>.json (no versionado). Las credenciales OAuth "Escritorio"
-del proyecto de Google Cloud van en config/client_secret.json (no versionado).
+Cada canal de la app se conecta a una cuenta de Google distinta. En el escritorio,
+``authorize`` obtiene el token en memoria y se sube directo a GitHub Secrets; las credenciales
+OAuth "Escritorio" viven en el llavero (``core/cloud_login``). ``connect_channel`` y
+``tokens/<canal>.json`` quedan para el runner y los scripts sueltos.
 
 Cuota (por defecto 10.000 unidades/día por proyecto): videos.insert ~1600, thumbnails.set 50,
 channels.list 1. Mientras la app no pase la auditoría de la API, YouTube fuerza los videos
@@ -18,6 +19,7 @@ SCOPES = ['https://www.googleapis.com/auth/youtube.upload',
           'https://www.googleapis.com/auth/youtube.readonly']
 PRIVACY_OPTIONS = ('private', 'unlisted', 'public')
 CATEGORY_MUSIC = '10'
+AUTH_TIMEOUT = 300  # segundos para completar el OAuth en el navegador
 
 
 class YouTubeError(Exception):
@@ -83,6 +85,47 @@ def connect_channel(channel, client_secret=None, tokens_dir=None):
     with open(path, 'w', encoding='utf-8') as f:
         f.write(creds.to_json())
     return channel_title(channel, tokens_dir)
+
+
+def authorize(client_config=None):
+    """OAuth «Escritorio» en memoria: no escribe ningún archivo.
+
+    Devuelve ``(token_json, título, id del canal)``: el título y el id sirven para confirmar
+    la cuenta antes de subir. ``client_config`` por defecto sale del llavero
+    (``core/cloud_login.client_secret_config``). El token se sube con ``gh`` por stdin al
+    secreto del canal; el llamador no debe guardarlo ni mostrarlo.
+    """
+    import logging
+    from google_auth_oauthlib.flow import InstalledAppFlow
+
+    # El servidor local registra la línea de pedido (``GET /?code=…``) en INFO: nunca a un log.
+    logging.getLogger('google_auth_oauthlib.flow').setLevel(logging.WARNING)
+
+    if client_config is None:
+        from core import cloud_login
+        try:
+            client_config = cloud_login.client_secret_config()
+        except cloud_login.LoginError as exc:
+            raise YouTubeError(str(exc)) from None
+    try:
+        flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
+        # Con tope: si se cierra la pestaña sin autorizar, el hilo no queda esperando para siempre.
+        creds = flow.run_local_server(port=0, prompt='consent select_account',
+                                      authorization_prompt_message='', open_browser=True,
+                                      timeout_seconds=AUTH_TIMEOUT)
+    except Exception:
+        raise YouTubeError('No se completó la autorización de YouTube (¿se cerró el navegador '
+                           'o pasaron 5 minutos?).') from None
+    if not getattr(creds, 'refresh_token', None):
+        raise YouTubeError('Google no devolvió un refresh token: revocá el acceso y reintentá.')
+    try:
+        items = _service(creds).channels().list(part='snippet', mine=True).execute().get(
+            'items') or []
+        title = items[0]['snippet']['title'] if items else ''
+        channel_id = items[0].get('id', '') if items else ''
+    except Exception:
+        title, channel_id = '', ''  # sin datos la UI pide confirmar igual
+    return creds.to_json(), title, channel_id
 
 
 def channel_title(channel, tokens_dir=None):

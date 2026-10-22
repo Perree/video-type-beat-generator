@@ -25,7 +25,8 @@ from core.kit_render import render as kit_render
 from core.kit_select import KitSelectError, choose
 from core.kit_trim import trim_to_wav
 from core.publish_at import local_to_youtube_publish_at
-from core.sections import SECTION_LOOP_KITS, filter_channels_by_section
+from core import channel_kind
+from core.sections import SECTION_LOOP_KITS
 
 CONFIG_FILE = os.path.join('config', 'app_config.json')
 DEFAULT_OUTPUT = os.path.join('exported_videos', 'loop_kits')
@@ -41,7 +42,20 @@ def load_app_config(path: Optional[str] = None) -> dict:
 def resolve_channel(app_config: dict, channel_arg: Optional[str]) -> tuple:
     """Canal loop_kits y su dict de plantillas."""
     channels = app_config.get('channels') or {}
-    kits = filter_channels_by_section(channels, SECTION_LOOP_KITS)
+    # Tipo vía channel_kind: un canal sin section nunca es Beats ni Loops. Se avisa por
+    # stderr y es un error solo si es el canal que corre (o si no queda ninguno).
+    kits, untyped = {}, []
+    for name, cfg in channels.items():
+        try:
+            if channel_kind.is_loops_section(cfg):
+                kits[name] = cfg
+        except channel_kind.ChannelKindError:
+            untyped.append(name)
+    if untyped:
+        print(f"Aviso: {len(untyped)} canal(es) sin section en la config; se ignoran.",
+              file=sys.stderr)
+    if channel_arg in untyped or (not kits and untyped):
+        raise SystemExit("Canal sin tipo definido (section ausente o desconocida).")
     if channel_arg:
         if channel_arg not in kits:
             raise SystemExit(

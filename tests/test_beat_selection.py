@@ -78,7 +78,7 @@ class SelectionTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, '^invalid_selection_tags$'):
                     migrate(config, 'config')
                 with self.assertRaisesRegex(ValueError, '^invalid_selection_tags$'):
-                    settings({'beat_automation': config})
+                    settings(config, {'canales': []})
 
     def test_semantically_same_filter_and_unrelated_metadata_do_not_abort(self):
         memory = MemoryDropbox()

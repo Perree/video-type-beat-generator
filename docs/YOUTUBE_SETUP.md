@@ -1,5 +1,7 @@
 # Configurar la subida a YouTube (una sola vez)
 
+> **2026-10-18:** el `client_secret.json` se importa al llavero desde Conexiones y el token del canal va directo a GitHub Secrets (no a `tokens/<canal>.json`). Ver [CLOUD_CREDENTIALS.md](CLOUD_CREDENTIALS.md).
+
 1. Entrá a https://console.cloud.google.com/ y creá un proyecto (ej. "Type Beat Uploader").
 2. **APIs y servicios → Biblioteca** → buscá **YouTube Data API v3** → **Habilitar**.
 3. **Pantalla de consentimiento OAuth** (Google Auth Platform): tipo **Externo**, completá nombre y mail.

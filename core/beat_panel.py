@@ -1,64 +1,80 @@
 """Independent Phase 3 UI for Type Beats (no rendering or publishing)."""
 from copy import deepcopy
 from datetime import datetime
-from pathlib import Path
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import QWidget, QDialog, QVBoxLayout, QFileDialog
+from PyQt5.QtWidgets import QWidget, QDialog, QVBoxLayout, QFileDialog, QInputDialog
 
-from core import beat_settings
+from core import automation_status as status, beat_settings, channel_kind, cloud_registry, kit_channel
 from core.beat_panel_form import BeatPanelForm
 from core.beat_schema import BA, migrate
 from core.beat_source import profile_username
 from core.beat_tasks import BeatTask, analyze, checkpoint, load_state
-from core.sections import SECTION_BEATS, channel_names_for_section
 from core.beat_remote_form import BeatRemoteForm
 from core.beat_panel_cloud import local_transport
 from core.channel_wizard import BEATS, ChannelWizardHost
 
-ROOT = Path(__file__).resolve().parents[1]
-
 
 class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
+    """Dropbox es la única fuente: /type-beats/config.json y /automatizacion/canales.json."""
     wizard_kind = BEATS
 
-    def __init__(self, parent=None, config_path=None, transport=None, state_reader=None,
-                 cloud_provider=local_transport):
+    def __init__(self, parent=None, transport=None, state_reader=None,
+                 cloud_provider=local_transport, autoload=True):
         super().__init__(parent)
-        self.config_path = Path(config_path or ROOT / "config/app_config.json")
         self.transport, self.state_reader = transport, state_reader
         self.cloud_provider = cloud_provider
-        self.cloud_rev, self.cloud_loaded = None, False
+        self.cloud_rev, self.cloud_loaded, self.cloud_base = None, False, None
+        self.registry = cloud_registry.empty('canales')
+        self.registry_base, self.registry_rev = None, None
+        self.ajustes = cloud_registry.empty('ajustes')
         self.task = None
         self.analysis = None
         self.state = None
         self.config = migrate({}, "config")
         self.selected = -1
-        self.config_readable = True
-        self._publish_after_local = False
-        self._pending_cloud_publish = False
+        self.config_readable = False
+        self._reload_pending = False
+        self._templates_key = None
         self._build()
-        self.reload()
+        self.channel.currentTextChanged.connect(self._channel_changed)
+        self._set_editable(False)
+        self.status.setText("Configuración sin cargar: se lee de Dropbox.")
+        if autoload:
+            self.reload()
+
+    def _set_editable(self, on):
+        for widget in (self.save_publish_button, self.add_button, self.remove_button,
+                       self.simulate_button, self.automations, self.editor, self.seo_editor):
+            widget.setEnabled(on)
 
     def reload(self):
-        try:
-            app = beat_settings.read_app(self.config_path)
-            self.config = beat_settings.settings(app)
-            self.channel.clear()
-            self.channel.addItems(channel_names_for_section(app.get("channels", {}), SECTION_BEATS))
-            self.profile.setText(self.config.get("beatstars_profile_url", ""))
-            self._refresh_list()
-            self.config_readable = True
-            self.status.setText("Configuración local. Analizá el perfil para simular; el estado remoto se consulta explícitamente.")
-            self.refresh_publish_readiness()
-        except Exception:
-            self.config_readable = False
-            self.status.setText("No se pudo leer la configuración. No se sobrescribirá el archivo.")
-            for widget in (self.save_button, self.save_publish_button, self.cloud_save_button,
-                           self.cloud_reload_button, self.add_button, self.remove_button,
-                           self.simulate_button, self.automations, self.editor, self.seo_editor):
-                widget.setEnabled(False)
+        """Relee todo de Dropbox; nunca lee ni escribe config/app_config.json."""
+        self.reload_cloud_config()
+
+    def _channel_changed(self, key):
+        """Al cambiar el canal de la fila, guarda las plantillas mostradas y carga las nuevas."""
+        if self.selected < 0 or key == self._templates_key:
+            return
+        self._store_templates(None, channel_kind.find(self.registry, self._templates_key))
+        row = channel_kind.find(self.registry, key)
+        checked = self.use_templates.isChecked()
+        self._load_templates({}, row.get("plantillas") if row else None, key)
+        self.use_templates.setChecked(checked)
+
+    def _fill_channels(self):
+        self.channel.blockSignals(True)
+        self.channel.clear()
+        self.channel.addItems(sorted(beat_settings.beat_channels(self.registry)))
+        self.channel.blockSignals(False)
+
+    def request_reload(self):
+        """Recarga ahora o, si hay una tarea en curso, apenas termine."""
+        if self.task is None:
+            self.reload()
+        else:
+            self._reload_pending = True
 
     def _profile_changed(self):
         self.analysis = None
@@ -112,6 +128,13 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
 
     def wizard_set_slug(self, channel, slug):
         """Escribe el slug en la fila de ``channel``, no en la que esté seleccionada ahora."""
+        # El slug no puede ser de otro canal (config o registro) ni distinto del registrado:
+        # sus secretos BEAT_*_<SLUG> son de un solo canal.
+        text = status.beat_slug_error(channel, slug, self.config["channels"], self.registry)
+        if text:
+            self.status.setText(text)
+            self.wizard_notify(False, text)
+            return False
         if not self.wizard_bind(channel, slug, channel):
             return False
         row = next((i for i, ch in enumerate(self.config["channels"]) if ch["id"] == channel), -1)
@@ -142,6 +165,8 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
             return
         ch = self.config["channels"][self.selected]
         self._store_visual(ch)
+        # Ficha cuyos valores muestra el formulario (no la del combo, que pudo cambiar).
+        self._store_templates(ch, channel_kind.find(self.registry, self._templates_key))
         try:
             priority = int(self.priority.text())
         except ValueError:
@@ -180,6 +205,8 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
         self.genres.setText(", ".join(ch.get("genres", [])))
         self.images.setText(ch.get("images_folder", ""))
         self._load_visual(ch)
+        row = channel_kind.find(self.registry, ch["id"])
+        self._load_templates(ch, row.get("plantillas") if row else None, ch["id"])
         self.slots.setRowCount(0)
         for slot in ch["slots"]:
             self._add_slot(slot)
@@ -187,19 +214,41 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
 
     def add_channel(self):
         self._store_editor()
-        try:
-            app = beat_settings.read_app(self.config_path)
-        except Exception:
-            self.status.setText("No se pudo leer la configuración para agregar un canal.")
-            return
         used = {ch["id"] for ch in self.config["channels"]}
-        free = [ch for ch in channel_names_for_section(app.get("channels", {}), SECTION_BEATS) if ch not in used]
+        free = [key for key in sorted(beat_settings.beat_channels(self.registry)) if key not in used]
         if not free:
-            self.status.setText("No hay canales libres de Beats. Crealos en Gestionar Canales.")
-            return
+            created = self.create_registry_channel()
+            if created is None:
+                return
+            free = [created]
         self.config["channels"].append(dict(id=free[0], active=False, priority=0, selection_tags=[],
                                             slots=[dict(weekday=0, hour=18, minute=0)]))
         self._refresh_list(len(self.config["channels"]) - 1)
+
+    def ask_new_channel_name(self):
+        name, ok = QInputDialog.getText(self, "Nuevo canal de Beats",
+                                        "Nombre del canal (el slug sale del nombre y no cambia):")
+        return name.strip() if ok else ""
+
+    def create_registry_channel(self):
+        """Ficha nueva de Beats en el registro (se publica con «Publicar al robot»)."""
+        name = self.ask_new_channel_name()
+        if not name:
+            return None
+        slug = kit_channel.slug(name)
+        try:
+            row = cloud_registry.new_channel(channel_kind.BEATS, slug, slug, nombre=name)
+            candidate = deepcopy(self.registry)
+            candidate["canales"].append(row)
+            cloud_registry.normalize("canales", candidate)
+        except ValueError as exc:
+            self.status.setText(f"No se creó el canal: {exc}")
+            return None
+        self.registry = candidate
+        self._fill_channels()
+        self.status.setText(f"Canal «{name}» agregado al registro (slug {slug}). "
+                            "Se guarda al publicar.")
+        return slug
 
     def remove_channel(self):
         if self.selected >= 0:
@@ -215,49 +264,15 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
         self._store_editor()
         config = deepcopy(self.config)
         config["beatstars_profile_url"] = self.profile.text().strip()
-        return beat_settings.validate(config, beat_settings.read_app(self.config_path))
-
-    def save(self):
-        if not self.config_readable:
-            return
-        try:
-            beat_settings.save(self.config_path, self.draft())
-            self.status.setText("Configuración de Beats guardada localmente.")
-        except Exception as exc:
-            self.status.setText(f"No se guardó: {exc}" if isinstance(exc, ValueError) else "No se pudo guardar la configuración.")
+        return beat_settings.validate(config, self.registry)
 
     def save_and_publish(self):
-        """Guarda ``app_config.json`` local y publica ``/type-beats/config.json`` por CAS."""
+        """Publica el registro de canales y ``/type-beats/config.json`` por CAS (con merge)."""
         if not self.config_readable:
             self.wizard_notify(False, 'No se pudo leer la configuración.')
             return False
-        try:
-            beat_settings.save(self.config_path, self.draft())
-        except Exception as exc:
-            text = (f"No se guardó: {exc}" if isinstance(exc, ValueError)
-                    else "No se pudo guardar la configuración.")
-            self.status.setText(text)
-            self.wizard_notify(False, text)
-            return False
-        if not self.cloud_loaded:
-            self._publish_after_local = True
-            self.status.setText('Configuración local guardada. Leyendo revisión de Dropbox…')
-            self.reload_cloud_config()
-            return True
-        self.status.setText('Configuración local guardada. Publicando en Dropbox…')
-        self.save_cloud_config()
-        return True
-
-    def _cloud_config_loaded(self, result):
-        # Encadenado desde Publicar al robot: solo hace falta la rev CAS.
-        # Recargar el formulario pisaría el borrador ya persistido en disco.
-        if self._publish_after_local:
-            _config, self.cloud_rev = result
-            self.cloud_loaded = True
-            self._publish_after_local = False
-            self._pending_cloud_publish = True
-            return
-        BeatRemoteForm._cloud_config_loaded(self, result)
+        self.status.setText('Publicando en Dropbox…')
+        return self.save_cloud_config()
 
     def _start(self, fn, done):
         if self.task is not None:
@@ -268,8 +283,8 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
         self.task.cancelled.connect(self._task_cancelled)
         self.task.progress.connect(self.status.setText)
         self.task.finished.connect(self._finished)
-        for button in (self.analyze_button, self.state_button, self.simulate_button, self.save_button,
-                       self.save_publish_button, self.cloud_save_button, self.cloud_reload_button,
+        for button in (self.analyze_button, self.state_button, self.simulate_button,
+                       self.save_publish_button, self.cloud_reload_button,
                        self.add_button, self.remove_button):
             button.setEnabled(False)
         self.profile.setEnabled(False)
@@ -289,30 +304,20 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
     def _finished(self):
         task, self.task = self.task, None
         task.deleteLater()
-        for button in (self.analyze_button, self.state_button, self.simulate_button, self.save_button,
-                       self.save_publish_button, self.cloud_save_button, self.cloud_reload_button,
-                       self.add_button, self.remove_button):
+        for button in (self.analyze_button, self.state_button, self.cloud_reload_button):
             button.setEnabled(True)
         self.profile.setEnabled(True)
-        self.editor.setEnabled(self.config_readable and self.selected >= 0)
-        self.automations.setEnabled(self.config_readable)
         self.remote.setEnabled(True)
-        for widget in (self.save_button, self.save_publish_button, self.cloud_save_button,
-                       self.cloud_reload_button, self.add_button, self.remove_button, self.simulate_button):
-            widget.setEnabled(self.config_readable)
-        if self._publish_after_local and self.task is None:
-            self._publish_after_local = False
-            self.wizard_notify(False, 'No se pudo leer Dropbox.')
-        if self._pending_cloud_publish and self.task is None:
-            self._pending_cloud_publish = False
-            if self.cloud_loaded:
-                self.save_cloud_config()
-            else:
-                self.wizard_notify(False, 'No se pudo leer Dropbox.')
+        self._set_editable(self.config_readable)
+        self.editor.setEnabled(self.config_readable and self.selected >= 0)
+        self.seo_editor.setEnabled(self.config_readable and self.selected >= 0)
         self.cancel_button.setEnabled(False)
         window = self.window()
         if getattr(window, "close_pending", False):
             window.close()
+        elif self._reload_pending and self.task is None:
+            self._reload_pending = False
+            self.reload()
 
     def _task_failed(self, text):
         self.status.setText(text)
@@ -408,6 +413,7 @@ class BeatDialog(QDialog):
             self.panel.cancel()
             event.ignore()
         else:
+            self.panel.stop_connections()
             super().closeEvent(event)
 
     def reject(self):
@@ -415,6 +421,7 @@ class BeatDialog(QDialog):
             self.close_pending = True
             self.panel.cancel()
         else:
+            self.panel.stop_connections()
             super().reject()
 
 

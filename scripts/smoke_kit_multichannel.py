@@ -414,6 +414,11 @@ def _check_secrets(tmp):
 
 
 def main():
+    # Sin gh real ni llavero de Windows (core/cloud_fakes).
+    from core import cloud_login, gh_status
+    from core.cloud_fakes import FakeGhRun, MemoryKeyring
+    gh_status.set_default(gh_status.GhStatus(run=FakeGhRun()))
+    cloud_login.set_backend(MemoryKeyring())
     kit_source.download_pack_files = base._fake_download
     youtube.upload = base._fake_upload
     saved = {k: os.environ.pop(k) for k in list(os.environ) if k.startswith('KIT_')}

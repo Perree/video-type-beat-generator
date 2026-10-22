@@ -51,6 +51,11 @@ def is_default(key):
     return not str(key or '').strip() or str(key).strip().lower() == DEFAULT
 
 
+def valid_slug(key):
+    """True si ``key`` ya es un slug válido tal cual (sin normalizar)."""
+    return isinstance(key, str) and len(key) <= _SLUG_MAX and bool(_SLUG_RE.match(key))
+
+
 def _check(key):
     key = str(key or '').strip().lower()
     if not _SLUG_RE.match(key) or len(key) > _SLUG_MAX:

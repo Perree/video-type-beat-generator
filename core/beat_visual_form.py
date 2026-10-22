@@ -1,5 +1,6 @@
 """Small per-channel visual editor for the Beats panel only."""
-from PyQt5.QtWidgets import QComboBox, QLineEdit, QDoubleSpinBox, QHBoxLayout, QPushButton, QFileDialog, QPlainTextEdit
+from PyQt5.QtWidgets import (QCheckBox, QComboBox, QLineEdit, QDoubleSpinBox, QHBoxLayout, QLabel,
+                             QPushButton, QFileDialog, QPlainTextEdit)
 from core.beat_visual import options
 
 
@@ -12,6 +13,53 @@ class BeatVisualForm:
         self.tags.setPlaceholderText("Separados por comas")
         form.addRow("Tags de selección:", self.selection_tags)
         form.addRow("Tags (SEO):", self.tags)
+        self._build_templates(form)
+
+    def _build_templates(self, form):
+        """Plantillas del canal: se guardan en /automatizacion/canales.json (registro)."""
+        self.use_templates = QCheckBox("Usar estas plantillas para el título y la descripción")
+        form.addRow("Plantillas del canal:", self.use_templates)
+        self.title_template = QLineEdit()
+        self.title_template.setPlaceholderText('[Type] {name} | Free for Profit')
+        form.addRow("Título de YouTube:", self.title_template)
+        self.description_template = QPlainTextEdit()
+        self.description_template.setMinimumHeight(120)
+        self.description_template.setPlaceholderText('{name} Type Beat\n\n{beatstars_url}\n\n{socials}')
+        form.addRow("Descripción:", self.description_template)
+        self.socials, self.hashtags = QLineEdit(), QLineEdit()
+        form.addRow("Redes ({socials}):", self.socials)
+        form.addRow("Hashtags ({hashtags}):", self.hashtags)
+        hint = QLabel("Marcadores: {name}, {beatstars_url} o {url}, {channel}, {socials}, "
+                      "{hashtags}, {tags}. Se guardan en el registro de canales al publicar.")
+        hint.setWordWrap(True)
+        form.addRow(hint)
+
+    def _template_fields(self):
+        return {'title_template': self.title_template.text().strip(),
+                'description_template': self.description_template.toPlainText(),
+                'socials': self.socials.text().strip(), 'hashtags': self.hashtags.text().strip()}
+
+    def _load_templates(self, channel, saved, key=None):
+        self._templates_key = key
+        saved = saved or {}
+        self.use_templates.setChecked(channel.get('use_channel_templates') is True)
+        self.title_template.setText(saved.get('title_template', ''))
+        self.description_template.setPlainText(saved.get('description_template', ''))
+        self.socials.setText(saved.get('socials', ''))
+        self.hashtags.setText(saved.get('hashtags', ''))
+
+    def _store_templates(self, channel, row):
+        """Vuelca el formulario al canal y a su ficha; no agrega claves que no cambiaron."""
+        if channel is not None and (self.use_templates.isChecked()
+                                    or 'use_channel_templates' in channel):
+            channel['use_channel_templates'] = self.use_templates.isChecked()
+        if row is None:
+            return
+        current = row.get('plantillas') or {}
+        changed = {key: value for key, value in self._template_fields().items()
+                   if value != current.get(key, '')}
+        if changed:
+            row['plantillas'] = dict(current, **changed)
 
     def _build_visual(self, form):
         self.visual_mode = QComboBox()

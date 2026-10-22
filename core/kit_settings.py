@@ -292,8 +292,9 @@ def form_from_config(config):
     from core.kit_publish import DEFAULT_SLOTS
     kit = (config or {}).get('kit_preview') or {}
     art = kit.get('art') if isinstance(kit.get('art'), dict) else {}
+    from core import channel_kind
     channels = [name for name, c in ((config or {}).get('channels') or {}).items()
-                if isinstance(c, dict) and c.get('section') == 'loop_kits']
+                if channel_kind.is_loops_section(c)]
     scan = kit_source.scan_settings(kit)
     spend = kit_spend.settings(kit)
     prompt = art.get('prompt')
@@ -361,6 +362,43 @@ def save_config(settings, dbx=None, paths=None):
         raise SettingsError('No hay config del worker en Dropbox: subí primero la config '
                             'completa (ver docs/KIT_WEEKLY.md).')
     return kit_cloud.write_json(path, apply_to_config(config, settings), rev=rev, dbx=dbx)
+
+
+def save_kits_merged(catalog, base, rev, dbx=None, paths=None):
+    """``kits.json`` por CAS; ante un conflicto relee y fusiona por kit (``folder``).
+
+    Returns:
+        ``(catalogo_guardado, rev)``. ``cloud_merge.MergeConflict`` si el mismo campo cambió
+        en las dos PCs.
+    """
+    from core import cloud_merge
+    path = paths.kits if paths else KITS_PATH
+    return cloud_merge.save_merged(
+        lambda: kit_cloud.read_json_rev(path, dbx=dbx),
+        lambda doc, current: kit_cloud.write_json(path, doc, rev=current or kit_cloud.NEW, dbx=dbx),
+        base if base is not None else [], catalog, rev, (kit_cloud.KitCloudConflict,))
+
+
+def save_config_merged(settings, base, rev, dbx=None, paths=None):
+    """Aplica los ajustes sobre la config leída (``base``, con su ``rev``) y la guarda por CAS.
+
+    Ante un conflicto relee y fusiona campo por campo: solo choca si otra PC cambió lo mismo.
+    """
+    from core import cloud_merge
+    path = paths.config if paths else CONFIG_PATH
+    if not isinstance(base, dict) or rev is None:
+        raise SettingsError('No hay config del worker en Dropbox: subí primero la config '
+                            'completa (ver docs/KIT_WEEKLY.md).')
+
+    def read():
+        doc, current = kit_cloud.read_json_rev(path, dbx=dbx)
+        if not isinstance(doc, dict):
+            raise SettingsError('La config del worker desapareció de Dropbox; recargá.')
+        return doc, current
+
+    return cloud_merge.save_merged(
+        read, lambda doc, current: kit_cloud.write_json(path, doc, rev=current, dbx=dbx),
+        base, apply_to_config(base, settings), rev, (kit_cloud.KitCloudConflict,))
 
 
 def seo_notes(seo_table):

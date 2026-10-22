@@ -1,52 +1,48 @@
 # -*- coding: utf-8 -*-
-"""Identificadores de sección de la app y filtrado de canales por sección."""
+"""Identificadores de sección de la app y filtrado de canales por sección.
+
+El tipo de cada canal sale de ``core.channel_kind``. Un canal sin ``section`` o con una
+desconocida es un error explícito: nunca se lo trata como Beats.
+"""
+from core import channel_kind
 
 SECTION_BEATS = "beats"
 SECTION_LOOP_KITS = "loop_kits"
-SECTION_PERSONAL = "personal"
 
-ALL_SECTIONS = (SECTION_BEATS, SECTION_LOOP_KITS, SECTION_PERSONAL)
-DEFAULT_SECTION = SECTION_BEATS
+ALL_SECTIONS = (SECTION_BEATS, SECTION_LOOP_KITS)
+# Valor que dejó la sección "Marca personal" (dada de baja): los canales con este
+# valor se conservan tal cual en la config pero no pertenecen a ninguna sección activa.
+_LEGACY_IGNORED_SECTION = channel_kind.IGNORED_SECTION
 
 PLACEHOLDER_MESSAGE = "Esta sección se completa en una fase siguiente."
 
 
 def channel_section(channel_cfg: dict) -> str:
     """
-    Devuelve la sección de un canal; sin campo explícito cuenta como beats.
-
-    Args:
-        channel_cfg: dict de configuración del canal (groups, title_template, …).
+    Devuelve la sección de un canal.
 
     Returns:
-        Uno de beats, loop_kits o personal.
+        beats o loop_kits; "personal" (legacy) se devuelve tal cual para que
+        ningún filtro por sección lo incluya.
+
+    Raises:
+        channel_kind.ChannelKindError: sin ``section`` o con una desconocida.
     """
-    if not isinstance(channel_cfg, dict):
-        return DEFAULT_SECTION
-    section = channel_cfg.get("section")
-    if section in ALL_SECTIONS:
-        return section
-    return DEFAULT_SECTION
+    section = channel_cfg.get("section") if isinstance(channel_cfg, dict) else None
+    tipo = channel_kind.from_section(section)
+    return _LEGACY_IGNORED_SECTION if tipo is None else channel_kind.SECTION_OF[tipo]
 
 
 def filter_channels_by_section(channels: dict, section: str) -> dict:
     """
-    Filtra el dict de canales de app_config por sección.
+    Filtra un dict de canales (``{nombre: {section, …}}``) por sección.
 
-    Args:
-        channels: mapa nombre -> configuración del canal.
-        section: sección activa (beats, loop_kits, personal).
-
-    Returns:
-        Subconjunto de channels cuya section coincide.
+    Raises:
+        channel_kind.ChannelKindError: si algún canal no tiene tipo definido.
     """
     if not isinstance(channels, dict):
         return {}
-    result = {}
-    for name, cfg in channels.items():
-        if channel_section(cfg if isinstance(cfg, dict) else {}) == section:
-            result[name] = cfg
-    return result
+    return {name: cfg for name, cfg in channels.items() if channel_section(cfg) == section}
 
 
 def channel_names_for_section(channels: dict, section: str) -> list:
@@ -66,22 +62,3 @@ def section_library_kind(section: str) -> str:
         return KIND_LOOP_KIT
     from core.library import KIND_BEAT
     return KIND_BEAT
-
-
-def ensure_channel_sections(channels: dict) -> bool:
-    """
-    Añade section=beats a canales legacy que no lo tengan.
-
-    Returns:
-        True si se modificó algún canal.
-    """
-    if not isinstance(channels, dict):
-        return False
-    changed = False
-    for _name, cfg in channels.items():
-        if not isinstance(cfg, dict):
-            continue
-        if cfg.get("section") not in ALL_SECTIONS:
-            cfg["section"] = DEFAULT_SECTION
-            changed = True
-    return changed

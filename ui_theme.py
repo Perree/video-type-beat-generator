@@ -131,6 +131,3 @@ QSpinBox {{
 """
 
 
-def style_primary_generate_button(button) -> None:
-    """Marca el botón Generar con el objectName que activa el acento en la hoja."""
-    button.setObjectName("btn_generate_primary")

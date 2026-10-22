@@ -1,15 +1,16 @@
-"""Local Beats settings and read-only simulation using the Phase 2 planner."""
+"""Beats settings validated against the Dropbox registry, and read-only simulation.
+
+Source of truth: ``/type-beats/config.json`` (worker document) plus
+``/automatizacion/canales.json`` (channel registry). Nothing here writes to disk.
+"""
 from copy import deepcopy
 from datetime import datetime
-import json
-import os
 from pathlib import Path
-import tempfile
 
 from core.beat_schema import BA, instant, migrate
 from core.beat_schedule import plan
 from core.beat_source import profile_username
-from core.sections import SECTION_BEATS, channel_names_for_section
+from core import channel_kind
 from core.beat_cloud import decode_document
 from core.beat_visual import options
 from core.beat_download import dropbox_path
@@ -17,6 +18,7 @@ from core.beat_templates import apply_channel_templates
 
 
 def read_app(path):
+    """Read-only legacy ``app_config.json`` reader, kept for scripts/migrate_to_cloud.py."""
     path = Path(path)
     app = decode_document(path.read_text(encoding="utf-8")) if path.exists() else {}
     if not isinstance(app, dict):
@@ -24,10 +26,20 @@ def read_app(path):
     return app
 
 
-def settings(app):
-    result = migrate(app.get("beat_automation", {}), "config")
+def beat_channels(registry):
+    """``{clave: ficha}`` of the Beats channels in the registry."""
+    return {row["clave"]: row for row in channel_kind.channels_of(registry, channel_kind.BEATS)}
+
+
+def _templates(registry, channel_id):
+    row = beat_channels(registry).get(channel_id)
+    return None if row is None else dict(row.get("plantillas") or {})
+
+
+def settings(config, registry):
+    result = migrate(config, "config")
     for channel in result["channels"]:
-        apply_channel_templates(channel, app.get("channels", {}).get(channel["id"]))
+        apply_channel_templates(channel, _templates(registry, channel["id"]))
         _metadata(channel)
     return result
 
@@ -55,14 +67,17 @@ def _metadata(channel):
         raise ValueError("La carpeta de imágenes debe ser texto.")
 
 
-def validate(config, app):
+def validate(config, registry):
     result = migrate(config, "config")
     profile_username(result.get("beatstars_profile_url", ""))
-    available = channel_names_for_section(app.get("channels", {}), SECTION_BEATS)
+    available = beat_channels(registry)
     for channel in result["channels"]:
-        if channel["id"] not in available:
-            raise ValueError("Elegí un canal de la sección Beats.")
-        apply_channel_templates(channel, app.get("channels", {}).get(channel["id"]))
+        row = available.get(channel["id"])
+        if row is None:
+            raise ValueError("Elegí un canal de Beats del registro.")
+        if "actions_slug" in channel and channel["actions_slug"] != row["slug"]:
+            raise ValueError("El slug de Actions no coincide con el del registro de canales.")
+        apply_channel_templates(channel, _templates(registry, channel["id"]))
         _metadata(channel)
         spec = options(channel)
         if spec['mode'] in ('video', 'alternate') and channel.get('active', True):
@@ -77,24 +92,6 @@ def validate(config, app):
         if not isinstance(folder, str) or (folder and not Path(folder).is_dir()):
             raise ValueError("La carpeta de imágenes debe existir o quedar vacía.")
     return result
-
-
-def save(path, config):
-    """Re-read the app and replace only beat_automation, atomically."""
-    path = Path(path)
-    app = read_app(path)
-    app["beat_automation"] = validate(config, app)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, temporary = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as stream:
-            json.dump(app, stream, ensure_ascii=False, indent=2)
-            stream.write("\n")
-        os.replace(temporary, path)
-    finally:
-        if os.path.exists(temporary):
-            os.unlink(temporary)
-    return app["beat_automation"]
 
 
 def simulate(config, tracks, state=None, now=None):

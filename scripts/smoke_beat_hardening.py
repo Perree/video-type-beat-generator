@@ -15,6 +15,11 @@ def main():
     parser.add_argument('--worker-only', action='store_true', help='No PyQt tests or desktop regressions')
     args = parser.parse_args()
     os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    # Como tests/conftest.py (que unittest no carga): nunca el gh real ni el llavero de Windows.
+    from core import cloud_login, gh_status
+    from core.cloud_fakes import FakeGhRun, MemoryKeyring
+    gh_status.set_default(gh_status.GhStatus(run=FakeGhRun()))
+    cloud_login.set_backend(MemoryKeyring())
     suite = unittest.TestSuite()
     for path in sorted((root / 'tests').glob('test_beat_*.py')):
         if args.worker_only and path.name in ('test_beat_panel.py', 'test_beat_panel_cloud.py'):

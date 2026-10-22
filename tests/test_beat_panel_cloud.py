@@ -1,9 +1,7 @@
 """Offline desktop Dropbox regression: app root, CAS and immutable remote state."""
 import json
 import os
-from pathlib import Path
 from threading import Event, get_ident
-import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -54,49 +52,58 @@ class BrowseTransport:
 
 class CloudTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.path = Path(self.tmp.name) / 'token.json'
+        # Llavero vacío por test, también fuera de pytest (smoke_beat_hardening usa unittest).
+        from core import cloud_login
+        from core.cloud_fakes import MemoryKeyring
+        self.addCleanup(cloud_login.set_backend, cloud_login.set_backend(MemoryKeyring()))
 
-    def test_missing_token_falls_back_to_beat_environment_only(self):
+    def test_missing_keyring_falls_back_to_beat_environment_only(self):
         with patch('core.beat_cloud.DropboxTransport.from_env', return_value='env') as factory:
-            self.assertEqual(local_transport(self.path), 'env')
+            self.assertEqual(local_transport(), 'env')
             factory.assert_called_once_with()
+
+    def test_never_reads_token_files(self):
+        import builtins
+        real_open, opened = builtins.open, []
+
+        def spy(file, *args, **kwargs):
+            opened.append(str(file))
+            return real_open(file, *args, **kwargs)
+        with patch('builtins.open', spy),                 patch('core.beat_cloud.DropboxTransport.from_env', return_value='env'):
+            local_transport()
+        self.assertFalse([p for p in opened if 'tokens' in p])
 
     def test_missing_all_credentials_is_sanitized(self):
         with patch.dict(os.environ, {}, clear=True):
             with self.assertRaises(CloudError) as caught:
-                local_transport(self.path)
+                local_transport()
         self.assertNotIn(SECRET, str(caught.exception))
 
-    def test_local_connection_reuses_credentials_without_mutation(self):
-        raw = json.dumps(dict(app_key=SECRET, refresh_token=SECRET))
-        self.path.write_text(raw, encoding='utf-8')
-        with patch('dropbox.Dropbox', return_value='client') as factory, \
-                patch('core.beat_cloud.DropboxTransport.from_env') as env:
-            self.assertEqual(local_transport(self.path).client, 'client')
+    def test_keyring_connection_reuses_credentials(self):
+        from core import cloud_login
+        cloud_login._set(cloud_login.DROPBOX_APP_KEY, SECRET)
+        cloud_login._set(cloud_login.DROPBOX_REFRESH_TOKEN, SECRET)
+        with patch('dropbox.Dropbox', return_value='client') as factory,                 patch('core.beat_cloud.DropboxTransport.from_env') as env:
+            self.assertEqual(local_transport().client, 'client')
             self.assertEqual(factory.call_args.kwargs['app_key'], SECRET)
             self.assertEqual(factory.call_args.kwargs['oauth2_refresh_token'], SECRET)
             self.assertEqual(factory.call_args.kwargs['max_retries_on_error'], 0)
             env.assert_not_called()
-        self.assertEqual(self.path.read_text(encoding='utf-8'), raw)
 
-    def test_invalid_token_never_falls_back_or_exposes_contents(self):
-        for raw in ('invalid-' + SECRET, '[]', '{}',
-                    json.dumps(dict(app_key=123, refresh_token=SECRET)),
-                    json.dumps(dict(app_key=SECRET, refresh_token='')), 'x' * 16385):
-            with self.subTest(raw=raw[:10]), patch('core.beat_cloud.DropboxTransport.from_env') as env:
-                self.path.write_text(raw, encoding='utf-8')
+    def test_invalid_credentials_never_fall_back_or_expose_contents(self):
+        for creds in ([], {}, dict(app_key=123, refresh_token=SECRET),
+                      dict(app_key=SECRET, refresh_token=''), dict(app_key='x' * 5000,
+                                                                   refresh_token=SECRET)):
+            with self.subTest(creds=str(creds)[:10]),                     patch('core.beat_cloud.DropboxTransport.from_env') as env:
                 with self.assertRaises(CloudError) as caught:
-                    local_transport(self.path)
+                    local_transport(creds)
                 self.assertNotIn(SECRET, str(caught.exception))
                 env.assert_not_called()
 
     def test_client_failure_is_sanitized(self):
-        self.path.write_text(json.dumps(dict(app_key=SECRET, refresh_token=SECRET)), encoding='utf-8')
         with patch('dropbox.Dropbox', side_effect=RuntimeError(SECRET)):
             with self.assertRaises(CloudError) as caught:
-                local_transport(self.path)
+                local_transport(dict(app_key=SECRET, refresh_token=SECRET))
         self.assertNotIn(SECRET, str(caught.exception))
 
     def test_navigation_pages_and_relative_app_paths(self):
@@ -199,91 +206,51 @@ class RemotePanelTests(unittest.TestCase):
     setUp = panel_tests.PanelTests.setUp
     cleanup_panel = panel_tests.PanelTests.cleanup_panel
     configure = panel_tests.PanelTests.configure
+    remote = panel_tests.PanelTests.remote
+    publish = panel_tests.PanelTests.publish
 
-    def test_selection_persists_local_without_credentials(self):
+    def test_remote_selection_is_published_without_secrets(self):
         self.configure()
         self.panel._apply_remote_selection('videos', '/Videos')
         self.panel._apply_remote_selection('thumbnail', '/Art/thumb.png')
         self.panel._apply_remote_selection('images', '/Art/trap', 'trap')
         self.panel._apply_remote_selection('images', '/Art/new', 'trap')
-        self.panel.save()
-        config = json.loads(self.path.read_text(encoding='utf-8'))['beat_automation']['channels'][0]
+        self.publish()
+        config = self.remote()['channels'][0]
         self.assertEqual(config['visual']['videos_folder'], '/Videos')
         self.assertEqual(config['visual']['thumbnail_path'], '/Art/thumb.png')
         self.assertEqual(config['dropbox_images'], {'trap': '/Art/new'})
-        self.assertNotIn(SECRET, self.path.read_text(encoding='utf-8'))
+        self.assertNotIn(SECRET.encode(), self.memory.files['/type-beats/config.json'][0])
 
-    def test_save_and_publish_keeps_local_draft_when_remote_exists(self):
+    def test_concurrent_edit_of_other_field_is_merged(self):
         self.configure()
-        memory = MemoryDropbox()
-        self.panel.cloud_provider = lambda: memory
-        stale = self.panel.draft()
-        stale['channels'][0]['tags'] = ['stale-remote']
-        BeatCloud(memory).write('config', stale, None)
-        self.panel.tags.setText('local-draft')
-        self.panel.save_and_publish()
-        for _ in range(5):
-            pump(lambda: self.panel.task is None)
-            if '/type-beats/config.json' in memory.files:
-                remote = json.loads(memory.files['/type-beats/config.json'][0].decode())
-                if remote['channels'][0]['tags'] == ['local-draft']:
-                    break
-        self.assertEqual(self.panel.tags.text(), 'local-draft')
-        remote = json.loads(memory.files['/type-beats/config.json'][0].decode())
-        self.assertEqual(remote['channels'][0]['tags'], ['local-draft'])
-        saved = json.loads(self.path.read_text(encoding='utf-8'))['beat_automation']
-        self.assertEqual(saved['channels'][0]['tags'], ['local-draft'])
-
-    def test_save_and_publish_chains_local_cas_and_conflict(self):
-        self.configure()
-        memory = MemoryDropbox()
-        self.panel.cloud_provider = lambda: memory
-        local_before = self.path.read_bytes()
-        self.panel.tags.setText('published-tag')
-        self.panel.save_and_publish()
-        for _ in range(5):
-            pump(lambda: self.panel.task is None)
-            if self.panel.cloud_loaded:
-                break
+        self.publish()
+        other = self.remote()
+        other['channels'][0]['priority'] = 7
+        BeatCloud(self.memory).write('config', other, self.panel.cloud_rev)
+        self.panel.tags.setText('mine')
+        self.publish()
+        remote = self.remote()['channels'][0]
+        self.assertEqual((remote['priority'], remote['tags']), (7, ['mine']))
         self.assertTrue(self.panel.cloud_loaded)
-        self.assertNotEqual(self.path.read_bytes(), local_before)
-        remote = json.loads(memory.files['/type-beats/config.json'][0].decode())
-        self.assertEqual(remote['channels'][0]['tags'], ['published-tag'])
-        BeatCloud(memory).write('config', self.panel.draft(), self.panel.cloud_rev)
+        self.assertEqual(self.panel.priority.text(), '7')  # el formulario muestra lo fusionado
+        self.assertNotIn('/type-beats/state.json', self.memory.files)
+
+    def test_concurrent_edit_of_same_field_is_a_conflict(self):
+        self.configure()
+        self.publish()
+        other = self.remote()
+        other['channels'][0]['tags'] = ['other-pc']
+        BeatCloud(self.memory).write('config', other, self.panel.cloud_rev)
         self.panel.tags.setText('keep-draft')
-        self.panel.save_and_publish()
-        for _ in range(5):
-            pump(lambda: self.panel.task is None)
-            if 'Conflicto' in self.panel.status.text():
-                break
+        self.publish()
         self.assertIn('Conflicto', self.panel.status.text())
+        self.assertIn('channels[id=beat-a].tags', self.panel.status.text())
         self.assertFalse(self.panel.cloud_loaded)
         self.assertEqual(self.panel.tags.text(), 'keep-draft')
-        self.assertEqual(json.loads(memory.files['/type-beats/config.json'][0].decode())['channels'][0]['tags'],
-                         ['published-tag'])
-
-    def test_panel_cas_requires_reload_and_preserves_local_and_state(self):
-        self.configure()
-        memory = MemoryDropbox()
-        self.panel.cloud_provider = lambda: memory
-        local_before = self.path.read_bytes()
-        self.panel.save_cloud_config()
-        self.assertIsNone(self.panel.task)
-        self.assertIn('Recargá', self.panel.status.text())
-        self.panel.reload_cloud_config()
-        pump(lambda: self.panel.task is None)
-        self.panel.save_cloud_config()
-        pump(lambda: self.panel.task is None)
-        self.assertTrue(self.panel.cloud_loaded)
-        BeatCloud(memory).write('config', self.panel.draft(), self.panel.cloud_rev)
-        self.panel.tags.setText('keep-my-draft')
-        self.panel.save_cloud_config()
-        pump(lambda: self.panel.task is None)
-        self.assertIn('Conflicto', self.panel.status.text())
-        self.assertFalse(self.panel.cloud_loaded)
-        self.assertEqual(self.panel.tags.text(), 'keep-my-draft')
-        self.assertEqual(self.path.read_bytes(), local_before)
-        self.assertNotIn('/type-beats/state.json', memory.files)
+        self.assertEqual(self.remote()['channels'][0]['tags'], ['other-pc'])
+        self.panel.save_and_publish()
+        self.assertIsNone(self.panel.task)  # requiere recargar
         self.panel.reload_cloud_config()
         pump(lambda: self.panel.task is None)
         self.assertTrue(self.panel.cloud_loaded)
@@ -332,24 +299,22 @@ class RemotePanelTests(unittest.TestCase):
 
     def test_lost_save_response_requires_reload_without_retry(self):
         self.configure()
-        memory = MemoryDropbox()
-        self.panel.cloud_provider = lambda: memory
-        self.panel.reload_cloud_config()
-        pump(lambda: self.panel.task is None)
+        memory = self.memory
         memory.faults = [('after_write', CloudError(SECRET))]
+        writes = len([call for call in memory.calls if call[0] == 'write'])
         self.panel.save_cloud_config()
         pump(lambda: self.panel.task is None)
         self.assertFalse(self.panel.cloud_loaded)
         self.assertNotIn(SECRET, self.panel.status.text())
         self.assertIn('Recargá', self.panel.status.text())
-        self.assertEqual(len([call for call in memory.calls if call[0] == 'write']), 1)
+        self.assertEqual(len([call for call in memory.calls if call[0] == 'write']), writes + 1)
         self.panel.save_cloud_config()
         self.assertIsNone(self.panel.task)
         self.assertNotIn('/type-beats/state.json', memory.files)
 
     def test_config_read_write_and_state_read_are_off_ui_thread(self):
         self.configure()
-        memory, threads = MemoryDropbox(), []
+        memory, threads = self.memory, []
         class ThreadTransport:
             def read(self, path):
                 threads.append(get_ident())
@@ -360,18 +325,21 @@ class RemotePanelTests(unittest.TestCase):
         self.panel.cloud_provider = ThreadTransport
         self.panel.reload_cloud_config()
         pump(lambda: self.panel.task is None)
+        self.configure()
         self.panel.save_cloud_config()
         pump(lambda: self.panel.task is None)
         self.panel.read_state()
         pump(lambda: self.panel.task is None)
-        self.assertEqual(len(threads), 3)
+        # registro + ajustes + config al recargar, config al publicar, estado.
+        self.assertEqual(len(threads), 5, self.panel.status.text())
         self.assertTrue(all(thread != get_ident() for thread in threads))
         self.assertNotIn('/type-beats/state.json', memory.files)
 
     def test_cancelled_config_reload_preserves_draft(self):
         self.configure()
         entered, release = Event(), Event()
-        memory = MemoryDropbox()
+        memory = self.memory
+        writes = len([call for call in memory.calls if call[0] == 'write'])
         class BlockingTransport:
             def read(self, path):
                 entered.set()
@@ -385,7 +353,7 @@ class RemotePanelTests(unittest.TestCase):
         pump(lambda: self.panel.task is None)
         self.assertFalse(self.panel.cloud_loaded)
         self.assertEqual(self.panel.tags.text(), 'trap, dark')
-        self.assertTrue(all(call[0] == 'read' for call in memory.calls))
+        self.assertEqual(len([call for call in memory.calls if call[0] == 'write']), writes)
 
 
 if __name__ == '__main__':

@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """Panel de configuración de la automatización de Loop kits.
 
-Independiente de Beats y Marca personal: se abre en un diálogo desde la sección Loop kits.
+Independiente de Beats: se abre en un diálogo desde la sección Loop kits.
 Lee y guarda ``kits.json`` y las claves ``kit_preview`` del worker en Dropbox (core/kit_settings).
 Arriba se elige el canal: cada uno tiene su config, sus kits y su estado (core/kit_channel).
 Los secretos nunca pasan por aquí: Telegram solo muestra si está "configurado".
 """
-import json
+import copy
 import os
 import sys
 
@@ -19,8 +19,9 @@ from PyQt5.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QDialog, Q
                              QScrollArea, QSpinBox, QTabWidget, QTableWidget, QTableWidgetItem,
                              QTimeEdit, QVBoxLayout, QWidget)
 
-from core import (kit_channel, kit_channel_setup, kit_cloud, kit_detect, kit_seo, kit_settings,
-                  kit_source, kit_spend, kit_state, kit_trends)
+from core import (channel_kind, cloud_merge, cloud_registry, kit_channel, kit_channel_setup,
+                  kit_cloud, kit_detect, kit_seo, kit_settings, kit_source, kit_spend,
+                  kit_state, kit_trends)
 from core.automation_status import AutomationError
 from core import automation_status as status
 from core.automation_save_bar import AutomationSaveBar, KITS_PILOT_REQUIRED
@@ -40,7 +41,8 @@ _DRY_RUN_TIMEOUT_MS = 10 * 60 * 1000
 def _error_text(exc):
     """Mensaje seguro: los errores propios se muestran, el resto solo por tipo."""
     if isinstance(exc, (kit_settings.SettingsError, kit_cloud.KitCloudError,
-                        kit_channel_setup.ChannelSetupError, AutomationError)):
+                        kit_channel_setup.ChannelSetupError, AutomationError,
+                        channel_kind.ChannelKindError, cloud_registry.RegistryError)):
         return str(exc)
     return f"Error ({type(exc).__name__})."
 
@@ -71,7 +73,12 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
         self._python = python or sys.executable
         self._script_dir = script_dir or _ROOT
         self._kits_rev = None
+        self._kits_base = None    # kits.json tal como se leyó (base del merge de 3 vías)
+        self._config_base, self._config_rev = None, None
         self._base_config = None  # config del canal por defecto: base de un canal nuevo
+        # Registro de canales (/automatizacion/canales.json): nombres y plantillas de Loops.
+        self._registry, self._registry_rev = cloud_registry.empty('canales'), None
+        self._registry_error = None
         self._task = None
         self._proc = None
         self._seo = {}            # fichas de SEO por género, tal como están en el formulario
@@ -643,17 +650,16 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
         self.automation.blockSignals(False)
         self.refresh_channel_chips()
 
-    def _local_config(self):
-        try:
-            with open(os.path.join(self._script_dir, 'config', 'app_config.json'),
-                      encoding='utf-8') as f:
-                data = json.load(f)
-        except (OSError, ValueError):
-            return {}
-        return data if isinstance(data, dict) else {}
-
     def ask_new_automation(self):
-        names = kit_channel_setup.loop_kit_channels(self._local_config(), self._base_config)
+        if self._registry_error:
+            self._say(self._registry_error, error=True)
+            return
+        try:
+            names = kit_channel_setup.loop_kit_channels(
+                kit_channel_setup.registry_config(self._registry), self._base_config)
+        except channel_kind.ChannelKindError as exc:
+            self._say(str(exc), error=True)
+            return
         taken = {self.automation.itemText(i) for i in range(1, self.automation.count())}
         name, ok = QInputDialog.getItem(
             self, "Crear automatización", "Canal de Loop kits:",
@@ -663,7 +669,8 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
 
     def create_automation(self, name):
         """Arma la config mínima del canal en Dropbox y lo deja elegido."""
-        base, local = self._base_config, self._local_config()
+        base = self._base_config
+        registry, registry_rev = self._registry, self._registry_rev
 
         def work():
             dbx = self._dbx()
@@ -671,6 +678,18 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
                 default = kit_settings.load_all(dbx)['config']
             else:
                 default = base
+            known = channel_kind.find(registry, name)
+            if known is not None and known.get('tipo') != channel_kind.LOOPS:
+                raise kit_channel_setup.ChannelSetupError(
+                    "Ese canal es de Beats en el registro: no puede tener automatización de kits.")
+            if known is None:
+                # Canal nuevo: primero su ficha en el registro (tipo loops, inmutable).
+                mine = copy.deepcopy(registry)
+                mine['canales'].append(cloud_registry.new_channel(
+                    channel_kind.LOOPS, kit_channel.slug(name), name))
+                cloud_registry.save_with_dbx('canales', mine, registry, registry_rev, dbx)
+            fresh, _rev = cloud_registry.read_with_dbx('canales', dbx)
+            local = kit_channel_setup.registry_config(fresh)
             created = kit_channel_setup.create(name, default, local, dbx)
             return created, kit_channel_setup.load_registry(dbx)
 
@@ -720,6 +739,15 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
             dbx = self._dbx()
             data = kit_settings.load_all(dbx, None if paths.is_default else paths)
             data['registry'] = kit_channel_setup.load_registry(dbx)
+            # El registro roto no impide editar kits: se avisa y se bloquea el alta de canales.
+            try:
+                data['canales'], data['canales_rev'] = cloud_registry.read_with_dbx('canales', dbx)
+                data['canales_error'] = None
+            except Exception as exc:  # noqa: BLE001 - se informa en la barra de estado
+                data['canales'], data['canales_rev'] = cloud_registry.empty('canales'), None
+                data['canales_error'] = f"Registro de canales ilegible: {_error_text(exc)}"
+            # Un canal sin section es un error explícito: falla la lectura, no la app.
+            data['form'] = kit_settings.form_from_config(data['config'])
             data['own'] = not paths.is_default
             root = ((data['config'] or {}).get('kit_preview') or {}).get('dropbox_root')
             try:
@@ -735,18 +763,24 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
 
     def _apply_loaded(self, data, note=None):
         self._kits_rev = data['kits_rev']
+        self._kits_base = copy.deepcopy(data['kits'])
+        self._config_base, self._config_rev = copy.deepcopy(data['config']), data['config_rev']
+        self._registry, self._registry_rev = data['canales'], data['canales_rev']
+        self._registry_error = data.get('canales_error')
         self._set_automations(data['registry'])
         if not data['own']:
             self._base_config = data['config']
         kit = (data.get('config') or {}).get('kit_preview') if isinstance(data.get('config'), dict) else None
         # La misma edad que usa el worker (default 10 si la config no la trae o es inválida).
         self._trends_max_age = kit_trends.settings(kit if isinstance(kit, dict) else {})['max_age_days']
-        self.set_form({**kit_settings.form_from_config(data['config']),
-                       'categories': data['categories']})
+        self.set_form({**data['form'], 'categories': data['categories']})
         # Un canal con automatización propia no puede apuntar a otro canal.
         self.channel.setEnabled(not data['own'])
         self.set_kits(data['kits'])
         self.seo_report_box.refresh()
+        if self._registry_error:
+            self._say(self._registry_error, error=True)
+            return
         self._say(note or "Configuración cargada." if data['config'] is not None else
                   "No hay config del worker en Dropbox: se pueden editar los kits, pero no "
                   "los ajustes hasta subirla (docs/KIT_WEEKLY.md).",
@@ -761,30 +795,43 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
             return False
         # Las filas vacías ya no están en el catálogo: se reflejan en la tabla.
         self.set_kits(catalog)
-        rev = self._kits_rev
+        rev, kits_base = self._kits_rev, self._kits_base
+        config_base, config_rev = self._config_base, self._config_rev
         paths = self.paths()
         slug_key = self.automation.currentData() or ''  # misma clave que wizard_target
         paths = None if paths.is_default else paths
         notes = kit_settings.seo_notes(settings.get('seo'))
 
         def work():
-            dbx, problems, kits_rev = self._dbx(), [], rev
-            for label, op in (("kits", lambda: kit_settings.save_kits(catalog, rev, dbx, paths)),
-                              ("ajustes", lambda: kit_settings.save_config(settings, dbx, paths))):
+            dbx, problems = self._dbx(), []
+            saved = {'kits': (kits_base, rev), 'config': (config_base, config_rev)}
+            for label, key, op in (
+                    ("kits", 'kits', lambda: kit_settings.save_kits_merged(
+                        catalog, kits_base, rev, dbx, paths)),
+                    ("ajustes", 'config', lambda: kit_settings.save_config_merged(
+                        settings, config_base, config_rev, dbx, paths))):
                 try:
-                    saved_rev = op()
-                    if label == "kits":
-                        kits_rev = saved_rev
+                    saved[key] = op()
+                except cloud_merge.MergeConflict as exc:
+                    routes = ', '.join(c['ruta'] for c in exc.choques[:5])
+                    problems.append(f"{label}: otra PC cambió lo mismo ({routes}); recargá.")
                 except kit_cloud.KitCloudConflict:
                     problems.append(f"{label}: cambió desde otro lado; recargá y repetí.")
                 except Exception as exc:  # noqa: BLE001
                     problems.append(f"{label}: {_error_text(exc)}")
-            return problems, kits_rev
+            return problems, saved
 
         def done(result):
-            # Si los kits no se guardaron queda el rev viejo: repetir sin recargar no pisa.
-            problems, self._kits_rev = result
-            self._say(" ".join(["Guardado en Dropbox."] + notes) if not problems else
+            # Si algo no se guardó quedan su base y rev viejos: repetir sin recargar no pisa.
+            problems, saved = result
+            self._kits_base, self._kits_rev = copy.deepcopy(saved['kits'][0]), saved['kits'][1]
+            self._config_base = copy.deepcopy(saved['config'][0])
+            self._config_rev = saved['config'][1]
+            lines = list(notes)
+            if isinstance(saved['kits'][0], list) and saved['kits'][0] != catalog:
+                self.set_kits(saved['kits'][0])  # se sumaron cambios de otra PC
+                lines.append("Se fusionaron cambios de otra PC en los kits.")
+            self._say(" ".join(["Guardado en Dropbox."] + lines) if not problems else
                       "No se guardó todo — " + " ".join(problems), error=bool(problems))
             if not problems:
                 self.pilot_flag_set(slug_key, 'config')  # flag del asistente de alta
@@ -839,10 +886,7 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
 
     def shutdown(self):
         """Espera la tarea en curso y corta el dry-run antes de destruir el panel."""
-        if self.conn_process is not None:
-            self.conn_process.kill()
-            self.conn_process.waitForFinished(3000)
-            self.conn_process = None
+        self.stop_connections()  # OAuth o gh en curso: se sueltan sin esperar
         if self._proc is not None:
             self._proc.kill()
             self._proc.waitForFinished(3000)

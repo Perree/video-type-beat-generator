@@ -1,8 +1,10 @@
-"""Desktop Beats remote actions, separate from local persistence."""
+"""Desktop Beats remote actions: Dropbox is the only persistence (no app_config.json)."""
 from copy import deepcopy
 from PyQt5.QtWidgets import QDialog, QInputDialog
 from core import beat_settings
-from core.beat_cloud import Conflict, CloudError
+from core.beat_cloud import CloudError
+from core.beat_tasks import Cancelled
+from core.cloud_merge import MergeConflict
 from core.beat_panel_cloud import PanelCloud
 from core.beat_dropbox_picker import DropboxPicker
 
@@ -39,60 +41,116 @@ class BeatRemoteForm:
             self.dropbox_images.setPlainText('\n'.join(lines))
 
     def reload_cloud_config(self):
+        """Lee config de Beats, registro de canales y ajustes de Dropbox (en un hilo)."""
         self.cloud_loaded = False
-        app = None
-        try:
-            app = beat_settings.read_app(self.config_path)
-        except Exception:
-            self.status.setText('No se pudo leer la configuración local.')
-            return
 
         def read(event, progress):
-            config, rev = PanelCloud(self.cloud_provider()).read_config(event)
-            if rev is not None:
-                # Validate without accessing local folders in the UI thread.
-                config = beat_settings.validate(config, app)
-            return config, rev
+            data = PanelCloud(self.cloud_provider()).read_all(event)
+            try:
+                # Plantillas del registro compiladas; sin tocar carpetas locales en la UI.
+                data['compiled'] = beat_settings.settings(data['config'], data['registry'])
+            except ValueError:
+                data['compiled'] = None
+            return data
 
         self._start(read, self._cloud_config_loaded)
 
-    def _cloud_config_loaded(self, result):
-        config, self.cloud_rev = result
-        if self.cloud_rev is not None:
-            self.config = deepcopy(config)
-            self.selected = -1
-            self.profile.setText(config.get('beatstars_profile_url', ''))
-            self._refresh_list()
+    def _cloud_config_loaded(self, data):
+        self.cloud_base, self.cloud_rev = deepcopy(data['config']), data['rev']
+        self.registry, self.registry_rev = deepcopy(data['registry']), data['registry_rev']
+        self.registry_base = deepcopy(data['registry'])
+        self.ajustes = data['ajustes']
         self.cloud_loaded = True
-        self.status.setText('Configuración remota cargada; editá y guardá por separado.' if self.cloud_rev else
-                            'No existe config remota. Podés publicar el borrador local sin crear estado.')
+        if data['compiled'] is None:
+            self.config_readable = False
+            self._set_editable(False)
+            self.status.setText('La configuración de Dropbox tiene valores inválidos. '
+                                'No se sobrescribirá: corregila y recargá.')
+            return
+        self.config = data['compiled']
+        self.config_readable = True
+        self._fill_channels()
+        profile = self.config.get('beatstars_profile_url') or (
+            (self.ajustes.get('beatstars') or {}).get('profile_url') or '')
+        self.selected = -1
+        self.profile.setText(profile)
+        self._refresh_list()
+        self._set_editable(True)
+        if self.registry_rev is None:
+            self.status.setText('No existe /automatizacion/canales.json en Dropbox: falta la '
+                                'migración (scripts/migrate_to_cloud.py --apply).')
+        elif self.cloud_rev is None:
+            self.status.setText('No existe config remota. «Publicar al robot» la crea sin estado.')
+        else:
+            self.status.setText('Configuración cargada de Dropbox.')
+        self.refresh_publish_readiness()
 
     def save_cloud_config(self):
-        if not self.cloud_loaded:
+        if not self.cloud_loaded or not self.config_readable:
             self.status.setText('Recargá la configuración de Dropbox antes de publicar.')
             self.wizard_notify(False, 'Recargá la configuración de Dropbox antes de publicar.')
-            return
+            return False
         try:
-            config, rev = self.draft(), self.cloud_rev
-        except Exception:
-            self.status.setText('Revisá la configuración antes de publicar.')
-            self.wizard_notify(False, 'Revisá la configuración antes de publicar.')
-            return
+            config = self.draft()
+        except Exception as exc:
+            text = (f'No se publicó: {exc}' if isinstance(exc, ValueError)
+                    else 'Revisá la configuración antes de publicar.')
+            self.status.setText(text)
+            self.wizard_notify(False, text)
+            return False
+        registry, registry_base, registry_rev = (deepcopy(self.registry), self.registry_base,
+                                                 self.registry_rev)
+        base, rev = self.cloud_base, self.cloud_rev
 
         def write(event, progress):
+            service = PanelCloud(self.cloud_provider())
             try:
-                return PanelCloud(self.cloud_provider()).save_config(config, rev, event)
-            except Conflict:
-                raise CloudError('Conflicto de revisión: recargá la configuración de Dropbox. El borrador se conserva.') from None
+                if registry != registry_base:
+                    progress('Guardando el registro de canales…')
+                    reg_doc, reg_rev = service.save_registry(registry, registry_base,
+                                                             registry_rev, event)
+                else:
+                    reg_doc, reg_rev = registry_base, registry_rev
+                progress('Publicando /type-beats/config.json…')
+                doc, new_rev = service.save_config_merged(config, base, rev, reg_doc, event)
+            except MergeConflict as exc:
+                routes = ', '.join(c['ruta'] for c in exc.choques[:5])
+                raise CloudError('Conflicto: otra PC cambió los mismos campos '
+                                 f'({routes}). Recargá; el borrador se conserva.') from None
+            except Cancelled:
+                raise
+            except CloudError:
+                # Mensajes del transporte: nunca a la UI (pueden traer datos de Dropbox).
+                raise CloudError('No se confirmó el guardado en Dropbox. '
+                                 'Recargá antes de reintentar.') from None
+            except ValueError as exc:
+                raise CloudError(f'No se publicó: {exc}') from None
+            except Exception:
+                raise CloudError('No se confirmó el guardado en Dropbox. '
+                                 'Recargá antes de reintentar.') from None
+            return dict(config=doc, rev=new_rev, registry=reg_doc, registry_rev=reg_rev,
+                        draft=config)
 
         # A canceled/lost response may already have committed: require reload on any failure.
         self.cloud_loaded = False
         self._start(write, self._cloud_config_saved)
+        return True
 
-    def _cloud_config_saved(self, rev):
-        self.cloud_rev, self.cloud_loaded = rev, True
+    def _cloud_config_saved(self, result):
+        self.cloud_base, self.cloud_rev = deepcopy(result['config']), result['rev']
+        self.registry_base, self.registry_rev = deepcopy(result['registry']), result['registry_rev']
+        self.registry = deepcopy(result['registry'])
+        self.cloud_loaded = True
+        if result['config'] != result['draft']:
+            # Se fusionaron cambios de otra PC: mostrar el documento publicado.
+            row = self.selected
+            self.config = deepcopy(result['config'])
+            self.selected = -1
+            self._fill_channels()
+            self._refresh_list(max(0, min(row, len(self.config['channels']) - 1)))
         # Flag del asistente de alta: la config (de todos los canales) ya está en Dropbox.
         for ch in self.config.get('channels', []):
             self.pilot_flag_set(ch['id'], 'config')
-        self.status.setText('Configuración guardada en /type-beats/config.json. Estado remoto sin cambios.')
+        self.status.setText('Publicado en /type-beats/config.json y en el registro de canales. '
+                            'Estado remoto sin cambios.')
         self.wizard_notify(True)

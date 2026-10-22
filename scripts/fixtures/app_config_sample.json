@@ -1,0 +1,84 @@
+{
+  "last_section": "beats",
+  "channels": {
+    "canal uno": {
+      "groups": ["Principal"],
+      "section": "beats",
+      "title_template": "[Fixture] {name} | Free Type Beat",
+      "description_template": "{name} Type Beat\n\nLicencia: {beatstars_url}\n\n{socials}\n\nTags: {tags}\n{hashtags}",
+      "socials": "Redes de prueba",
+      "hashtags": "#fixture #typebeat"
+    },
+    "Beat Dos": {
+      "groups": ["Principal"],
+      "section": "beats"
+    },
+    "Kits Default": {
+      "groups": ["Principal"],
+      "section": "loop_kits",
+      "title_template": "{name} Loop Kit",
+      "description_template": "Kit: {link}"
+    },
+    "Kits Extra": {
+      "groups": ["Principal"],
+      "section": "loop_kits",
+      "title_template": "{name} | Extra"
+    },
+    "kits extra": {
+      "groups": ["Principal"],
+      "section": "loop_kits"
+    },
+    "Sin Seccion": {
+      "groups": ["Principal"]
+    },
+    "Marca Personal": {
+      "groups": ["Principal"],
+      "section": "personal"
+    }
+  },
+  "kit_preview": {
+    "channel": "Kits Default",
+    "genres": ["genero-a"]
+  },
+  "beat_automation": {
+    "schema_version": 1,
+    "namespace": "type-beats",
+    "buffer_days": 14,
+    "daily_upload_attempts": 6,
+    "beatstars_profile_url": "https://www.beatstars.com/fixtureproducer",
+    "channels": [
+      {
+        "id": "canal uno",
+        "actions_slug": "canal-uno",
+        "active": true,
+        "priority": 2,
+        "selection_tags": ["Fixture"],
+        "tags": ["fixture", "trap"],
+        "genres": ["Trap"],
+        "images_folder": "",
+        "dropbox_images": {"Trap": "/type-beats/images/fixture"},
+        "visual": {"mode": "image", "video_source": "dropbox", "videos_folder": "",
+                   "clip_min_seconds": 3.0, "clip_max_seconds": 6.0,
+                   "thumbnail_source": "auto", "thumbnail_path": ""},
+        "use_channel_templates": true,
+        "seo": {"tags": ["fixture", "trap"], "description": ""},
+        "slots": [{"weekday": 1, "hour": 18, "minute": 0}]
+      },
+      {
+        "id": "Beat Dos",
+        "actions_slug": "beat-dos",
+        "active": false,
+        "priority": 0,
+        "selection_tags": [],
+        "tags": ["dos"],
+        "genres": [],
+        "images_folder": "",
+        "dropbox_images": {},
+        "visual": {"mode": "image", "video_source": "dropbox", "videos_folder": "",
+                   "clip_min_seconds": 3.0, "clip_max_seconds": 6.0,
+                   "thumbnail_source": "auto", "thumbnail_path": ""},
+        "slots": [{"weekday": 3, "hour": 20, "minute": 30}]
+      }
+    ]
+  }
+}

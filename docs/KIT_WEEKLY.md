@@ -1,5 +1,7 @@
 # Worker semanal de loop kits
 
+> **2026-10-18:** Conexiones ya no escribe `tokens/kit_secrets.json` ni `tokens/dropbox_worker.json`: Dropbox va al llavero de Windows y el resto directo a GitHub Secrets. Ver [CLOUD_CREDENTIALS.md](CLOUD_CREDENTIALS.md).
+
 `scripts/run_kit_weekly.py` corre en GitHub Actions (`.github/workflows/kit-weekly.yml`): domingo 23:00 UTC
 (20:00 en Buenos Aires) o a mano con `workflow_dispatch` (inputs `channel` y `dry_run`). Nunca se dispara con
 `pull_request`. Con más de un canal, cada uno corre su día: ver "Varios canales" más abajo.

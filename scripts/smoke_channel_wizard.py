@@ -2,13 +2,12 @@
 # -*- coding: utf-8 -*-
 """Smoke offscreen del asistente de alta de canal y de los chips. Sin red ni gh real.
 
-Uso: ``py -3 scripts/smoke_channel_wizard.py``. Todo vive en un directorio temporal con
-datos ficticios; no toca ``tokens/`` ni ``config/``.
+Uso: ``py -3 scripts/smoke_channel_wizard.py``. ``gh`` y el llavero son dobles en memoria
+(``core/cloud_fakes``); no toca ``tokens/`` ni ``config/``.
 """
-import json
 import os
 import sys
-import tempfile
+import time
 
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -17,8 +16,9 @@ if ROOT not in sys.path:
 
 from PyQt5.QtWidgets import QApplication
 
-from core import channel_wizard as cw, youtube
+from core import automation_status as st, channel_wizard as cw, cloud_login, gh_status
 from core.channel_wizard import ChannelWizard
+from core.cloud_fakes import FakeGhRun, MemoryKeyring
 
 APP = QApplication.instance() or QApplication([])
 _failed = []
@@ -28,11 +28,6 @@ def check(cond, msg):
     if not cond:
         _failed.append(msg)
         print('FAIL:', msg)
-
-
-def _write(path, data):
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f)
 
 
 class FakeHost(cw.ChannelWizardHost):
@@ -58,16 +53,12 @@ class FakeHost(cw.ChannelWizardHost):
         raise AssertionError('no debería usarse en el smoke')
 
 
-def check_kind(kind, channel, slug, key, tmp):
-    tokens = os.path.join(tmp, 'tokens')
-    os.makedirs(tokens)
-    dbx = os.path.join(tmp, 'dropbox_worker.json')
-    deps = {'tokens_dir': tokens, 'dropbox_file': dbx, 'which': lambda _name: 'gh'}
-    if kind == cw.BEATS:
-        deps['notion_file'] = os.path.join(tmp, 'notion.json')
-    else:
-        deps['secrets_file'] = os.path.join(tmp, 'kit_secrets.json')
-        deps['env'] = {}
+def check_kind(kind, channel, slug, key):
+    fake = FakeGhRun()
+    gh = gh_status.GhStatus(run=fake)
+    deps = {'gh': gh}
+    env = st.kit_env_name(slug) if kind == cw.KITS else 'kit-weekly'
+    yt = (st.beat_secret_names(slug)[1:] if kind == cw.BEATS else st.KIT_YT_KEYS)
     host = FakeHost(kind, (channel, slug, key))
 
     rows = cw.steps(kind, channel, slug, host.pilot_flags_for(key), deps)
@@ -76,11 +67,10 @@ def check_kind(kind, channel, slug, key, tmp):
     check(cw.chip(rows)[0].startswith('○') or cw.chip(rows)[0].startswith('◐'),
           f'{kind}: chip parcial')
 
-    _write(youtube._token_path(channel, tokens), {'refresh_token': 'FICTICIO'})
-    _write(dbx, {'refresh_token': 'FICTICIO', 'app_key': 'FICTICIO'})
+    fake.put(env, *yt, *st.KIT_DROPBOX_KEYS)
     if kind == cw.KITS:
-        _write(deps['secrets_file'], {'KIT_TELEGRAM_TOKEN': 'FICTICIO',
-                                      'KIT_TELEGRAM_CHAT_ID': '1234'})
+        fake.put(env, *st.KIT_TELEGRAM_KEYS)
+    gh.invalidate()
     wiz = ChannelWizard(host, deps)
     wiz.timer.stop()
     rows = wiz.refresh()
@@ -120,39 +110,42 @@ def check_kind(kind, channel, slug, key, tmp):
           f'{kind}: éxito solo al confirmar Dropbox')
 
     # Un canal sin token vuelve a bloquear: el gate se evalúa de nuevo.
-    os.remove(youtube._token_path(channel, tokens))
+    fake.drop(env, *yt)
+    gh.invalidate()
     check(not cw.can_activate(wiz.rows()), f'{kind}: sin YouTube no se activa')
     wiz.done(0)
     return host
 
 
 def main():
-    with tempfile.TemporaryDirectory() as tmp:
-        beats_dir = os.path.join(tmp, 'beats')
-        os.makedirs(beats_dir)
-        host = check_kind(cw.BEATS, 'canal-beats', 'canal-beats', 'canal-beats', beats_dir)
+    # Los paneles reales y el asistente sin deps usan el cliente compartido: también falso.
+    gh_status.set_default(gh_status.GhStatus(run=FakeGhRun()))
+    cloud_login.set_backend(MemoryKeyring())
+    host = check_kind(cw.BEATS, 'canal-beats', 'canal-beats', 'canal-beats')
 
-        # Slug inválido: el paso 1 no pasa y apply_slug rechaza el valor.
-        host = FakeHost(cw.BEATS, ('canal-beats', '', 'canal-beats'))
-        wiz = ChannelWizard(host)
-        wiz.timer.stop()
-        wiz.slug_edit.setText('Slug Inválido!')
-        wiz.apply_slug()
-        check(('slug', 'Slug Inválido!') not in host.calls, 'slug inválido rechazado')
-        wiz.slug_edit.setText('canal-beats')
-        wiz.apply_slug()
-        check(('slug', 'canal-beats') in host.calls, 'slug válido aplicado')
-        wiz.dry_check.setChecked(True)
-        check(cw.DRYRUN in host.pilot_flags_for('canal-beats'), 'el dry-run se confirma a mano en Beats')
-        wiz.done(0)
+    # Slug inválido: el paso 1 no pasa y apply_slug rechaza el valor.
+    host = FakeHost(cw.BEATS, ('canal-beats', '', 'canal-beats'))
+    wiz = ChannelWizard(host)
+    wiz.timer.stop()
+    wiz.slug_edit.setText('Slug Inválido!')
+    wiz.apply_slug()
+    check(('slug', 'Slug Inválido!') not in host.calls, 'slug inválido rechazado')
+    wiz.slug_edit.setText('canal-beats')
+    wiz.apply_slug()
+    check(('slug', 'canal-beats') in host.calls, 'slug válido aplicado')
+    wiz.dry_check.setChecked(True)
+    check(cw.DRYRUN in host.pilot_flags_for('canal-beats'), 'el dry-run se confirma a mano en Beats')
+    wiz.done(0)
 
-        kits_dir = os.path.join(tmp, 'kits')
-        os.makedirs(kits_dir)
-        check_kind(cw.KITS, 'Canal Kits', '', '', kits_dir)
+    check_kind(cw.KITS, 'Canal Kits', '', '')
 
     # Paneles reales: chips en las listas, sin tocar red ni archivos privados.
     from core.beat_panel import BeatPanel
-    panel = BeatPanel()
+    from core.beat_fakes import MemoryDropbox
+    panel = BeatPanel(cloud_provider=MemoryDropbox)  # sin Dropbox real
+    _deadline = time.monotonic() + 5
+    while panel.task is not None and time.monotonic() < _deadline:
+        QApplication.processEvents()
     check(hasattr(panel, 'wizard_button'), 'Beats: botón del asistente')
     for row in range(panel.automations.count()):
         text = panel.automations.item(row).text()

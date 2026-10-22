@@ -752,3 +752,23 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
 - Labels alineados con `main.py`: **Automatizaciones de Beats**, diálogo kits **Configuración de automatización**, recarga **Recargar desde Dropbox**.
 - `SeoReportBox`: bloque **Recomendaciones de miniaturas** vía `seo_report_status.thumbnail_recommendations` (`thumbnail_suggestions` / `suggestions` del informe local o nota fija); sin autoaplicar ni cambios de render.
 - Asserts de labels en `tests/test_beat_panel.py` y `scripts/smoke_kit_panel.py`. Sin commit.
+
+## Solo Dropbox — registro de canales y merge de 3 vías ✅ CÓDIGO COMPLETADO (2026-10-18), migración pendiente de autorización
+- `core/channel_kind.py` (tipo beats|loops, `spec()` con documento/Environment/secretos/lista/workflow,
+  `validate_registry`), `core/cloud_registry.py` (`/automatizacion/canales.json` y `ajustes.json`, CAS)
+  y `core/cloud_merge.py` (merge por campo; listas por id/slug/clave/folder).
+- Beats lee y publica solo Dropbox (config + registro); plantillas en la pestaña SEO; `ChannelManager`
+  eliminado. Loop kits toma los canales del registro y guarda kits/config con merge.
+  `sections.py` ya no asume Beats: sin `section` es error.
+- `scripts/migrate_to_cloud.py` listo (dry-run por defecto); **no se ejecutó `--apply`**.
+- Smokes: `smoke_channel_kind`, `smoke_cloud_merge`, `smoke_cloud_migration` (diff vacío del config de Beats).
+
+## Solo nube — credenciales en el llavero y GitHub Secrets ✅ CÓDIGO COMPLETADO (2026-10-18), falta la prueba manual con `tokens/` renombrado
+- `core/cloud_login.py` (Dropbox PKCE → llavero `video-type-beat-generator`, `client_secret` de Google en el llavero,
+  `gh auth status`), `core/gh_status.py` (`gh secret list --json name,updatedAt` / `gh variable get`, caché 60 s,
+  escritura solo por stdin), `core/cloud_login_box.py` («Esta PC» en las dos pestañas Conexiones).
+- `local_transport` y `kit_cloud.client()` (escritorio) leen del llavero; nunca `tokens/`. YouTube: OAuth en memoria
+  (`youtube.authorize`) y subida directa al secreto del slug. Telegram/Notion/claves van directo a Secrets
+  (compartidos a `kit-weekly` y cada `kit-weekly-<slug>`); la UI muestra «cargado ✓ (fecha)».
+- Sync scripts con `push_channel` en memoria; la CLI se conserva. `keyring` en `requirements.txt`.
+- Archivos obsoletos de `tokens/` y `config/`: ver `docs/CLOUD_CREDENTIALS.md`. Smoke: `smoke_cloud_credentials`.

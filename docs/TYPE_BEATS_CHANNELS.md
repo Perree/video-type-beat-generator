@@ -58,7 +58,8 @@ publicar el workflow, dry-run y piloto. La activación se registra separadamente
 ## Título y descripción modelo del canal
 
 Para mattwyyre, use_channel_templates=true compila title_template y description_template
-que se guardan en Gestionar canales. El perfil SEO enviado al worker conserva ese modelo,
+que se guardan en el registro `/automatizacion/canales.json` (pestaña SEO del panel de Beats;
+«Gestionar canales» se eliminó). El perfil SEO enviado al worker conserva ese modelo,
 rellena {name} con el nombre limpio del beat y usa {beatstars_url} como enlace del track.
 La configuración de otros canales queda intacta. Para cambios posteriores, abrir/guardar
 Automatizaciones de Beats y publicar la configuración en Dropbox como antes.
@@ -75,3 +76,23 @@ La pestaña Conexiones del panel ejecuta el mismo `beat_secrets_sync.py`. Si exi
 `tokens/beat_secrets.json` con `BEAT_NOTION_TOKEN` y `BEAT_NOTION_PAGE_ID` válidos, el sync también
 los carga en `kit-weekly` (opcionales, solo SEO); si faltan o son inválidos se omiten sin error.
 Los valores viajan por stdin a `gh` y no se imprimen.
+## Migración al registro en Dropbox (pendiente de autorización)
+
+`scripts/migrate_to_cloud.py` copia una sola vez los canales de `config/app_config.json`
+(Beats y Loop kits, con sus plantillas; `personal` se ignora) a `/automatizacion/canales.json`
+y crea `/automatizacion/ajustes.json` (esquema en `docs/CLOUD_ONLY_SPIKE.md` §8). No cambia
+`/type-beats/*.json` ni `/loop_kits/**`, ni escribe `config/app_config.json`.
+
+- Slug: Beats usa su `actions_slug`; Loops, `kit_channel.slug(nombre)`. Un slug repetido o
+  inválido aborta. Un canal sin `section` se informa como «tipo sin definir» y se omite.
+- El canal de kits por defecto (`kit_preview.channel` o `--kits-default`) sale con
+  `legacy_default: true`. En el `app_config` actual `WyreSounds` figura como `beats`: si es el
+  canal Loops por defecto (spike §7) hay que pasarlo explícitamente.
+
+```
+py -3 scripts/migrate_to_cloud.py --kits-default WyreSounds            # dry-run (por defecto)
+py -3 scripts/migrate_to_cloud.py --kits-default WyreSounds --apply    # crea solo si no existe
+py -3 scripts/migrate_to_cloud.py --kits-default WyreSounds --apply --force   # reemplaza con el rev actual
+```
+
+`--apply` relee cada documento y confirma «verificado». El tipo y el slug quedan inmutables.

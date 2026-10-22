@@ -1,5 +1,7 @@
 # Type Beats — Fase 3 completada, revisión aplicada
 
+> **2026-10-18:** las credenciales ya no viven en `tokens/`: Dropbox va al llavero de Windows y el resto a GitHub Secrets. Ver [CLOUD_CREDENTIALS.md](CLOUD_CREDENTIALS.md); donde este documento nombre `tokens/*.json`, vale ese reemplazo.
+
 En la sección **Beats**, el botón **Automatizaciones de Beats** abre un diálogo
 independiente. Solo muestra canales pertenecientes a Beats, incluyendo los canales
 históricos sin sección explícita. Loopkits y marca personal conservan sus paneles.
@@ -10,12 +12,19 @@ El panel usa cuatro pestañas (misma lógica y handlers que antes; solo cambia e
 | --- | --- |
 | **Conexiones** | Placeholder para el hub de APIs (fase siguiente). |
 | **Canal** | Perfil BeatStars, lista de automatizaciones, canal activo/pausado, prioridad, géneros, carpeta e imágenes locales, opciones visuales y horarios semanales. |
-| **SEO y tendencias** | Tags de selección y tags SEO por canal. |
-| **Avanzado** | Guardado local, consulta de estado y configuración en Dropbox, simulación de 14 días, resumen de análisis y tabla de jobs planificados. |
+| **SEO y tendencias** | Tags de selección, tags SEO y **plantillas del canal** (título, descripción, redes, hashtags; se guardan en `/automatizacion/canales.json`). |
+| **Avanzado** | Consulta de estado, recargar desde Dropbox, simulación de 14 días, resumen de análisis y tabla de jobs planificados. |
 
 La barra de estado bajo las pestañas resume la operación en curso o errores de lectura.
 
-Configuración local en `config/app_config.json`, clave `beat_automation`:
+**Solo Dropbox (desde 2026-10-18).** El panel lee y escribe `/type-beats/config.json`
+(documento del worker, mismo formato que antes) y el registro `/automatizacion/canales.json`.
+`config/app_config.json` ya no se lee ni se escribe. Los canales del combo son los de tipo
+`beats` del registro; los canales nuevos se crean desde **Agregar canal** (ficha de Beats en el
+registro, slug derivado del nombre e inmutable). Antes del primer uso hay que migrar el
+registro: ver `docs/TYPE_BEATS_CHANNELS.md` («Migración al registro en Dropbox»).
+
+Contenido de `/type-beats/config.json`:
 
 - Perfil público HTTPS de BeatStars para el catálogo compartido.
 - Una automatización por canal: activa/pausada, prioridad, horarios semanales en
@@ -27,8 +36,9 @@ Configuración local en `config/app_config.json`, clave `beat_automation`:
 Agregar canal crea una automatización pausada con lunes a las 18:00. El formulario
 conserva los cambios al cambiar de canal; guardar valida todos los canales y
 horarios. La carpeta puede quedar vacía, pero si se indica debe existir. El guardado
-relee la configuración y reemplaza únicamente `beat_automation`, mediante archivo
-temporal y reemplazo atómico. **Guardar solo local** (Avanzado) no escribe en Dropbox.
+publica por CAS con merge de 3 vías por campo (`core/cloud_merge.py`): si otra PC cambió
+otros campos se fusionan; si cambió el mismo campo, el panel informa el choque, conserva el
+borrador y exige recargar.
 La barra inferior muestra el checklist de preparación (`readiness_beats` + informe SEO)
 y si el canal está listo para piloto.
 
@@ -128,16 +138,12 @@ habilita su creación por CAS. Una lectura fallida o cancelada no habilita publi
 La configuración remota debe ser válida para los canales locales; las rutas
 locales configuradas deben existir en este equipo.
 
-**Publicar al robot** (barra inferior) guarda primero la configuración local y
-después publica en Dropbox con el mismo CAS que **Publicar solo en Dropbox** en Avanzado.
-Si aún no se recargó la revisión remota, la lectura ocurre automáticamente entre ambos pasos
-y solo toma la revisión: no reemplaza el borrador del formulario.
-
-**Publicar solo en Dropbox** exige esa lectura previa y hace un único
-CAS sobre `/type-beats/config.json`: creación estricta si estaba ausente o update
-con la revisión consultada. No cambia `config/app_config.json`. Un conflicto
-conserva el borrador y exige recargar antes de volver a publicar; nunca hay
-overwrite ni reintentos automáticos de conflicto. Tras cancelar o una respuesta
+**Publicar al robot** (barra inferior) exige una lectura previa de Dropbox (se hace al
+abrir el panel o con **Recargar desde Dropbox**). Si cambiaron plantillas o canales, primero
+guarda `/automatizacion/canales.json`; después publica `/type-beats/config.json` por CAS:
+creación estricta si estaba ausente o update con la revisión consultada. Ante un conflicto de
+revisión relee y fusiona por campo; un choque en el mismo campo conserva el borrador y exige
+recargar. Nunca hay overwrite. Tras cancelar o una respuesta
 incierta también se exige recargar: una solicitud enviada podría haber terminado.
 
 El panel **nunca inicializa, reemplaza, migra en Dropbox ni reconstruye
