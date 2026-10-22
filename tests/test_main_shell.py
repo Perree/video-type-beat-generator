@@ -32,7 +32,7 @@ class MainShellTests(unittest.TestCase):
         import main
         w = main.MainWindow()
         settle(w.beat_panel)
-        self.assertEqual([w.tabs.tabText(i) for i in range(w.tabs.count())], ["Beats", "Loop kits"])
+        self.assertEqual([w.tabs.tabText(i) for i in range(w.tabs.count())], ["Beats", "Loop kits", "Manual"])
         self.assertEqual(w._current_section(), SECTION_BEATS)
         w._loop_kit_loaded = True  # evita la lectura de Dropbox
         w.tabs.setCurrentIndex(1)

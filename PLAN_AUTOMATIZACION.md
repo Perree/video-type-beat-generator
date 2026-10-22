@@ -772,3 +772,15 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
   (compartidos a `kit-weekly` y cada `kit-weekly-<slug>`); la UI muestra «cargado ✓ (fecha)».
 - Sync scripts con `push_channel` en memoria; la CLI se conserva. `keyring` en `requirements.txt`.
 - Archivos obsoletos de `tokens/` y `config/`: ver `docs/CLOUD_CREDENTIALS.md`. Smoke: `smoke_cloud_credentials`.
+
+## Modo Manual local (pestaña «Manual») ✅ COMPLETADO (2026-10-22)
+- Vuelve el flujo local que se había borrado con el paso a solo nube: arrastrar beats (archivos o carpetas)
+  y generar los videos en esta PC, sin subir nada. Beats y Loop kits (nube) no cambian.
+- `core/manual_render.py` (sin Qt): canales de `config/app_config.json` + carpetas `images/`, `videos/`,
+  `miniaturas/<canal>/<grupo>`; fondo Imagen o Video stock (en loop), sin repetir dentro de la tanda.
+  Deja `<título>.mp4`, `.jpg` (1280x720, título opcional encima) y `.txt` (título, descripción con BPM y tono
+  sacados del nombre, tags) en `Escritorio/Type Beat Videos/<canal>/`. Cancelar corta FFmpeg y no deja `.part`.
+- `core/manual_panel.py`: pestaña con arrastrar/soltar, canal/grupo, plantilla de título por canal y carpeta
+  de salida; preferencias en `config/manual_mode.json` (ignorado por git).
+- Velocidad: foto fija a 6 fps y video stock con preset `veryfast` (beat de 3:24: imagen 23 s, video ~100 s).
+- Tests: `tests/test_manual_render.py` (incluye render real corto con FFmpeg).

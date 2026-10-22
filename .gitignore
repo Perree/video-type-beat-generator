@@ -95,3 +95,6 @@ config/dropbox_app.json
 videos/
 library/
 shorts_cache/
+
+# Preferencias locales de la pestaña Manual
+config/manual_mode.json

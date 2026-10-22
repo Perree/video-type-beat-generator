@@ -3,7 +3,7 @@
 """
 Type Beat Video Generator
 -------------------------
-Shell mínimo: abre directo las automatizaciones de Beats y Loop kits.
+Shell mínimo: automatizaciones de Beats y Loop kits (nube) y la pestaña Manual (local).
 Canales y plantillas viven en Dropbox (/automatizacion/canales.json); las plantillas de Beats
 se editan en la pestaña SEO del panel de Beats.
 """
@@ -14,13 +14,14 @@ import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QStyleFactory, QTabWidget
 
 from core.beat_panel import BeatPanel
+from core.manual_panel import ManualPanel
 from core.sections import SECTION_BEATS, SECTION_LOOP_KITS
 from loop_kit_panel import LoopKitPanel
 from ui_theme import APPLICATION_STYLESHEET
 
 
 class MainWindow(QMainWindow):
-    """Ventana principal: pestañas Beats y Loop kits."""
+    """Ventana principal: pestañas Beats, Loop kits y Manual."""
 
     def __init__(self):
         super().__init__()
@@ -32,11 +33,13 @@ class MainWindow(QMainWindow):
 
         self.beat_panel = BeatPanel(self)
         self.loop_kit_panel = LoopKitPanel(self)
+        self.manual_panel = ManualPanel(self)
         self._loop_kit_loaded = False
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self.beat_panel, "Beats")
         self.tabs.addTab(self.loop_kit_panel, "Loop kits")
+        self.tabs.addTab(self.manual_panel, "Manual")
         self.tabs.currentChanged.connect(self._on_tab_changed)
         self.setCentralWidget(self.tabs)
 
@@ -56,6 +59,7 @@ class MainWindow(QMainWindow):
             event.ignore()
             return
         self.loop_kit_panel.shutdown()
+        self.manual_panel.shutdown()
         super().closeEvent(event)
 
 
