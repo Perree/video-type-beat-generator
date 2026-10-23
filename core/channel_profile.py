@@ -14,7 +14,7 @@ import re
 import shutil
 from copy import deepcopy
 
-from core import channel_templates, description
+from core import beat_title, description
 
 SCHEMA_VERSION = 1
 PROFILE_FILE = 'perfil.json'
@@ -27,6 +27,7 @@ TITLE_MAX = 100        # límite de YouTube
 TAGS_MAX = 500         # límite de YouTube (suma de los tags separados por coma)
 DESCRIPTION_MAX = 5000
 NAME_MAX = 80
+DEFAULT_TITLE = '[FREE] {artist} Type Beat - "{name}"'
 _BAD_NAME = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
 _CONFLICT = re.compile(r'conflicted copy|copia en conflicto|copia con conflicto', re.I)
 # Atributos de Windows de un archivo «solo en línea» (Dropbox / OneDrive no lo bajaron).
@@ -58,12 +59,13 @@ def default_profile(name):
         'schema_version': SCHEMA_VERSION,
         'nombre': name,
         'fondo': MODE_IMAGE,
-        'titulo': channel_templates.DEFAULT_TITLE_TEMPLATE,
+        'titulo': DEFAULT_TITLE,
         'descripcion': description.DEFAULT_TEMPLATE,
         'socials': '',
         'hashtags': '',
-        'tags': ['{name} type beat', 'type beat', 'free beat'],
+        'tags': ['{artist} type beat', '{name} type beat', 'type beat', 'free beat'],
         'miniatura_con_titulo': False,
+        'artistas': [],
     }
 
 
@@ -96,6 +98,11 @@ def validate(data, name=None):
     if not isinstance(tags, list) or any(not isinstance(t, str) or len(t) > 100 for t in tags):
         raise ProfileError('Los tags tienen que ser una lista de textos.')
     profile['tags'] = [t.strip() for t in tags if t.strip()]
+    artists = profile['artistas']
+    if (not isinstance(artists, list) or len(artists) > 50
+            or any(not isinstance(a, str) or len(a) > 60 for a in artists)):
+        raise ProfileError('Los artistas tienen que ser una lista de textos (hasta 50).')
+    profile['artistas'] = [a.strip() for a in artists if a.strip()]
     if type(profile['miniatura_con_titulo']) is not bool:
         raise ProfileError('Campo inválido en el perfil: miniatura_con_titulo.')
     return profile
@@ -203,11 +210,16 @@ def fit_title(title, limit=TITLE_MAX):
     return cut or title[:limit]
 
 
-def render_tags(profile, name, channel=''):
-    """Tags del perfil con ``{name}``/``{channel}`` reemplazados, sin repetir y hasta 500 caracteres."""
+def render_tags(profile, values):
+    """Tags del perfil con las variables del beat, sin repetir y hasta 500 caracteres.
+
+    Un tag que usa una variable vacía (p. ej. ``{artist}`` sin artista) se omite.
+    """
     out, seen, total = [], set(), 0
     for tag in profile['tags']:
-        value = ' '.join(tag.replace('{name}', name).replace('{channel}', channel).split())
+        if any(not str(values.get(n) or '').strip() for n in beat_title.variables_in(tag)):
+            continue
+        value = ' '.join(beat_title.fill(tag, values).split())
         key = value.lower()
         if not value or key in seen:
             continue

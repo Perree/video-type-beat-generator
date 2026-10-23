@@ -53,6 +53,10 @@ class ManualLogicTests(unittest.TestCase):
     def test_title_uses_profile_and_respects_youtube_limit(self):
         profile = dict(cp.default_profile("C"), titulo="[FREE] {name} | {channel}")
         self.assertEqual(mr.beat_title(profile, "dark", "C"), "[FREE] dark | C")
+        clean = dict(cp.default_profile("C"), artistas=["Juice WRLD"])
+        real = "(BEAT PRO-527) [juice wrld, elec gtr, sad] This is for me - 160bpm - key A Sharp Minor (prod. @a x @b)"
+        self.assertEqual(mr.beat_title(clean, real, "C"), '[FREE] Juice WRLD Type Beat - "This is for me"')
+        self.assertEqual(mr.beat_title(clean, "Legends Fall", "C"), '[FREE] "Legends Fall"')
         long_name = "(BEAT PRO-527) [juice wrld, elec gtr, sad] This is for me - 160bpm - key A Sharp Minor (prod. @a x @b)"
         self.assertLessEqual(len(mr.beat_title(profile, long_name, "C")), 100)
 
@@ -60,10 +64,11 @@ class ManualLogicTests(unittest.TestCase):
         profile = dict(cp.default_profile("C"), descripcion="{name} | {bpm} BPM\n{socials}",
                        socials="IG: @yo", tags=["{name} type beat", "trap"])
         text = mr.beat_text(profile, "dark 140bpm", "C")
-        self.assertIn("dark 140bpm | 140 BPM", text)
+        self.assertIn("dark | 140 BPM", text)
         self.assertIn("IG: @yo", text)
         self.assertEqual(text.count("Tags:"), 1)
-        self.assertIn("dark 140bpm type beat, trap", text)
+        self.assertIn("dark type beat, trap", text)
+        self.assertEqual(mr.beat_text(profile, "solo", "C").split("\n")[0], "solo")  # sin «| BPM» colgando
         with_tags = dict(profile, descripcion="Tags: {tags}")
         self.assertEqual(mr.beat_text(with_tags, "x", "C").count("Tags:"), 1)
 
@@ -97,12 +102,14 @@ class ManualRenderTests(unittest.TestCase):
         os.makedirs(os.path.dirname(cls.beat))
         run("-f", "lavfi", "-i", "sine=frequency=440:duration=3", cls.beat)
         cp.create(root, "Img")
-        cp.save(root, "Img", dict(cp.load(root, "Img"), titulo="{name} Type Beat", miniatura_con_titulo=True))
+        cp.save(root, "Img", dict(cp.load(root, "Img"), titulo="{name} Type Beat", miniatura_con_titulo=True,
+                                  descripcion="{name} | {bpm} BPM\nTags: {tags}"))
         from PIL import Image
         Image.new("RGB", (800, 800), (200, 30, 30)).save(
             os.path.join(root, "canales", "Img", "fondos", "bg.jfif"), "JPEG")
         cp.create(root, "Vid")
-        cp.save(root, "Vid", dict(cp.load(root, "Vid"), fondo="video", titulo="[FREE] {name}"))
+        cp.save(root, "Vid", dict(cp.load(root, "Vid"), fondo="video", titulo="[FREE] {name}",
+                                  descripcion="{name} | {bpm} BPM"))
         run("-f", "lavfi", "-i", "testsrc=size=640x360:rate=25:duration=1",
             os.path.join(root, "canales", "Vid", "fondos", "stock.mp4"))
         cls.tools = mr.Tools()
@@ -130,14 +137,21 @@ class ManualRenderTests(unittest.TestCase):
         out_root = os.path.join(self.root, "out-image")
         results, errors = mr.run_batch([self.beat], "Img", self.root, out_root, tools=self.tools)
         self.assertEqual(errors, [])
-        self.check_outputs(results, "Dark Beat 150bpm Type Beat")
+        self.check_outputs(results, "Dark Beat Type Beat")
         self.assertEqual(os.path.dirname(results[0]["video"]), os.path.join(out_root, "Img"))
 
     def test_video_profile_loops_short_stock(self):
         results, errors = mr.run_batch([self.beat], "Vid", self.root, os.path.join(self.root, "out-video"),
                                        tools=self.tools)
         self.assertEqual(errors, [])
-        self.check_outputs(results, "[FREE] Dark Beat 150bpm")
+        self.check_outputs(results, "[FREE] Dark Beat")
+
+    def test_manual_title_override_is_used_and_capped(self):
+        results, errors = mr.run_batch([self.beat], "Img", self.root, os.path.join(self.root, "out-title"),
+                                       tools=self.tools, titles={self.beat: "Mi título " + "x" * 120})
+        self.assertEqual(errors, [])
+        self.assertLessEqual(len(os.path.splitext(os.path.basename(results[0]["video"]))[0]), 100)
+        self.assertTrue(os.path.basename(results[0]["video"]).startswith("Mi título"))
 
     def test_cancel_stops_batch(self):
         with self.assertRaises(mr.Cancelled):
@@ -178,7 +192,7 @@ class ManualPanelTests(unittest.TestCase):
         self.assertEqual(p.channel(), "Canal")
         p.add_paths([self.drop])
         p.add_paths([os.path.join(self.drop, "one.mp3")])
-        self.assertEqual(p.beat_list.count(), 2)
+        self.assertEqual(p.beat_table.rowCount(), 2)
         self.assertTrue(p.btn_generate.isEnabled())
         self.assertIn("1 imágenes", p.summary_label.text())
         self.assertIn("one", p.preview_label.text())
@@ -202,21 +216,51 @@ class ManualPanelTests(unittest.TestCase):
     def test_remove_and_clear(self):
         p = self.panel
         p.add_paths([self.drop])
-        p.beat_list.item(0).setSelected(True)
+        p.beat_table.selectRow(0)
         p._remove_selected()
         self.assertTrue(p.beats[0].endswith("two.wav"))
         p.clear_beats()
         self.assertFalse(p.btn_generate.isEnabled())
+
+    def test_review_table_edits_titles_for_this_batch_only(self):
+        from core.manual_panel import BeatDropTable
+        p = self.panel
+        p.add_paths([self.drop])
+        auto = p.beat_table.item(0, BeatDropTable.COL_TITLE).text()
+        self.assertIn("one", auto)
+        p.beat_table.item(0, BeatDropTable.COL_TITLE).setText("  Título  a mano ")
+        self.assertEqual(p.title_overrides, {p.beats[0]: "Título a mano"})
+        self.assertEqual(p.job()["titles"], {p.beats[0]: "Título a mano"})
+        self.assertTrue(p.btn_reset_titles.isEnabled())
+        p.beat_table.item(0, BeatDropTable.COL_TITLE).setText(auto)  # volver al automático = sin edición
+        self.assertEqual(p.title_overrides, {})
+        p.beat_table.item(1, BeatDropTable.COL_TITLE).setText("Otro")
+        p.reset_titles()
+        self.assertEqual(p.title_overrides, {})
+        self.assertIn("/100", p.beat_table.item(0, BeatDropTable.COL_LEN).text())
+
+    def test_changing_channel_recomputes_titles(self):
+        from core.manual_panel import BeatDropTable
+        p = self.panel
+        p.add_paths([self.drop])
+        p.beat_table.item(0, BeatDropTable.COL_TITLE).setText("Editado")
+        cp.create(self.local, "Otro")
+        cp.save(self.local, "Otro", dict(cp.load(self.local, "Otro"), titulo="OTRO {name}"))
+        p.reload_channels(select="Otro")
+        self.assertEqual(p.title_overrides, {})
+        self.assertTrue(p.beat_table.item(0, BeatDropTable.COL_TITLE).text().startswith("OTRO"))
 
     def test_profile_editor_saves_and_duplicates(self):
         from core.profile_editor import ProfileEditor
         dialog = ProfileEditor(self.local, "Canal")
         dialog.title_edit.setText("{name} | Mío")
         dialog.radio_video.setChecked(True)
+        dialog.artists_edit.setText("Juice WRLD, Lil Peep")
         self.assertIn("/100", dialog.title_preview.text())
         self.assertTrue(dialog._save())
         saved = cp.load(self.local, "Canal")
         self.assertEqual((saved["titulo"], saved["fondo"]), ("{name} | Mío", cp.MODE_VIDEO))
+        self.assertEqual(saved["artistas"], ["Juice WRLD", "Lil Peep"])
         dialog.deleteLater()
 
 

@@ -796,7 +796,7 @@ carpetas listas para subir a mano (sin API de YouTube). Perfiles y fondos en `<D
   `scripts/migrate_local_channels.py` (21 canales; cada grupo ≠ Principal = canal propio; copia sin borrar).
   Pestaña Manual: carpeta de canales, Editar perfil, Nuevo canal, Importar canales anteriores.
   Pendiente del usuario: importar a su Dropbox real (botón o `--apply`). Tests: `tests/test_channel_profile.py`.
-- **Fase B — Títulos limpios**: `core/beat_title.py` ({name} {artist} {bpm} {key} {mood}) + tabla de revisión.
+- **Fase B — Títulos limpios** ✅ COMPLETADA (2026-10-22): `core/beat_title.py` separa {name} {artist} {bpm} {key} {mood} del nombre del archivo (formato BeatStars y nombres simples); bloques opcionales `[[…]]` y atajos `{bpm} BPM` / `{artist} Type Beat` que desaparecen si falta el dato; limpieza de separadores. Campo `artistas` en el perfil (escritura correcta del artista). Tabla de revisión en la pestaña Manual (título editable por beat, solo para esa tanda; «Restablecer títulos»). Tests: `tests/test_beat_title.py`.
 - **Fase C — Bulk**: `core/bulk_queue.py`, entrada por canal → `hechos/`, salida por fecha/canal/video,
   `pendientes.csv`, «Generar todo».
 - **Fase D — Velocidad del video stock**: medir en las dos PCs; caché 1080p30 en `%LOCALAPPDATA%` solo si mejora.

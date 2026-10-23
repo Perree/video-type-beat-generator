@@ -7,9 +7,14 @@ from PyQt5.QtWidgets import (QButtonGroup, QCheckBox, QDialog, QDialogButtonBox,
                              QPlainTextEdit, QPushButton, QRadioButton, QVBoxLayout)
 
 from core import channel_profile as cp
+from core import beat_title as bt
 from core import manual_render as mr
 
 SAMPLE = '(BEAT PRO-527) [juice wrld, sad] This is for me - 160bpm - key A Minor'
+SAMPLE_PLAIN = 'Legends Fall'
+VARIABLES_HELP = ('{name} nombre limpio · {artist} artista · {bpm} · {key} tono · {mood} · {channel}\n'
+                  '[[ … ]] = bloque opcional: desaparece si le falta algún dato, '
+                  'p. ej. [[({mood})]] o [[{key} · ]]')
 
 
 def open_folder(path):
@@ -62,16 +67,22 @@ class ProfileEditor(QDialog):
         form.addRow('Contenido:', media_row)
 
         self.title_edit = QLineEdit()
-        self.title_edit.setToolTip('{name} = nombre del archivo del beat; {channel} = canal.')
+        self.title_edit.setToolTip(VARIABLES_HELP)
         self.title_edit.textChanged.connect(self._refresh_preview)
         form.addRow('Título:', self.title_edit)
         self.title_preview = QLabel()
         self.title_preview.setWordWrap(True)
         form.addRow('', self.title_preview)
+        self.artists_edit = QLineEdit()
+        self.artists_edit.setPlaceholderText('Juice WRLD, Lil Peep  (así se escriben en el título)')
+        self.artists_edit.setToolTip('Si el nombre del beat menciona uno de estos artistas, se usa con esta '
+                                     'escritura en {artist}. Si no, se toma del primer [corchete] del nombre.')
+        self.artists_edit.textChanged.connect(self._refresh_preview)
+        form.addRow('Artistas:', self.artists_edit)
 
         self.desc_edit = QPlainTextEdit()
         self.desc_edit.setMinimumHeight(140)
-        self.desc_edit.setToolTip('Variables: {name} {bpm} {key} {tags} {socials} {hashtags} {beatstars_url}')
+        self.desc_edit.setToolTip(VARIABLES_HELP + '\nAdemás: {tags} {socials} {hashtags} {beatstars_url}')
         form.addRow('Descripción:', self.desc_edit)
         self.socials_edit = QPlainTextEdit()
         self.socials_edit.setMaximumHeight(70)
@@ -79,7 +90,8 @@ class ProfileEditor(QDialog):
         self.hashtags_edit = QLineEdit()
         form.addRow('Hashtags:', self.hashtags_edit)
         self.tags_edit = QLineEdit()
-        self.tags_edit.setToolTip('Separados por coma. {name} = nombre del beat.')
+        self.tags_edit.setToolTip('Separados por coma. Usan las mismas variables; un tag con una variable '
+                                  'vacía (p. ej. {artist} sin artista) se omite.')
         self.tags_edit.textChanged.connect(self._refresh_preview)
         form.addRow('Tags:', self.tags_edit)
         self.tags_count = QLabel()
@@ -104,6 +116,7 @@ class ProfileEditor(QDialog):
         self.socials_edit.setPlainText(profile['socials'])
         self.hashtags_edit.setText(profile['hashtags'])
         self.tags_edit.setText(', '.join(profile['tags']))
+        self.artists_edit.setText(', '.join(profile['artistas']))
         self.thumb_check.setChecked(profile['miniatura_con_titulo'])
         images, img_remote = cp.media(self.root, self.name, cp.MODE_IMAGE)
         videos, vid_remote = cp.media(self.root, self.name, cp.MODE_VIDEO)
@@ -122,6 +135,7 @@ class ProfileEditor(QDialog):
                     socials=self.socials_edit.toPlainText(),
                     hashtags=self.hashtags_edit.text().strip(),
                     tags=[t.strip() for t in self.tags_edit.text().split(',') if t.strip()],
+                    artistas=[a.strip() for a in self.artists_edit.text().split(',') if a.strip()],
                     miniatura_con_titulo=self.thumb_check.isChecked())
 
     def _refresh_preview(self):
@@ -129,11 +143,13 @@ class ProfileEditor(QDialog):
         if not profile['titulo']:
             self.title_preview.setText('La plantilla está vacía.')
             return
+        values = mr.beat_values(profile, SAMPLE, self.name)
         title = mr.beat_title(profile, SAMPLE, self.name)
-        full = ' '.join(mr.channel_templates.render_title(profile['titulo'], SAMPLE, self.name).split())
+        full = ' '.join(bt.fill(profile['titulo'], values).split())
         note = ' — se corta a 100 caracteres' if len(full) > cp.TITLE_MAX else ''
-        self.title_preview.setText(f'Ej.: {title}  ({len(title)}/100{note})')
-        tags = cp.render_tags(profile, 'nombre del beat', self.name)
+        plain = mr.beat_title(profile, SAMPLE_PLAIN, self.name)
+        self.title_preview.setText(f'Ej.: {title}  ({len(title)}/100{note})\nSin datos: {plain}')
+        tags = cp.render_tags(profile, values)
         total = len(', '.join(tags))
         dropped = len(profile['tags']) - len(tags)
         self.tags_count.setText(f'{total}/500 caracteres'

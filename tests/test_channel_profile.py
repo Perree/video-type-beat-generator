@@ -76,6 +76,13 @@ class ProfileTests(unittest.TestCase):
         touch(os.path.join(self.root, "canales", "C", "perfil (Matías's conflicted copy 2026-10-22).json"))
         self.assertEqual(len(cp.conflicts(self.root, "C")), 1)
 
+    def test_artists_validated(self):
+        cp.create(self.root, "A")
+        saved = cp.save(self.root, "A", dict(cp.load(self.root, "A"), artistas=[" Juice WRLD ", ""]))
+        self.assertEqual(saved["artistas"], ["Juice WRLD"])
+        with self.assertRaises(cp.ProfileError):
+            cp.save(self.root, "A", dict(saved, artistas="Juice WRLD"))
+
     def test_fit_title_cuts_on_word(self):
         title = cp.fit_title("palabra " * 30)
         self.assertLessEqual(len(title), 100)
@@ -83,9 +90,10 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(cp.fit_title("corto  |  x"), "corto | x")
 
     def test_render_tags_dedupes_and_caps_500(self):
-        profile = dict(cp.default_profile("C"), tags=["{name} type beat", "{name} TYPE BEAT"] + ["t" * 90] * 10)
-        tags = cp.render_tags(profile, "dark", "C")
-        self.assertEqual(tags[0], "dark type beat")
+        profile = dict(cp.default_profile("C"), tags=["{artist} type beat", "{name} type beat", "{name} TYPE BEAT"]
+                       + ["t" * 90] * 10)
+        tags = cp.render_tags(profile, {"name": "dark", "artist": "", "channel": "C"})
+        self.assertEqual(tags[0], "dark type beat")  # el tag con {artist} vacío se omite
         self.assertLessEqual(len(", ".join(tags)), 500)
         self.assertNotIn("dark TYPE BEAT", tags)
 

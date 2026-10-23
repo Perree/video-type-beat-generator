@@ -10,12 +10,12 @@ y ``<título>.txt`` (título, descripción y tags). Nada se sube a YouTube ni a 
 import json
 import os
 import random
-import re
 import subprocess
 import tempfile
 import time
 
 from core import channel_profile as cp
+from core import beat_title as bt
 from core import channel_templates, description, dropbox_local
 from core.ffmpeg_util import get_available_video_codec, get_media_duration, resolve_tool
 
@@ -72,16 +72,10 @@ def beat_name(audio):
     return os.path.splitext(os.path.basename(audio))[0]
 
 
-_BPM = re.compile(r'(\d{2,3}(?:\.\d)?)\s*bpm', re.I)
-_KEY = re.compile(r'\bkey\s*[:\-]?\s*([A-G](?:\s*(?:#|b|sharp|flat))?(?:\s*(?:minor|major|min|maj|m))?)(?![A-Za-z])',
-                  re.I)
-
-
 def beat_info(name):
     """``(bpm, tono)`` sacados del nombre del archivo (``160bpm``, ``key A Sharp Minor``), o None."""
-    bpm = _BPM.search(name)
-    key = _KEY.search(name)
-    return (float(bpm.group(1)) if bpm else None), (key.group(1).strip() if key else None)
+    info = bt.parse(name)
+    return (float(info['bpm']) if info['bpm'] else None), (info['key'] or None)
 
 
 def default_output_folder():
@@ -228,7 +222,9 @@ def render_beat(audio, mode, content, title, out_folder, tools, thumbnail_source
     if not seconds or seconds <= 0:
         raise ManualError(f'No se pudo leer la duración de {os.path.basename(audio)}.')
     os.makedirs(out_folder, exist_ok=True)
-    base = unique_base(out_folder, channel_templates.sanitize_filename(title))
+    # Windows no acepta " en nombres de archivo: comillas simples en vez de «_».
+    safe = title.replace('"', "'").replace('“', "'").replace('”', "'")
+    base = unique_base(out_folder, channel_templates.sanitize_filename(safe))
     video_out = os.path.join(out_folder, base + '.mp4')
     thumb_out = os.path.join(out_folder, base + '.jpg')
     text_out = os.path.join(out_folder, base + '.txt')
@@ -267,18 +263,24 @@ def render_beat(audio, mode, content, title, out_folder, tools, thumbnail_source
     return {'video': video_out, 'thumbnail': thumb_out, 'text': text_out}
 
 
+def beat_values(profile, name, channel):
+    """Variables de plantilla para un beat: name, artist, bpm, key, mood y channel."""
+    return dict(bt.parse(name, profile.get('artistas', ())), channel=channel)
+
+
 def beat_title(profile, name, channel):
     """Título del perfil para el beat, con tope de 100 caracteres (límite de YouTube)."""
-    title = channel_templates.render_title(profile['titulo'], name, channel).strip()
-    return cp.fit_title(title or name)
+    values = beat_values(profile, name, channel)
+    return cp.fit_title(bt.fill(profile['titulo'], values) or values['name'] or name)
 
 
 def beat_text(profile, name, channel):
-    """Descripción del perfil con BPM, tono y tags; agrega los tags si la plantilla no los usa."""
-    bpm, key = beat_info(name)
-    tags = ', '.join(cp.render_tags(profile, name, channel))
-    body = description.render(profile['descripcion'], name, bpm, key, tags=tags,
-                              socials=profile['socials'], hashtags=profile['hashtags']).strip()
+    """Descripción del perfil con las variables del beat; agrega los tags si la plantilla no los usa."""
+    values = beat_values(profile, name, channel)
+    tags = ', '.join(cp.render_tags(profile, values))
+    filled = bt.fill(profile['descripcion'], values, tidy='gaps')
+    body = description.render(filled, values['name'], tags=tags, socials=profile['socials'],
+                              hashtags=profile['hashtags']).strip()
     if '{tags}' not in profile['descripcion'] and tags:
         body = f'{body}\n\nTags: {tags}'.strip()
     return body
@@ -286,11 +288,13 @@ def beat_text(profile, name, channel):
 
 def run_batch(beats, channel, local_root, output_root, profile=None,
               progress=lambda done, total, text: None, cancelled=lambda: False,
-              tools=None, rng=None):
+              tools=None, rng=None, titles=None):
     """Genera todos los beats con el perfil del canal. Devuelve ``(resultados, errores)``.
 
+    ``titles``: ``{ruta_audio: título}`` editados a mano para esta tanda (se cortan a 100).
     Un beat con error no corta la tanda.
     """
+    titles = titles or {}
     profile = profile or cp.load(local_root, channel)
     mode = profile['fondo']
     contents, remote = cp.media(local_root, channel, mode)
@@ -311,7 +315,8 @@ def run_batch(beats, channel, local_root, output_root, profile=None,
         name = beat_name(audio)
         progress(index, len(beats), f'Generando {name} ({index + 1}/{len(beats)})')
         try:
-            results.append(render_beat(audio, mode, picks.next(), beat_title(profile, name, channel),
+            title = cp.fit_title(titles[audio]) if titles.get(audio, '').strip() else beat_title(profile, name, channel)
+            results.append(render_beat(audio, mode, picks.next(), title,
                                        out_folder, tools, thumbs.next(),
                                        profile['miniatura_con_titulo'],
                                        beat_text(profile, name, channel), cancelled))

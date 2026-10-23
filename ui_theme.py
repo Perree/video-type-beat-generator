@@ -87,6 +87,24 @@ QCheckBox, QRadioButton {{
     font-size: 13px;
 }}
 
+QTableWidget {{
+    background-color: #404040;
+    alternate-background-color: #464646;
+    color: #f0f0f0;
+    gridline-color: #555;
+    border: 1px solid #555;
+    selection-background-color: #0078D4;
+    font-size: 13px;
+}}
+
+QHeaderView::section {{
+    background-color: #353535;
+    color: #ddd;
+    border: none;
+    border-right: 1px solid #555;
+    padding: 4px;
+}}
+
 QPlainTextEdit, QTextEdit {{
     background-color: #404040;
     color: #f0f0f0;

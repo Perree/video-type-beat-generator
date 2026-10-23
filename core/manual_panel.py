@@ -10,10 +10,11 @@ import subprocess
 import sys
 
 from PyQt5.QtCore import QStandardPaths, Qt, QThread, pyqtSignal
+from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QComboBox, QFileDialog,
-                             QFormLayout, QGroupBox, QHBoxLayout, QInputDialog, QLabel,
-                             QListWidget, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
-                             QVBoxLayout, QWidget)
+                             QFormLayout, QGroupBox, QHBoxLayout, QHeaderView, QInputDialog, QLabel,
+                             QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
+                             QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 
 from core import channel_profile as cp
 from core import local_migration
@@ -37,15 +38,29 @@ def desktop_output_folder():
     return os.path.normpath(os.path.join(desktop, mr.OUTPUT_DIRNAME) if desktop else mr.default_output_folder())
 
 
-class BeatDropList(QListWidget):
-    """Lista que acepta archivos y carpetas arrastrados (se queda solo con los audios)."""
+class BeatDropTable(QTableWidget):
+    """Tabla beat | título (editable) | largo; acepta archivos y carpetas arrastrados."""
     paths_dropped = pyqtSignal(list)
+    COL_BEAT, COL_TITLE, COL_LEN = 0, 1, 2
 
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(0, 3, parent)
+        self.setHorizontalHeaderLabels(['Beat', 'Título (doble clic para editar)', 'Largo'])
+        header = self.horizontalHeader()
+        header.setSectionResizeMode(self.COL_BEAT, QHeaderView.Interactive)
+        header.setSectionResizeMode(self.COL_TITLE, QHeaderView.Stretch)
+        header.setSectionResizeMode(self.COL_LEN, QHeaderView.ResizeToContents)
+        self.setColumnWidth(self.COL_BEAT, 260)
+        self.verticalHeader().setVisible(False)
         self.setAcceptDrops(True)
+        self.viewport().setAcceptDrops(True)
         self.setDragDropMode(QAbstractItemView.DropOnly)
+        self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
+
+    def selected_rows(self):
+        return sorted({index.row() for index in self.selectedIndexes()})
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -105,6 +120,7 @@ class ManualPanel(QWidget):
             self.settings['output_folder'] = desktop_output_folder()
         self.worker = None
         self.beats = []
+        self.title_overrides = {}  # {ruta: título editado a mano}; solo para esta tanda
         self.profile = None
         self._build()
         self.reload_channels()
@@ -125,10 +141,11 @@ class ManualPanel(QWidget):
 
         beats_box = QGroupBox('Beats')
         beats_layout = QVBoxLayout(beats_box)
-        self.beat_list = BeatDropList()
-        self.beat_list.setMinimumHeight(140)
-        self.beat_list.paths_dropped.connect(self.add_paths)
-        beats_layout.addWidget(self.beat_list)
+        self.beat_table = BeatDropTable()
+        self.beat_table.setMinimumHeight(170)
+        self.beat_table.paths_dropped.connect(self.add_paths)
+        self.beat_table.itemChanged.connect(self._on_title_edited)
+        beats_layout.addWidget(self.beat_table)
         row = QHBoxLayout()
         self.btn_add_files = QPushButton('Agregar archivos')
         self.btn_add_files.clicked.connect(self._pick_files)
@@ -138,7 +155,11 @@ class ManualPanel(QWidget):
         self.btn_remove.clicked.connect(self._remove_selected)
         self.btn_clear = QPushButton('Vaciar')
         self.btn_clear.clicked.connect(self.clear_beats)
-        for button in (self.btn_add_files, self.btn_add_folder, self.btn_remove, self.btn_clear):
+        self.btn_reset_titles = QPushButton('Restablecer títulos')
+        self.btn_reset_titles.setToolTip('Descarta los títulos editados a mano y vuelve a los del perfil.')
+        self.btn_reset_titles.clicked.connect(self.reset_titles)
+        for button in (self.btn_add_files, self.btn_add_folder, self.btn_remove, self.btn_clear,
+                       self.btn_reset_titles):
             row.addWidget(button)
         row.addStretch()
         self.count_label = QLabel()
@@ -233,22 +254,66 @@ class ManualPanel(QWidget):
 
     def clear_beats(self):
         self.beats = []
+        self.title_overrides = {}
+        self._refresh_beats()
+
+    def reset_titles(self):
+        self.title_overrides = {}
         self._refresh_beats()
 
     def _remove_selected(self):
-        rows = sorted((self.beat_list.row(i) for i in self.beat_list.selectedItems()), reverse=True)
-        for row in rows:
+        for row in reversed(self.beat_table.selected_rows()):
+            self.title_overrides.pop(self.beats[row], None)
             del self.beats[row]
         self._refresh_beats()
 
+    def auto_title(self, path):
+        name = mr.beat_name(path)
+        return mr.beat_title(self.profile, name, self.channel()) if self.profile else name
+
+    def titles(self):
+        """Título final de cada beat (editado a mano o el del perfil), en orden."""
+        return [self.title_overrides.get(p) or self.auto_title(p) for p in self.beats]
+
+    def _set_length_cell(self, row, title):
+        cell = QTableWidgetItem(f'{len(title)}/100')
+        cell.setFlags(cell.flags() & ~Qt.ItemIsEditable)
+        if len(title) > 100:
+            cell.setForeground(QColor('#e74c3c'))
+            cell.setToolTip('Se corta a 100 caracteres al generar.')
+        self.beat_table.setItem(row, BeatDropTable.COL_LEN, cell)
+
     def _refresh_beats(self):
-        self.beat_list.clear()
-        for path in self.beats:
-            self.beat_list.addItem(os.path.basename(path))
-            self.beat_list.item(self.beat_list.count() - 1).setToolTip(path)
-        self.count_label.setText(f'{len(self.beats)} beats')
+        table = self.beat_table
+        table.blockSignals(True)
+        table.setRowCount(len(self.beats))
+        for row, (path, title) in enumerate(zip(self.beats, self.titles())):
+            beat = QTableWidgetItem(os.path.basename(path))
+            beat.setFlags(beat.flags() & ~Qt.ItemIsEditable)
+            beat.setToolTip(path)
+            table.setItem(row, BeatDropTable.COL_BEAT, beat)
+            cell = QTableWidgetItem(title)
+            if path in self.title_overrides:
+                cell.setForeground(QColor('#f1c40f'))
+                cell.setToolTip('Editado a mano (solo para esta tanda).')
+            table.setItem(row, BeatDropTable.COL_TITLE, cell)
+            self._set_length_cell(row, title)
+        table.blockSignals(False)
+        edited = len(self.title_overrides)
+        self.count_label.setText(f'{len(self.beats)} beats' + (f' · {edited} títulos editados' if edited else ''))
         self._refresh_preview()
         self._update_buttons()
+
+    def _on_title_edited(self, item):
+        if item.column() != BeatDropTable.COL_TITLE or item.row() >= len(self.beats):
+            return
+        path = self.beats[item.row()]
+        text = ' '.join(item.text().split())
+        if text and text != self.auto_title(path):
+            self.title_overrides[path] = text
+        else:
+            self.title_overrides.pop(path, None)
+        self._refresh_beats()
 
     def _pick_files(self):
         start = self.settings.get('last_beats_folder', '')
@@ -285,20 +350,23 @@ class ManualPanel(QWidget):
         self._on_channel_changed(self.channel())
 
     def _on_channel_changed(self, channel):
+        if channel != getattr(self, '_loaded_channel', None):
+            self.title_overrides = {}  # otro canal, otro estilo: los títulos se recalculan
+        self._loaded_channel = channel
+        self._load_profile(channel)
+        self._refresh_beats()  # los títulos dependen del perfil
+
+    def _load_profile(self, channel):
         self.profile = None
         if not channel:
             hint = ('No hay canales todavía. Usá «Importar canales anteriores» o «Nuevo canal».'
                     if self.local_root else 'Elegí la carpeta de canales.')
             self.summary_label.setText(hint)
-            self._refresh_preview()
-            self._update_buttons()
             return
         try:
             self.profile = cp.load(self.local_root, channel)
         except cp.ProfileError as exc:
             self.summary_label.setText(f'⚠ {exc}')
-            self._refresh_preview()
-            self._update_buttons()
             return
         mode = self.profile['fondo']
         ready, remote = cp.media(self.local_root, channel, mode)
@@ -314,8 +382,6 @@ class ManualPanel(QWidget):
         if cp.conflicts(self.local_root, channel):
             parts.append('⚠ hay copias en conflicto de Dropbox')
         self.summary_label.setText(' · '.join(parts))
-        self._refresh_preview()
-        self._update_buttons()
 
     def _refresh_preview(self):
         if not self.profile:
@@ -410,7 +476,10 @@ class ManualPanel(QWidget):
                        self.channel_combo, self.btn_new, self.btn_import, self.btn_reload,
                        self.btn_root):
             widget.setEnabled(not busy)
-        self.beat_list.setAcceptDrops(not busy)
+        self.btn_reset_titles.setEnabled(bool(self.title_overrides) and not busy)
+        self.beat_table.setAcceptDrops(not busy)
+        self.beat_table.setEditTriggers(QAbstractItemView.NoEditTriggers if busy else
+                                        QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
 
     def _say(self, text):
         self.log.appendPlainText(text)
@@ -424,7 +493,8 @@ class ManualPanel(QWidget):
 
     def job(self):
         return dict(beats=list(self.beats), channel=self.channel(), local_root=self.local_root,
-                    output_root=self.settings['output_folder'], profile=self.profile)
+                    output_root=self.settings['output_folder'], profile=self.profile,
+                    titles=dict(self.title_overrides))
 
     def start(self):
         if self.worker is not None or not self.beats or not self.profile:
