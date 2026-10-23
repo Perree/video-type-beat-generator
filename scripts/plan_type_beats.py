@@ -30,7 +30,7 @@ def main():
     transport = MemoryDropbox() if args.fake else DropboxTransport.from_env()
     cloud = BeatCloud(transport)
     if args.fake and args.state:
-        transport.files["/type-beats/state.json"] = (Path(args.state).read_bytes(), "fixture")
+        transport.files["/Soft Projects/Type Beat Generator/datos/beats/state.json"] = (Path(args.state).read_bytes(), "fixture")
     config = json.loads(Path(args.config).read_text(encoding="utf-8")) if args.config else cloud.read("config")[0]
     reports = {}
     from core.beat_notion import read_report_file

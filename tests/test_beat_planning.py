@@ -44,9 +44,9 @@ class PlanningTests(unittest.TestCase):
         self.assertEqual(self.fake.counter, writes)
 
     def test_persist_v0_migration_with_rev(self):
-        self.fake.write("/type-beats/state.json", b'{"extra":42}', None)
+        self.fake.write("/Soft Projects/Type Beat Generator/datos/beats/state.json", b'{"extra":42}', None)
         self.cloud.initialize()
-        data, _ = self.fake.read("/type-beats/state.json")
+        data, _ = self.fake.read("/Soft Projects/Type Beat Generator/datos/beats/state.json")
         self.assertEqual(json.loads(data)["schema_version"], 1)
         self.assertEqual(json.loads(data)["extra"], 42)
 
@@ -59,7 +59,7 @@ class PlanningTests(unittest.TestCase):
                        {"channels": [{"id": "x", "slots": [{"weekday": True, "hour": 18, "minute": 0}]}]}):
             with self.assertRaises(ValueError):
                 migrate(change, "config")
-        self.fake.write("/type-beats/state.json", b'broken', None)
+        self.fake.write("/Soft Projects/Type Beat Generator/datos/beats/state.json", b'broken', None)
         with self.assertRaises(CloudError):
             self.store.acquire()
         self.assertEqual(self.fake.counter, 1)
@@ -203,7 +203,7 @@ class PlanningTests(unittest.TestCase):
         for field in ("jobs", "attempts", "lock", "namespace"):
             broken = copy.deepcopy(state)
             del broken[field]
-            self.fake.files["/type-beats/state.json"] = (json.dumps(broken).encode(), "0000000000000001")
+            self.fake.files["/Soft Projects/Type Beat Generator/datos/beats/state.json"] = (json.dumps(broken).encode(), "0000000000000001")
             with self.subTest(field=field), self.assertRaises(CloudError):
                 self.cloud.initialize()
             with self.assertRaises(CloudError):
@@ -215,7 +215,7 @@ class PlanningTests(unittest.TestCase):
 
     def test_duplicate_json_keys_and_nonfinite_rejected(self):
         for payload in (b'{"attempts":{},"attempts":{}}', b'{"extra":NaN}', b'{"extra":Infinity}', b'{"extra":1e1000}'):
-            self.fake.files["/type-beats/state.json"] = (payload, "0000000000000001")
+            self.fake.files["/Soft Projects/Type Beat Generator/datos/beats/state.json"] = (payload, "0000000000000001")
             with self.subTest(payload=payload), self.assertRaises(CloudError):
                 self.cloud.read("state")
             with self.assertRaises(CloudError):

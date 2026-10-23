@@ -56,7 +56,7 @@
         "tags": ["fixture", "trap"],
         "genres": ["Trap"],
         "images_folder": "",
-        "dropbox_images": {"Trap": "/type-beats/images/fixture"},
+        "dropbox_images": {"Trap": "/fixtures/images"},
         "visual": {"mode": "image", "video_source": "dropbox", "videos_folder": "",
                    "clip_min_seconds": 3.0, "clip_max_seconds": 6.0,
                    "thumbnail_source": "auto", "thumbnail_path": ""},

@@ -14,7 +14,7 @@ from core.beat_fakes import MemoryDropbox
 from core.beat_panel import BeatPanel
 from core.my_channels import BeatCard, KitCard, MyChannelsView, ScheduleDialog, schedule_text
 
-CONFIG_PATH = "/type-beats/config.json"
+CONFIG_PATH = "/Soft Projects/Type Beat Generator/datos/beats/config.json"
 
 
 def pump(until, timeout=5):

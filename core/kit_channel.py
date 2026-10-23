@@ -14,14 +14,15 @@ import posixpath
 import re
 import unicodedata
 from collections import namedtuple
+from core import dropbox_layout
 
 DEFAULT = 'default'
 ENV_AUTOMATION = 'KIT_AUTOMATION'
 ENV_PREFIX = 'kit-weekly'
 # Mismos valores por defecto que kit_settings / kit_state (el smoke compara que coincidan).
-_DEFAULT_CONFIG = '/loop_kits/_automation/config.json'
-_DEFAULT_KITS = '/loop_kits/_automation/kits.json'
-_DEFAULT_STATE = '/loop_kits_state/state.json'
+_DEFAULT_CONFIG = dropbox_layout.KITS_CONFIG
+_DEFAULT_KITS = dropbox_layout.KITS_CATALOG
+_DEFAULT_STATE = dropbox_layout.KITS_STATE
 _SLUG_RE = re.compile(r'[a-z0-9]+(?:-[a-z0-9]+)*\Z')
 _SLUG_MAX = 40
 _DAYS = ('lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom')

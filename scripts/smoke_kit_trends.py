@@ -81,7 +81,7 @@ class Dbx:
         return type('M', (), {'rev': '%09x' % self.n})()
 
 
-PATH = '/loop_kits/_automation/seo_trends.json'
+PATH = '/Soft Projects/Type Beat Generator/datos/loop_kits/seo_trends.json'
 
 
 class Resp:
@@ -397,10 +397,10 @@ def _check_apply():
 
 
 def _check_paths():
-    check(kit_trends.saved_path('/loop_kits/_automation/config.json')
-          == '/loop_kits/_automation/seo_trends.json'
-          and kit_trends.saved_path('/loop_kits/_automation/otro/config.json')
-          == '/loop_kits/_automation/otro/seo_trends.json', "ruta de la ficha guardada")
+    check(kit_trends.saved_path('/Soft Projects/Type Beat Generator/datos/loop_kits/config.json')
+          == '/Soft Projects/Type Beat Generator/datos/loop_kits/seo_trends.json'
+          and kit_trends.saved_path('/Soft Projects/Type Beat Generator/datos/loop_kits/otro/config.json')
+          == '/Soft Projects/Type Beat Generator/datos/loop_kits/otro/seo_trends.json', "ruta de la ficha guardada")
     check(kit_trends.settings({'trends': {'max_age_days': 'x', 'enabled': 'si', 'timeout': -3}})
           == kit_trends.DEFAULTS, "valores inválidos de config no caen al default")
     check(kit_trends.settings({'trends': {'max_age_days': 3}})['max_age_days'] == 3, "config válida")

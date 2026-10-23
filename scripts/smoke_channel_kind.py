@@ -56,24 +56,24 @@ def check_spec():
     check(ck.TYPES == ('beats', 'loops'), 'TYPES')
     beats = ck.spec('beats', 'ey-mat')
     check(beats == {'tipo': 'beats', 'slug': 'ey-mat',
-                    'documents': {'config': '/type-beats/config.json'},
+                    'documents': {'config': '/Soft Projects/Type Beat Generator/datos/beats/config.json'},
                     'environment': 'kit-weekly',
                     'secrets': ('BEAT_CHANNEL_ID_EY_MAT', 'BEAT_YT_TOKEN_JSON_EY_MAT'),
                     'list_variable': 'BEAT_CHANNELS', 'list_entry': 'ey-mat',
                     'workflow': 'type-beats-daily.yml'}, f'spec Beats exacto: {beats}')
     loops = ck.spec('loops', 'canal-b')
     check(loops == {'tipo': 'loops', 'slug': 'canal-b',
-                    'documents': {'config': '/loop_kits/_automation/canal-b/config.json',
-                                  'kits': '/loop_kits/_automation/canal-b/kits.json',
-                                  'state': '/loop_kits_state/canal-b/state.json'},
+                    'documents': {'config': '/Soft Projects/Type Beat Generator/datos/loop_kits/canal-b/config.json',
+                                  'kits': '/Soft Projects/Type Beat Generator/datos/loop_kits/canal-b/kits.json',
+                                  'state': '/Soft Projects/Type Beat Generator/datos/loop_kits/estado/canal-b/state.json'},
                     'environment': 'kit-weekly-canal-b', 'secrets': KIT_SECRETS,
                     'list_variable': 'KIT_CHANNELS', 'list_entry': 'canal-b',
                     'workflow': 'kit-weekly.yml'}, f'spec Loops exacto: {loops}')
     legacy = ck.spec('loops', 'wyresounds', legacy_default=True)
     check(legacy == {'tipo': 'loops', 'slug': 'wyresounds',
-                     'documents': {'config': '/loop_kits/_automation/config.json',
-                                   'kits': '/loop_kits/_automation/kits.json',
-                                   'state': '/loop_kits_state/state.json'},
+                     'documents': {'config': '/Soft Projects/Type Beat Generator/datos/loop_kits/config.json',
+                                   'kits': '/Soft Projects/Type Beat Generator/datos/loop_kits/kits.json',
+                                   'state': '/Soft Projects/Type Beat Generator/datos/loop_kits/estado/state.json'},
                      'environment': 'kit-weekly', 'secrets': KIT_SECRETS,
                      'list_variable': 'KIT_CHANNELS', 'list_entry': 'default',
                      'workflow': 'kit-weekly.yml'}, f'spec legacy exacto: {legacy}')
@@ -153,7 +153,7 @@ def check_registry():
             pass
         check(memory.files == before, f'nada escrito con {label}')
     saved, _ = registry.read('canales')
-    check(saved == cloud_registry.normalize('canales', base) and memory.calls.count(('write', '/automatizacion/canales.json', None)) == 1,
+    check(saved == cloud_registry.normalize('canales', base) and memory.calls.count(('write', '/Soft Projects/Type Beat Generator/datos/automatizacion/canales.json', None)) == 1,
           'el registro válido quedó tal cual')
 
 

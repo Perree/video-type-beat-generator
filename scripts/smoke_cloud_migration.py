@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Smoke de scripts/migrate_to_cloud.py y del documento /type-beats/config.json resultante.
+"""Smoke de scripts/migrate_to_cloud.py y del documento /Soft Projects/Type Beat Generator/datos/beats/config.json resultante.
 
 Uso: ``py -3 scripts/smoke_cloud_migration.py``. Fixture sin datos reales
 (scripts/fixtures/app_config_sample.json): canal sin section, canal de kits por defecto,
 sección personal y un slug repetido. Dropbox es core/beat_fakes.MemoryDropbox: sin red.
 
-Además compara byte a byte el /type-beats/config.json que genera la app nueva (registro +
+Además compara byte a byte el /Soft Projects/Type Beat Generator/datos/beats/config.json que genera la app nueva (registro +
 config remota, también publicando desde el panel) contra el que generaba el código anterior
 con app_config.json (scripts/fixtures/type_beats_config_expected.json) e imprime el diff.
 """
@@ -140,7 +140,7 @@ def _diff(label, expected, actual):
     a = json.dumps(json.loads(expected), indent=1, sort_keys=True, ensure_ascii=False).splitlines()
     b = json.dumps(json.loads(actual), indent=1, sort_keys=True, ensure_ascii=False).splitlines()
     lines = list(difflib.unified_diff(a, b, 'formato actual (app_config)', label, lineterm=''))
-    print(f'diff /type-beats/config.json — {label}: '
+    print(f'diff /Soft Projects/Type Beat Generator/datos/beats/config.json — {label}: '
           + ('vacío (idéntico byte a byte)' if expected == actual and not lines else ''))
     for line in lines:
         print('   ', line)
@@ -154,7 +154,7 @@ def check_beats_document(canales):
     remote = json.loads(expected)
     memory = MemoryDropbox()
     BeatCloud(memory).write('config', beat_settings.validate(fixture()['beat_automation'], canales), None)
-    check(_diff('validate(config, registro)', expected, memory.files['/type-beats/config.json'][0]),
+    check(_diff('validate(config, registro)', expected, memory.files['/Soft Projects/Type Beat Generator/datos/beats/config.json'][0]),
           'el documento de Beats es idéntico al formato actual')
 
     # 2) La app: el panel carga Dropbox y publica sin cambios.
@@ -162,8 +162,8 @@ def check_beats_document(canales):
     app = QApplication.instance() or QApplication([])
     from core.beat_panel import BeatPanel
     memory = MemoryDropbox()
-    memory.files['/type-beats/config.json'] = (expected, 'rev-config-0001')
-    memory.files['/type-beats/state.json'] = (b'opaque-state', 'rev-state-0001')
+    memory.files['/Soft Projects/Type Beat Generator/datos/beats/config.json'] = (expected, 'rev-config-0001')
+    memory.files['/Soft Projects/Type Beat Generator/datos/beats/state.json'] = (b'opaque-state', 'rev-state-0001')
     memory.files[cloud_registry.PATHS['canales']] = (cloud_registry.payload(canales), 'rev-reg-0001')
     panel = BeatPanel(cloud_provider=lambda: memory)
 
@@ -177,9 +177,9 @@ def check_beats_document(canales):
           f'el panel carga desde Dropbox: {panel.status.text()}')
     panel.save_and_publish()
     settle()
-    check(_diff('panel «Publicar al robot»', expected, memory.files['/type-beats/config.json'][0]),
+    check(_diff('panel «Publicar al robot»', expected, memory.files['/Soft Projects/Type Beat Generator/datos/beats/config.json'][0]),
           'publicar desde el panel deja el documento idéntico')
-    check(memory.files['/type-beats/state.json'] == (b'opaque-state', 'rev-state-0001'),
+    check(memory.files['/Soft Projects/Type Beat Generator/datos/beats/state.json'] == (b'opaque-state', 'rev-state-0001'),
           'el estado remoto no se toca')
     check(memory.files[cloud_registry.PATHS['canales']][1] == 'rev-reg-0001',
           'sin cambios de plantillas no se reescribe el registro')

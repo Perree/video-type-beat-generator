@@ -7,7 +7,7 @@ secretos, variable de lista y workflow. Las convenciones salen de ``beat_actions
 """
 import json
 
-from core import beat_actions, kit_channel, kit_cloud
+from core import beat_actions, dropbox_layout, kit_channel, kit_cloud
 
 BEATS = 'beats'
 LOOPS = 'loops'
@@ -19,7 +19,7 @@ SECTION_OF = {BEATS: 'beats', LOOPS: 'loop_kits'}
 # Sección de la "Marca personal" dada de baja: se ignora, no es un tipo.
 IGNORED_SECTION = 'personal'
 
-BEATS_DOCUMENT = '/type-beats/config.json'
+BEATS_DOCUMENT = dropbox_layout.beats_document('config')
 BEATS_LIST = 'BEAT_CHANNELS'
 BEATS_WORKFLOW = 'type-beats-daily.yml'
 LOOPS_LIST = 'KIT_CHANNELS'

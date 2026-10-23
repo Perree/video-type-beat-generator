@@ -9,10 +9,10 @@ cada escritura.
 from copy import deepcopy
 import json
 
-from core import channel_kind, cloud_merge
+from core import channel_kind, cloud_merge, dropbox_layout
 from core.beat_cloud import BeatCloud, CloudError, Conflict, Missing, decode_document
 
-ROOT = '/automatizacion'
+ROOT = dropbox_layout.REGISTRY_DIR
 PATHS = {'canales': ROOT + '/canales.json', 'ajustes': ROOT + '/ajustes.json'}
 NAMESPACE = 'automatizacion'
 VERSION = 1

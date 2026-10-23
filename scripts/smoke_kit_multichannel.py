@@ -94,8 +94,8 @@ def _check_paths():
               (kit_settings.CONFIG_PATH, kit_settings.KITS_PATH, kit_state.STATE_PATH, True),
               f"las rutas del canal por defecto cambiaron ({key!r})")
     check(kit_channel.default_paths({}) == kit_channel.Paths(
-        'default', '/loop_kits/_automation/config.json', '/loop_kits/_automation/kits.json',
-        '/loop_kits_state/state.json', True), "los valores por defecto ya no son los de hoy")
+        'default', '/Soft Projects/Type Beat Generator/datos/loop_kits/config.json', '/Soft Projects/Type Beat Generator/datos/loop_kits/kits.json',
+        '/Soft Projects/Type Beat Generator/datos/loop_kits/estado/state.json', True), "los valores por defecto ya no son los de hoy")
     env = {'KIT_CONFIG_PATH': '/x/c.json', 'KIT_CATALOG_PATH': '/y/k.json',
            'KIT_STATE_PATH': '/z/s.json'}
     d = kit_channel.paths(None, env)
@@ -106,8 +106,8 @@ def _check_paths():
     files = {a.config, a.kits, a.state, b.config, b.kits, b.state,
              kit_settings.CONFIG_PATH, kit_settings.KITS_PATH, kit_state.STATE_PATH}
     check(len(files) == 9, "dos canales comparten alguna ruta")
-    check(a.state == '/loop_kits_state/canal-smoke-a/state.json'
-          and a.config == '/loop_kits/_automation/canal-smoke-a/config.json',
+    check(a.state == '/Soft Projects/Type Beat Generator/datos/loop_kits/estado/canal-smoke-a/state.json'
+          and a.config == '/Soft Projects/Type Beat Generator/datos/loop_kits/canal-smoke-a/config.json',
           "las rutas del canal no quedan dentro de las carpetas actuales")
     for bad in ('../otro', 'a/b', 'A B', '-x', 'x' * 60):
         check(_raises(kit_channel.KitChannelError, kit_channel.paths, bad), f"slug aceptado: {bad}")

@@ -13,8 +13,9 @@ from datetime import datetime, timedelta, timezone
 
 from core import kit_cloud, kit_spend
 from core.kit_store import AUDIO_MODES, _RUN_FIELDS
+from core import dropbox_layout
 
-STATE_PATH = os.environ.get('KIT_STATE_PATH') or '/loop_kits_state/state.json'
+STATE_PATH = os.environ.get('KIT_STATE_PATH') or dropbox_layout.KITS_STATE
 LOCK_TTL_SEC = 2 * 60 * 60
 CYCLE_FIELDS = ('cycle_videos', 'rest_until', 'used_names', 'used_ref_images')
 _CYCLE_LISTS = ('used_names', 'used_ref_images')

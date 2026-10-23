@@ -15,6 +15,7 @@ import shutil
 import tempfile
 
 from core import dropbox_client, youtube
+from core import dropbox_layout
 
 # rev=NEW en write_json: crear solo si el archivo todavía no existe.
 NEW = object()
@@ -166,7 +167,8 @@ def read_json_rev(path, dbx=None):
         if close:
             close()
     try:
-        return json.loads(raw.decode('utf-8')), getattr(meta, 'rev', None)
+        # Rutas viejas guardadas adentro (antes de concentrar todo en una carpeta) → nuevas.
+        return dropbox_layout.translate(json.loads(raw.decode('utf-8'))), getattr(meta, 'rev', None)
     except (UnicodeDecodeError, ValueError):
         raise KitCloudError(f"'{path}' no es un JSON válido.")
 

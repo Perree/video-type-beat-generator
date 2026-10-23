@@ -161,8 +161,8 @@ class CloudTests(unittest.TestCase):
 
     def test_config_creation_and_cas_conflict_never_modify_state(self):
         memory = MemoryDropbox()
-        memory.files['/type-beats/state.json'] = (b'opaque-state-do-not-rebuild', 'state-rev')
-        original = memory.files['/type-beats/state.json']
+        memory.files['/Soft Projects/Type Beat Generator/datos/beats/state.json'] = (b'opaque-state-do-not-rebuild', 'state-rev')
+        original = memory.files['/Soft Projects/Type Beat Generator/datos/beats/state.json']
         service = PanelCloud(memory)
         config, rev = service.read_config(Event())
         self.assertIsNone(rev)
@@ -172,9 +172,9 @@ class CloudTests(unittest.TestCase):
         for stale in (None, first):
             with self.assertRaises(Conflict):
                 service.save_config({}, stale, Event())
-        self.assertEqual(memory.files['/type-beats/config.json'][1], newer)
-        self.assertEqual(memory.files['/type-beats/state.json'], original)
-        self.assertTrue(all(call[1] == '/type-beats/config.json' for call in memory.calls))
+        self.assertEqual(memory.files['/Soft Projects/Type Beat Generator/datos/beats/config.json'][1], newer)
+        self.assertEqual(memory.files['/Soft Projects/Type Beat Generator/datos/beats/state.json'], original)
+        self.assertTrue(all(call[1] == '/Soft Projects/Type Beat Generator/datos/beats/config.json' for call in memory.calls))
 
     def test_absent_state_stays_absent(self):
         memory = MemoryDropbox()
@@ -183,7 +183,7 @@ class CloudTests(unittest.TestCase):
         service.save_config(config, rev, Event())
         with self.assertRaises(CloudError):
             load_state(Event(), memory)
-        self.assertNotIn('/type-beats/state.json', memory.files)
+        self.assertNotIn('/Soft Projects/Type Beat Generator/datos/beats/state.json', memory.files)
 
     def test_canceled_save_does_not_write(self):
         event, memory = Event(), MemoryDropbox()
@@ -195,11 +195,11 @@ class CloudTests(unittest.TestCase):
     def test_invalid_remote_config_is_never_replaced(self):
         memory = MemoryDropbox()
         original = (b'{invalid-private-document', 'bad-rev')
-        memory.files['/type-beats/config.json'] = original
+        memory.files['/Soft Projects/Type Beat Generator/datos/beats/config.json'] = original
         with self.assertRaises(CloudError):
             PanelCloud(memory).read_config(Event())
-        self.assertEqual(memory.files['/type-beats/config.json'], original)
-        self.assertEqual(memory.calls, [('read', '/type-beats/config.json')])
+        self.assertEqual(memory.files['/Soft Projects/Type Beat Generator/datos/beats/config.json'], original)
+        self.assertEqual(memory.calls, [('read', '/Soft Projects/Type Beat Generator/datos/beats/config.json')])
 
 
 class RemotePanelTests(unittest.TestCase):
@@ -220,7 +220,7 @@ class RemotePanelTests(unittest.TestCase):
         self.assertEqual(config['visual']['videos_folder'], '/Videos')
         self.assertEqual(config['visual']['thumbnail_path'], '/Art/thumb.png')
         self.assertEqual(config['dropbox_images'], {'trap': '/Art/new'})
-        self.assertNotIn(SECRET.encode(), self.memory.files['/type-beats/config.json'][0])
+        self.assertNotIn(SECRET.encode(), self.memory.files['/Soft Projects/Type Beat Generator/datos/beats/config.json'][0])
 
     def test_concurrent_edit_of_other_field_is_merged(self):
         self.configure()
@@ -234,7 +234,7 @@ class RemotePanelTests(unittest.TestCase):
         self.assertEqual((remote['priority'], remote['tags']), (7, ['mine']))
         self.assertTrue(self.panel.cloud_loaded)
         self.assertEqual(self.panel.priority.text(), '7')  # el formulario muestra lo fusionado
-        self.assertNotIn('/type-beats/state.json', self.memory.files)
+        self.assertNotIn('/Soft Projects/Type Beat Generator/datos/beats/state.json', self.memory.files)
 
     def test_concurrent_edit_of_same_field_is_a_conflict(self):
         self.configure()
@@ -310,7 +310,7 @@ class RemotePanelTests(unittest.TestCase):
         self.assertEqual(len([call for call in memory.calls if call[0] == 'write']), writes + 1)
         self.panel.save_cloud_config()
         self.assertIsNone(self.panel.task)
-        self.assertNotIn('/type-beats/state.json', memory.files)
+        self.assertNotIn('/Soft Projects/Type Beat Generator/datos/beats/state.json', memory.files)
 
     def test_config_read_write_and_state_read_are_off_ui_thread(self):
         self.configure()
@@ -333,7 +333,7 @@ class RemotePanelTests(unittest.TestCase):
         # registro + ajustes + config al recargar, config al publicar, estado.
         self.assertEqual(len(threads), 5, self.panel.status.text())
         self.assertTrue(all(thread != get_ident() for thread in threads))
-        self.assertNotIn('/type-beats/state.json', memory.files)
+        self.assertNotIn('/Soft Projects/Type Beat Generator/datos/beats/state.json', memory.files)
 
     def test_cancelled_config_reload_preserves_draft(self):
         self.configure()

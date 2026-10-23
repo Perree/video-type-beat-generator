@@ -4,6 +4,7 @@ import math
 import os
 import time
 from copy import deepcopy
+from core import dropbox_layout
 from core.beat_schema import migrate
 
 
@@ -25,7 +26,9 @@ def decode_document(data):
             raise ValueError("nonfinite_json_number")
         return result
 
-    return json.loads(data, object_pairs_hook=pairs, parse_constant=constant, parse_float=number)
+    # Rutas viejas guardadas adentro (antes de concentrar todo en una carpeta) → nuevas.
+    return dropbox_layout.translate(
+        json.loads(data, object_pairs_hook=pairs, parse_constant=constant, parse_float=number))
 
 
 class CloudError(Exception):
@@ -153,7 +156,7 @@ class BeatCloud:
     def _path(kind):
         if kind not in ("config", "state"):
             raise ValueError("invalid_kind")
-        return "/type-beats/" + kind + ".json"
+        return dropbox_layout.beats_document(kind)
 
     def write(self, kind, document, rev, before_write=None):
         validated = migrate(document, kind)

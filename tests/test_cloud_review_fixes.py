@@ -79,7 +79,7 @@ class KitPanelTests(unittest.TestCase):
         self.panel.create_automation("ey mat")
         self.wait()
         self.assertIn("Beats", self.panel.status.text())
-        self.assertNotIn("/loop_kits/_automation/ey-mat/config.json", self.dbx.files)
+        self.assertNotIn("/Soft Projects/Type Beat Generator/datos/loop_kits/ey-mat/config.json", self.dbx.files)
 
 
 class WorkerChannelTests(unittest.TestCase):

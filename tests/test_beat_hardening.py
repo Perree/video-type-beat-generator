@@ -29,7 +29,7 @@ class HardeningTests(unittest.TestCase):
 
     def test_missing_remote_state_never_recreates_budget(self):
         case = self.case
-        del case.memory.files['/type-beats/state.json']
+        del case.memory.files['/Soft Projects/Type Beat Generator/datos/beats/state.json']
         before = copy.deepcopy(case.memory.files)
         summary = case.run_worker()
         self.assertEqual(summary['failed'], 1)
@@ -92,19 +92,19 @@ class HardeningTests(unittest.TestCase):
 
     def test_deleted_state_before_lease_never_initializes_it(self):
         case = self.case
-        del case.memory.files['/type-beats/state.json']
+        del case.memory.files['/Soft Projects/Type Beat Generator/datos/beats/state.json']
         with self.assertRaises(Missing):
             BeatState(case.cloud).acquire(require_existing=True)
-        self.assertNotIn('/type-beats/state.json', case.memory.files)
+        self.assertNotIn('/Soft Projects/Type Beat Generator/datos/beats/state.json', case.memory.files)
 
     def test_release_after_state_loss_never_recreates_empty_ledger(self):
         case = self.case
         store = BeatState(case.cloud)
         owner = store.acquire(require_existing=True)
-        del case.memory.files['/type-beats/state.json']
+        del case.memory.files['/Soft Projects/Type Beat Generator/datos/beats/state.json']
         with self.assertRaises(Missing):
             store.release(owner)
-        self.assertNotIn('/type-beats/state.json', case.memory.files)
+        self.assertNotIn('/Soft Projects/Type Beat Generator/datos/beats/state.json', case.memory.files)
 
     def test_midnight_during_final_config_read_rejects_previous_day_budget(self):
         case = self.case
@@ -349,7 +349,7 @@ class HardeningTests(unittest.TestCase):
         transport = DropboxTransport(SimpleNamespace(files_download=lambda _: (
                     SimpleNamespace(size=8*1024*1024+1, rev='rev'), response)))
         with self.assertRaises(CloudError):
-            transport.read('/type-beats/state.json')
+            transport.read('/Soft Projects/Type Beat Generator/datos/beats/state.json')
         self.assertEqual(closed, [True])
 
     def test_recovery_cli_failure_sanitized(self):

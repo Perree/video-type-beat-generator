@@ -16,9 +16,10 @@ from urllib.parse import urlparse
 
 from core import (kit_catalog, kit_cloud, kit_notify, kit_seo, kit_source, kit_spend,
                   kit_state)
+from core import dropbox_layout
 
-CONFIG_PATH = os.environ.get('KIT_CONFIG_PATH') or '/loop_kits/_automation/config.json'
-KITS_PATH = os.environ.get('KIT_CATALOG_PATH') or '/loop_kits/_automation/kits.json'
+CONFIG_PATH = os.environ.get('KIT_CONFIG_PATH') or dropbox_layout.KITS_CONFIG
+KITS_PATH = os.environ.get('KIT_CATALOG_PATH') or dropbox_layout.KITS_CATALOG
 STATE_PATH = kit_state.STATE_PATH
 
 WEEKDAYS = ('Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo')

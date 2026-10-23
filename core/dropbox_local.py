@@ -39,6 +39,16 @@ def find_dropbox(env=None, home=None):
 
 
 def default_local_root(env=None, home=None):
-    """``<Dropbox>/TypeBeat Local`` (puede no existir todavía), o None sin Dropbox."""
+    """Carpeta local de canales dentro de Dropbox, o None sin Dropbox.
+
+    Primero la carpeta única de la app (``<Dropbox>/Soft Projects/Type Beat Generator/contenido``)
+    si esta PC ya la tiene sincronizada; si no, ``<Dropbox>/TypeBeat Local`` como antes.
+    """
+    from core import dropbox_layout
     dropbox = find_dropbox(env, home)
-    return os.path.join(dropbox, LOCAL_DIRNAME) if dropbox else None
+    if not dropbox:
+        return None
+    unified = os.path.join(dropbox, *dropbox_layout.CONTENT.strip('/').split('/'))
+    if os.path.isdir(os.path.join(unified, 'canales')):
+        return unified
+    return os.path.join(dropbox, LOCAL_DIRNAME)

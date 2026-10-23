@@ -21,8 +21,8 @@ class AdapterTests(unittest.TestCase):
         client = SimpleNamespace(files_upload=lambda data, path, **kw:
                                  (calls.append((data, path, kw)) or SimpleNamespace(rev="new")))
         transport = DropboxTransport(client)
-        self.assertEqual(transport.write("/type-beats/state.json", b"{}", None), "new")
-        transport.write("/type-beats/state.json", b"{}", "0000000000000001")
+        self.assertEqual(transport.write("/Soft Projects/Type Beat Generator/datos/beats/state.json", b"{}", None), "new")
+        transport.write("/Soft Projects/Type Beat Generator/datos/beats/state.json", b"{}", "0000000000000001")
         self.assertTrue(calls[0][2]["mode"].is_add())
         self.assertEqual(calls[1][2]["mode"].get_update(), "0000000000000001")
         self.assertTrue(all(c[2]["strict_conflict"] and not c[2]["autorename"] for c in calls))
@@ -56,11 +56,11 @@ class AdapterTests(unittest.TestCase):
         response = Response(b"{}")
         client = SimpleNamespace(files_download=lambda _: (SimpleNamespace(rev="rev", size=len(response.getvalue())), response))
         transport = DropboxTransport(client)
-        self.assertEqual(transport.read("/type-beats/state.json"), (b"{}", "rev"))
+        self.assertEqual(transport.read("/Soft Projects/Type Beat Generator/datos/beats/state.json"), (b"{}", "rev"))
         self.assertTrue(response.closed)
         response = Response(b"x" * (8 * 1024 * 1024 + 1))
         with self.assertRaises(CloudError):
-            transport.read("/type-beats/state.json")
+            transport.read("/Soft Projects/Type Beat Generator/datos/beats/state.json")
         self.assertTrue(response.closed)
 
     def test_credentials_isolated_no_kit_fallback(self):

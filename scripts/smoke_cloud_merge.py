@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Smoke del merge de 3 vías (core/cloud_merge) y su uso en los documentos de Dropbox.
 
-Uso: ``py -3 scripts/smoke_cloud_merge.py``. Sin red: canales.json y /type-beats/config.json
+Uso: ``py -3 scripts/smoke_cloud_merge.py``. Sin red: canales.json y /Soft Projects/Type Beat Generator/datos/beats/config.json
 van a core/beat_fakes.MemoryDropbox; kits.json al doble de smoke_kit_state.
 """
 import json
@@ -137,8 +137,8 @@ def check_beats_config():
     first = stored['channels'][0]
     check(first['priority'] == 5 and first['tags'] == ['mio']
           and [c['id'] for c in stored['channels']] == ['uno', 'dos', 'tres'] and stored == saved,
-          f'/type-beats/config.json: campos distintos y altas fusionados: {stored["channels"]}')
-    check('/type-beats/state.json' not in memory.files and set(memory.files) == set(state_before),
+          f'/Soft Projects/Type Beat Generator/datos/beats/config.json: campos distintos y altas fusionados: {stored["channels"]}')
+    check('/Soft Projects/Type Beat Generator/datos/beats/state.json' not in memory.files and set(memory.files) == set(state_before),
           'el merge de config no crea estado')
     base, rev = cloud.read('config')
     a, b = deepcopy(base), deepcopy(base)

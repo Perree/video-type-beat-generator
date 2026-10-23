@@ -50,7 +50,7 @@ class Transport:
         return self.pages["pages"][variables["page"]]
 
 
-CONFIG_PATH = "/type-beats/config.json"
+CONFIG_PATH = "/Soft Projects/Type Beat Generator/datos/beats/config.json"
 
 
 def registry_doc():
@@ -181,9 +181,9 @@ class PanelTests(unittest.TestCase):
 
     def test_save_preserves_other_documents_and_channel_edits(self):
         self.configure()
-        self.memory.files["/type-beats/state.json"] = (b"opaque", "rev-state")
+        self.memory.files["/Soft Projects/Type Beat Generator/datos/beats/state.json"] = (b"opaque", "rev-state")
         self.publish()
-        self.assertEqual(self.memory.files["/type-beats/state.json"], (b"opaque", "rev-state"))
+        self.assertEqual(self.memory.files["/Soft Projects/Type Beat Generator/datos/beats/state.json"], (b"opaque", "rev-state"))
         self.assertEqual(self.remote()["channels"][0]["tags"], ["trap", "dark"])
         self.assertEqual(self.reopen().tags.text(), "trap, dark")
 
@@ -232,20 +232,20 @@ class PanelTests(unittest.TestCase):
         self.configure()
         self.panel.visual_mode.setCurrentIndex(1)
         self.panel.video_source.setCurrentIndex(1)
-        self.panel.videos_folder.setText('/type-beats/videos/channel-a')
+        self.panel.videos_folder.setText('/Soft Projects/Type Beat Generator/datos/beats/videos/channel-a')
         self.panel.clip_min.setValue(1.5)
         self.panel.clip_max.setValue(4.5)
         self.panel.thumbnail_source.setCurrentIndex(2)
-        self.panel.thumbnail_path.setText('/type-beats/thumbnails/channel-a.png')
-        self.panel.dropbox_images.setPlainText('Trap=/type-beats/images/channel-a')
+        self.panel.thumbnail_path.setText('/Soft Projects/Type Beat Generator/datos/beats/thumbnails/channel-a.png')
+        self.panel.dropbox_images.setPlainText('Trap=/Soft Projects/Type Beat Generator/datos/beats/images/channel-a')
         self.panel.add_channel()
         self.assertEqual(self.panel.visual_mode.currentData(), 'image')
         self.panel.automations.setCurrentRow(0)
         self.assertEqual(self.panel.visual_mode.currentData(), 'video')
         self.publish()
         reopened = self.reopen()
-        self.assertEqual(reopened.videos_folder.text(), '/type-beats/videos/channel-a')
-        self.assertEqual(reopened.thumbnail_path.text(), '/type-beats/thumbnails/channel-a.png')
+        self.assertEqual(reopened.videos_folder.text(), '/Soft Projects/Type Beat Generator/datos/beats/videos/channel-a')
+        self.assertEqual(reopened.thumbnail_path.text(), '/Soft Projects/Type Beat Generator/datos/beats/thumbnails/channel-a.png')
         self.assertEqual(reopened.clip_min.value(), 1.5)
         self.assertEqual(reopened.clip_max.value(), 4.5)
 
@@ -277,7 +277,7 @@ class PanelTests(unittest.TestCase):
         self.publish()
         self.assertEqual(self.remote_bytes(), before)
         self.panel.clip_min.setValue(1)
-        self.panel.dropbox_images.setPlainText('Trap=/type-beats/images/trap')
+        self.panel.dropbox_images.setPlainText('Trap=/Soft Projects/Type Beat Generator/datos/beats/images/trap')
         self.publish()
         self.assertNotEqual(self.remote_bytes(), before)
 
