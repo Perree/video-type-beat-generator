@@ -14,7 +14,7 @@ import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QStyleFactory, QTabWidget
 
 from core.beat_panel import BeatPanel
-from core.manual_panel import ManualPanel
+from core.manual_tab import ManualTab
 from core.sections import SECTION_BEATS, SECTION_LOOP_KITS
 from loop_kit_panel import LoopKitPanel
 from ui_theme import APPLICATION_STYLESHEET
@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
 
         self.beat_panel = BeatPanel(self)
         self.loop_kit_panel = LoopKitPanel(self)
-        self.manual_panel = ManualPanel(self)
+        self.manual_panel = ManualTab(self)
         self._loop_kit_loaded = False
 
         self.tabs = QTabWidget()

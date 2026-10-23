@@ -1,8 +1,10 @@
+import csv
 import os
 import random
 import subprocess
 import tempfile
 import unittest
+from datetime import datetime
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -39,10 +41,18 @@ class ManualLogicTests(unittest.TestCase):
         self.assertIn(rot.next(), ["a", "b", "c"])
         self.assertIsNone(mr.Rotation([]).next())
 
-    def test_unique_base_does_not_overwrite(self):
-        touch(os.path.join(self.root, "x.mp4"))
-        touch(os.path.join(self.root, "x (2).jpg"))
-        self.assertEqual(mr.unique_base(self.root, "x"), "x (3)")
+    def test_unique_folder_does_not_overwrite(self):
+        os.makedirs(os.path.join(self.root, "x"))
+        os.makedirs(os.path.join(self.root, "x (2)"))
+        self.assertEqual(mr.unique_folder(self.root, "x"), "x (3)")
+
+    def test_safe_name_keeps_quotes_readable(self):
+        self.assertEqual(mr.safe_name('[FREE] A Type Beat - "Pain"'), "[FREE] A Type Beat - 'Pain'")
+        self.assertEqual(mr.safe_name("a: b?"), "a_ b_")
+
+    def test_upload_text_blocks(self):
+        text = mr.upload_text("T", "Desc\n", ["a", "b"])
+        self.assertEqual(text, "TÍTULO\nT\n\nDESCRIPCIÓN\nDesc\n\nTAGS\na, b\n")
 
     def test_beat_info_from_filename(self):
         self.assertEqual(mr.beat_info("This is for me - 160bpm - key A Sharp Minor (prod. x)"),
@@ -66,8 +76,8 @@ class ManualLogicTests(unittest.TestCase):
         text = mr.beat_text(profile, "dark 140bpm", "C")
         self.assertIn("dark | 140 BPM", text)
         self.assertIn("IG: @yo", text)
-        self.assertEqual(text.count("Tags:"), 1)
-        self.assertIn("dark type beat, trap", text)
+        self.assertEqual(text.count("Tags:"), 0)  # los tags van en su propio bloque
+        self.assertEqual(mr.beat_tags(profile, "dark 140bpm", "C"), ["dark type beat", "trap"])
         self.assertEqual(mr.beat_text(profile, "solo", "C").split("\n")[0], "solo")  # sin «| BPM» colgando
         with_tags = dict(profile, descripcion="Tags: {tags}")
         self.assertEqual(mr.beat_text(with_tags, "x", "C").count("Tags:"), 1)
@@ -121,24 +131,41 @@ class ManualRenderTests(unittest.TestCase):
     def check_outputs(self, results, expected_title):
         self.assertEqual(len(results), 1)
         out = results[0]
+        self.assertEqual(os.path.basename(out["folder"]), expected_title)
         self.assertEqual(os.path.basename(out["video"]), expected_title + ".mp4")
+        self.assertEqual(os.path.basename(out["thumbnail"]), expected_title + " - miniatura.jpg")
         self.assertAlmostEqual(get_media_duration(out["video"]), 3.0, delta=0.3)
         from PIL import Image
         with Image.open(out["thumbnail"]) as img:
             self.assertEqual(img.size, (1280, 720))
         with open(out["text"], encoding="utf-8") as f:
             text = f.read()
-        self.assertTrue(text.startswith(expected_title))
-        self.assertEqual(text.count("Tags:"), 1)
+        self.assertTrue(text.startswith("TÍTULO\n" + expected_title))
+        self.assertEqual(text.count("TAGS\n"), 1)
         self.assertIn("150 BPM", text)
-        self.assertFalse(any(n.endswith(".part") for n in os.listdir(os.path.dirname(out["video"]))))
+        self.assertEqual(sorted(os.listdir(out["folder"])),
+                         sorted([expected_title + ext for ext in (".mp4", " - miniatura.jpg", ".txt")]))
 
     def test_image_profile(self):
         out_root = os.path.join(self.root, "out-image")
-        results, errors = mr.run_batch([self.beat], "Img", self.root, out_root, tools=self.tools)
+        results, errors = mr.run_batch([self.beat], "Img", self.root, out_root, tools=self.tools,
+                                       today=datetime(2026, 1, 2))
         self.assertEqual(errors, [])
         self.check_outputs(results, "Dark Beat Type Beat")
-        self.assertEqual(os.path.dirname(results[0]["video"]), os.path.join(out_root, "Img"))
+        day = os.path.join(out_root, "2026-01-02")
+        self.assertEqual(os.path.dirname(results[0]["folder"]), os.path.join(day, "Img"))
+        with open(os.path.join(day, "pendientes.csv"), encoding="utf-8-sig") as f:
+            rows = list(csv.reader(f))
+        self.assertEqual(rows[0], ["canal", "título", "carpeta", "subido"])
+        self.assertEqual(rows[1][:2], ["Img", "Dark Beat Type Beat"])
+
+    def test_failed_beat_leaves_no_folder(self):
+        bad = touch(os.path.join(self.root, "beats", "malo.mp3"), b"not audio")
+        out_root = os.path.join(self.root, "out-fail")
+        _, errors = mr.run_batch([bad], "Img", self.root, out_root, tools=self.tools, today=datetime(2026, 1, 2))
+        self.assertEqual(len(errors), 1)
+        channel_dir = os.path.join(out_root, "2026-01-02", "Img")
+        self.assertEqual(os.listdir(channel_dir) if os.path.isdir(channel_dir) else [], [])
 
     def test_video_profile_loops_short_stock(self):
         results, errors = mr.run_batch([self.beat], "Vid", self.root, os.path.join(self.root, "out-video"),

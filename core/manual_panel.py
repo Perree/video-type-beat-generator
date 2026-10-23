@@ -533,8 +533,8 @@ class ManualPanel(QWidget):
     def _on_done(self, results, errors):
         for name, error in errors:
             self._say(f'✗ {name}: {error}')
-        folder = os.path.join(self.settings['output_folder'], self.channel())
-        self._say(f'✓ {len(results)} videos listos en {folder}')
+        folder = os.path.join(mr.day_folder(self.settings['output_folder']), mr.safe_name(self.channel()))
+        self._say(f'✓ {len(results)} videos listos en {folder} (lista en {mr.PENDING_CSV}).')
         if results and not errors:
             self.clear_beats()
 

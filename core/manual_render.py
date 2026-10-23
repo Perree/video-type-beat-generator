@@ -4,15 +4,19 @@
 El estilo de cada canal (fondo, título, descripción, tags, miniatura) y sus fondos viven en la
 carpeta local de canales (normalmente ``<Dropbox>/TypeBeat Local``); ver ``core.channel_profile``.
 
-Por cada beat deja en ``<salida>/<canal>/``: ``<título>.mp4``, ``<título>.jpg`` (1280x720)
-y ``<título>.txt`` (título, descripción y tags). Nada se sube a YouTube ni a Dropbox.
+Por cada beat deja ``<salida>/<fecha>/<canal>/<título>/`` con ``<título>.mp4``,
+``<título> - miniatura.jpg`` (1280x720) y ``<título>.txt`` (bloques TÍTULO / DESCRIPCIÓN / TAGS),
+y suma una fila a ``<salida>/<fecha>/pendientes.csv``. Nada se sube a YouTube ni a Dropbox.
 """
+import csv
 import json
 import os
 import random
+import shutil
 import subprocess
 import tempfile
 import time
+from datetime import datetime
 
 from core import channel_profile as cp
 from core import beat_title as bt
@@ -100,14 +104,6 @@ class Rotation:
         choice = self.rng.choice(unused)
         self.used.append(choice)
         return choice
-
-
-def unique_base(folder, base):
-    """``base`` o ``base (2)``... para no pisar un video ya generado."""
-    candidate, n = base, 2
-    while any(os.path.exists(os.path.join(folder, candidate + ext)) for ext in ('.mp4', '.jpg', '.txt')):
-        candidate, n = f'{base} ({n})', n + 1
-    return candidate
 
 
 # --- Imágenes (Pillow) ---
@@ -215,19 +211,53 @@ class Tools:
         self.run(['-y', '-ss', f'{at:.2f}', '-i', video, '-frames:v', '1', target], cancelled, 120)
 
 
-def render_beat(audio, mode, content, title, out_folder, tools, thumbnail_source=None,
-                title_on_thumbnail=False, text='', cancelled=lambda: False):
-    """Genera ``<título>.mp4``, ``.jpg`` y ``.txt`` en ``out_folder``. Devuelve sus rutas."""
+def safe_name(title):
+    """Nombre de archivo/carpeta para el título (Windows no acepta " : usa comillas simples)."""
+    return channel_templates.sanitize_filename(
+        title.replace('"', "'").replace('“', "'").replace('”', "'")).rstrip(' .') or 'video'
+
+
+def unique_folder(parent, base):
+    """``base`` o ``base (2)``... que todavía no exista dentro de ``parent``."""
+    candidate, n = base, 2
+    while os.path.exists(os.path.join(parent, candidate)):
+        candidate, n = f'{base} ({n})', n + 1
+    return candidate
+
+
+def upload_text(title, description_text, tags):
+    """Texto en bloques para copiar y pegar en YouTube Studio."""
+    return (f'TÍTULO\n{title}\n\nDESCRIPCIÓN\n{description_text.strip()}\n\n'
+            f'TAGS\n{", ".join(tags)}\n')
+
+
+def render_beat(audio, mode, content, title, channel_folder, tools, thumbnail_source=None,
+                title_on_thumbnail=False, description_text='', tags=(), cancelled=lambda: False):
+    """Genera una carpeta ``<título>/`` con el video, la miniatura y el texto para subir a mano.
+
+    Los archivos llevan el título como nombre: YouTube Studio usa el nombre del archivo como
+    título inicial. Si algo falla, la carpeta del video se borra entera.
+    """
     seconds = get_media_duration(audio)
     if not seconds or seconds <= 0:
         raise ManualError(f'No se pudo leer la duración de {os.path.basename(audio)}.')
-    os.makedirs(out_folder, exist_ok=True)
-    # Windows no acepta " en nombres de archivo: comillas simples en vez de «_».
-    safe = title.replace('"', "'").replace('“', "'").replace('”', "'")
-    base = unique_base(out_folder, channel_templates.sanitize_filename(safe))
-    video_out = os.path.join(out_folder, base + '.mp4')
-    thumb_out = os.path.join(out_folder, base + '.jpg')
-    text_out = os.path.join(out_folder, base + '.txt')
+    os.makedirs(channel_folder, exist_ok=True)
+    base = unique_folder(channel_folder, safe_name(title))
+    folder = os.path.join(channel_folder, base)
+    os.makedirs(folder)
+    try:
+        return _render_into(audio, mode, content, title, folder, base, seconds, tools, thumbnail_source,
+                            title_on_thumbnail, description_text, tags, cancelled)
+    except BaseException:
+        shutil.rmtree(folder, ignore_errors=True)
+        raise
+
+
+def _render_into(audio, mode, content, title, folder, base, seconds, tools, thumbnail_source,
+                 title_on_thumbnail, description_text, tags, cancelled):
+    video_out = os.path.join(folder, base + '.mp4')
+    thumb_out = os.path.join(folder, base + ' - miniatura.jpg')
+    text_out = os.path.join(folder, base + '.txt')
     partial = video_out + '.part'
     with tempfile.TemporaryDirectory(prefix='manual-beat-') as tmp:
         if mode == MODE_IMAGE:
@@ -248,19 +278,14 @@ def render_beat(audio, mode, content, title, out_folder, tools, thumbnail_source
                 tools.video_frame(content, thumb_from, min(length * 0.1, 5.0), cancelled)
         else:
             raise ManualError('Modo desconocido.')
-        try:
-            tools.run([*args, '-t', f'{seconds:.3f}', '-f', 'mp4', partial], cancelled)
-            # Dentro del with: el cuadro sacado del video vive en la carpeta temporal.
-            fit_image(thumb_from, thumb_out, THUMB, title if title_on_thumbnail else None)
-        except BaseException:
-            for leftover in (partial, thumb_out):
-                if os.path.exists(leftover):
-                    os.remove(leftover)
-            raise
+        tools.run([*args, '-t', f'{seconds:.3f}', '-f', 'mp4', partial], cancelled)
+        # Dentro del with: el cuadro sacado del video vive en la carpeta temporal.
+        fit_image(thumb_from, thumb_out, THUMB, title if title_on_thumbnail else None)
     os.replace(partial, video_out)
     with open(text_out, 'w', encoding='utf-8') as f:
-        f.write(f'{title}\n\n{text.strip()}\n')
-    return {'video': video_out, 'thumbnail': thumb_out, 'text': text_out}
+        f.write(upload_text(title, description_text, tags))
+    return {'video': video_out, 'thumbnail': thumb_out, 'text': text_out, 'folder': folder,
+            'title': title}
 
 
 def beat_values(profile, name, channel):
@@ -274,25 +299,48 @@ def beat_title(profile, name, channel):
     return cp.fit_title(bt.fill(profile['titulo'], values) or values['name'] or name)
 
 
+def beat_tags(profile, name, channel):
+    """Tags del perfil para el beat (lista, hasta 500 caracteres en total)."""
+    return cp.render_tags(profile, beat_values(profile, name, channel))
+
+
 def beat_text(profile, name, channel):
-    """Descripción del perfil con las variables del beat; agrega los tags si la plantilla no los usa."""
+    """Descripción del perfil con las variables del beat (los tags van aparte, en su bloque)."""
     values = beat_values(profile, name, channel)
     tags = ', '.join(cp.render_tags(profile, values))
     filled = bt.fill(profile['descripcion'], values, tidy='gaps')
-    body = description.render(filled, values['name'], tags=tags, socials=profile['socials'],
+    return description.render(filled, values['name'], tags=tags, socials=profile['socials'],
                               hashtags=profile['hashtags']).strip()
-    if '{tags}' not in profile['descripcion'] and tags:
-        body = f'{body}\n\nTags: {tags}'.strip()
-    return body
+
+
+PENDING_CSV = 'pendientes.csv'
+
+
+def day_folder(output_root, today=None):
+    return os.path.join(output_root, (today or datetime.now()).strftime('%Y-%m-%d'))
+
+
+def add_pending(day_dir, channel, result):
+    """Agrega el video a ``pendientes.csv`` del día (para llevar control de lo que falta subir)."""
+    os.makedirs(day_dir, exist_ok=True)
+    path = os.path.join(day_dir, PENDING_CSV)
+    new = not os.path.exists(path)
+    with open(path, 'a', encoding='utf-8-sig' if new else 'utf-8', newline='') as f:
+        writer = csv.writer(f)
+        if new:
+            writer.writerow(['canal', 'título', 'carpeta', 'subido'])
+        writer.writerow([channel, result['title'], os.path.normpath(result['folder']), ''])
 
 
 def run_batch(beats, channel, local_root, output_root, profile=None,
               progress=lambda done, total, text: None, cancelled=lambda: False,
-              tools=None, rng=None, titles=None):
+              tools=None, rng=None, titles=None, today=None,
+              on_done=lambda audio, result: None, on_error=lambda audio, message: None):
     """Genera todos los beats con el perfil del canal. Devuelve ``(resultados, errores)``.
 
+    Salida: ``<output_root>/<fecha>/<canal>/<título>/`` y una fila en ``<fecha>/pendientes.csv``.
     ``titles``: ``{ruta_audio: título}`` editados a mano para esta tanda (se cortan a 100).
-    Un beat con error no corta la tanda.
+    Un beat con error no corta la tanda; ``on_done``/``on_error`` se llaman por beat.
     """
     titles = titles or {}
     profile = profile or cp.load(local_root, channel)
@@ -307,7 +355,8 @@ def run_batch(beats, channel, local_root, output_root, profile=None,
     rng = rng or random.Random()
     picks = Rotation(contents, rng)
     thumbs = Rotation(cp.media(local_root, channel, 'thumbnail')[0], rng)
-    out_folder = os.path.join(output_root, channel_templates.sanitize_filename(channel))
+    day_dir = day_folder(output_root, today)
+    out_folder = os.path.join(day_dir, safe_name(channel))
     results, errors = [], []
     for index, audio in enumerate(beats):
         if cancelled():
@@ -316,12 +365,15 @@ def run_batch(beats, channel, local_root, output_root, profile=None,
         progress(index, len(beats), f'Generando {name} ({index + 1}/{len(beats)})')
         try:
             title = cp.fit_title(titles[audio]) if titles.get(audio, '').strip() else beat_title(profile, name, channel)
-            results.append(render_beat(audio, mode, picks.next(), title,
-                                       out_folder, tools, thumbs.next(),
-                                       profile['miniatura_con_titulo'],
-                                       beat_text(profile, name, channel), cancelled))
+            result = render_beat(audio, mode, picks.next(), title, out_folder, tools, thumbs.next(),
+                                 profile['miniatura_con_titulo'], beat_text(profile, name, channel),
+                                 beat_tags(profile, name, channel), cancelled)
+            add_pending(day_dir, channel, result)
+            results.append(result)
+            on_done(audio, result)
         except ManualError as exc:
             errors.append((name, str(exc)))
+            on_error(audio, str(exc))
     progress(len(beats), len(beats), 'Listo')
     return results, errors
 
