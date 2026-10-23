@@ -1,20 +1,27 @@
 # -*- coding: utf-8 -*-
 """Pestaña «Manual»: arrastrar beats locales y generar videos al toque, sin nube.
 
-La lógica vive en ``core.manual_render``; acá solo la UI y el hilo de trabajo.
+El estilo de cada canal vive en su perfil (``core.channel_profile``), dentro de la carpeta local
+de canales (normalmente ``<Dropbox>/TypeBeat Local``). La lógica de render está en
+``core.manual_render``; acá solo la UI y el hilo de trabajo.
 """
 import os
 import subprocess
 import sys
 
 from PyQt5.QtCore import QStandardPaths, Qt, QThread, pyqtSignal
-from PyQt5.QtWidgets import (QAbstractItemView, QButtonGroup, QCheckBox, QComboBox,
-                             QFileDialog, QFormLayout, QGroupBox, QHBoxLayout, QLabel,
-                             QLineEdit, QListWidget, QMessageBox, QPlainTextEdit, QProgressBar,
-                             QPushButton, QRadioButton, QVBoxLayout, QWidget)
+from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QComboBox, QFileDialog,
+                             QFormLayout, QGroupBox, QHBoxLayout, QInputDialog, QLabel,
+                             QListWidget, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
+                             QVBoxLayout, QWidget)
 
+from core import channel_profile as cp
+from core import local_migration
 from core import manual_render as mr
+from core.profile_editor import ProfileEditor
 from ui_theme import ACCENT_GENERATE, ACCENT_GENERATE_HOVER
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _open_path(path):
@@ -79,33 +86,40 @@ class ManualWorker(QThread):
             self.done.emit(results, errors)
         except mr.Cancelled:
             self.failed.emit('Cancelado. Los videos ya terminados quedaron en la carpeta.')
-        except mr.ManualError as exc:
+        except (mr.ManualError, cp.ProfileError) as exc:
             self.failed.emit(str(exc))
         except Exception as exc:  # noqa: BLE001 - mostrar algo en vez de cerrar la app
             self.failed.emit(f'Error inesperado: {exc}')
 
 
 class ManualPanel(QWidget):
-    def __init__(self, parent=None, root='.', settings_path=mr.SETTINGS_FILE):
+    def __init__(self, parent=None, settings_path=mr.SETTINGS_FILE, local_root=None,
+                 legacy_root=REPO_ROOT):
         super().__init__(parent)
-        self.root = root
         self.settings_path = settings_path
+        self.legacy_root = legacy_root
         self.settings = mr.load_settings(settings_path)
+        if local_root is not None:
+            self.settings['local_root'] = local_root
         if not self.settings.get('output_folder_custom'):
             self.settings['output_folder'] = desktop_output_folder()
         self.worker = None
         self.beats = []
-        self._channels = {}
+        self.profile = None
         self._build()
         self.reload_channels()
+
+    @property
+    def local_root(self):
+        return self.settings.get('local_root') or ''
 
     # --- UI ---
 
     def _build(self):
         layout = QVBoxLayout(self)
 
-        intro = QLabel('Arrastrá beats (o carpetas con beats) a la lista. Se generan en esta PC '
-                       'con las imágenes o videos stock del canal; no se sube nada.')
+        intro = QLabel('Arrastrá beats (o carpetas con beats) a la lista. Se generan en esta PC con el '
+                       'estilo del canal elegido; no se sube nada.')
         intro.setWordWrap(True)
         layout.addWidget(intro)
 
@@ -132,56 +146,43 @@ class ManualPanel(QWidget):
         beats_layout.addLayout(row)
         layout.addWidget(beats_box, 1)
 
-        opts = QGroupBox('Canal y estilo del video')
+        opts = QGroupBox('Canal')
         form = QFormLayout(opts)
+        root_row = QHBoxLayout()
+        self.root_label = QLabel()
+        self.root_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        root_row.addWidget(self.root_label, 1)
+        self.btn_root = QPushButton('Cambiar')
+        self.btn_root.clicked.connect(self._pick_root)
+        self.btn_open_root = QPushButton('Abrir')
+        self.btn_open_root.clicked.connect(lambda: self.local_root and _open_path(self.local_root))
+        root_row.addWidget(self.btn_root)
+        root_row.addWidget(self.btn_open_root)
+        form.addRow('Carpeta de canales:', root_row)
+
         channel_row = QHBoxLayout()
         self.channel_combo = QComboBox()
         self.channel_combo.currentTextChanged.connect(self._on_channel_changed)
-        self.group_combo = QComboBox()
-        self.group_combo.currentTextChanged.connect(self._refresh_counts)
+        channel_row.addWidget(self.channel_combo, 1)
+        self.btn_edit = QPushButton('Editar perfil')
+        self.btn_edit.clicked.connect(self.edit_profile)
+        self.btn_new = QPushButton('Nuevo canal')
+        self.btn_new.clicked.connect(self.new_channel)
+        self.btn_import = QPushButton('Importar canales anteriores')
+        self.btn_import.clicked.connect(self.import_legacy)
         self.btn_reload = QPushButton('Recargar')
         self.btn_reload.clicked.connect(self.reload_channels)
-        channel_row.addWidget(self.channel_combo, 2)
-        channel_row.addWidget(QLabel('Grupo:'))
-        channel_row.addWidget(self.group_combo, 1)
-        channel_row.addWidget(self.btn_reload)
+        for button in (self.btn_edit, self.btn_new, self.btn_import, self.btn_reload):
+            channel_row.addWidget(button)
         form.addRow('Canal:', channel_row)
 
-        mode_row = QHBoxLayout()
-        self.radio_image = QRadioButton('Imagen')
-        self.radio_video = QRadioButton('Video stock')
-        self.mode_group = QButtonGroup(self)
-        self.mode_group.addButton(self.radio_image)
-        self.mode_group.addButton(self.radio_video)
-        (self.radio_video if self.settings['mode'] == mr.MODE_VIDEO else self.radio_image).setChecked(True)
-        self.radio_image.toggled.connect(self._refresh_counts)
-        mode_row.addWidget(self.radio_image)
-        mode_row.addWidget(self.radio_video)
-        mode_row.addStretch()
-        form.addRow('Fondo:', mode_row)
-
-        content_row = QHBoxLayout()
-        self.content_label = QLabel()
-        content_row.addWidget(self.content_label, 1)
-        self.btn_open_content = QPushButton('Abrir carpeta del fondo')
-        self.btn_open_content.clicked.connect(lambda: self._open_content(self.mode()))
-        self.btn_open_thumbs = QPushButton('Abrir carpeta de miniaturas')
-        self.btn_open_thumbs.clicked.connect(lambda: self._open_content('thumbnail'))
-        content_row.addWidget(self.btn_open_content)
-        content_row.addWidget(self.btn_open_thumbs)
-        form.addRow('Contenido:', content_row)
-
-        self.template_edit = QLineEdit()
-        self.template_edit.setToolTip('{name} = nombre del archivo del beat. También {channel} y {group}.')
-        self.template_edit.textChanged.connect(self._refresh_preview)
-        form.addRow('Título:', self.template_edit)
+        self.summary_label = QLabel()
+        self.summary_label.setWordWrap(True)
+        form.addRow('Estilo:', self.summary_label)
         self.preview_label = QLabel()
+        self.preview_label.setWordWrap(True)
         self.preview_label.setStyleSheet('color: #888;')
-        form.addRow('', self.preview_label)
-
-        self.check_title_thumb = QCheckBox('Poner el título sobre la miniatura')
-        self.check_title_thumb.setChecked(bool(self.settings.get('title_on_thumbnail')))
-        form.addRow('', self.check_title_thumb)
+        form.addRow('Título:', self.preview_label)
 
         out_row = QHBoxLayout()
         self.output_label = QLabel(self.settings['output_folder'])
@@ -265,57 +266,127 @@ class ManualPanel(QWidget):
             self.settings['last_beats_folder'] = folder
             self.add_paths([folder])
 
-    # --- Canal y contenido ---
+    # --- Canales y perfiles ---
 
-    def mode(self):
-        return mr.MODE_VIDEO if self.radio_video.isChecked() else mr.MODE_IMAGE
+    def channel(self):
+        return self.channel_combo.currentText()
 
-    def reload_channels(self):
-        self._channels = mr.channels(self.root)
-        current = self.channel_combo.currentText() or self.settings.get('channel', '')
+    def reload_channels(self, select=None):
+        root = self.local_root
+        self.root_label.setText(root or 'Sin carpeta: elegila con «Cambiar».')
+        names = cp.list_channels(root) if root else []
+        current = select or self.channel() or self.settings.get('channel', '')
         self.channel_combo.blockSignals(True)
         self.channel_combo.clear()
-        self.channel_combo.addItems(list(self._channels))
+        self.channel_combo.addItems(names)
         index = self.channel_combo.findText(current)
         self.channel_combo.setCurrentIndex(index if index >= 0 else 0)
         self.channel_combo.blockSignals(False)
-        self._on_channel_changed(self.channel_combo.currentText())
+        self._on_channel_changed(self.channel())
 
     def _on_channel_changed(self, channel):
-        groups = self._channels.get(channel, [])
-        self.group_combo.blockSignals(True)
-        self.group_combo.clear()
-        self.group_combo.addItems(groups)
-        saved = self.settings.get('group', '') if channel == self.settings.get('channel') else ''
-        index = self.group_combo.findText(saved)
-        self.group_combo.setCurrentIndex(index if index >= 0 else 0)
-        self.group_combo.blockSignals(False)
-        template = self.settings['templates'].get(channel) or mr.title_template(channel, self.root)
-        self.template_edit.setText(template)
-        self._refresh_counts()
-
-    def _refresh_counts(self):
-        channel, group = self.channel_combo.currentText(), self.group_combo.currentText()
-        if not channel or not group:
-            self.content_label.setText('Sin canales: creá carpetas en images/<canal>/<grupo>.')
+        self.profile = None
+        if not channel:
+            hint = ('No hay canales todavía. Usá «Importar canales anteriores» o «Nuevo canal».'
+                    if self.local_root else 'Elegí la carpeta de canales.')
+            self.summary_label.setText(hint)
+            self._refresh_preview()
             self._update_buttons()
             return
-        n = mr.counts(channel, group, self.root)
-        thumbs = (f"{n['thumbnail']} miniaturas propias" if n['thumbnail']
-                  else 'miniatura = el mismo fondo')
-        self.content_label.setText(f"{n[mr.MODE_IMAGE]} imágenes · {n[mr.MODE_VIDEO]} videos · {thumbs}")
+        try:
+            self.profile = cp.load(self.local_root, channel)
+        except cp.ProfileError as exc:
+            self.summary_label.setText(f'⚠ {exc}')
+            self._refresh_preview()
+            self._update_buttons()
+            return
+        mode = self.profile['fondo']
+        ready, remote = cp.media(self.local_root, channel, mode)
+        thumbs, _ = cp.media(self.local_root, channel, 'thumbnail')
+        kind = 'Imagen' if mode == cp.MODE_IMAGE else 'Video stock'
+        noun = 'imágenes' if mode == cp.MODE_IMAGE else 'videos'
+        parts = [f'Fondo: {kind}', f'{len(ready)} {noun}',
+                 f'{len(thumbs)} miniaturas propias' if thumbs else 'miniatura = el mismo fondo']
+        if self.profile['miniatura_con_titulo']:
+            parts.append('título en la miniatura')
+        if remote:
+            parts.append(f'⚠ {len(remote)} sin bajar de Dropbox')
+        if cp.conflicts(self.local_root, channel):
+            parts.append('⚠ hay copias en conflicto de Dropbox')
+        self.summary_label.setText(' · '.join(parts))
+        self._refresh_preview()
         self._update_buttons()
 
     def _refresh_preview(self):
+        if not self.profile:
+            self.preview_label.setText('')
+            return
         name = mr.beat_name(self.beats[0]) if self.beats else 'Nombre del beat'
-        title = self.template_edit.text().replace('{name}', name).replace(
-            '{channel}', self.channel_combo.currentText()).replace('{group}', self.group_combo.currentText())
-        self.preview_label.setText(f'Ej.: {title}')
+        title = mr.beat_title(self.profile, name, self.channel())
+        self.preview_label.setText(f'Ej.: {title}  ({len(title)}/100)')
 
-    def _open_content(self, kind):
-        channel, group = self.channel_combo.currentText(), self.group_combo.currentText()
-        if channel and group:
-            _open_path(os.path.abspath(mr.content_folder(kind, channel, group, self.root)))
+    def edit_profile(self):
+        if not self.channel():
+            return
+        dialog = ProfileEditor(self.local_root, self.channel(), self)
+        if dialog.exec_():
+            self.reload_channels(select=dialog.created or self.channel())
+
+    def new_channel(self):
+        if not self.local_root:
+            self._pick_root()
+            if not self.local_root:
+                return
+        name, ok = QInputDialog.getText(self, 'Nuevo canal', 'Nombre del canal:')
+        if not ok or not name.strip():
+            return
+        try:
+            if name.strip() in cp.list_channels(self.local_root):
+                raise cp.ProfileError(f'Ya existe un canal llamado {name.strip()}.')
+            cp.create(self.local_root, name.strip())
+        except cp.ProfileError as exc:
+            QMessageBox.warning(self, 'Nuevo canal', str(exc))
+            return
+        self.reload_channels(select=name.strip())
+        self.edit_profile()
+
+    def import_legacy(self):
+        """Copia los canales del modo manual anterior (images/, videos/, app_config) sin borrar nada."""
+        if not self.local_root:
+            self._pick_root()
+            if not self.local_root:
+                return
+        actions = local_migration.plan(self.legacy_root, self.local_root)
+        if not actions:
+            QMessageBox.information(self, 'Importar canales', 'No se encontraron canales anteriores.')
+            return
+        lines = local_migration.summary(actions)
+        shown = '\n'.join(lines[:30]) + (f'\n… y {len(lines) - 30} más' if len(lines) > 30 else '')
+        answer = QMessageBox.question(
+            self, 'Importar canales anteriores',
+            f'Se copian a:\n{self.local_root}\n\n{shown}\n\nNo se borra ni se pisa nada. ¿Copiar?',
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if answer != QMessageBox.Yes:
+            return
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            result = local_migration.apply(actions, self.local_root)
+        except OSError as exc:
+            result = {'canales': 0, 'archivos': 0, 'errores': [f'No se pudo copiar: {exc}']}
+        finally:
+            QApplication.restoreOverrideCursor()
+        self._say(f"Importados: {result['canales']} canales nuevos, {result['archivos']} archivos copiados.")
+        for error in result['errores']:
+            self._say(f'✗ {error}')
+        self.reload_channels()
+
+    def _pick_root(self):
+        folder = QFileDialog.getExistingDirectory(self, 'Carpeta de canales (dentro de Dropbox)',
+                                                  self.local_root or os.path.expanduser('~'))
+        if folder:
+            self.settings['local_root'] = os.path.normpath(folder)
+            self._save()
+            self.reload_channels()
 
     def _pick_output(self):
         folder = QFileDialog.getExistingDirectory(self, 'Carpeta donde guardar los videos',
@@ -331,12 +402,13 @@ class ManualPanel(QWidget):
 
     def _update_buttons(self):
         busy = self.worker is not None
-        ready = bool(self.beats) and bool(self.channel_combo.currentText()) and bool(self.group_combo.currentText())
+        ready = bool(self.beats) and self.profile is not None
         self.btn_generate.setEnabled(ready and not busy)
         self.btn_cancel.setEnabled(busy)
+        self.btn_edit.setEnabled(bool(self.channel()) and not busy)
         for widget in (self.btn_add_files, self.btn_add_folder, self.btn_remove, self.btn_clear,
-                       self.channel_combo, self.group_combo, self.radio_image, self.radio_video,
-                       self.template_edit, self.check_title_thumb, self.btn_reload):
+                       self.channel_combo, self.btn_new, self.btn_import, self.btn_reload,
+                       self.btn_root):
             widget.setEnabled(not busy)
         self.beat_list.setAcceptDrops(not busy)
 
@@ -344,33 +416,27 @@ class ManualPanel(QWidget):
         self.log.appendPlainText(text)
 
     def _save(self):
-        channel = self.channel_combo.currentText()
-        self.settings.update(channel=channel, group=self.group_combo.currentText(), mode=self.mode(),
-                             title_on_thumbnail=self.check_title_thumb.isChecked())
-        if channel:
-            self.settings['templates'][channel] = self.template_edit.text()
+        self.settings['channel'] = self.channel()
         try:
             mr.save_settings(self.settings, self.settings_path)
         except OSError:
             pass  # preferencias de comodidad: no frenan la generación
 
     def job(self):
-        return dict(beats=list(self.beats), channel=self.channel_combo.currentText(),
-                    group=self.group_combo.currentText(), mode=self.mode(),
-                    template=self.template_edit.text().strip() or '{name}',
-                    output_root=self.settings['output_folder'],
-                    title_on_thumbnail=self.check_title_thumb.isChecked(), root=self.root)
+        return dict(beats=list(self.beats), channel=self.channel(), local_root=self.local_root,
+                    output_root=self.settings['output_folder'], profile=self.profile)
 
     def start(self):
-        if self.worker is not None or not self.beats:
+        if self.worker is not None or not self.beats or not self.profile:
             return
         job = self.job()
-        if not mr.list_media(job['mode'], job['channel'], job['group'], self.root):
-            kind = 'imágenes' if job['mode'] == mr.MODE_IMAGE else 'videos'
-            folder = os.path.abspath(mr.content_folder(job['mode'], job['channel'], job['group'], self.root))
+        ready, remote = cp.media(job['local_root'], job['channel'], self.profile['fondo'])
+        if not ready:
+            noun = 'imágenes' if self.profile['fondo'] == cp.MODE_IMAGE else 'videos'
+            folder = os.path.join(cp.channel_dir(job['local_root'], job['channel']), cp.BACKGROUNDS_DIR)
+            extra = f'\n\nHay {len(remote)} archivos que Dropbox todavía no bajó a esta PC.' if remote else ''
             QMessageBox.warning(self, 'Falta contenido',
-                                f'No hay {kind} para {job["channel"]}/{job["group"]}.\n\n'
-                                f'Agregalos en:\n{folder}')
+                                f'No hay {noun} para {job["channel"]}.\n\nAgregalos en:\n{folder}{extra}')
             return
         self._save()
         self.worker = ManualWorker(job, self)
@@ -381,7 +447,7 @@ class ManualPanel(QWidget):
         self.progress.setRange(0, len(job['beats']))
         self.progress.setValue(0)
         self.progress.setVisible(True)
-        self._say(f'Generando {len(job["beats"])} videos para {job["channel"]}/{job["group"]}…')
+        self._say(f'Generando {len(job["beats"])} videos para {job["channel"]}…')
         self._update_buttons()
         self.worker.start()
 
@@ -397,7 +463,7 @@ class ManualPanel(QWidget):
     def _on_done(self, results, errors):
         for name, error in errors:
             self._say(f'✗ {name}: {error}')
-        folder = os.path.join(self.settings['output_folder'], self.channel_combo.currentText())
+        folder = os.path.join(self.settings['output_folder'], self.channel())
         self._say(f'✓ {len(results)} videos listos en {folder}')
         if results and not errors:
             self.clear_beats()

@@ -1,4 +1,3 @@
-import json
 import os
 import random
 import subprocess
@@ -7,6 +6,7 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from core import channel_profile as cp
 from core import manual_render as mr
 from core.ffmpeg_util import get_media_duration, resolve_tool
 
@@ -33,25 +33,9 @@ class ManualLogicTests(unittest.TestCase):
         found = mr.collect_audio([os.path.join(self.root, "in"), a, os.path.join(self.root, "nope.mp3")])
         self.assertEqual([os.path.basename(p) for p in found], ["a.mp3", "b.WAV"])
 
-    def test_channels_merge_config_and_folders(self):
-        touch(os.path.join(self.root, "config", "app_config.json"),
-              json.dumps({"channels": {"Uno": {"groups": ["Principal", "Dark"]}}}).encode())
-        os.makedirs(os.path.join(self.root, "images", "Uno", "Extra"))
-        os.makedirs(os.path.join(self.root, "videos", "Dos", "Principal"))
-        self.assertEqual(mr.channels(self.root),
-                         {"Dos": ["Principal"], "Uno": ["Principal", "Dark", "Extra"]})
-
-    def test_counts_by_kind(self):
-        touch(os.path.join(self.root, "images", "C", "G", "a.jfif"))
-        touch(os.path.join(self.root, "images", "C", "G", "notes.txt"))
-        touch(os.path.join(self.root, "videos", "C", "G", "v.mp4"))
-        touch(os.path.join(self.root, "miniaturas", "C", "G", "t.png"))
-        self.assertEqual(mr.counts("C", "G", self.root), {"image": 1, "video": 1, "thumbnail": 1})
-
     def test_rotation_uses_all_before_repeating(self):
         rot = mr.Rotation(["a", "b", "c"], random.Random(1))
-        first = [rot.next() for _ in range(3)]
-        self.assertEqual(sorted(first), ["a", "b", "c"])
+        self.assertEqual(sorted(rot.next() for _ in range(3)), ["a", "b", "c"])
         self.assertIn(rot.next(), ["a", "b", "c"])
         self.assertIsNone(mr.Rotation([]).next())
 
@@ -60,36 +44,48 @@ class ManualLogicTests(unittest.TestCase):
         touch(os.path.join(self.root, "x (2).jpg"))
         self.assertEqual(mr.unique_base(self.root, "x"), "x (3)")
 
-    def test_title_template_from_config(self):
-        touch(os.path.join(self.root, "config", "app_config.json"), json.dumps(
-            {"name_template": "G {name}", "channels": {"A": {"title_template": "A {name}"}, "B": {}}}).encode())
-        self.assertEqual(mr.title_template("A", self.root), "A {name}")
-        self.assertEqual(mr.title_template("B", self.root), "G {name}")
-
-    def test_batch_without_content_explains_folder(self):
-        with self.assertRaises(mr.ManualError) as ctx:
-            mr.run_batch(["b.mp3"], "C", "G", mr.MODE_VIDEO, "{name}", self.root, root=self.root,
-                         tools=object())
-        self.assertIn("videos", str(ctx.exception))
-
     def test_beat_info_from_filename(self):
         self.assertEqual(mr.beat_info("This is for me - 160bpm - key A Sharp Minor (prod. x)"),
                          (160.0, "A Sharp Minor"))
         self.assertEqual(mr.beat_info("dark 140 BPM key: F#m"), (140.0, "F#m"))
         self.assertEqual(mr.beat_info("sin datos"), (None, None))
 
+    def test_title_uses_profile_and_respects_youtube_limit(self):
+        profile = dict(cp.default_profile("C"), titulo="[FREE] {name} | {channel}")
+        self.assertEqual(mr.beat_title(profile, "dark", "C"), "[FREE] dark | C")
+        long_name = "(BEAT PRO-527) [juice wrld, elec gtr, sad] This is for me - 160bpm - key A Sharp Minor (prod. @a x @b)"
+        self.assertLessEqual(len(mr.beat_title(profile, long_name, "C")), 100)
+
+    def test_text_uses_profile_description_and_tags_once(self):
+        profile = dict(cp.default_profile("C"), descripcion="{name} | {bpm} BPM\n{socials}",
+                       socials="IG: @yo", tags=["{name} type beat", "trap"])
+        text = mr.beat_text(profile, "dark 140bpm", "C")
+        self.assertIn("dark 140bpm | 140 BPM", text)
+        self.assertIn("IG: @yo", text)
+        self.assertEqual(text.count("Tags:"), 1)
+        self.assertIn("dark 140bpm type beat, trap", text)
+        with_tags = dict(profile, descripcion="Tags: {tags}")
+        self.assertEqual(mr.beat_text(with_tags, "x", "C").count("Tags:"), 1)
+
+    def test_batch_without_backgrounds_explains_folder(self):
+        cp.create(self.root, "C")
+        cp.save(self.root, "C", dict(cp.load(self.root, "C"), fondo="video"))
+        with self.assertRaises(mr.ManualError) as ctx:
+            mr.run_batch(["b.mp3"], "C", self.root, self.root, tools=object())
+        self.assertIn("videos", str(ctx.exception))
+
     def test_settings_roundtrip(self):
         path = os.path.join(self.root, "config", "manual_mode.json")
         data = mr.load_settings(path)
-        self.assertEqual(data["mode"], mr.MODE_IMAGE)
-        data["templates"]["C"] = "{name} x"
+        self.assertIn("local_root", data)
+        data["local_root"] = "D:/x"
         mr.save_settings(data, path)
-        self.assertEqual(mr.load_settings(path)["templates"], {"C": "{name} x"})
+        self.assertEqual(mr.load_settings(path)["local_root"], "D:/x")
 
 
 @unittest.skipUnless(resolve_tool("ffmpeg") and resolve_tool("ffprobe"), "requiere FFmpeg")
 class ManualRenderTests(unittest.TestCase):
-    """Render real y corto con FFmpeg: imagen y video stock."""
+    """Render real y corto con FFmpeg: imagen y video stock, con el perfil del canal."""
 
     @classmethod
     def setUpClass(cls):
@@ -97,15 +93,18 @@ class ManualRenderTests(unittest.TestCase):
         root = cls.root = cls.tmp.name
         ff = resolve_tool("ffmpeg")
         run = lambda *a: subprocess.run([ff, "-v", "error", "-y", *a], check=True)
-        cls.beat = os.path.join(root, "beats", "Dark Beat.mp3")
+        cls.beat = os.path.join(root, "beats", "Dark Beat 150bpm.mp3")
         os.makedirs(os.path.dirname(cls.beat))
         run("-f", "lavfi", "-i", "sine=frequency=440:duration=3", cls.beat)
-        os.makedirs(os.path.join(root, "images", "C", "G"))
+        cp.create(root, "Img")
+        cp.save(root, "Img", dict(cp.load(root, "Img"), titulo="{name} Type Beat", miniatura_con_titulo=True))
         from PIL import Image
-        Image.new("RGB", (800, 800), (200, 30, 30)).save(os.path.join(root, "images", "C", "G", "bg.jfif"), "JPEG")
-        os.makedirs(os.path.join(root, "videos", "C", "G"))
+        Image.new("RGB", (800, 800), (200, 30, 30)).save(
+            os.path.join(root, "canales", "Img", "fondos", "bg.jfif"), "JPEG")
+        cp.create(root, "Vid")
+        cp.save(root, "Vid", dict(cp.load(root, "Vid"), fondo="video", titulo="[FREE] {name}"))
         run("-f", "lavfi", "-i", "testsrc=size=640x360:rate=25:duration=1",
-            os.path.join(root, "videos", "C", "G", "stock.mp4"))
+            os.path.join(root, "canales", "Vid", "fondos", "stock.mp4"))
         cls.tools = mr.Tools()
 
     @classmethod
@@ -124,32 +123,31 @@ class ManualRenderTests(unittest.TestCase):
             text = f.read()
         self.assertTrue(text.startswith(expected_title))
         self.assertEqual(text.count("Tags:"), 1)
-        self.assertFalse(any(name.endswith(".part") for name in os.listdir(os.path.dirname(out["video"]))))
+        self.assertIn("150 BPM", text)
+        self.assertFalse(any(n.endswith(".part") for n in os.listdir(os.path.dirname(out["video"]))))
 
-    def test_image_mode(self):
+    def test_image_profile(self):
         out_root = os.path.join(self.root, "out-image")
-        results, errors = mr.run_batch([self.beat], "C", "G", mr.MODE_IMAGE, "{name} Type Beat", out_root,
-                                       title_on_thumbnail=True, root=self.root, tools=self.tools)
+        results, errors = mr.run_batch([self.beat], "Img", self.root, out_root, tools=self.tools)
         self.assertEqual(errors, [])
-        self.check_outputs(results, "Dark Beat Type Beat")
-        self.assertEqual(os.path.dirname(results[0]["video"]), os.path.join(out_root, "C"))
+        self.check_outputs(results, "Dark Beat 150bpm Type Beat")
+        self.assertEqual(os.path.dirname(results[0]["video"]), os.path.join(out_root, "Img"))
 
-    def test_video_mode_loops_short_stock(self):
-        out_root = os.path.join(self.root, "out-video")
-        results, errors = mr.run_batch([self.beat], "C", "G", mr.MODE_VIDEO, "[FREE] {name}", out_root,
-                                       root=self.root, tools=self.tools)
+    def test_video_profile_loops_short_stock(self):
+        results, errors = mr.run_batch([self.beat], "Vid", self.root, os.path.join(self.root, "out-video"),
+                                       tools=self.tools)
         self.assertEqual(errors, [])
-        self.check_outputs(results, "[FREE] Dark Beat")
+        self.check_outputs(results, "[FREE] Dark Beat 150bpm")
 
     def test_cancel_stops_batch(self):
         with self.assertRaises(mr.Cancelled):
-            mr.run_batch([self.beat], "C", "G", mr.MODE_IMAGE, "{name}", os.path.join(self.root, "out-c"),
-                         root=self.root, tools=self.tools, cancelled=lambda: True)
+            mr.run_batch([self.beat], "Img", self.root, os.path.join(self.root, "out-c"),
+                         tools=self.tools, cancelled=lambda: True)
 
     def test_bad_audio_is_reported_not_fatal(self):
         bad = touch(os.path.join(self.root, "beats", "roto.mp3"), b"not audio")
-        results, errors = mr.run_batch([bad, self.beat], "C", "G", mr.MODE_IMAGE, "{name}",
-                                       os.path.join(self.root, "out-bad"), root=self.root, tools=self.tools)
+        results, errors = mr.run_batch([bad, self.beat], "Img", self.root, os.path.join(self.root, "out-bad"),
+                                       tools=self.tools)
         self.assertEqual(len(results), 1)
         self.assertEqual(errors[0][0], "roto")
 
@@ -159,12 +157,16 @@ class ManualPanelTests(unittest.TestCase):
         from PyQt5.QtWidgets import QApplication
         self.app = QApplication.instance() or QApplication([])
         self.tmp = tempfile.TemporaryDirectory()
-        root = self.root = self.tmp.name
-        touch(os.path.join(root, "images", "Canal", "Principal", "a.jpg"))
-        touch(os.path.join(root, "drop", "one.mp3"))
-        touch(os.path.join(root, "drop", "more", "two.wav"))
+        base = self.tmp.name
+        self.local = os.path.join(base, "local")
+        cp.create(self.local, "Canal")
+        touch(os.path.join(self.local, "canales", "Canal", "fondos", "a.jpg"))
+        touch(os.path.join(base, "drop", "one.mp3"))
+        touch(os.path.join(base, "drop", "more", "two.wav"))
+        self.drop = os.path.join(base, "drop")
         from core.manual_panel import ManualPanel
-        self.panel = ManualPanel(root=root, settings_path=os.path.join(root, "config", "manual_mode.json"))
+        self.panel = ManualPanel(settings_path=os.path.join(base, "config", "manual_mode.json"),
+                                 local_root=self.local, legacy_root=os.path.join(base, "legacy"))
 
     def tearDown(self):
         self.panel.deleteLater()
@@ -173,32 +175,49 @@ class ManualPanelTests(unittest.TestCase):
     def test_drop_folder_adds_audio_once_and_enables_generate(self):
         p = self.panel
         self.assertFalse(p.btn_generate.isEnabled())
-        self.assertEqual(p.channel_combo.currentText(), "Canal")
-        p.add_paths([os.path.join(self.root, "drop")])
-        p.add_paths([os.path.join(self.root, "drop", "one.mp3")])
+        self.assertEqual(p.channel(), "Canal")
+        p.add_paths([self.drop])
+        p.add_paths([os.path.join(self.drop, "one.mp3")])
         self.assertEqual(p.beat_list.count(), 2)
         self.assertTrue(p.btn_generate.isEnabled())
-        self.assertIn("1 imágenes", p.content_label.text())
+        self.assertIn("1 imágenes", p.summary_label.text())
         self.assertIn("one", p.preview_label.text())
 
-    def test_job_uses_selected_options(self):
+    def test_job_uses_channel_profile(self):
         p = self.panel
-        p.add_paths([os.path.join(self.root, "drop")])
-        p.radio_video.setChecked(True)
-        p.template_edit.setText("{name} | Free")
+        p.add_paths([self.drop])
         job = p.job()
-        self.assertEqual((job["channel"], job["group"], job["mode"], job["template"]),
-                         ("Canal", "Principal", mr.MODE_VIDEO, "{name} | Free"))
+        self.assertEqual((job["channel"], job["local_root"]), ("Canal", self.local))
+        self.assertEqual(job["profile"]["fondo"], cp.MODE_IMAGE)
         self.assertEqual(len(job["beats"]), 2)
+
+    def test_reload_picks_up_new_channel_and_profile_changes(self):
+        p = self.panel
+        cp.create(self.local, "Otro")
+        cp.save(self.local, "Otro", dict(cp.load(self.local, "Otro"), fondo="video"))
+        p.reload_channels(select="Otro")
+        self.assertEqual(p.channel(), "Otro")
+        self.assertIn("Video stock", p.summary_label.text())
 
     def test_remove_and_clear(self):
         p = self.panel
-        p.add_paths([os.path.join(self.root, "drop")])
+        p.add_paths([self.drop])
         p.beat_list.item(0).setSelected(True)
         p._remove_selected()
-        self.assertEqual(p.beats[0].endswith("two.wav"), True)
+        self.assertTrue(p.beats[0].endswith("two.wav"))
         p.clear_beats()
         self.assertFalse(p.btn_generate.isEnabled())
+
+    def test_profile_editor_saves_and_duplicates(self):
+        from core.profile_editor import ProfileEditor
+        dialog = ProfileEditor(self.local, "Canal")
+        dialog.title_edit.setText("{name} | Mío")
+        dialog.radio_video.setChecked(True)
+        self.assertIn("/100", dialog.title_preview.text())
+        self.assertTrue(dialog._save())
+        saved = cp.load(self.local, "Canal")
+        self.assertEqual((saved["titulo"], saved["fondo"]), ("{name} | Mío", cp.MODE_VIDEO))
+        dialog.deleteLater()
 
 
 if __name__ == "__main__":

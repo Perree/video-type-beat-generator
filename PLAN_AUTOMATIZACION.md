@@ -784,3 +784,20 @@ Verificación: importar un beat y cargar el link; guardar título/descripción e
   de salida; preferencias en `config/manual_mode.json` (ignorado por git).
 - Velocidad: foto fija a 6 fps y video stock con preset `veryfast` (beat de 3:24: imagen 23 s, video ~100 s).
 - Tests: `tests/test_manual_render.py` (incluye render real corto con FFmpeg).
+
+## Modo local en bulk con perfiles por canal (plan aprobado 2026-10-22)
+Objetivo: soltar beats en `entrada/<canal>/`, revisar títulos, «Generar todo» y recibir en el Escritorio
+carpetas listas para subir a mano (sin API de YouTube). Perfiles y fondos en `<Dropbox>/TypeBeat Local/`
+(carpeta sincronizada, leída como disco; separada de la automatización en la nube).
+- **Fase A — Perfiles por canal** ✅ COMPLETADA (2026-10-22): `core/channel_profile.py` (perfil.json: fondo,
+  título ≤100, descripción, redes, hashtags, tags ≤500, título en miniatura; fondos/ y miniaturas/; aviso de
+  copias en conflicto y de archivos «solo en línea»), `core/dropbox_local.py` (info.json → ~/Dropbox),
+  `core/profile_editor.py` (editor con «Duplicar como…»), `core/local_migration.py` +
+  `scripts/migrate_local_channels.py` (21 canales; cada grupo ≠ Principal = canal propio; copia sin borrar).
+  Pestaña Manual: carpeta de canales, Editar perfil, Nuevo canal, Importar canales anteriores.
+  Pendiente del usuario: importar a su Dropbox real (botón o `--apply`). Tests: `tests/test_channel_profile.py`.
+- **Fase B — Títulos limpios**: `core/beat_title.py` ({name} {artist} {bpm} {key} {mood}) + tabla de revisión.
+- **Fase C — Bulk**: `core/bulk_queue.py`, entrada por canal → `hechos/`, salida por fecha/canal/video,
+  `pendientes.csv`, «Generar todo».
+- **Fase D — Velocidad del video stock**: medir en las dos PCs; caché 1080p30 en `%LOCALAPPDATA%` solo si mejora.
+- Fuera de alcance: subir a YouTube desde lo local, render en paralelo, Shorts, cambios en la nube.

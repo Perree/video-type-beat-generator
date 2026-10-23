@@ -1,0 +1,44 @@
+# -*- coding: utf-8 -*-
+"""Carpeta local de Dropbox (la que sincroniza la app de escritorio). Sin red ni API.
+
+El modo Manual guarda perfiles y fondos en ``<Dropbox>/TypeBeat Local`` para que las dos PCs
+vean lo mismo. Cada PC solo recuerda dónde está esa carpeta.
+"""
+import json
+import os
+
+LOCAL_DIRNAME = 'TypeBeat Local'
+
+
+def _info_files(env=None):
+    env = os.environ if env is None else env
+    for var in ('LOCALAPPDATA', 'APPDATA'):
+        base = env.get(var)
+        if base:
+            yield os.path.join(base, 'Dropbox', 'info.json')
+
+
+def find_dropbox(env=None, home=None):
+    """Carpeta de Dropbox de esta PC, o None.
+
+    1) ``info.json`` de la app de Dropbox (cuenta personal, si no la de empresa);
+    2) ``~/Dropbox`` si existe.
+    """
+    for path in _info_files(env):
+        try:
+            with open(path, encoding='utf-8') as f:
+                info = json.load(f)
+        except (OSError, ValueError):
+            continue
+        for account in ('personal', 'business'):
+            folder = (info.get(account) or {}).get('path') if isinstance(info, dict) else None
+            if isinstance(folder, str) and os.path.isdir(folder):
+                return folder
+    fallback = os.path.join(home or os.path.expanduser('~'), 'Dropbox')
+    return fallback if os.path.isdir(fallback) else None
+
+
+def default_local_root(env=None, home=None):
+    """``<Dropbox>/TypeBeat Local`` (puede no existir todavía), o None sin Dropbox."""
+    dropbox = find_dropbox(env, home)
+    return os.path.join(dropbox, LOCAL_DIRNAME) if dropbox else None

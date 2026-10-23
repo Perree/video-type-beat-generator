@@ -82,8 +82,15 @@ QComboBox {{
     font-size: 13px;
 }}
 
-QCheckBox {{
+QCheckBox, QRadioButton {{
     color: #ddd;
+    font-size: 13px;
+}}
+
+QPlainTextEdit, QTextEdit {{
+    background-color: #404040;
+    color: #f0f0f0;
+    border: 1px solid #555;
     font-size: 13px;
 }}
 

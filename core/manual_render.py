@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 """Modo manual: beats locales -> video + miniatura + texto, sin nube. Sin Qt.
 
-Contenido por canal y grupo (las mismas carpetas que usaba la app antes):
-    images/<canal>/<grupo>/      fondos para el modo Imagen
-    videos/<canal>/<grupo>/      videos stock para el modo Video
-    miniaturas/<canal>/<grupo>/  opcional: si tiene imágenes, se usan como miniatura
+El estilo de cada canal (fondo, título, descripción, tags, miniatura) y sus fondos viven en la
+carpeta local de canales (normalmente ``<Dropbox>/TypeBeat Local``); ver ``core.channel_profile``.
 
 Por cada beat deja en ``<salida>/<canal>/``: ``<título>.mp4``, ``<título>.jpg`` (1280x720)
 y ``<título>.txt`` (título, descripción y tags). Nada se sube a YouTube ni a Dropbox.
@@ -17,16 +15,12 @@ import subprocess
 import tempfile
 import time
 
-from core import channel_templates, description
+from core import channel_profile as cp
+from core import channel_templates, description, dropbox_local
 from core.ffmpeg_util import get_available_video_codec, get_media_duration, resolve_tool
 
 AUDIO_SUFFIXES = ('.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg')
-IMAGE_SUFFIXES = ('.jpg', '.jpeg', '.jfif', '.png', '.webp', '.bmp')
-VIDEO_SUFFIXES = ('.mp4', '.mov', '.mkv', '.webm', '.avi', '.wmv')
-MODE_IMAGE, MODE_VIDEO = 'image', 'video'
-FOLDERS = {MODE_IMAGE: 'images', MODE_VIDEO: 'videos', 'thumbnail': 'miniaturas'}
-SUFFIXES = {MODE_IMAGE: IMAGE_SUFFIXES, MODE_VIDEO: VIDEO_SUFFIXES, 'thumbnail': IMAGE_SUFFIXES}
-CONFIG_FILE = os.path.join('config', 'app_config.json')
+MODE_IMAGE, MODE_VIDEO = cp.MODE_IMAGE, cp.MODE_VIDEO
 SETTINGS_FILE = os.path.join('config', 'manual_mode.json')
 OUTPUT_DIRNAME = 'Type Beat Videos'
 FRAME = (1920, 1080)
@@ -72,55 +66,6 @@ def _read_json(path):
         return data if isinstance(data, dict) else {}
     except (OSError, ValueError):
         return {}
-
-
-def channels(root='.', config_path=None):
-    """``{canal: [grupos]}`` de app_config más las carpetas que existan en images/ y videos/."""
-    result = {}
-    config = _read_json(config_path or os.path.join(root, CONFIG_FILE))
-    for name, cfg in (config.get('channels') or {}).items():
-        groups = cfg.get('groups') if isinstance(cfg, dict) else None
-        result[name] = list(groups) if isinstance(groups, list) and groups else ['Principal']
-    for kind in (MODE_IMAGE, MODE_VIDEO):
-        base = os.path.join(root, FOLDERS[kind])
-        if not os.path.isdir(base):
-            continue
-        for name in sorted(os.listdir(base)):
-            channel_dir = os.path.join(base, name)
-            if not os.path.isdir(channel_dir):
-                continue
-            groups = result.setdefault(name, [])
-            for group in sorted(os.listdir(channel_dir)):
-                if os.path.isdir(os.path.join(channel_dir, group)) and group not in groups:
-                    groups.append(group)
-            if not groups:
-                groups.append('Principal')
-    return dict(sorted(result.items(), key=lambda item: item[0].lower()))
-
-
-def content_folder(kind, channel, group, root='.'):
-    return os.path.join(root, FOLDERS[kind], channel, group)
-
-
-def list_media(kind, channel, group, root='.'):
-    folder = content_folder(kind, channel, group, root)
-    if not os.path.isdir(folder):
-        return []
-    return sorted(os.path.join(folder, name) for name in os.listdir(folder)
-                  if name.lower().endswith(SUFFIXES[kind])
-                  and os.path.isfile(os.path.join(folder, name)))
-
-
-def counts(channel, group, root='.'):
-    return {kind: len(list_media(kind, channel, group, root)) for kind in FOLDERS}
-
-
-def title_template(channel, root='.', config_path=None):
-    """Plantilla del canal en app_config; si no hay, la global; si no, la de siempre."""
-    config = _read_json(config_path or os.path.join(root, CONFIG_FILE))
-    cfg = (config.get('channels') or {}).get(channel) or {}
-    return channel_templates.get_title_template(
-        cfg, config.get('name_template') or channel_templates.DEFAULT_TITLE_TEMPLATE)
 
 
 def beat_name(audio):
@@ -277,7 +222,7 @@ class Tools:
 
 
 def render_beat(audio, mode, content, title, out_folder, tools, thumbnail_source=None,
-                title_on_thumbnail=False, channel='', cancelled=lambda: False):
+                title_on_thumbnail=False, text='', cancelled=lambda: False):
     """Genera ``<título>.mp4``, ``.jpg`` y ``.txt`` en ``out_folder``. Devuelve sus rutas."""
     seconds = get_media_duration(audio)
     if not seconds or seconds <= 0:
@@ -317,27 +262,47 @@ def render_beat(audio, mode, content, title, out_folder, tools, thumbnail_source
                     os.remove(leftover)
             raise
     os.replace(partial, video_out)
-    name = beat_name(audio)
-    bpm, key = beat_info(name)
-    tags = ', '.join(t for t in (f'{name} type beat', 'type beat', 'free beat', channel) if t)
-    body = description.render_for_channel(channel, name, bpm, key, tags=tags)
     with open(text_out, 'w', encoding='utf-8') as f:
-        f.write(f'{title}\n\n{body.strip()}\n')
+        f.write(f'{title}\n\n{text.strip()}\n')
     return {'video': video_out, 'thumbnail': thumb_out, 'text': text_out}
 
 
-def run_batch(beats, channel, group, mode, template, output_root, title_on_thumbnail=False,
-              progress=lambda done, total, text: None, cancelled=lambda: False, root='.',
+def beat_title(profile, name, channel):
+    """Título del perfil para el beat, con tope de 100 caracteres (límite de YouTube)."""
+    title = channel_templates.render_title(profile['titulo'], name, channel).strip()
+    return cp.fit_title(title or name)
+
+
+def beat_text(profile, name, channel):
+    """Descripción del perfil con BPM, tono y tags; agrega los tags si la plantilla no los usa."""
+    bpm, key = beat_info(name)
+    tags = ', '.join(cp.render_tags(profile, name, channel))
+    body = description.render(profile['descripcion'], name, bpm, key, tags=tags,
+                              socials=profile['socials'], hashtags=profile['hashtags']).strip()
+    if '{tags}' not in profile['descripcion'] and tags:
+        body = f'{body}\n\nTags: {tags}'.strip()
+    return body
+
+
+def run_batch(beats, channel, local_root, output_root, profile=None,
+              progress=lambda done, total, text: None, cancelled=lambda: False,
               tools=None, rng=None):
-    """Genera todos los beats. Devuelve ``(resultados, errores)``; un error no corta la tanda."""
-    contents = list_media(mode, channel, group, root)
+    """Genera todos los beats con el perfil del canal. Devuelve ``(resultados, errores)``.
+
+    Un beat con error no corta la tanda.
+    """
+    profile = profile or cp.load(local_root, channel)
+    mode = profile['fondo']
+    contents, remote = cp.media(local_root, channel, mode)
     if not contents:
         kind = 'imágenes' if mode == MODE_IMAGE else 'videos'
-        raise ManualError(f'No hay {kind} en {content_folder(mode, channel, group, root)}.')
+        folder = os.path.join(cp.channel_dir(local_root, channel), cp.BACKGROUNDS_DIR)
+        extra = f' ({len(remote)} todavía sin bajar de Dropbox)' if remote else ''
+        raise ManualError(f'No hay {kind} en {folder}{extra}.')
     tools = tools or Tools()
     rng = rng or random.Random()
     picks = Rotation(contents, rng)
-    thumbs = Rotation(list_media('thumbnail', channel, group, root), rng)
+    thumbs = Rotation(cp.media(local_root, channel, 'thumbnail')[0], rng)
     out_folder = os.path.join(output_root, channel_templates.sanitize_filename(channel))
     results, errors = [], []
     for index, audio in enumerate(beats):
@@ -345,10 +310,11 @@ def run_batch(beats, channel, group, mode, template, output_root, title_on_thumb
             raise Cancelled()
         name = beat_name(audio)
         progress(index, len(beats), f'Generando {name} ({index + 1}/{len(beats)})')
-        title = channel_templates.render_title(template, name, channel, group).strip() or name
         try:
-            results.append(render_beat(audio, mode, picks.next(), title, out_folder, tools,
-                                       thumbs.next(), title_on_thumbnail, channel, cancelled))
+            results.append(render_beat(audio, mode, picks.next(), beat_title(profile, name, channel),
+                                       out_folder, tools, thumbs.next(),
+                                       profile['miniatura_con_titulo'],
+                                       beat_text(profile, name, channel), cancelled))
         except ManualError as exc:
             errors.append((name, str(exc)))
     progress(len(beats), len(beats), 'Listo')
@@ -360,9 +326,7 @@ def run_batch(beats, channel, group, mode, template, output_root, title_on_thumb
 def load_settings(path=SETTINGS_FILE):
     data = _read_json(path)
     data.setdefault('output_folder', default_output_folder())
-    data.setdefault('mode', MODE_IMAGE)
-    data.setdefault('title_on_thumbnail', False)
-    data.setdefault('templates', {})
+    data.setdefault('local_root', dropbox_local.default_local_root() or '')
     return data
 
 
