@@ -31,7 +31,7 @@ def items(**oks):
 
 class CloudPageTests(unittest.TestCase):
     def setUp(self):
-        patcher = mock.patch("main.BeatPanel", functools.partial(BeatPanel, cloud_provider=MemoryDropbox))
+        patcher = mock.patch("core.main_window.BeatPanel", functools.partial(BeatPanel, cloud_provider=MemoryDropbox))
         patcher.start()
         self.addCleanup(patcher.stop)
         tmp = tempfile.TemporaryDirectory()

@@ -31,8 +31,8 @@ class HomeScreen(QWidget):
                                      'videos\nlistos para subir.')
         self.btn_local.setStyleSheet(_BIG.format(bg=ACCENT_GENERATE, hover=ACCENT_GENERATE_HOVER))
         self.btn_local.clicked.connect(self.local_requested)
-        self.btn_cloud = QPushButton('☁  Automatizar en la nube\n\nUn robot publica solo,\ntodos los días, aunque\n'
-                                     'la PC esté apagada.')
+        self.btn_cloud = QPushButton('📡  Mis canales\n      automatizados\n\nPausá, cambiá horarios y\n'
+                                     'mirá qué falta en cada canal.')
         self.btn_cloud.setStyleSheet(_BIG.format(bg='#2c5d8f', hover='#3a75b0'))
         self.btn_cloud.clicked.connect(self.cloud_requested)
         self.btn_connections = QPushButton('🔌  Conexiones\n\nDropbox, GitHub, YouTube\ny más, paso a paso.\n'
@@ -64,9 +64,9 @@ class HomeScreen(QWidget):
                 [GuideStep('Crear videos ahora (en esta PC)',
                            'Para tandas de beats nuevos. Vos subís los videos a YouTube a mano.',
                            action=self.local_requested.emit, action_text='Ir a crear videos'),
-                 GuideStep('Automatizar en la nube',
-                           'Para que un robot publique solo todos los días. Se configura una vez por canal.',
-                           action=self.cloud_requested.emit, action_text='Ir a automatizar'),
+                 GuideStep('Mis canales automatizados',
+                           'Los canales que un robot publica solo todos los días: pausar, horarios y qué falta.',
+                           action=self.cloud_requested.emit, action_text='Ir a Mis canales'),
                  GuideStep('Conexiones', 'Dropbox, GitHub, YouTube y más, cada una con su paso a paso. Hacen '
                            'falta para la nube (no para crear videos en esta PC).',
                            action=self.connections_requested.emit, action_text='Ir a Conexiones'),

@@ -25,7 +25,7 @@ def settle(panel):
 class MainShellTests(unittest.TestCase):
     def setUp(self):
         # Sin Dropbox real: el panel de Beats lee de un doble en memoria vacío.
-        patcher = mock.patch("main.BeatPanel", functools.partial(BeatPanel, cloud_provider=MemoryDropbox))
+        patcher = mock.patch("core.main_window.BeatPanel", functools.partial(BeatPanel, cloud_provider=MemoryDropbox))
         patcher.start()
         self.addCleanup(patcher.stop)
         # Preferencias en una carpeta temporal: no tocar config/manual_mode.json real.
@@ -45,7 +45,9 @@ class MainShellTests(unittest.TestCase):
         self.assertEqual(w.shell.guide.title.text(), "Crear videos en esta PC")
         w.shell.btn_back.click()
         self.assertIs(w.shell.current(), w.home)
-        w.home.btn_cloud.click()
+        w.home.btn_cloud.click()  # «Mis canales automatizados»
+        self.assertIs(w.shell.current(), w.channels)
+        w.channels.btn_advanced.click()  # pestañas técnicas
         self.assertIs(w.shell.current(), w.cloud_page)
         self.assertEqual([w.tabs.tabText(i) for i in range(w.tabs.count())], ["Beats", "Loop kits"])
         self.assertEqual(w._current_section(), SECTION_BEATS)

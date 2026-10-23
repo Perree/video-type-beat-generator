@@ -848,3 +848,14 @@ carpetas listas para subir a mano (sin API de YouTube). Perfiles y fondos en `<D
   Telegram (con «Probar»), Notion, IA, y «Preparar la nube» (vista previa de `migrate_to_cloud.build` → aplicar).
   Guarda con lo existente (`cloud_login`, `automation_status`); los valores nunca van como argumento ni a disco.
 - Tests: `tests/test_connections.py`.
+
+## Fase I — Mis canales automatizados ✅ COMPLETADA (2026-10-22)
+- `core/my_channels.py`: pantalla simple con una tarjeta por canal (botón azul de Inicio). Beats: interruptor
+  Activa/Pausada, horario en palabras («Lun, Jue · 18:00») con «Cambiar horario» (días + hora), salud en frase
+  («Faltan 4 de 5 pasos para publicar» / «✔ Listo») con «Arreglar» (abre el asistente de alta del canal), «Quitar»,
+  «+ Agregar canal» y un solo «Guardar cambios» que usa el guardado del panel (`save_and_publish`: CAS + merge).
+  Loop kits: salud y «Editar horario y estilo» (abre su pestaña en esa automatización; el robot de kits no tiene
+  «pausa», así que no se muestra un interruptor que no haría nada). Sin Dropbox o sin «Preparar la nube», explica y
+  lleva a Conexiones. Las pestañas técnicas quedan en «Modo avanzado».
+- La ventana se mudó a `core/main_window.py` (`main.py` queda como punto de entrada, más chico).
+- Tests: `tests/test_my_channels.py`.
