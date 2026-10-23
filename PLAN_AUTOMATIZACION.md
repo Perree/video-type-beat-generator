@@ -859,3 +859,12 @@ carpetas listas para subir a mano (sin API de YouTube). Perfiles y fondos en `<D
   lleva a Conexiones. Las pestañas técnicas quedan en «Modo avanzado».
 - La ventana se mudó a `core/main_window.py` (`main.py` queda como punto de entrada, más chico).
 - Tests: `tests/test_my_channels.py`.
+
+## Mis canales — Loop kits editables y «Editar todo» ✅ (2026-10-23)
+- `core/kit_manage.py`: activo/pausado y día de cada kit en la variable `KIT_CHANNELS` (lo que de verdad decide qué
+  publica el robot); «Quitar» lo saca de esa lista y del índice `channels.json` (kits, config y secretos quedan:
+  se puede recrear). El canal por defecto se puede pausar, no quitar.
+- `core/kit_channel.parse_schedule`: `-` = ningún canal (antes no había forma de pausar todo).
+- `core/my_channels.py`: tarjetas de kits con Activa/Pausada, día, Quitar (con Deshacer) y «Editar todo»; Beats con
+  «Editar todo» (pestaña completa con el canal elegido). Todo se aplica con el mismo «Guardar cambios».
+  Tests: `tests/test_kit_manage.py`.

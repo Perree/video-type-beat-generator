@@ -351,3 +351,6 @@ Cada entrada de `kits.json` admite un `description` opcional (1 o 2 líneas, has
 relacione con el kit. No se imprime ni va a los avisos.
 
 Ver también [CLAUDE_SEO_REPORT.md](CLAUDE_SEO_REPORT.md): estado e import del informe de tendencias desde la pestaña SEO y tendencias del panel.
+
+> **2026-10-23:** `KIT_CHANNELS = "-"` significa «ningún canal» (todos pausados); vacío sigue siendo «el canal por
+> defecto, los domingos». La app lo administra desde «Mis canales automatizados» (activo/pausado, día, quitar).

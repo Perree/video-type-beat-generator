@@ -26,6 +26,7 @@ _SLUG_RE = re.compile(r'[a-z0-9]+(?:-[a-z0-9]+)*\Z')
 _SLUG_MAX = 40
 _DAYS = ('lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom')
 FIRST_WEEKDAY = 6  # el primer canal corre el domingo, como hasta ahora
+NONE = '-'  # KIT_CHANNELS = "-": no corre ningún canal (vacío sigue siendo «el canal por defecto»)
 
 Paths = namedtuple('Paths', 'slug config kits state is_default')
 
@@ -142,9 +143,12 @@ def _weekday(text):
 def parse_schedule(text):
     """``KIT_CHANNELS`` (``slug[=dia]`` separados por coma) a ``[(slug, weekday)]``.
 
-    Vacío: solo el canal por defecto. Sin día, un canal por día en el orden de la lista
-    empezando por el domingo. Día: 0-6 (lunes = 0) o ``lun..dom``.
+    Vacío: solo el canal por defecto. ``-`` (``NONE``): ninguno (todos pausados). Sin día, un
+    canal por día en el orden de la lista empezando por el domingo. Día: 0-6 (lunes = 0) o
+    ``lun..dom``.
     """
+    if str(text or '').strip() == NONE:
+        return []
     out, seen = [], set()
     for i, part in enumerate(p for p in str(text or '').split(',') if p.strip()):
         name, _, day = part.partition('=')

@@ -41,7 +41,7 @@ class MainWindow(QMainWindow):
         self.tabs.currentChanged.connect(self._on_tab_changed)
         self.cloud_page = CloudPage(self.tabs, self.beat_panel, self.loop_kit_panel, **settings)
         self.channels = MyChannelsView(self.beat_panel, self.loop_kit_panel, open_kit=self.open_kit,
-                                       ensure_kits=self.ensure_kits)
+                                       ensure_kits=self.ensure_kits, open_beat=self.open_beat)
         self.connections = ConnectionsView()
         self.assistant = AssistantView(self.local_view)
         self.assistant.cloud = self.cloud_page
@@ -85,6 +85,12 @@ class MainWindow(QMainWindow):
         if index >= 0:
             combo.setCurrentIndex(index)
         self.cloud_page.set_kind(KITS)
+        self.cloud_page.open_tab(TAB_CHANNEL)
+        self.shell.show_page('cloud')
+
+    def open_beat(self, _index):
+        """Abre la pestaña de Beats en «Canal» (el canal ya quedó elegido en la lista)."""
+        self.cloud_page.set_kind('beats')
         self.cloud_page.open_tab(TAB_CHANNEL)
         self.shell.show_page('cloud')
 

@@ -86,7 +86,7 @@ class MyChannelsTests(unittest.TestCase):
         return json.loads(self.memory.files[CONFIG_PATH][0].decode())
 
     def cards(self, kind=BeatCard):
-        return self.view.body.findChildren(kind)
+        return self.view.beat_cards if kind is BeatCard else self.view.kit_cards
 
     def save(self):
         self.view.btn_save.click()
