@@ -8,9 +8,10 @@ y quitar. «Editar todo» abre la pestaña completa del canal (Modo avanzado).
 """
 from PyQt5.QtCore import Qt, QTime, QTimer, pyqtSignal
 from PyQt5.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFrame, QGridLayout, QHBoxLayout,
-                             QLabel, QMessageBox, QPushButton, QScrollArea, QTimeEdit, QVBoxLayout, QWidget)
+                             QLabel, QMessageBox, QPushButton, QRadioButton, QScrollArea, QTimeEdit, QVBoxLayout,
+                             QWidget)
 
-from core import gh_status, kit_channel, kit_manage
+from core import beat_settings, gh_status, kit_channel, kit_manage
 from core.cloud_worker import CallWorker
 from core.guide_panel import GuideStep
 from ui_theme import ACCENT_GENERATE, ACCENT_GENERATE_HOVER
@@ -97,6 +98,48 @@ class ScheduleDialog(QDialog):
             QMessageBox.warning(self, 'Horario', 'Elegí al menos un día.')
             return
         self.accept()
+
+
+class AddChannelDialog(QDialog):
+    """«+ Agregar canal»: Beats (un canal de la nube sin automatización, o uno nuevo) o Loop kits."""
+
+    def __init__(self, free_beats, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('Agregar canal automatizado')
+        self.setStyleSheet('QDialog { background-color: #2b2b2b; }')
+        self.setMinimumWidth(460)
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel('¿Qué querés automatizar?'))
+        self.beats = QRadioButton('🎵 Beats (publica type beats todos los días)')
+        self.kits = QRadioButton('📦 Loop kits (publica kits una vez por semana)')
+        self.beats.setChecked(True)
+        for button in (self.beats, self.kits):
+            layout.addWidget(button)
+        self.beat_label = QLabel('Canal de Beats:')
+        layout.addWidget(self.beat_label)
+        self.choice = QComboBox()
+        for key in free_beats:
+            self.choice.addItem(f'«{key}» (ya está en la nube, sin automatización)', key)
+        self.choice.addItem('➕ Canal nuevo…', None)
+        layout.addWidget(self.choice)
+        self.beats.toggled.connect(self._toggle)
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Ok).setText('Continuar')
+        buttons.button(QDialogButtonBox.Cancel).setText('Cancelar')
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _toggle(self, beats):
+        self.beat_label.setVisible(beats)
+        self.choice.setVisible(beats)
+
+    def kind(self):
+        return 'beats' if self.beats.isChecked() else 'kits'
+
+    def beat_choice(self):
+        """Clave elegida, o None para «Canal nuevo…»."""
+        return self.choice.currentData()
 
 
 class BeatCard(QFrame):
@@ -385,14 +428,39 @@ class MyChannelsView(QWidget):
                                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No) == QMessageBox.Yes:
             self._edit(lambda channels: channels.pop(index))
 
+    def free_beat_channels(self):
+        """Canales de Beats de la nube que todavía no tienen automatización: ``{clave: slug}``."""
+        used = {ch['id'] for ch in self.channels()}
+        rows = beat_settings.beat_channels(self.beat_panel.registry)
+        return {key: row['slug'] for key, row in sorted(rows.items()) if key not in used}
+
     def add(self):
+        """Pregunta qué agregar (nunca elige solo) y abre el asistente de alta del canal."""
+        dialog = AddChannelDialog(self.free_beat_channels(), self)
+        if not dialog.exec_():
+            return
+        if dialog.kind() == 'kits':
+            self.kit_panel.ask_new_automation()  # su propio diálogo (elige el canal o escribe uno)
+            if self._ensure_kits:
+                self._ensure_kits(force=True)
+            return
+        key = dialog.beat_choice()
+        if key is None:  # canal nuevo: lo crea en el registro (pide el nombre) y se guarda con «Guardar»
+            key = self.beat_panel.create_registry_channel()
+            if not key:
+                return
+        self.add_beat(key)
+
+    def add_beat(self, key):
+        """Agrega la automatización de Beats de ``key`` con el slug que ya tiene en la nube."""
         panel = self.beat_panel
-        before = len(panel.config.get('channels', []))
-        panel.add_channel()  # elige un canal libre del registro o pide el nombre de uno nuevo
-        if len(panel.config['channels']) > before:
-            self.dirty = True
-            self.rebuild()
-            self.fix(len(panel.config['channels']) - 1)
+        row = beat_settings.beat_channels(panel.registry).get(key)
+        if row is None or any(ch['id'] == key for ch in self.channels()):
+            return
+        channel = dict(id=key, active=False, priority=0, selection_tags=[], actions_slug=row['slug'],
+                       slots=[dict(weekday=0, hour=18, minute=0)])
+        self._edit(lambda channels: channels.append(channel))
+        self.fix(len(panel.config['channels']) - 1)
 
     def fix(self, index):
         """Selecciona el canal en el panel y abre su asistente de alta (dice qué falta)."""

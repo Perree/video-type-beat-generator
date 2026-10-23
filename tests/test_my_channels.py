@@ -128,6 +128,31 @@ class MyChannelsTests(unittest.TestCase):
         self.save()
         self.assertEqual([c["id"] for c in self.remote()["channels"]], ["beat-b"])
 
+    def test_add_never_picks_a_channel_by_itself(self):
+        from core.my_channels import AddChannelDialog
+        with mock.patch("core.my_channels.QMessageBox.question", return_value=QMessageBox.Yes):
+            self.view.remove(1)  # quito beat-b
+        self.assertEqual(self.view.free_beat_channels(), {"beat-b": "beat-b"})
+        with mock.patch.object(AddChannelDialog, "exec_", return_value=False):
+            self.view.btn_add.click()  # cancelar: no se agrega nada
+        self.assertEqual([c["id"] for c in self.view.channels()], ["beat-a"])
+        with mock.patch.object(AddChannelDialog, "exec_", return_value=True), \
+                mock.patch.object(AddChannelDialog, "beat_choice", return_value="beat-b"), \
+                mock.patch.object(self.view, "fix") as fix:
+            self.view.btn_add.click()
+        added = self.view.channels()[-1]
+        self.assertEqual((added["id"], added["actions_slug"], added["active"]), ("beat-b", "beat-b", False))
+        fix.assert_called_once_with(1)
+
+    def test_add_dialog_lists_free_channels_and_new(self):
+        from core.my_channels import AddChannelDialog
+        dialog = AddChannelDialog({"beat-c": "beat-c"})
+        self.assertEqual([dialog.choice.itemData(i) for i in range(dialog.choice.count())], ["beat-c", None])
+        dialog.kits.setChecked(True)
+        self.assertEqual(dialog.kind(), "kits")
+        self.assertTrue(dialog.choice.isHidden())
+        dialog.deleteLater()
+
     def test_open_kit_callback(self):
         opened = []
         self.view._open_kit = opened.append
