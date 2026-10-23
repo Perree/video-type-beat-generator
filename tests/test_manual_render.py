@@ -122,7 +122,8 @@ class ManualRenderTests(unittest.TestCase):
                                   descripcion="{name} | {bpm} BPM"))
         run("-f", "lavfi", "-i", "testsrc=size=640x360:rate=25:duration=1",
             os.path.join(root, "canales", "Vid", "fondos", "stock.mp4"))
-        cls.tools = mr.Tools()
+        from core.stock_cache import StockCache
+        cls.tools = mr.Tools(cache=StockCache(os.path.join(root, 'cache')))  # no tocar la caché real
 
     @classmethod
     def tearDownClass(cls):

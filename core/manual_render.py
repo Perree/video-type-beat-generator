@@ -20,7 +20,7 @@ from datetime import datetime
 
 from core import channel_profile as cp
 from core import beat_title as bt
-from core import channel_templates, description, dropbox_local
+from core import channel_templates, description, dropbox_local, stock_cache
 from core.ffmpeg_util import get_available_video_codec, get_media_duration, resolve_tool
 
 AUDIO_SUFFIXES = ('.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg')
@@ -164,11 +164,27 @@ def _draw_title(picture, title):
 # --- FFmpeg ---
 
 class Tools:
-    def __init__(self, ffmpeg=None, ffprobe=None):
+    def __init__(self, ffmpeg=None, ffprobe=None, cache=None):
+        """``cache``: ``StockCache`` para videos stock; None = la de esta PC; False = sin caché."""
         self.ffmpeg = ffmpeg or resolve_tool('ffmpeg')
         if not self.ffmpeg:
             raise ManualError('No se encontró FFmpeg (ni en bin/ ni en el PATH).')
         self.codec = get_available_video_codec(self.ffmpeg)
+        if cache is None:
+            gb = load_settings()['cache_max_gb']  # «cache_max_gb» en config/manual_mode.json
+            cache = stock_cache.StockCache(max_bytes=int(gb * 1024 ** 3))
+        self.cache = cache or None
+
+    def cached_stock(self, source, cancelled=lambda: False):
+        """Video stock convertido a 1080p30 (de la caché), o None si no hay caché o falló."""
+        if self.cache is None:
+            return None
+        try:
+            return self.cache.ensure(source, self, cancelled)
+        except Cancelled:
+            raise
+        except (ManualError, OSError):
+            return None  # se usa el método de siempre (más lento, pero anda)
 
     def run(self, args, cancelled=lambda: False, timeout=3600):
         """Corre ffmpeg; corta el proceso si el usuario cancela."""
@@ -267,15 +283,20 @@ def _render_into(audio, mode, content, title, folder, base, seconds, tools, thum
                     '-map', '0:v:0', '-map', '1:a:0', *tools.encode_args(still=True)]
             thumb_from = thumbnail_source or content
         elif mode == MODE_VIDEO:
-            vf = ('scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,'
-                  'setsar=1,fps=30,format=yuv420p')
-            args = ['-y', '-stream_loop', '-1', '-i', content, '-i', audio,
-                    '-map', '0:v:0', '-map', '1:a:0', '-vf', vf, *tools.encode_args()]
+            cached = tools.cached_stock(content, cancelled)
+            if cached:
+                # Ya está en 1080p30: se repite y se copia sin recodificar (≈10 veces más rápido).
+                args = ['-y', '-stream_loop', '-1', '-i', cached, '-i', audio, '-map', '0:v:0', '-map', '1:a:0',
+                        '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart']
+            else:
+                args = ['-y', '-stream_loop', '-1', '-i', content, '-i', audio,
+                        '-map', '0:v:0', '-map', '1:a:0', '-vf', stock_cache.NORMALIZE, *tools.encode_args()]
             thumb_from = thumbnail_source
             if not thumb_from:
                 thumb_from = os.path.join(tmp, 'thumb.png')
-                length = get_media_duration(content) or 0
-                tools.video_frame(content, thumb_from, min(length * 0.1, 5.0), cancelled)
+                frame_source = cached or content
+                length = get_media_duration(frame_source) or 0
+                tools.video_frame(frame_source, thumb_from, min(length * 0.1, 5.0), cancelled)
         else:
             raise ManualError('Modo desconocido.')
         tools.run([*args, '-t', f'{seconds:.3f}', '-f', 'mp4', partial], cancelled)
@@ -363,9 +384,14 @@ def run_batch(beats, channel, local_root, output_root, profile=None,
             raise Cancelled()
         name = beat_name(audio)
         progress(index, len(beats), f'Generando {name} ({index + 1}/{len(beats)})')
+        content = picks.next()
+        cache = getattr(tools, 'cache', None)
+        if mode == MODE_VIDEO and cache is not None and not os.path.isfile(cache.path_for(content)):
+            progress(index, len(beats), f'Preparando el video stock {os.path.basename(content)} '
+                                        '(solo la primera vez, puede tardar un minuto)…')
         try:
             title = cp.fit_title(titles[audio]) if titles.get(audio, '').strip() else beat_title(profile, name, channel)
-            result = render_beat(audio, mode, picks.next(), title, out_folder, tools, thumbs.next(),
+            result = render_beat(audio, mode, content, title, out_folder, tools, thumbs.next(),
                                  profile['miniatura_con_titulo'], beat_text(profile, name, channel),
                                  beat_tags(profile, name, channel), cancelled)
             add_pending(day_dir, channel, result)
@@ -384,6 +410,10 @@ def load_settings(path=SETTINGS_FILE):
     data = _read_json(path)
     data.setdefault('output_folder', default_output_folder())
     data.setdefault('local_root', dropbox_local.default_local_root() or '')
+    try:
+        data['cache_max_gb'] = max(0.5, float(data.get('cache_max_gb', stock_cache.DEFAULT_MAX_GB)))
+    except (TypeError, ValueError):
+        data['cache_max_gb'] = stock_cache.DEFAULT_MAX_GB
     return data
 
 
