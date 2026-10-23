@@ -836,3 +836,15 @@ carpetas listas para subir a mano (sin API de YouTube). Perfiles y fondos en `<D
   Tests: `tests/test_cloud_page.py`.
 - Pendiente del usuario para usar la nube: conectar Dropbox y GitHub (`gh auth login`) en esta PC y correr la
   migración `scripts/migrate_to_cloud.py --apply` (falta `/automatizacion/canales.json`).
+
+## Fase H — Conexiones guiadas ✅ COMPLETADA (2026-10-22)
+- `core/connections_view.py`: pantalla «🔌 Conexiones» (botón propio en Inicio) con tarjetas y luces: necesarias
+  para la nube (Dropbox esta PC, GitHub, Google/YouTube, Dropbox del robot, Preparar la nube) y opcionales
+  (Telegram —obligatorio solo para Loop kits—, Notion, IA). Para crear videos en esta PC no hace falta ninguna.
+- `core/connection_steps.py`: un mini asistente por conexión (`core/wizard.py`) con links y explicación:
+  Dropbox (App key → autorizar → código → llavero), GitHub (instalar GitHub CLI con winget previa confirmación,
+  o link; abrir `gh auth login` en una consola; se tilda solo), Google (pasos de Google Cloud + importar el JSON;
+  ofrece el `config/client_secret.json` viejo si existe), Dropbox del robot (código nuevo → GitHub Secrets),
+  Telegram (con «Probar»), Notion, IA, y «Preparar la nube» (vista previa de `migrate_to_cloud.build` → aplicar).
+  Guarda con lo existente (`cloud_login`, `automation_status`); los valores nunca van como argumento ni a disco.
+- Tests: `tests/test_connections.py`.

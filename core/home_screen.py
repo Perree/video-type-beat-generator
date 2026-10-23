@@ -15,6 +15,7 @@ class HomeScreen(QWidget):
     local_requested = pyqtSignal()
     cloud_requested = pyqtSignal()
     assistant_requested = pyqtSignal()
+    connections_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -26,16 +27,20 @@ class HomeScreen(QWidget):
         layout.addWidget(title)
         row = QHBoxLayout()
         row.addStretch(1)
-        self.btn_local = QPushButton('🎬  Crear videos ahora\n\nSoltás tus beats, elegís el canal\n'
-                                     'y tenés los videos en el Escritorio,\nlistos para subir a YouTube.')
+        self.btn_local = QPushButton('🎬  Crear videos ahora\n\nSoltás tus beats, elegís\nel canal y tenés los '
+                                     'videos\nlistos para subir.')
         self.btn_local.setStyleSheet(_BIG.format(bg=ACCENT_GENERATE, hover=ACCENT_GENERATE_HOVER))
         self.btn_local.clicked.connect(self.local_requested)
-        self.btn_cloud = QPushButton('☁  Automatizar en la nube\n\nUn robot arma y publica videos\n'
-                                     'solo, todos los días, aunque\nla PC esté apagada.')
+        self.btn_cloud = QPushButton('☁  Automatizar en la nube\n\nUn robot publica solo,\ntodos los días, aunque\n'
+                                     'la PC esté apagada.')
         self.btn_cloud.setStyleSheet(_BIG.format(bg='#2c5d8f', hover='#3a75b0'))
         self.btn_cloud.clicked.connect(self.cloud_requested)
-        for button in (self.btn_local, self.btn_cloud):
-            button.setMinimumWidth(380)
+        self.btn_connections = QPushButton('🔌  Conexiones\n\nDropbox, GitHub, YouTube\ny más, paso a paso.\n'
+                                           'Hacen falta para la nube.')
+        self.btn_connections.setStyleSheet(_BIG.format(bg='#6b4f8f', hover='#8463ad'))
+        self.btn_connections.clicked.connect(self.connections_requested)
+        for button in (self.btn_local, self.btn_cloud, self.btn_connections):
+            button.setMinimumWidth(270)
             row.addWidget(button)
         row.addStretch(1)
         layout.addLayout(row)
@@ -62,6 +67,9 @@ class HomeScreen(QWidget):
                  GuideStep('Automatizar en la nube',
                            'Para que un robot publique solo todos los días. Se configura una vez por canal.',
                            action=self.cloud_requested.emit, action_text='Ir a automatizar'),
+                 GuideStep('Conexiones', 'Dropbox, GitHub, YouTube y más, cada una con su paso a paso. Hacen '
+                           'falta para la nube (no para crear videos en esta PC).',
+                           action=self.connections_requested.emit, action_text='Ir a Conexiones'),
                  GuideStep('¿Dudas? Usá el asistente',
                            'Te pregunta qué querés lograr y te lleva pantalla por pantalla.',
                            action=self.assistant_requested.emit, action_text='Abrir asistente')])

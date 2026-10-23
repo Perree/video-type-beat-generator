@@ -101,6 +101,7 @@ class Wizard(QWidget):
         self.stack.setCurrentWidget(page.widget)
         self.title.setText(page.title)
         self.text.setText(page.text)
+        self.text.setVisible(bool(page.text))
         self.update_state()
 
     def next(self):

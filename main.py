@@ -17,6 +17,7 @@ from core.app_shell import AppShell
 from core.assistant import AssistantView
 from core.beat_panel import BeatPanel
 from core.cloud_page import CloudPage
+from core.connections_view import ConnectionsView
 from core.home_screen import HomeScreen
 from core.local_view import LocalView
 from core.sections import SECTION_BEATS, SECTION_LOOP_KITS
@@ -48,15 +49,18 @@ class MainWindow(QMainWindow):
         self.tabs.currentChanged.connect(self._on_tab_changed)
         self.cloud_page = CloudPage(self.tabs, self.beat_panel, self.loop_kit_panel, **settings)
 
+        self.connections = ConnectionsView()
         self.assistant = AssistantView(self.local_view)
         self.assistant.cloud = self.cloud_page
         self.home = HomeScreen()
         self.shell = AppShell(self.home, {'local': (self.local_view, 'Crear videos ahora'),
                                           'cloud': (self.cloud_page, 'Automatizar en la nube'),
-                                          'assistant': (self.assistant, 'Asistente paso a paso')}, **settings)
+                                          'assistant': (self.assistant, 'Asistente paso a paso'),
+                                          'connections': (self.connections, 'Conexiones')}, **settings)
         self.home.local_requested.connect(lambda: self.shell.show_page('local'))
         self.home.cloud_requested.connect(lambda: self.shell.show_page('cloud'))
         self.home.assistant_requested.connect(self.open_assistant)
+        self.home.connections_requested.connect(lambda: self.shell.show_page('connections'))
         self.local_view.assistant_requested.connect(self.open_assistant)
         self.assistant.cloud_requested.connect(lambda: self.shell.show_page('cloud'))
         self.cloud_page.assistant_requested.connect(self.resume_assistant)
