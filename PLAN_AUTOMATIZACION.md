@@ -892,3 +892,25 @@ carpetas listas para subir a mano (sin API de YouTube). Perfiles y fondos en `<D
 - Rutas viejas guardadas dentro de los JSON se traducen al leer; quedan con la ruta nueva al volver a guardarse.
 - Modo local: usa `<Dropbox>/Soft Projects/Type Beat Generator/contenido` si la PC lo sincroniza; si no, `TypeBeat Local`.
 - Tests: `tests/test_dropbox_layout.py`.
+
+## Distribución semanal — asistente de Beats ✅ COMPLETADA (2026-10-23)
+- Guía de dos pasos desde Mis canales y el panel avanzado: proteger horarios
+  existentes, elegir 1–7 videos semanales, recomendar según cantidad de canales,
+  prioridad y capacidad, y revisar la carga de lunes a domingo antes de aplicar.
+- Lógica pura en `core/beat_distribution.py`, UI en `core/beat_distribution_dialog.py`;
+  equilibrio de carga y separación de días, calendario fijo/pausado intacto,
+  rechazo de propuestas imposibles y de aplicación sobre un borrador cambiado.
+- Aplicación solo al borrador, luego guardado CAS existente de Dropbox. Sin
+  cambios en `main.py`, uploader, workflows ni producción. No reprograma jobs
+  anteriores ni videos ya subidos. Reservas externas y tope son por propuesta,
+  no coordinación automática entre workers ni nuevos límites persistidos.
+- Verificación oficial de cuota: 100 llamadas diarias predeterminadas a insert
+  por proyecto según Google; cuota efectiva pendiente de comprobar en Cloud.
+  Se conserva el presupuesto local de seis intentos y se aclara su origen en UI.
+  Guía incluye límites de contenido repetitivo/spam, sin promesas contra bloqueos.
+- Nueve pruebas nuevas con 400 combinaciones contrastadas con un criterio de
+  factibilidad independiente, cancelación, borrador obsoleto y round-trip CAS
+  sobre Dropbox falso. UI renderizada y revisada con 15 canales; sintaxis y
+  whitespace correctos. Regresión offline: 94 aprobadas (79 de planificación/UI
+  y 15 del adaptador Dropbox), con GitHub/llavero aislados mediante dobles.
+  Detalles y fuentes: `docs/TYPE_BEATS_DISTRIBUTION.md`.

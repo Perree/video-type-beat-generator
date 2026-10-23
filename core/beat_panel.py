@@ -45,7 +45,7 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
             self.reload()
 
     def _set_editable(self, on):
-        for widget in (self.save_publish_button, self.add_button, self.remove_button,
+        for widget in (self.save_publish_button, self.add_button, self.remove_button, self.distribution_button,
                        self.simulate_button, self.automations, self.editor, self.seo_editor):
             widget.setEnabled(on)
 
@@ -285,7 +285,7 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
         self.task.finished.connect(self._finished)
         for button in (self.analyze_button, self.state_button, self.simulate_button,
                        self.save_publish_button, self.cloud_reload_button,
-                       self.add_button, self.remove_button):
+                       self.add_button, self.remove_button, self.distribution_button):
             button.setEnabled(False)
         self.profile.setEnabled(False)
         self.editor.setEnabled(False)
@@ -372,7 +372,8 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
             counts[job["status"]] = counts.get(job["status"], 0) + 1
         day = datetime.now(BA).date().isoformat()
         used = len(state["attempts"].get(day, {}))
-        self.quota.setText(f"Cuota global del {day}: {used}/6 intentos consumidos; {6 - used} disponibles.")
+        self.quota.setText(f"Límite local de Beats del {day}: {used}/6 intentos consumidos; {6 - used} disponibles. "
+                           "La cuota real de YouTube se verifica en Google Cloud.")
         self.output.setPlainText(f"Estado remoto consultado (sin escrituras).\nJobs: {counts}\n"
                                  f'Lock: {"presente" if state["lock"] else "libre"}')
         self.status.setText("Estado cargado. La simulación puede usar esta instantánea.")

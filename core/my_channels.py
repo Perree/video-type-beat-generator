@@ -274,6 +274,10 @@ class MyChannelsView(QWidget):
             head.addWidget(button)
         layout.addLayout(head)
 
+        self.btn_distribution = QPushButton('Distribuir publicaciones de Beats…')
+        self.btn_distribution.clicked.connect(self.distribute_beats)
+        layout.addWidget(self.btn_distribution, 0, Qt.AlignLeft)
+
         self.blocked = QFrame()
         blocked = QVBoxLayout(self.blocked)
         self.blocked_text = QLabel()
@@ -310,6 +314,15 @@ class MyChannelsView(QWidget):
         self.rebuild()
 
     # --- Estado ---
+
+    def distribute_beats(self):
+        from core.beat_distribution_dialog import open_distribution
+        before = repr(self.beat_panel.config)
+        open_distribution(self.beat_panel)
+        if repr(self.beat_panel.config) != before:
+            self.dirty = True
+        self.status.setText(self.beat_panel.status.text())
+        self.rebuild()
 
     def beats_loaded(self):
         panel = self.beat_panel
@@ -389,6 +402,7 @@ class MyChannelsView(QWidget):
         self.btn_save.setEnabled(self.any_dirty() and not busy)
         self.btn_save.setText('Guardando…' if saving else '💾 Guardar cambios')
         self.btn_add.setEnabled(self.beats_loaded() and not busy)
+        self.btn_distribution.setEnabled(self.beats_loaded() and not busy)
         if self.any_dirty() and not saving:
             self.status.setText('Tenés cambios sin guardar: tocá «Guardar cambios» para que el robot los use.')
         elif not saving and not self.status.text().startswith(('✓', '✗')):

@@ -69,6 +69,10 @@ class BeatPanelForm(BeatVisualForm, BeatConnectionsForm, AutomationSaveBar):
         row.addWidget(self.remove_button)
         row.addWidget(self.wizard_button)
         canal_layout.addLayout(row)
+        self.distribution_button = QPushButton('Distribuir publicaciones…')
+        from core.beat_distribution_dialog import open_distribution
+        self.distribution_button.clicked.connect(lambda: open_distribution(self))
+        canal_layout.addWidget(self.distribution_button)
 
         self.editor = QWidget()
         editor_form = QFormLayout(self.editor)
@@ -133,7 +137,8 @@ class BeatPanelForm(BeatVisualForm, BeatConnectionsForm, AutomationSaveBar):
 
         advanced = QWidget()
         advanced_layout = QVBoxLayout(advanced)
-        self.quota = QLabel("Cuota diaria global: 6 intentos (incluye fallos). Buffer: 14 días.")
+        self.quota = QLabel("Límite local de Beats: 6 intentos diarios (incluye fallos). "
+                            "No representa la cuota real del proyecto en YouTube. Buffer: 14 días.")
         self.quota.setWordWrap(True)
         advanced_layout.addWidget(self.quota)
         row = QHBoxLayout()
