@@ -470,39 +470,56 @@ class AI(_SecretsConnection):
 class CloudPrep(Connection):
     key, title, icon = 'cloud_prep', 'Preparar la nube (una vez)', '☁'
     description = 'Crea en Dropbox la lista de canales automatizados a partir de tu configuración anterior.'
-    _cache = {'at': 0.0, 'code': UNKNOWN}
+    # reason: 'dropbox' = no se puede revisar sin Dropbox conectado; 'offline' = no respondió.
+    _cache = {'at': 0.0, 'code': UNKNOWN, 'reason': ''}
 
     def status(self):
+        if cloud_login.dropbox_status() != OK:
+            return UNKNOWN  # sin Dropbox no se sabe si la lista existe (quizá la creó la otra PC)
         return self._cache['code']
 
     @classmethod
     def check(cls):
         """Lee Dropbox (lento): llamar en segundo plano. Guarda el resultado por 60 s."""
+        if cloud_login.dropbox_status() != OK:
+            cls._cache.update(at=0.0, code=UNKNOWN, reason='dropbox')
+            return UNKNOWN
         if time.monotonic() - cls._cache['at'] < 60 and cls._cache['code'] != UNKNOWN:
             return cls._cache['code']
-        code = UNKNOWN
-        if cloud_login.dropbox_status() == OK:
-            try:
-                from core.beat_panel_cloud import local_transport
-                from core.cloud_registry import CloudRegistry
-                _doc, rev = CloudRegistry(local_transport()).read('canales')
-                code = OK if rev is not None else MISSING
-            except Exception:  # noqa: BLE001 - sin red: se reintenta después
-                code = UNKNOWN
-        else:
-            code = MISSING
-        cls._cache.update(at=time.monotonic(), code=code)
+        try:
+            from core.beat_panel_cloud import local_transport
+            from core.cloud_registry import CloudRegistry
+            _doc, rev = CloudRegistry(local_transport()).read('canales')
+            code, reason = (OK if rev is not None else MISSING), ''
+        except Exception:  # noqa: BLE001 - sin red: se reintenta después
+            code, reason = UNKNOWN, 'offline'
+        cls._cache.update(at=time.monotonic(), code=code, reason=reason)
         return code
 
     def status_text(self):
-        return {OK: 'Lista', MISSING: 'Falta', UNKNOWN: 'Revisando…'}[self.status()]
+        if cloud_login.dropbox_status() != OK:
+            return 'Conectá Dropbox para revisar'
+        if self.status() == UNKNOWN:
+            return 'No se pudo revisar (sin conexión)' if self._cache['reason'] == 'offline' else 'Revisando…'
+        return {OK: 'Lista', MISSING: 'Falta'}[self.status()]
 
     def pages(self, owner):
         task = Task(owner)
         task_label, task_refresh = _task_label(task)
         preview = QLabel()
         preview.setWordWrap(True)
-        state = {'docs': None}
+        state = {'docs': None, 'count': 0}
+
+        def prep_problem():
+            if cloud_login.dropbox_status() != OK:
+                return 'primero conectá Dropbox en esta PC (así se revisa si la lista ya existe).'
+            if self.status() == OK:
+                return 'la lista ya existe en Dropbox: no hace falta hacer nada.'
+            if state['docs'] is None:
+                return 'no se pudo leer la configuración anterior (mirá el mensaje).'
+            if not state['count']:
+                return 'en esta PC no hay canales para pasar: hacelo desde la otra PC.'
+            return ''
 
         def build():
             from scripts import migrate_to_cloud as mig
@@ -513,8 +530,19 @@ class CloudPrep(Connection):
                 preview.setText(f'✗ No se pudo leer la configuración anterior: {exc}')
                 return
             state['docs'] = (('canales', canales), ('ajustes', ajustes))
+            state['count'] = len(report['migrados'])
             lines = [f'• <b>{m["canal"]}</b> ({"Beats" if m["tipo"] == "beats" else "Loop kits"})'
                      for m in report['migrados']]
+            if not lines:
+                untyped = sum(1 for o in report['omitidos'] if o['motivo'] == 'tipo sin definir')
+                preview.setText(
+                    '<b>En esta PC no hay canales automatizados para pasar a la nube.</b><br><br>'
+                    + (f'Hay {untyped} canales en la configuración de esta PC, pero ninguno está marcado como Beats o '
+                       'Loop kits (pasa si esta PC no es la que configuró la automatización). '
+                       if untyped else '')
+                    + 'Hacé «Preparar la nube» desde la <b>otra PC</b>, la que tiene la automatización configurada. '
+                    'Crear acá una lista vacía no sirve y después habría que rehacerla.')
+                return
             skipped = [f'• {o["canal"]}: {o["motivo"]}' for o in report['omitidos']]
             preview.setText(f'Se van a crear <b>{len(lines)} canales automatizados</b>:<br>' + '<br>'.join(lines)
                             + ('<br><br>Se omiten:<br>' + '<br>'.join(skipped) if skipped else ''))
@@ -536,9 +564,7 @@ class CloudPrep(Connection):
             WizardPage('Preparar la nube', 'Se hace una sola vez. No borra nada: solo crea la lista nueva en '
                        'Dropbox.', _page(preview, task_label), on_enter=build, refresh=task_refresh,
                        on_next=apply, busy=task.busy, next_text='Crear en Dropbox',
-                       ready=lambda: state['docs'] is not None and cloud_login.dropbox_status() == OK,
-                       blocker=lambda: ('primero conectá Dropbox en esta PC.' if cloud_login.dropbox_status() != OK
-                                        else 'no se pudo armar la lista (mirá el mensaje).')),
+                       ready=lambda: not prep_problem(), blocker=prep_problem),
             _done_page(self),
         ]
 

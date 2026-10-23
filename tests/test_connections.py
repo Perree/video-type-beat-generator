@@ -126,9 +126,40 @@ class ConnectionsViewTests(unittest.TestCase):
             self.assertNotIn("123:ABC", args)  # los valores viajan por stdin, nunca como argumento
 
     def test_cloud_prep_needs_dropbox(self):
+        prep = self.view.connection("cloud_prep")
+        self.assertEqual(prep.status(), cs.UNKNOWN)  # sin Dropbox no se sabe (no «Falta»)
+        self.assertEqual(prep.status_text(), "Conectá Dropbox para revisar")
         wizard = self.view.open("cloud_prep")
         self.assertFalse(wizard.btn_next.isEnabled())
-        self.assertIn("Dropbox", wizard.hint.text())
+        self.assertIn("conectá Dropbox", wizard.hint.text())
+
+    def _prep_with_dropbox(self, migrados, omitidos=(), exists=False):
+        cs.CloudPrep._cache.update(at=time.monotonic(), code=cs.OK if exists else cs.MISSING, reason="")
+        report = {"migrados": list(migrados), "omitidos": list(omitidos), "avisos": []}
+        patches = [mock.patch("core.connection_steps.cloud_login.dropbox_status", return_value=cs.OK),
+                   mock.patch("scripts.migrate_to_cloud.read_app", return_value={}),
+                   mock.patch("scripts.migrate_to_cloud.build", return_value=({}, {}, report))]
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
+        return self.view.open("cloud_prep")
+
+    def test_cloud_prep_blocks_empty_list_and_points_to_other_pc(self):
+        wizard = self._prep_with_dropbox([], [{"canal": "x", "motivo": "tipo sin definir"}])
+        self.assertFalse(wizard.btn_next.isEnabled())
+        self.assertIn("otra PC", wizard.hint.text())
+        page_text = " ".join(label.text() for label in wizard.stack.currentWidget().findChildren(type(wizard.hint)))
+        self.assertIn("no hay canales automatizados", page_text)
+
+    def test_cloud_prep_ready_with_channels_and_says_when_already_done(self):
+        channel = {"canal": "beat-a", "tipo": "beats", "slug": "beat-a", "legacy_default": False}
+        wizard = self._prep_with_dropbox([channel])
+        self.assertTrue(wizard.btn_next.isEnabled())
+        self.assertEqual(wizard.btn_next.text(), "Crear en Dropbox")
+        self.view.close_wizard()
+        wizard = self._prep_with_dropbox([channel], exists=True)
+        self.assertFalse(wizard.btn_next.isEnabled())
+        self.assertIn("ya existe", wizard.hint.text())
 
 
 class HomeConnectionsTests(unittest.TestCase):
