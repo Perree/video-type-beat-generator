@@ -11,6 +11,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+from core import kit_http
 from core import kit_cloud, kit_llm, kit_names, kit_state
 
 # El host de ejemplo tiene que estar permitido para llegar al fallo de red simulado.
@@ -93,11 +94,11 @@ def _check_llm():
         check(kit_llm.read_key({'key_file': path}) == 'SMOKE-SECRET-KEY', "read_key")
     # Fallo de red simulado: el mensaje no debe traer la clave.
     import urllib.request
-    real = urllib.request.urlopen
+    real = kit_http.open_request
 
     def boom(*a, **k):
         raise OSError('SMOKE-SECRET-KEY en el texto del error')
-    urllib.request.urlopen = boom
+    kit_http.open_request = boom
     try:
         kit_llm.call('s', 'u', {'base_url': 'https://x.example/v1', 'model': 'm'},
                      key='SMOKE-SECRET-KEY')
@@ -105,7 +106,7 @@ def _check_llm():
     except kit_llm.KitLlmError as e:
         check('SMOKE-SECRET-KEY' not in str(e), "el error de red expone la clave")
     finally:
-        urllib.request.urlopen = real
+        kit_http.open_request = real
 
 
 def _check_state():

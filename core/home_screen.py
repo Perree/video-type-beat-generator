@@ -6,8 +6,8 @@ from PyQt5.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidg
 from core.guide_panel import GuideStep
 from ui_theme import ACCENT_GENERATE, ACCENT_GENERATE_HOVER
 
-_BIG = ('QPushButton {{ background: {bg}; color: white; font-size: 18px; font-weight: bold; '
-        'padding: 28px; border-radius: 10px; text-align: left; }} '
+_BIG = ('QPushButton {{ background: {bg}; color: white; font-size: 16px; font-weight: bold; '
+        'padding: 18px; border-radius: 10px; text-align: left; }} '
         'QPushButton:hover {{ background: {hover}; }}')
 
 
@@ -25,24 +25,19 @@ class HomeScreen(QWidget):
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet('font-size: 24px; font-weight: bold;')
         layout.addWidget(title)
-        row = QHBoxLayout()
-        row.addStretch(1)
-        self.btn_local = QPushButton('🎬  Crear videos ahora\n\nSoltás tus beats, elegís\nel canal y tenés los '
-                                     'videos\nlistos para subir.')
+        # A vertical list also fits with the guide open at the minimum window size.
+        row = QVBoxLayout()
+        self.btn_local = QPushButton('🎬  Crear videos ahora\nSoltá beats, elegí el canal y generá los videos.')
         self.btn_local.setStyleSheet(_BIG.format(bg=ACCENT_GENERATE, hover=ACCENT_GENERATE_HOVER))
         self.btn_local.clicked.connect(self.local_requested)
-        self.btn_cloud = QPushButton('📡  Mis canales\n      automatizados\n\nPausá, cambiá horarios y\n'
-                                     'mirá qué falta en cada canal.')
+        self.btn_cloud = QPushButton('📡  Mis canales automatizados\nPausá canales, cambiá horarios y revisá qué falta.')
         self.btn_cloud.setStyleSheet(_BIG.format(bg='#2c5d8f', hover='#3a75b0'))
         self.btn_cloud.clicked.connect(self.cloud_requested)
-        self.btn_connections = QPushButton('🔌  Conexiones\n\nDropbox, GitHub, YouTube\ny más, paso a paso.\n'
-                                           'Hacen falta para la nube.')
+        self.btn_connections = QPushButton('🔌  Conexiones\nConfigurá Dropbox, GitHub y YouTube, paso a paso.')
         self.btn_connections.setStyleSheet(_BIG.format(bg='#6b4f8f', hover='#8463ad'))
         self.btn_connections.clicked.connect(self.connections_requested)
         for button in (self.btn_local, self.btn_cloud, self.btn_connections):
-            button.setMinimumWidth(270)
             row.addWidget(button)
-        row.addStretch(1)
         layout.addLayout(row)
         self.btn_assistant = QPushButton('🧭  ¿No sabés por dónde empezar? Guiame paso a paso')
         self.btn_assistant.setStyleSheet('QPushButton { font-size: 15px; padding: 14px; }')
@@ -54,6 +49,7 @@ class HomeScreen(QWidget):
         layout.addLayout(assistant_row)
         tip = QLabel('También tenés «? Guía» arriba a la derecha con los pasos de cada pantalla.')
         tip.setAlignment(Qt.AlignCenter)
+        tip.setWordWrap(True)
         tip.setStyleSheet('color: #bbb;')
         layout.addWidget(tip)
         layout.addStretch(2)

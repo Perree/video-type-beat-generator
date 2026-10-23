@@ -13,6 +13,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+from core import kit_http
 from core import kit_art, kit_cloud, kit_llm, kit_names
 
 FAILS = []
@@ -55,14 +56,14 @@ def _check_hosts():
 def _check_no_network(tmp):
     """Con un host no permitido la clave no sale: ni LLM ni API de imágenes llaman a la red."""
     seen = []
-    real = urllib.request.urlopen
+    real = kit_http.open_request
 
     def spy(req, timeout=None):
         seen.append(req)
         raise OSError('sin red')
     ref = os.path.join(tmp, 'ref.png')
     Image.new('RGB', (8, 8)).save(ref)
-    urllib.request.urlopen = spy
+    kit_http.open_request = spy
     try:
         _rejects(lambda: kit_llm.call('s', 'u', {'base_url': 'https://evil.example/v1',
                                                  'model': 'm'}, key=KEY),
@@ -78,7 +79,7 @@ def _check_no_network(tmp):
         check(name is None, "for_pack devolvió un nombre con un host no permitido")
         check(not seen, "con host no permitido igual se llamó a la red")
     finally:
-        urllib.request.urlopen = real
+        kit_http.open_request = real
         os.environ.pop(kit_names.ENV_LLM_KEY, None)
 
 

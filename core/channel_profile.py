@@ -14,7 +14,7 @@ import re
 import shutil
 from copy import deepcopy
 
-from core import beat_title, description
+from core import beat_title, description, channel_templates
 
 SCHEMA_VERSION = 1
 PROFILE_FILE = 'perfil.json'
@@ -41,7 +41,7 @@ class ProfileError(ValueError):
 def check_name(name):
     if (not isinstance(name, str) or not name.strip() or name != name.strip()
             or len(name) > NAME_MAX or _BAD_NAME.search(name) or name in ('.', '..')
-            or name.endswith('.')):
+            or name.endswith('.') or channel_templates.reserved_filename(name)):
         raise ProfileError('Nombre de canal inválido (sin \\ / : * ? " < > | y hasta 80 caracteres).')
     return name
 

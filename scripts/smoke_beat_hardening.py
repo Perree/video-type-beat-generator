@@ -8,6 +8,12 @@ import unittest
 
 root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root))
+DESKTOP_TESTS = {'test_beat_panel.py', 'test_beat_panel_cloud.py', 'test_beat_distribution.py'}
+
+
+def test_paths(worker_only=False):
+    return [path for path in sorted((root / 'tests').glob('test_beat_*.py'))
+            if not worker_only or path.name not in DESKTOP_TESTS]
 
 
 def main():
@@ -21,9 +27,7 @@ def main():
     gh_status.set_default(gh_status.GhStatus(run=FakeGhRun()))
     cloud_login.set_backend(MemoryKeyring())
     suite = unittest.TestSuite()
-    for path in sorted((root / 'tests').glob('test_beat_*.py')):
-        if args.worker_only and path.name in ('test_beat_panel.py', 'test_beat_panel_cloud.py'):
-            continue
+    for path in test_paths(args.worker_only):
         suite.addTests(unittest.defaultTestLoader.discover(str(root / 'tests'), pattern=path.name))
     success = unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful()
     if not args.worker_only:

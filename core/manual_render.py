@@ -10,6 +10,7 @@ y suma una fila a ``<salida>/<fecha>/pendientes.csv``. Nada se sube a YouTube ni
 """
 import csv
 import json
+import math
 import os
 import random
 import shutil
@@ -397,6 +398,13 @@ def beat_text(profile, name, channel):
 PENDING_CSV = 'pendientes.csv'
 
 
+def _csv_text(value):
+    # Titles/channel names can come from filenames. Quoting alone does not stop
+    # Excel from interpreting them as formulas when opening pendientes.csv.
+    text = str(value)
+    return "'" + text if text.lstrip().startswith(('=', '+', '-', '@')) or text.startswith(('\t', '\r', '\n')) else text
+
+
 def day_folder(output_root, today=None):
     return os.path.join(output_root, (today or datetime.now()).strftime('%Y-%m-%d'))
 
@@ -410,7 +418,8 @@ def add_pending(day_dir, channel, result):
         writer = csv.writer(f)
         if new:
             writer.writerow(['canal', 'título', 'carpeta', 'subido'])
-        writer.writerow([channel, result['title'], os.path.normpath(result['folder']), ''])
+        writer.writerow([_csv_text(channel), _csv_text(result['title']),
+                         _csv_text(os.path.normpath(result['folder'])), ''])
 
 
 def run_batch(beats, channel, local_root, output_root, profile=None,
@@ -459,12 +468,19 @@ def run_batch(beats, channel, local_root, output_root, profile=None,
             result = render_beat(audio, mode, content, title, out_folder, tools, thumbs.next(),
                                  profile['miniatura_con_titulo'], beat_text(profile, name, channel),
                                  beat_tags(profile, name, channel), cancelled, style=style, logo_path=logo_path)
+        except (ManualError, OSError) as exc:
+            message = str(exc) if isinstance(exc, ManualError) else 'No se pudieron guardar los archivos del video.'
+            errors.append((name, message))
+            on_error(audio, message)
+            continue
+        results.append(result)
+        try:
             add_pending(day_dir, channel, result)
-            results.append(result)
-            on_done(audio, result)
-        except ManualError as exc:
-            errors.append((name, str(exc)))
-            on_error(audio, str(exc))
+        except OSError:
+            message = 'Video generado, pero no se pudo actualizar pendientes.csv. Los archivos se conservaron.'
+            errors.append((name, message))
+            on_error(audio, message)
+        on_done(audio, result)
     progress(len(beats), len(beats), 'Listo')
     return results, errors
 
@@ -476,8 +492,11 @@ def load_settings(path=SETTINGS_FILE):
     data.setdefault('output_folder', default_output_folder())
     data.setdefault('local_root', dropbox_local.default_local_root() or '')
     try:
-        data['cache_max_gb'] = max(0.5, float(data.get('cache_max_gb', stock_cache.DEFAULT_MAX_GB)))
-    except (TypeError, ValueError):
+        gb = float(data.get('cache_max_gb', stock_cache.DEFAULT_MAX_GB))
+        if not math.isfinite(gb):
+            raise ValueError()
+        data['cache_max_gb'] = min(200, max(0.5, gb))
+    except (TypeError, ValueError, OverflowError):
         data['cache_max_gb'] = stock_cache.DEFAULT_MAX_GB
     return data
 

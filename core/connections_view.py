@@ -26,6 +26,7 @@ class ConnectionCard(QFrame):
         layout = QVBoxLayout(self)
         head = QLabel(f'<span style="font-size:20px">{connection.icon}</span>  <b style="font-size:15px">'
                       f'{connection.title}</b>')
+        head.setWordWrap(True)
         layout.addWidget(head)
         text = QLabel(connection.description)
         text.setWordWrap(True)
@@ -94,7 +95,7 @@ class ConnectionsView(QWidget):
                 card = ConnectionCard(connection, self.open)
                 card.setMinimumHeight(130)
                 self.cards.append(card)
-                grid.addWidget(card, index // 3, index % 3)
+                grid.addWidget(card, index // 2, index % 2)
             layout.addLayout(grid)
         layout.addStretch(1)
         scroll.setWidget(body)

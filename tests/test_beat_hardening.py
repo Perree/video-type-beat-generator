@@ -230,8 +230,9 @@ class HardeningTests(unittest.TestCase):
                 return SimpleNamespace(execute=timeout)
         with patch.object(youtube, '_service', return_value=Google()), \
              patch.object(youtube, '_load_credentials', return_value=object()):
-            with self.assertRaises(TimeoutError):
-                youtube.upload('channel', str(video), 'Fixture', thumbnail=str(thumbnail))
+            result = youtube.upload('channel', str(video), 'Fixture', thumbnail=str(thumbnail))
+        self.assertEqual(result['youtube_id'], 'video000001')
+        self.assertTrue(result['thumbnail_error'])
         self.assertEqual(len(media), 2)
         self.assertTrue(all(row.stream().closed for row in media))
 

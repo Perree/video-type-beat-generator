@@ -9,7 +9,7 @@ import os
 import urllib.request
 import uuid
 
-from core import kit_cloud
+from core import kit_cloud, kit_http
 
 ENV_TOKEN = 'KIT_TELEGRAM_TOKEN'
 ENV_CHAT = 'KIT_TELEGRAM_CHAT_ID'
@@ -34,8 +34,8 @@ def _post(token, method, body, content_type):
     req = urllib.request.Request(
         _API.format(token, method), data=body, headers={'Content-Type': content_type})
     try:
-        with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
-            ok = json.loads(resp.read().decode('utf-8')).get('ok')
+        with kit_http.open_request(req, timeout=_TIMEOUT) as resp:
+            ok = json.loads(kit_http.read_response(resp, 65536).decode('utf-8')).get('ok')
     except Exception as e:
         # Solo el tipo: el texto del error puede traer la URL con el token.
         raise KitNotifyError(f"Telegram no respondió ({type(e).__name__}).") from None

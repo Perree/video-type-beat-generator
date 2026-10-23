@@ -5,7 +5,8 @@ Cada pantalla le da sus pasos con ``set_guide``. Mientras la guía está visible
 cada poco tiempo, así el usuario ve que avanzó sin tener que tocar nada.
 """
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
-from PyQt5.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea,
+                             QVBoxLayout, QWidget, QLayout, QSizePolicy)
 
 DONE, TODO, INFO = 'done', 'todo', 'info'
 _ICON = {DONE: ('✔', '#2ecc71'), TODO: ('○', '#888888'), INFO: ('•', '#3498db')}
@@ -28,6 +29,20 @@ class GuideStep:
             return DONE if self.done() else TODO
         except Exception:  # noqa: BLE001 - la guía nunca debe romper la ventana
             return TODO
+
+
+class GuideRow(QFrame):
+    """QScrollArea needs an explicit minimum after wrapped labels get their width."""
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        layout = self.layout()
+        if layout is None:
+            return
+        margins = layout.contentsMargins()
+        width = max(1, self.contentsRect().width() - margins.left() - margins.right())
+        for label in self.findChildren(QLabel):
+            if label.hasHeightForWidth():
+                label.setMinimumHeight(label.heightForWidth(width))
 
 
 class GuidePanel(QFrame):
@@ -61,6 +76,7 @@ class GuidePanel(QFrame):
         scroll.setStyleSheet('QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; }')
         self.body = QWidget()
         self.body_layout = QVBoxLayout(self.body)
+        self.body_layout.setSizeConstraint(QLayout.SetMinimumSize)
         self.body_layout.setAlignment(Qt.AlignTop)
         scroll.setWidget(self.body)
         layout.addWidget(scroll, 1)
@@ -101,20 +117,24 @@ class GuidePanel(QFrame):
         self.progress.setVisible(bool(checkable))
 
     def _row(self, index, step, state, current):
-        row = QFrame()
+        row = GuideRow()
+        row.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
         border = '#f1c40f' if current else '#555'
         row.setStyleSheet(f'QFrame {{ border: 1px solid {border}; border-radius: 6px; }}'
                           ' QLabel { border: none; background: transparent; }')
         layout = QVBoxLayout(row)
+        layout.setSizeConstraint(QLayout.SetMinimumSize)
         icon, color = _ICON[state]
         head = QLabel(f'<span style="color:{color}; font-size:15px">{icon}</span> '
                       f'<b>{index + 1}. {step.text}</b>' + ('  <span style="color:#f1c40f">← ahora</span>'
                                                          if current else ''))
         head.setWordWrap(True)
+        head.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
         layout.addWidget(head)
         if step.hint:
             hint = QLabel(step.hint)
             hint.setWordWrap(True)
+            hint.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
             hint.setStyleSheet('color: #bbb; font-size: 12px;')
             layout.addWidget(hint)
         if step.action:

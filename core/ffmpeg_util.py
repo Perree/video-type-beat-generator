@@ -5,6 +5,7 @@ Los binarios locales viven en bin/ y no van en el repo. VideoGeneratorWorker
 sigue usando estas mismas funciones (importadas desde main.py).
 """
 import os
+import math
 import shutil
 import subprocess
 
@@ -131,12 +132,15 @@ def get_media_duration(media_path):
             "-of", "default=noprint_wrappers=1:nokey=1",
             media_path
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace',
+                                timeout=30, stdin=subprocess.DEVNULL,
+                                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         if result.returncode == 0:
             out = result.stdout.strip()
             if out:
                 try:
-                    return float(out)
+                    seconds = float(out)
+                    return seconds if math.isfinite(seconds) and seconds > 0 else None
                 except Exception:
                     return None
         return None

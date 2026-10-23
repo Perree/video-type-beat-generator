@@ -6,9 +6,8 @@ Cada canal de la app se conecta a una cuenta de Google distinta. En el escritori
 OAuth "Escritorio" viven en el llavero (``core/cloud_login``). ``connect_channel`` y
 ``tokens/<canal>.json`` quedan para el runner y los scripts sueltos.
 
-Cuota (por defecto 10.000 unidades/día por proyecto): videos.insert ~1600, thumbnails.set 50,
-channels.list 1. Mientras la app no pase la auditoría de la API, YouTube fuerza los videos
-subidos a privado.
+La cuota efectiva se consulta por proyecto en Google Cloud; el límite local de la app
+es independiente. Ver docs/TYPE_BEATS_DISTRIBUTION.md y la referencia oficial vigente.
 """
 import os
 import re
@@ -209,14 +208,17 @@ def upload(channel, video_path, title, description='', tags=None, thumbnail=None
 
     thumb_error = ''
     if thumbnail and os.path.exists(thumbnail):
-        thumbnail_media = MediaFileUpload(thumbnail)
+        thumbnail_media = None
         try:
+            thumbnail_media = MediaFileUpload(thumbnail)
             yt.thumbnails().set(videoId=video_id, media_body=thumbnail_media).execute()
-        except HttpError as e:
+        except Exception:
             # Común: la cuenta no está verificada por teléfono (no permite miniaturas)
-            thumb_error = str(e)
+            # An upload already succeeded: a timeout here must not trigger another insert.
+            thumb_error = 'No se pudo confirmar la miniatura. El video ya está subido; no lo vuelvas a subir.'
         finally:
-            thumbnail_media.stream().close()
+            if thumbnail_media is not None:
+                thumbnail_media.stream().close()
     return {
         'youtube_id': video_id,
         'url': f"https://youtu.be/{video_id}",

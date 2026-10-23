@@ -914,3 +914,20 @@ carpetas listas para subir a mano (sin API de YouTube). Perfiles y fondos en `<D
   whitespace correctos. Regresión offline: 94 aprobadas (79 de planificación/UI
   y 15 del adaptador Dropbox), con GitHub/llavero aislados mediante dobles.
   Detalles y fuentes: `docs/TYPE_BEATS_DISTRIBUTION.md`.
+
+## Revisión general de bugs y seguridad ✅ COMPLETADA (2026-10-23)
+- Transporte HTTPS común para IA/Telegram de Loop kits: sin redirecciones/proxies,
+  respuestas acotadas y descarga de imágenes por hosts permitidos, sin reenviar claves.
+- Upload compartido conserva el ID si falla la miniatura; tandas locales sobreviven
+  a fallos de archivo/CSV/log, protegen celdas CSV y manejan nombres reservados Windows.
+- Validación finita de caché y gasto de IA; saldo corrupto bloquea nuevas llamadas;
+  ffprobe con timeout. `tzdata` declarado para el escritorio y pruebas Qt excluidas
+  de la suite del worker, verificada con PyQt prohibido.
+- Recorrido de Inicio, local, Mis canales, Conexiones y asistente: corregidos textos
+  cortados con guía abierta, tarjetas y scroll, también a 900 × 620.
+- 19 regresiones nuevas, suite completa offline de 468 pruebas (466 aprobadas y
+  dos checks optativos verificados por separado), 257 pruebas del worker con dos
+  checks FFmpeg reales y 31 smokes compartidos/Loop kits aprobados. Sin servicios
+  reales ni cambios de configuración/secretos remotos. `main.py` sin cambios.
+- Hallazgos, verificación y límites: `docs/APP_REVIEW_2026_10_23.md`.
+  Commit y push solicitados por el usuario para el cierre de esta fase.

@@ -22,6 +22,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+from core import kit_http
 from core import (kit_art, kit_catalog, kit_cloud, kit_cover, kit_llm, kit_names, kit_settings,
                   kit_spend, kit_state, kit_template_art)
 
@@ -545,14 +546,14 @@ def _check_api(tmp):
         Image.new('RGB', (8, 8)).save(imgs[-1])
     cover = os.path.join(tmp, 'cover.png')
     Image.new('RGB', (2000, 2000)).save(cover)
-    real = urllib.request.urlopen
+    real = kit_http.open_request
     seen = []
 
     class _Resp:
         def __init__(self, payload):
             self.payload = payload
 
-        def read(self):
+        def read(self, size=-1):
             return json.dumps(self.payload).encode()
 
         def __enter__(self):
@@ -574,7 +575,7 @@ def _check_api(tmp):
 
     cfg = {**kit_template_art.DEFAULTS, 'base_url': 'https://img.example/v1'}
     try:
-        urllib.request.urlopen = fake
+        kit_http.open_request = fake
         kit_art.api_client('p {titulo}', imgs, cfg, key=KEY)
         body = seen[0].data
         for field, value in (('quality', 'high'), ('input_fidelity', 'high'),
@@ -604,7 +605,7 @@ def _check_api(tmp):
             {**cfg, 'verify': {'base_url': 'https://otro.example/v1'}})
         check(not other['same_host'] and not other.get('key_file'),
               "la clave de imágenes podría viajar a otro host")
-        urllib.request.urlopen = boom
+        kit_http.open_request = boom
         for call in (lambda: kit_template_art.vision_client(cover, vcfg, key=KEY),
                      lambda: kit_art.api_client('p', imgs, cfg, key=KEY)):
             try:
@@ -624,7 +625,7 @@ def _check_api(tmp):
                 check(e.billable is False and KEY not in str(e), "error de config mal marcado")
         check(not seen, "un error de config igual llamó a la red")
     finally:
-        urllib.request.urlopen = real
+        kit_http.open_request = real
 
 
 # --- Descripción del kit ---

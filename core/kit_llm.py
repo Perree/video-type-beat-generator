@@ -15,7 +15,7 @@ import os
 import urllib.parse
 import urllib.request
 
-from core import kit_cloud
+from core import kit_cloud, kit_http
 
 ENV_HOSTS = 'KIT_API_HOSTS'
 ALLOWED_HOSTS = ('api.openai.com',)
@@ -50,7 +50,7 @@ def check_base_url(base_url, what='del LLM', env=None):
     if parts is None or parts.scheme != 'https' or not host:
         raise KitLlmError(f"base_url {what} debe ser https.")
     odd = chr(92) in url or any(c.isspace() or ord(c) < 32 for c in url)
-    if (odd or parts.username or parts.password or port not in (None, 443)
+    if (odd or parts.username or parts.password or parts.query or parts.fragment or port not in (None, 443)
             or host not in allowed_hosts(env)):
         raise KitLlmError(f"base_url {what} no apunta a un host permitido "
                           f"(se amplía con la variable de entorno {ENV_HOSTS}).")
@@ -98,8 +98,8 @@ def call(system, user, cfg, key=None):
         base_url + '/chat/completions', data=body,
         headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {key}'})
     try:
-        with urllib.request.urlopen(req, timeout=cfg.get('timeout') or _DEFAULT_TIMEOUT) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
+        with kit_http.open_request(req, timeout=cfg.get('timeout') or _DEFAULT_TIMEOUT) as resp:
+            data = json.loads(kit_http.read_response(resp).decode('utf-8'))
         text = data['choices'][0]['message']['content']
     except Exception as e:
         # Solo el tipo: el texto del error puede incluir la URL o cabeceras.

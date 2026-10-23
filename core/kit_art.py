@@ -26,7 +26,7 @@ from functools import partial
 
 from PIL import Image
 
-from core import dropbox_client, kit_cloud, kit_llm, kit_notify, kit_source, kit_spend
+from core import dropbox_client, kit_cloud, kit_http, kit_llm, kit_notify, kit_source, kit_spend
 
 ENV_KEY = 'KIT_IMAGE_API_KEY'
 MODE_AUTO, MODE_MANUAL = 'auto', 'manual'
@@ -306,15 +306,17 @@ def api_client(prompt, image_paths, cfg=None, key=None):
         base_url + '/images/edits', data=body,
         headers={'Content-Type': ctype, 'Authorization': f'Bearer {key}'})
     try:
-        with urllib.request.urlopen(req, timeout=cfg['timeout']) as resp:
-            item = json.loads(resp.read().decode('utf-8'))['data'][0]
+        with kit_http.open_request(req, timeout=cfg['timeout']) as resp:
+            item = json.loads(kit_http.read_response(resp).decode('utf-8'))['data'][0]
         if item.get('b64_json'):
-            return base64.b64decode(item['b64_json'])
-        url = str(item.get('url') or '')
-        if not url.startswith('https://'):
-            raise ValueError('sin imagen')
-        with urllib.request.urlopen(url, timeout=cfg['timeout']) as resp:  # sin Authorization
-            return resp.read()
+            data = base64.b64decode(item['b64_json'], validate=True)
+            if len(data) > kit_http.IMAGE_LIMIT:
+                raise kit_http.HttpRejected('response_limit')
+            return data
+        url = kit_http.image_url(item.get('url') or '', base_url)
+        # A fresh request never forwards the provider's Authorization header.
+        with kit_http.open_request(urllib.request.Request(url), timeout=cfg['timeout']) as resp:
+            return kit_http.read_response(resp, kit_http.IMAGE_LIMIT)
     except urllib.error.HTTPError as e:
         # Solo el código: el cuerpo y las cabeceras no van a ningún mensaje.
         if e.code == 400:

@@ -128,11 +128,18 @@ def run_bulk(root, output_root, beats, titles=None, progress=lambda done, total,
 
         def fail(audio, message, channel=channel, entry=entry):
             entry['errores'].append((mr.beat_name(audio), message))
-            log_error(root, channel, audio, message)
+            try:
+                log_error(root, channel, audio, message)
+            except OSError:
+                entry['errores'].append((mr.beat_name(audio), 'No se pudo escribir errores.txt.'))
 
         def done(audio, result, channel=channel, entry=entry):
             entry['ok'] += 1
-            mark_done(root, channel, audio)
+            try:
+                mark_done(root, channel, audio)
+            except OSError:
+                fail(audio, 'Video generado, pero no se pudo mover el audio a hechos. '
+                            'Retiralo de entrada antes de repetir la tanda para no generar otro video.')
 
         def step(d, t, text, channel=channel, offset=offset):
             progress(offset + d, total, f'[{channel}] {text}')

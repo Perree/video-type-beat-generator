@@ -20,6 +20,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+from core import kit_http
 from core import dropbox_client, kit_art, kit_cloud, kit_llm, kit_state
 
 # El host de ejemplo tiene que estar permitido para probar el cliente de la API.
@@ -263,14 +264,14 @@ def _check_api(tmp):
     ref = os.path.join(tmp, 'Zafiro_Morales_01.png')
     Image.new('RGB', (8, 8)).save(ref)
     cfg = {'base_url': 'https://img.example/v1/', 'model': 'modelo-x', 'size': '512x512'}
-    real = urllib.request.urlopen
+    real = kit_http.open_request
     seen = []
 
     class _Resp:
         def __init__(self, payload):
             self.payload = payload
 
-        def read(self):
+        def read(self, size=-1):
             return self.payload
 
         def __enter__(self):
@@ -296,7 +297,7 @@ def _check_api(tmp):
         raise OSError(KEY + ' en el texto del error')
 
     try:
-        urllib.request.urlopen = ok
+        kit_http.open_request = ok
         data = kit_art.api_client('solo estetica', [ref, ref], cfg, key=KEY)
         check(Image.open(io.BytesIO(data)).size == (64, 48), "api_client no devolvió la imagen")
         req = seen[0]
@@ -310,7 +311,7 @@ def _check_api(tmp):
               "el cuerpo lleva el nombre del archivo o la clave")
         for fake, kind in ((rejected, kit_art.KitArtRejected), (server_error, kit_art.KitArtError),
                            (boom, kit_art.KitArtError)):
-            urllib.request.urlopen = fake
+            kit_http.open_request = fake
             seen.clear()
             try:
                 kit_art.api_client('p', [ref], cfg, key=KEY)
@@ -323,19 +324,19 @@ def _check_api(tmp):
         for code in (400, 401, 429, 500, 503):
             def http_error(req, timeout=None, code=code):
                 raise urllib.error.HTTPError(req.full_url, code, KEY, {}, io.BytesIO(b''))
-            urllib.request.urlopen = http_error
+            kit_http.open_request = http_error
             try:
                 kit_art.api_client('p', [ref], cfg, key=KEY)
             except kit_art.KitArtError as e:
                 billable[code] = e.billable
         check(billable == {400: False, 401: False, 429: False, 500: True, 503: True},
               f"qué errores HTTP cuentan como cobrados: {billable}")
-        urllib.request.urlopen = boom
+        kit_http.open_request = boom
         try:
             kit_art.api_client('p', [ref], cfg, key=KEY)
         except kit_art.KitArtError as e:
             check(e.billable is True, "un timeout debe contarse como cobrado")
-        urllib.request.urlopen = ok
+        kit_http.open_request = ok
         seen.clear()
         kit_art.api_client('p', [ref], {**cfg, 'n': 'x', 'input_fidelity': 'high'}, key=KEY)
         check(b'name="n"\r\n\r\n1\r\n' in seen[0].data and b'input_fidelity' in seen[0].data,
@@ -360,7 +361,7 @@ def _check_api(tmp):
                 os.environ[kit_art.ENV_KEY] = old
         check(not seen, "sin clave igual se llamó a la red")
     finally:
-        urllib.request.urlopen = real
+        kit_http.open_request = real
 
 
 def _check_state():

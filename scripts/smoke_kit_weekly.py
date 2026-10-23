@@ -17,6 +17,7 @@ for path in (ROOT, SCRIPTS):
 
 from smoke_kit_state import FakeDropbox  # también instala el doble de dropbox.files si falta
 
+from core import kit_http
 from core import kit_notify, kit_source, kit_state, youtube
 import run_kit_weekly
 
@@ -132,12 +133,12 @@ def _check_notify():
         return "alert filtra el mensaje o no nombra el paso"
 
     import urllib.request
-    real = urllib.request.urlopen
+    real = kit_http.open_request
 
     def boom(req, timeout=None):
         raise OSError(req.full_url)  # el texto de este error trae la URL con el token
 
-    urllib.request.urlopen = boom
+    kit_http.open_request = boom
     try:
         kit_notify.send('hola', env={kit_notify.ENV_TOKEN: FAKE_TOKEN, kit_notify.ENV_CHAT: '1'})
         return "send no levantó error"
@@ -145,7 +146,7 @@ def _check_notify():
         if FAKE_TOKEN in str(e) or FAKE_TOKEN in repr(e.__cause__):
             return "el token apareció en el error"
     finally:
-        urllib.request.urlopen = real
+        kit_http.open_request = real
     try:
         kit_notify.send('hola', env={})
         return "send sin credenciales no levantó error"

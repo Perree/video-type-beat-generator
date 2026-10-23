@@ -23,6 +23,7 @@ import tempfile
 import unicodedata
 import urllib.parse
 import urllib.request
+from core import kit_http
 from functools import partial
 
 from PIL import Image
@@ -218,8 +219,8 @@ def vision_client(image_path, cfg, key=None):
         base_url + '/chat/completions', data=body,
         headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {key}'})
     try:
-        with urllib.request.urlopen(req, timeout=cfg.get('timeout') or 60) as resp:
-            text = json.loads(resp.read().decode('utf-8'))['choices'][0]['message']['content']
+        with kit_http.open_request(req, timeout=cfg.get('timeout') or 60) as resp:
+            text = json.loads(kit_http.read_response(resp).decode('utf-8'))['choices'][0]['message']['content']
     except Exception as e:
         raise kit_art.KitArtError(
             f"La verificación del título no respondió ({type(e).__name__}).") from None

@@ -11,6 +11,7 @@ Config en ``kit_preview.spend``: ``monthly_cap_usd``, ``max_images_per_run``,
 ``image_cost_usd``, ``verify_cost_usd`` y ``text_cost_usd`` (gancho de la descripción).
 """
 from datetime import datetime
+import math
 
 DEFAULTS = {
     'monthly_cap_usd': 10.0,
@@ -32,7 +33,9 @@ _EPS = 1e-9
 def _number(value, default, cast=float):
     try:
         number = cast(value)
-    except (TypeError, ValueError):
+        if not math.isfinite(number):
+            return default
+    except (TypeError, ValueError, OverflowError):
         return default
     return number if number >= 0 else default
 
@@ -60,12 +63,28 @@ def month_entry(state, month):
 
 def spent(state, month):
     """USD estimados ya gastados en el mes."""
+    # Display normalization must not turn a corrupted persisted balance into a
+    # fresh budget. The caller (Budget) blocks further paid requests on errors.
+    table = (state or {}).get('spend', {})
+    if not isinstance(table, dict):
+        raise ValueError('invalid_spend')
+    entry = table.get(month, {})
+    if not isinstance(entry, dict):
+        raise ValueError('invalid_spend')
+    value = float(entry.get('usd', 0))
+    if not math.isfinite(value) or value < 0:
+        raise ValueError('invalid_spend')
     return month_entry(state, month)['usd']
 
 
 def check(spent_usd, cap, cost=0.0):
     """True si después de gastar ``cost`` el mes sigue dentro del tope."""
-    return float(spent_usd) + float(cost) <= float(cap) + _EPS
+    try:
+        values = [float(v) for v in (spent_usd, cap, cost)]
+        return (all(math.isfinite(v) and v >= 0 for v in values)
+                and values[0] + values[2] <= values[1] + _EPS)
+    except (TypeError, ValueError, OverflowError):
+        return False
 
 
 def record(state, month, usd, images=0, verifications=0):
@@ -99,7 +118,7 @@ class Budget:
     """
 
     def __init__(self, cfg=None, store=None, now=None):
-        self.cfg = {**DEFAULTS, **(cfg or {})}
+        self.cfg = settings({'spend': cfg or {}})
         self.month = month_key(now)
         self._read = getattr(store, 'spend_month', None)
         self._write = getattr(store, 'add_spend', None)
@@ -114,6 +133,8 @@ class Budget:
         if self._base is None:
             try:
                 self._base = float(self._read(self.month))
+                if not math.isfinite(self._base) or self._base < 0:
+                    raise ValueError('invalid_spend')
             except Exception:
                 self.broken = True
                 return None
