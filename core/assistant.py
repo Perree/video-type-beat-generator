@@ -182,6 +182,11 @@ class AssistantView(QWidget):
     def root(self):
         return self.local.local_root
 
+    def _recheck(self):
+        """Actualiza «Siguiente» al toque cuando cambia algo (sin esperar al chequeo periódico)."""
+        if self.wizard is not None:
+            self.wizard.update_state()
+
     # --- Camino 1: videos para un canal ---
 
     def start_one(self, channel=None):
@@ -231,6 +236,7 @@ class AssistantView(QWidget):
                 kind = 'imágenes' if p['fondo'] == cp.MODE_IMAGE else 'videos stock'
                 example = mr.beat_title(p, SAMPLE, name)
                 info.setText(f'Fondo: <b>{len(files)} {kind}</b><br>Ejemplo de título: <b>{example}</b>')
+            self._recheck()
         combo.currentTextChanged.connect(show_channel)
         if state['channel'] and combo.findText(state['channel']) >= 0:
             combo.setCurrentIndex(combo.findText(state['channel']))
@@ -271,6 +277,7 @@ class AssistantView(QWidget):
                 drop.setItem(row, BeatDropTable.COL_BEAT, cell)
             inbox = sum(1 for p in state['inbox'] if p not in state['dropped'])
             count.setText(f'{len(items)} beats' + (f' (📥 {inbox} de la carpeta de entrada)' if inbox else ''))
+            self._recheck()
 
         def add(paths):
             known = {os.path.normcase(p) for p in beats()}
@@ -420,6 +427,7 @@ class AssistantView(QWidget):
             extra = ''.join(f'<br><span style="color:#f1c40f">⚠ {n}</span>' for n in notes)
             folder = os.path.join(self.root, cp.INPUT_DIR, '<canal>') if self.root else '—'
             listing.setText(f'Carpeta: <b>{folder}</b><br><br>' + '<br>'.join(lines) + extra)
+            self._recheck()
 
         page1, _ = _vbox(listing, _row(_button('📂 Abrir carpeta de entrada', lambda: self.root and self.local.open_folder(
             os.path.join(self.root, cp.INPUT_DIR))), _button('🔄 Volver a revisar', scan), None), 1)
@@ -508,6 +516,7 @@ class AssistantView(QWidget):
         state = {'created': False}
         name = QLineEdit()
         name.setPlaceholderText('Ej.: Sad Juice Beats')
+        name.textChanged.connect(lambda _t: self._recheck())
         page1, _ = _vbox(name, 1)
 
         def name_problem():
