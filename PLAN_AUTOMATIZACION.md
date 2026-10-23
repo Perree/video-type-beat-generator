@@ -824,8 +824,15 @@ carpetas listas para subir a mano (sin API de YouTube). Perfiles y fondos en `<D
 - Botón «🧭 Guiame paso a paso» en Inicio y en «Crear videos ahora». Reusa `LocalWorker`, perfiles y cola.
   Tests: `tests/test_assistant.py`.
 
-## Fase F — Nube en modo asistente (pendiente)
-- Conexiones de Beats/Loop kits como pasos con luces (Dropbox → GitHub → YouTube → horario); SEO/Avanzado solo en
-  «Modo avanzado»; guía de nube que se tilde sola con el estado real. Sumar el camino «Automatizar un canal en
-  la nube» al asistente usando `core/wizard.py`. Arreglar el recuadro «Esta PC» de Beats, que
-  se aplasta sin barra de desplazamiento.
+## Fase F — Nube en modo asistente ✅ COMPLETADA (2026-10-22)
+- `core/cloud_assistant.py`: camino «Automatizar un canal en la nube» del asistente (`core/wizard.py`): Beats o
+  Loop kits → conectar esta PC (el mismo `CloudLoginBox`, adentro del asistente) → elegir el canal → credenciales
+  del robot (YouTube, Dropbox worker, Telegram en kits) → «Publicar al robot». Cada paso con luces del checklist
+  real (`readiness_beats` / `readiness_kits`, mismos requisitos que `automation_save_bar`); los botones llevan a la
+  pestaña exacta con un aviso «← Volver al asistente» que retoma donde estaba.
+- `core/cloud_page.py`: «Mostrar opciones avanzadas» (oculta «SEO y tendencias» y «Avanzado»; `cloud_advanced` en
+  `config/manual_mode.json`), estado real (`readiness()`) y guía que se tilda sola.
+- Conexiones de Beats con scroll (antes se aplastaba). Sin cambios en cómo trabaja el robot.
+  Tests: `tests/test_cloud_page.py`.
+- Pendiente del usuario para usar la nube: conectar Dropbox y GitHub (`gh auth login`) en esta PC y correr la
+  migración `scripts/migrate_to_cloud.py --apply` (falta `/automatizacion/canales.json`).

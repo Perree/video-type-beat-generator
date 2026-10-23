@@ -26,7 +26,12 @@ class BeatPanelForm(BeatVisualForm, BeatConnectionsForm, AutomationSaveBar):
         connections = QWidget()
         conn_layout = QVBoxLayout(connections)
         self._build_connections(conn_layout)
-        self.tabs.addTab(connections, "Conexiones")
+        # Con scroll, como en Loop kits: sin él las filas se aplastaban en ventanas bajas.
+        conn_scroll = QScrollArea()
+        conn_scroll.setWidgetResizable(True)
+        conn_scroll.setFrameShape(QScrollArea.NoFrame)
+        conn_scroll.setWidget(connections)
+        self.tabs.addTab(conn_scroll, "Conexiones")
 
         canal_scroll = QScrollArea()
         canal_scroll.setWidgetResizable(True)

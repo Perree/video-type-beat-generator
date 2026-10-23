@@ -64,8 +64,10 @@ class MainShellTests(unittest.TestCase):
         w.shell.show_page('local')
         w.local_view.btn_assistant.click()
         self.assertIs(w.shell.current(), w.assistant)
-        w.assistant.btn_cloud.click()
-        self.assertIs(w.shell.current(), w.cloud_page)
+        w.assistant.btn_cloud.click()  # abre el paso a paso de nube dentro del asistente
+        self.assertIs(w.shell.current(), w.assistant)
+        self.assertEqual(w.assistant.wizard.flow_title.text(), "Automatizar un canal en la nube")
+        w.assistant.shutdown()
 
     def test_guide_toggle_and_first_run(self):
         import main

@@ -23,10 +23,11 @@ class WizardPage:
     ``on_enter()``: al mostrarse. ``on_next()``: al apretar el botón principal; si devuelve False
     el asistente no avanza (p. ej. arrancó una tarea que avanzará sola con ``Wizard.advance``).
     ``busy()``: True mientras corre una tarea (se bloquean los botones).
+    ``refresh()``: se llama en cada chequeo periódico (p. ej. para actualizar luces de estado).
     """
 
     def __init__(self, title, text, widget=None, ready=None, blocker=None, next_text='Siguiente →',
-                 on_enter=None, on_next=None, busy=None, can_back=True):
+                 on_enter=None, on_next=None, busy=None, can_back=True, refresh=None):
         self.title, self.text, self.next_text = title, text, next_text
         self.widget = widget or QWidget()
         self.ready = ready or (lambda: True)
@@ -34,6 +35,7 @@ class WizardPage:
         self.on_enter, self.on_next = on_enter, on_next
         self.busy = busy or (lambda: False)
         self.can_back = can_back
+        self.refresh = refresh
 
 
 class Wizard(QWidget):
@@ -123,6 +125,8 @@ class Wizard(QWidget):
 
     def update_state(self):
         page = self.page()
+        if page.refresh:
+            page.refresh()
         busy, ready = page.busy(), page.ready()
         self.btn_next.setText(page.next_text)
         self.btn_next.setEnabled(ready and not busy)

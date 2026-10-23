@@ -126,6 +126,8 @@ class AssistantView(QWidget):
         """``local_view``: la pantalla local (de ahí salen carpetas, configuración y canales)."""
         super().__init__(parent)
         self.local = local_view
+        self.cloud = None  # CloudPage: la conecta main.py (camino «Automatizar en la nube»)
+        self.cloud_login = None
         self.wizard = None
         self.generation = None
         layout = QVBoxLayout(self)
@@ -152,7 +154,7 @@ class AssistantView(QWidget):
         self.btn_one.clicked.connect(lambda: self.start_one())
         self.btn_many.clicked.connect(self.start_many)
         self.btn_new.clicked.connect(self.start_new)
-        self.btn_cloud.clicked.connect(self.cloud_requested)
+        self.btn_cloud.clicked.connect(self.start_cloud)
         box, layout = _vbox(1, title, text, self.btn_one, self.btn_many, self.btn_new, self.btn_cloud, 2)
         return box
 
@@ -163,6 +165,9 @@ class AssistantView(QWidget):
     def _drop_wizard(self):
         if self.generation is not None:
             self.generation.cancel()
+        if self.cloud_login is not None:
+            self.cloud_login.stop()
+            self.cloud_login = None
         if self.wizard is not None:
             self.stack.removeWidget(self.wizard)
             self.wizard.hide()
@@ -637,6 +642,23 @@ class AssistantView(QWidget):
         ]
         return self._open('Crear un canal nuevo', pages,
                           on_finish=lambda: self.start_one(name.text().strip()))
+
+    # --- Camino 4: automatizar en la nube ---
+
+    def start_cloud(self):
+        if self.cloud is None:
+            self.cloud_requested.emit()
+            return None
+        from core.cloud_assistant import cloud_pages
+        self._drop_wizard()
+        pages, self.cloud_login = cloud_pages(self, self.cloud)
+        return self._open('Automatizar un canal en la nube', pages)
+
+    def resume(self):
+        """Vuelve al asistente tal como quedó (no lo reinicia)."""
+        if self.wizard is not None:
+            self.stack.setCurrentWidget(self.wizard)
+            self.wizard.update_state()
 
     # --- Varios ---
 

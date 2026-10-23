@@ -46,9 +46,10 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.beat_panel, "Beats")
         self.tabs.addTab(self.loop_kit_panel, "Loop kits")
         self.tabs.currentChanged.connect(self._on_tab_changed)
-        self.cloud_page = CloudPage(self.tabs, self.beat_panel, self.loop_kit_panel)
+        self.cloud_page = CloudPage(self.tabs, self.beat_panel, self.loop_kit_panel, **settings)
 
         self.assistant = AssistantView(self.local_view)
+        self.assistant.cloud = self.cloud_page
         self.home = HomeScreen()
         self.shell = AppShell(self.home, {'local': (self.local_view, 'Crear videos ahora'),
                                           'cloud': (self.cloud_page, 'Automatizar en la nube'),
@@ -58,10 +59,15 @@ class MainWindow(QMainWindow):
         self.home.assistant_requested.connect(self.open_assistant)
         self.local_view.assistant_requested.connect(self.open_assistant)
         self.assistant.cloud_requested.connect(lambda: self.shell.show_page('cloud'))
+        self.cloud_page.assistant_requested.connect(self.resume_assistant)
         self.setCentralWidget(self.shell)
 
     def open_assistant(self):
         self.assistant.show_goals()
+        self.shell.show_page('assistant')
+
+    def resume_assistant(self):
+        self.assistant.resume()
         self.shell.show_page('assistant')
 
     def _current_section(self):
