@@ -105,6 +105,12 @@ def validate(data, name=None):
     profile['artistas'] = [a.strip() for a in artists if a.strip()]
     if type(profile['miniatura_con_titulo']) is not bool:
         raise ProfileError('Campo inválido en el perfil: miniatura_con_titulo.')
+    if 'estilo' in profile:  # opcional: sin estilo, el canal sale como siempre
+        from core import style
+        try:
+            profile['estilo'] = style.validate(profile['estilo'])
+        except style.StyleError as exc:
+            raise ProfileError(str(exc)) from None
     return profile
 
 

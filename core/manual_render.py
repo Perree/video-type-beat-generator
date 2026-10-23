@@ -21,6 +21,7 @@ from datetime import datetime
 from core import channel_profile as cp
 from core import beat_title as bt
 from core import channel_templates, description, dropbox_local, stock_cache
+from core import style as st
 from core.ffmpeg_util import get_available_video_codec, get_media_duration, resolve_tool
 
 AUDIO_SUFFIXES = ('.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg')
@@ -175,12 +176,12 @@ class Tools:
             cache = stock_cache.StockCache(max_bytes=int(gb * 1024 ** 3))
         self.cache = cache or None
 
-    def cached_stock(self, source, cancelled=lambda: False):
+    def cached_stock(self, source, cancelled=lambda: False, framing='recortar'):
         """Video stock convertido a 1080p30 (de la caché), o None si no hay caché o falló."""
         if self.cache is None:
             return None
         try:
-            return self.cache.ensure(source, self, cancelled)
+            return self.cache.ensure(source, self, cancelled, framing)
         except Cancelled:
             raise
         except (ManualError, OSError):
@@ -248,12 +249,16 @@ def upload_text(title, description_text, tags):
 
 
 def render_beat(audio, mode, content, title, channel_folder, tools, thumbnail_source=None,
-                title_on_thumbnail=False, description_text='', tags=(), cancelled=lambda: False):
+                title_on_thumbnail=False, description_text='', tags=(), cancelled=lambda: False,
+                style=None, logo_path=None):
     """Genera una carpeta ``<título>/`` con el video, la miniatura y el texto para subir a mano.
 
-    Los archivos llevan el título como nombre: YouTube Studio usa el nombre del archivo como
-    título inicial. Si algo falla, la carpeta del video se borra entera.
+    ``style``: estilo del canal (``core.style``); sin estilo, como siempre (``title_on_thumbnail``
+    elige la franja en la miniatura). Los archivos llevan el título como nombre: YouTube Studio usa
+    el nombre del archivo como título inicial. Si algo falla, la carpeta del video se borra entera.
     """
+    if style is None:
+        style = st.from_profile({'miniatura_con_titulo': title_on_thumbnail})
     seconds = get_media_duration(audio)
     if not seconds or seconds <= 0:
         raise ManualError(f'No se pudo leer la duración de {os.path.basename(audio)}.')
@@ -263,45 +268,100 @@ def render_beat(audio, mode, content, title, channel_folder, tools, thumbnail_so
     os.makedirs(folder)
     try:
         return _render_into(audio, mode, content, title, folder, base, seconds, tools, thumbnail_source,
-                            title_on_thumbnail, description_text, tags, cancelled)
+                            style, logo_path, description_text, tags, cancelled)
     except BaseException:
         shutil.rmtree(folder, ignore_errors=True)
         raise
 
 
+def _fades(seconds, video=True):
+    """Filtros de fundido (1 s al entrar, 1,5 s al salir)."""
+    out = max(0.0, seconds - 1.5)
+    if video:
+        return f'fade=t=in:st=0:d=1,fade=t=out:st={out:.3f}:d=1.5'
+    return f'afade=t=in:st=0:d=1,afade=t=out:st={out:.3f}:d=1.5'
+
+
+def _image_args(frame, audio, seconds, style, tools):
+    v = style['video']
+    if v['zoom']:
+        frames = max(1, int(seconds * 30))
+        step = 0.15 / frames  # llega a 1.15 al final, lento y parejo
+        chain = (f"zoompan=z='min(1+on*{step:.8f},1.15)':d={frames}:x='iw/2-(iw/zoom/2)':"
+                 f"y='ih/2-(ih/zoom/2)':s=1920x1080:fps=30")
+        if v['fundido']:
+            chain += ',' + _fades(seconds)
+        args = ['-y', '-i', frame, '-i', audio, '-filter_complex', f'[0:v]{chain},format=yuv420p[v]',
+                '-map', '[v]', '-map', '1:a:0', *tools.encode_args()]
+    else:
+        args = ['-y', '-loop', '1', '-framerate', str(STILL_FPS), '-i', frame, '-i', audio,
+                '-map', '0:v:0', '-map', '1:a:0']
+        if v['fundido']:
+            args += ['-vf', _fades(seconds) + ',format=yuv420p']
+        args += tools.encode_args(still=True)
+    if v['fundido']:
+        args += ['-af', _fades(seconds, video=False)]
+    return args
+
+
+def _video_args(content, audio, seconds, style, tools, tmp, title, logo_path, cancelled):
+    """Video stock: copia rápida si no hay nada encima; si hay, se procesa con la capa del estilo."""
+    v = style['video']
+    framing = v['encuadre']
+    cached = tools.cached_stock(content, cancelled, framing)
+    if not st.video_overlays(style):
+        if cached:
+            # Ya está en 1080p30: se repite y se copia sin recodificar (≈10 veces más rápido).
+            return ['-y', '-stream_loop', '-1', '-i', cached, '-i', audio, '-map', '0:v:0', '-map', '1:a:0',
+                    '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart'], cached
+        return ['-y', '-stream_loop', '-1', '-i', content, '-i', audio, '-map', '0:v:0', '-map', '1:a:0',
+                '-vf', stock_cache.FILTERS[framing], *tools.encode_args()], None
+    layer = os.path.join(tmp, 'capa.png')
+    st.overlay_layer(style, title, logo_path).save(layer, 'PNG')
+    source = cached or content
+    base = '[0:v]' if cached else f'[0:v]{stock_cache.FILTERS[framing]}[b];[b]'
+    chain = f'{base}[2:v]overlay=0:0,format=yuv420p'
+    if v['fundido']:
+        chain += ',' + _fades(seconds)
+    args = ['-y', '-stream_loop', '-1', '-i', source, '-i', audio, '-loop', '1', '-i', layer,
+            '-filter_complex', chain + '[v]', '-map', '[v]', '-map', '1:a:0', *tools.encode_args()]
+    if v['fundido']:
+        args += ['-af', _fades(seconds, video=False)]
+    return args, cached
+
+
 def _render_into(audio, mode, content, title, folder, base, seconds, tools, thumbnail_source,
-                 title_on_thumbnail, description_text, tags, cancelled):
+                 style, logo_path, description_text, tags, cancelled):
     video_out = os.path.join(folder, base + '.mp4')
     thumb_out = os.path.join(folder, base + ' - miniatura.jpg')
     text_out = os.path.join(folder, base + '.txt')
     partial = video_out + '.part'
+    origin = style['miniatura']['origen']
     with tempfile.TemporaryDirectory(prefix='manual-beat-') as tmp:
         if mode == MODE_IMAGE:
             frame = os.path.join(tmp, 'frame.png')
-            fit_image(content, frame, FRAME)
-            args = ['-y', '-loop', '1', '-framerate', str(STILL_FPS), '-i', frame, '-i', audio,
-                    '-map', '0:v:0', '-map', '1:a:0', *tools.encode_args(still=True)]
-            thumb_from = thumbnail_source or content
+            try:
+                st.render_frame(content, style, title, logo_path).save(frame, 'PNG')
+            except (OSError, ValueError):
+                raise ManualError(f'No se pudo abrir la imagen {os.path.basename(content)}.') from None
+            args = _image_args(frame, audio, seconds, style, tools)
+            thumb_from = content
         elif mode == MODE_VIDEO:
-            cached = tools.cached_stock(content, cancelled)
-            if cached:
-                # Ya está en 1080p30: se repite y se copia sin recodificar (≈10 veces más rápido).
-                args = ['-y', '-stream_loop', '-1', '-i', cached, '-i', audio, '-map', '0:v:0', '-map', '1:a:0',
-                        '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart']
-            else:
-                args = ['-y', '-stream_loop', '-1', '-i', content, '-i', audio,
-                        '-map', '0:v:0', '-map', '1:a:0', '-vf', stock_cache.NORMALIZE, *tools.encode_args()]
-            thumb_from = thumbnail_source
-            if not thumb_from:
-                thumb_from = os.path.join(tmp, 'thumb.png')
-                frame_source = cached or content
-                length = get_media_duration(frame_source) or 0
-                tools.video_frame(frame_source, thumb_from, min(length * 0.1, 5.0), cancelled)
+            args, cached = _video_args(content, audio, seconds, style, tools, tmp, title, logo_path, cancelled)
+            thumb_from = os.path.join(tmp, 'thumb.png')
+            frame_source = cached or content
+            length = get_media_duration(frame_source) or 0
+            tools.video_frame(frame_source, thumb_from, min(length * 0.1, 5.0), cancelled)
         else:
             raise ManualError('Modo desconocido.')
+        if origin == 'miniaturas' and thumbnail_source:
+            thumb_from = thumbnail_source
         tools.run([*args, '-t', f'{seconds:.3f}', '-f', 'mp4', partial], cancelled)
         # Dentro del with: el cuadro sacado del video vive en la carpeta temporal.
-        fit_image(thumb_from, thumb_out, THUMB, title if title_on_thumbnail else None)
+        try:
+            st.render_thumbnail(thumb_from, style, title, logo_path).save(thumb_out, 'JPEG', quality=90)
+        except (OSError, ValueError):
+            raise ManualError(f'No se pudo armar la miniatura con {os.path.basename(thumb_from)}.') from None
     os.replace(partial, video_out)
     with open(text_out, 'w', encoding='utf-8') as f:
         f.write(upload_text(title, description_text, tags))
@@ -376,6 +436,11 @@ def run_batch(beats, channel, local_root, output_root, profile=None,
     rng = rng or random.Random()
     picks = Rotation(contents, rng)
     thumbs = Rotation(cp.media(local_root, channel, 'thumbnail')[0], rng)
+    style = st.from_profile(profile)
+    if 'estilo' not in profile and thumbs.files:
+        style['miniatura']['origen'] = 'miniaturas'  # como siempre: si hay miniaturas propias, se usan
+    logo_path = os.path.join(cp.channel_dir(local_root, channel), st.LOGO_FILE)
+    framing = style['video']['encuadre']
     day_dir = day_folder(output_root, today)
     out_folder = os.path.join(day_dir, safe_name(channel))
     results, errors = [], []
@@ -386,14 +451,14 @@ def run_batch(beats, channel, local_root, output_root, profile=None,
         progress(index, len(beats), f'Generando {name} ({index + 1}/{len(beats)})')
         content = picks.next()
         cache = getattr(tools, 'cache', None)
-        if mode == MODE_VIDEO and cache is not None and not os.path.isfile(cache.path_for(content)):
+        if mode == MODE_VIDEO and cache is not None and not os.path.isfile(cache.path_for(content, framing)):
             progress(index, len(beats), f'Preparando el video stock {os.path.basename(content)} '
                                         '(solo la primera vez, puede tardar un minuto)…')
         try:
             title = cp.fit_title(titles[audio]) if titles.get(audio, '').strip() else beat_title(profile, name, channel)
             result = render_beat(audio, mode, content, title, out_folder, tools, thumbs.next(),
                                  profile['miniatura_con_titulo'], beat_text(profile, name, channel),
-                                 beat_tags(profile, name, channel), cancelled)
+                                 beat_tags(profile, name, channel), cancelled, style=style, logo_path=logo_path)
             add_pending(day_dir, channel, result)
             results.append(result)
             on_done(audio, result)

@@ -868,3 +868,18 @@ carpetas listas para subir a mano (sin API de YouTube). Perfiles y fondos en `<D
 - `core/my_channels.py`: tarjetas de kits con Activa/Pausada, día, Quitar (con Deshacer) y «Editar todo»; Beats con
   «Editar todo» (pestaña completa con el canal elegido). Todo se aplica con el mismo «Guardar cambios».
   Tests: `tests/test_kit_manage.py`.
+
+## Fase J1 — Editor de estilo de video y miniatura (local) ✅ COMPLETADA (2026-10-23)
+- `core/style.py`: estilo por canal en `perfil.json` → `estilo` (sin estilo, sale como antes). Video: encuadre
+  (llenar / centrado con fondo difuminado), oscurecer, tinte, grano, título sobre el video (arriba/centro/abajo),
+  logo (`canales/<canal>/logo.png`), zoom lento (imagen fija) y fundido. Miniatura: plantilla (solo imagen / franja /
+  título grande / logo), fuente (Oswald y Courier Prime incluidas; Arial e Impact de Windows), color, tamaño,
+  contorno y origen (fondo / carpeta miniaturas / cuadro del video). 5 estilos listos: Limpio, Franja oscura,
+  Título grande, Neón, Cine.
+- `core/manual_render.py` usa el estilo; video stock sin nada encima sigue con copia rápida; con capa (título,
+  oscurecer, logo, fundido) se procesa (~14 s por minuto de beat). Caché de stock separa el encuadre difuminado.
+- `core/style_editor.py`: editor con vista previa en vivo y «Probar con un beat (10 s)»; se abre desde el perfil del
+  canal («🎨 Estilo de video y miniatura…»).
+- Medido (60 s de beat, PC sin NVENC): imagen 3,5 s; + grano/tinte 4,4 s; + zoom 6,2 s; video stock 1,8 s;
+  + título/oscurecer 14,5 s; difuminado: la primera vez arma su caché (~86 s con un stock 1440p de 3 min).
+- Tests: `tests/test_style.py`. Siguen: J2 (mismo estilo en el robot de Beats) y J3 (portadas de Loop kits).

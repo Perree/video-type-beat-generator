@@ -95,7 +95,12 @@ class ProfileEditor(QDialog):
         self.artists_edit.textChanged.connect(self._refresh_preview)
         form.addRow('Artistas:', self.artists_edit)
         self.thumb_check = QCheckBox('Poner el título sobre la miniatura')
-        form.addRow('', self.thumb_check)
+        self.thumb_check.setVisible(False)  # ahora lo decide la plantilla del estilo
+        self.btn_style = QPushButton('🎨 Estilo de video y miniatura…')
+        self.btn_style.setToolTip('Encuadre, efectos, título y logo en el video; plantilla, fuente y color de la '
+                                  'miniatura. Con vista previa.')
+        self.btn_style.clicked.connect(self.open_style)
+        form.addRow('Estilo:', self.btn_style)
         layout.addLayout(form)
 
         self.btn_more = QPushButton('Más opciones ▸  (descripción, redes, hashtags, tags)')
@@ -142,6 +147,14 @@ class ProfileEditor(QDialog):
         if not custom:
             self.title_edit.setText(template)
         self._refresh_preview()
+
+    def open_style(self):
+        from core.style_editor import StyleEditor
+        cp.save(self.root, self.name, self.form_profile())  # lo editado acá no se pierde
+        if StyleEditor(self.root, self.name, self).exec_():
+            self.profile = cp.load(self.root, self.name)  # trae el estilo recién guardado
+            self.thumb_check.setChecked(self.profile['miniatura_con_titulo'])
+            self._refresh_preview()
 
     def _toggle_more(self, shown):
         self.more.setVisible(shown)
