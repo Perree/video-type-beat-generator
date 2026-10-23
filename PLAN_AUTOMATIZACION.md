@@ -883,3 +883,12 @@ carpetas listas para subir a mano (sin API de YouTube). Perfiles y fondos en `<D
 - Medido (60 s de beat, PC sin NVENC): imagen 3,5 s; + grano/tinte 4,4 s; + zoom 6,2 s; video stock 1,8 s;
   + título/oscurecer 14,5 s; difuminado: la primera vez arma su caché (~86 s con un stock 1440p de 3 min).
 - Tests: `tests/test_style.py`. Siguen: J2 (mismo estilo en el robot de Beats) y J3 (portadas de Loop kits).
+
+## Dropbox ordenado — todo en una carpeta ✅ COMPLETADA (2026-10-23)
+- Todo lo de la app (datos que usa el robot + contenido del usuario) vive en `/Soft Projects/Type Beat Generator/`
+  (`datos/`, `contenido/`, `_archivo/`). Rutas en `core/dropbox_layout.py`; detalle en `docs/DROPBOX_LAYOUT.md`.
+- Se movieron `/automatizacion`, `/type-beats`, `/loop_kits/_automation`, `/loop_kits_state`, `/loop_kits/_referencias`,
+  los fondos y miniaturas de «ey mat» y la copia vieja del código (a `_archivo/`).
+- Rutas viejas guardadas dentro de los JSON se traducen al leer; quedan con la ruta nueva al volver a guardarse.
+- Modo local: usa `<Dropbox>/Soft Projects/Type Beat Generator/contenido` si la PC lo sincroniza; si no, `TypeBeat Local`.
+- Tests: `tests/test_dropbox_layout.py`.
