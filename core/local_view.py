@@ -89,6 +89,8 @@ class LocalWorker(QThread):
 
 
 class LocalView(QWidget):
+    assistant_requested = pyqtSignal()
+
     def __init__(self, parent=None, settings_path=mr.SETTINGS_FILE, local_root=None, legacy_root=REPO_ROOT):
         super().__init__(parent)
         self.settings_path = settings_path
@@ -144,6 +146,9 @@ class LocalView(QWidget):
         title.setStyleSheet('font-size: 18px; font-weight: bold;')
         header.addWidget(title)
         header.addStretch()
+        self.btn_assistant = QPushButton('🧭 Guiame paso a paso')
+        self.btn_assistant.clicked.connect(self.assistant_requested)
+        header.addWidget(self.btn_assistant)
         self.btn_settings = QPushButton('⚙ Configuración')
         self.btn_settings.clicked.connect(self.open_settings)
         header.addWidget(self.btn_settings)

@@ -814,7 +814,18 @@ carpetas listas para subir a mano (sin API de YouTube). Perfiles y fondos en `<D
 - Se quitaron `core/manual_tab.py` y `core/bulk_panel.py`; `core/manual_panel.py` queda con piezas compartidas.
   Tests: `tests/test_local_view.py`, `tests/test_main_shell.py`.
 
+## Fase G — Asistente «Guiame paso a paso» (local) ✅ COMPLETADA (2026-10-22)
+- Se hizo antes que la F porque arma la base reusable: `core/wizard.py` (una pantalla por paso, «Atrás» /
+  «Siguiente», «Paso X de N»; «Siguiente» se habilita solo y abajo dice qué falta).
+- `core/assistant.py`: «¿Qué querés lograr?» → caminos: videos para un canal (canal con vista previa de fondos →
+  beats → títulos → generar → listo + cómo subir a YouTube), videos para varios canales (carpetas de entrada →
+  títulos → generar → resumen) y crear un canal nuevo (nombre → copiar estilo → imagen/video → estilo de título →
+  fondos, se tilda solo → «Hacer videos para este canal»). «Automatizar en la nube» lleva a la sección nube.
+- Botón «🧭 Guiame paso a paso» en Inicio y en «Crear videos ahora». Reusa `LocalWorker`, perfiles y cola.
+  Tests: `tests/test_assistant.py`.
+
 ## Fase F — Nube en modo asistente (pendiente)
 - Conexiones de Beats/Loop kits como pasos con luces (Dropbox → GitHub → YouTube → horario); SEO/Avanzado solo en
-  «Modo avanzado»; guía de nube que se tilde sola con el estado real. Arreglar el recuadro «Esta PC» de Beats, que
+  «Modo avanzado»; guía de nube que se tilde sola con el estado real. Sumar el camino «Automatizar un canal en
+  la nube» al asistente usando `core/wizard.py`. Arreglar el recuadro «Esta PC» de Beats, que
   se aplasta sin barra de desplazamiento.

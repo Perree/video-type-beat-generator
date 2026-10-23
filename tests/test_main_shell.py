@@ -54,6 +54,19 @@ class MainShellTests(unittest.TestCase):
         self.assertEqual(w._current_section(), SECTION_LOOP_KITS)
         self.assertFalse(hasattr(w, "btn_channels"))
 
+    def test_assistant_reachable_from_home_and_local(self):
+        import main
+        w = main.MainWindow(settings_path=self.settings)
+        settle(w.beat_panel)
+        w.home.btn_assistant.click()
+        self.assertIs(w.shell.current(), w.assistant)
+        self.assertIs(w.assistant.stack.currentWidget(), w.assistant.goals)
+        w.shell.show_page('local')
+        w.local_view.btn_assistant.click()
+        self.assertIs(w.shell.current(), w.assistant)
+        w.assistant.btn_cloud.click()
+        self.assertIs(w.shell.current(), w.cloud_page)
+
     def test_guide_toggle_and_first_run(self):
         import main
         w = main.MainWindow(settings_path=self.settings)

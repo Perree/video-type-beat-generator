@@ -14,6 +14,7 @@ _BIG = ('QPushButton {{ background: {bg}; color: white; font-size: 18px; font-we
 class HomeScreen(QWidget):
     local_requested = pyqtSignal()
     cloud_requested = pyqtSignal()
+    assistant_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -38,7 +39,15 @@ class HomeScreen(QWidget):
             row.addWidget(button)
         row.addStretch(1)
         layout.addLayout(row)
-        tip = QLabel('¿Primera vez? Abrí «? Guía» arriba a la derecha: te lleva paso a paso.')
+        self.btn_assistant = QPushButton('🧭  ¿No sabés por dónde empezar? Guiame paso a paso')
+        self.btn_assistant.setStyleSheet('QPushButton { font-size: 15px; padding: 14px; }')
+        self.btn_assistant.clicked.connect(self.assistant_requested)
+        assistant_row = QHBoxLayout()
+        assistant_row.addStretch(1)
+        assistant_row.addWidget(self.btn_assistant)
+        assistant_row.addStretch(1)
+        layout.addLayout(assistant_row)
+        tip = QLabel('También tenés «? Guía» arriba a la derecha con los pasos de cada pantalla.')
         tip.setAlignment(Qt.AlignCenter)
         tip.setStyleSheet('color: #bbb;')
         layout.addWidget(tip)
@@ -52,4 +61,7 @@ class HomeScreen(QWidget):
                            action=self.local_requested.emit, action_text='Ir a crear videos'),
                  GuideStep('Automatizar en la nube',
                            'Para que un robot publique solo todos los días. Se configura una vez por canal.',
-                           action=self.cloud_requested.emit, action_text='Ir a automatizar')])
+                           action=self.cloud_requested.emit, action_text='Ir a automatizar'),
+                 GuideStep('¿Dudas? Usá el asistente',
+                           'Te pregunta qué querés lograr y te lleva pantalla por pantalla.',
+                           action=self.assistant_requested.emit, action_text='Abrir asistente')])

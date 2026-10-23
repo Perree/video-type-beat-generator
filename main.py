@@ -14,6 +14,7 @@ import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QStyleFactory, QTabWidget
 
 from core.app_shell import AppShell
+from core.assistant import AssistantView
 from core.beat_panel import BeatPanel
 from core.cloud_page import CloudPage
 from core.home_screen import HomeScreen
@@ -47,12 +48,21 @@ class MainWindow(QMainWindow):
         self.tabs.currentChanged.connect(self._on_tab_changed)
         self.cloud_page = CloudPage(self.tabs, self.beat_panel, self.loop_kit_panel)
 
+        self.assistant = AssistantView(self.local_view)
         self.home = HomeScreen()
         self.shell = AppShell(self.home, {'local': (self.local_view, 'Crear videos ahora'),
-                                          'cloud': (self.cloud_page, 'Automatizar en la nube')}, **settings)
+                                          'cloud': (self.cloud_page, 'Automatizar en la nube'),
+                                          'assistant': (self.assistant, 'Asistente paso a paso')}, **settings)
         self.home.local_requested.connect(lambda: self.shell.show_page('local'))
         self.home.cloud_requested.connect(lambda: self.shell.show_page('cloud'))
+        self.home.assistant_requested.connect(self.open_assistant)
+        self.local_view.assistant_requested.connect(self.open_assistant)
+        self.assistant.cloud_requested.connect(lambda: self.shell.show_page('cloud'))
         self.setCentralWidget(self.shell)
+
+    def open_assistant(self):
+        self.assistant.show_goals()
+        self.shell.show_page('assistant')
 
     def _current_section(self):
         return SECTION_LOOP_KITS if self.tabs.currentWidget() is self.loop_kit_panel else SECTION_BEATS
@@ -71,6 +81,7 @@ class MainWindow(QMainWindow):
             return
         self.loop_kit_panel.shutdown()
         self.local_view.shutdown()
+        self.assistant.shutdown()
         super().closeEvent(event)
 
 
