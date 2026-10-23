@@ -1,5 +1,6 @@
 import functools
 import os
+import tempfile
 import time
 import unittest
 from unittest import mock
@@ -27,22 +28,46 @@ class MainShellTests(unittest.TestCase):
         patcher = mock.patch("main.BeatPanel", functools.partial(BeatPanel, cloud_provider=MemoryDropbox))
         patcher.start()
         self.addCleanup(patcher.stop)
+        # Preferencias en una carpeta temporal: no tocar config/manual_mode.json real.
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.settings = os.path.join(tmp.name, "manual_mode.json")
 
-    def test_tabs_and_sections_without_channel_manager(self):
+    def test_home_first_then_local_and_cloud(self):
         import main
-        w = main.MainWindow()
+        w = main.MainWindow(settings_path=self.settings)
         settle(w.beat_panel)
-        self.assertEqual([w.tabs.tabText(i) for i in range(w.tabs.count())], ["Beats", "Loop kits", "Manual"])
+        self.assertIs(w.shell.current(), w.home)
+        self.assertTrue(w.shell.btn_back.isHidden())
+        w.home.btn_local.click()
+        self.assertIs(w.shell.current(), w.local_view)
+        self.assertFalse(w.shell.btn_back.isHidden())
+        self.assertEqual(w.shell.guide.title.text(), "Crear videos en esta PC")
+        w.shell.btn_back.click()
+        self.assertIs(w.shell.current(), w.home)
+        w.home.btn_cloud.click()
+        self.assertIs(w.shell.current(), w.cloud_page)
+        self.assertEqual([w.tabs.tabText(i) for i in range(w.tabs.count())], ["Beats", "Loop kits"])
         self.assertEqual(w._current_section(), SECTION_BEATS)
         w._loop_kit_loaded = True  # evita la lectura de Dropbox
         w.tabs.setCurrentIndex(1)
         self.assertEqual(w._current_section(), SECTION_LOOP_KITS)
         self.assertFalse(hasattr(w, "btn_channels"))
-        self.assertIsNone(w.tabs.cornerWidget())
+
+    def test_guide_toggle_and_first_run(self):
+        import main
+        w = main.MainWindow(settings_path=self.settings)
+        settle(w.beat_panel)
+        shell = w.shell
+        shell.btn_guide.setChecked(True)
+        self.assertFalse(shell.guide.isHidden())
+        shell.guide._close()
+        self.assertFalse(shell.btn_guide.isChecked())
+        self.assertTrue(shell.guide.isHidden())
 
     def test_reload_waits_for_running_task(self):
         import main
-        w = main.MainWindow()
+        w = main.MainWindow(settings_path=self.settings)
         panel = w.beat_panel
         settle(panel)
         panel.task = object()

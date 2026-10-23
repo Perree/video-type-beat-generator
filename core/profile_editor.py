@@ -2,9 +2,9 @@
 """Diálogo para editar el perfil de estilo de un canal (modo Manual)."""
 import os
 
-from PyQt5.QtWidgets import (QButtonGroup, QCheckBox, QDialog, QDialogButtonBox, QFormLayout,
+from PyQt5.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout,
                              QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMessageBox,
-                             QPlainTextEdit, QPushButton, QRadioButton, QVBoxLayout)
+                             QPlainTextEdit, QPushButton, QRadioButton, QVBoxLayout, QWidget)
 
 from core import channel_profile as cp
 from core import beat_title as bt
@@ -12,6 +12,14 @@ from core import manual_render as mr
 
 SAMPLE = '(BEAT PRO-527) [juice wrld, sad] This is for me - 160bpm - key A Minor'
 SAMPLE_PLAIN = 'Legends Fall'
+# Estilos de título listos: el usuario elige uno en vez de escribir una plantilla.
+TITLE_STYLES = (
+    ('[FREE] Artista Type Beat - "Nombre"', cp.DEFAULT_TITLE),
+    ('[FREE] Artista Type Beat - "Nombre" (mood)', '[FREE] {artist} Type Beat - "{name}" [[({mood})]]'),
+    ('Artista Type Beat - Nombre', '{artist} Type Beat - {name}'),
+    ('Nombre | Artista Type Beat', '{name} | {artist} Type Beat'),
+    ('Nombre - Artista Type Beat (BPM)', '{name} - {artist} Type Beat [[({bpm} BPM)]]'),
+)
 VARIABLES_HELP = ('{name} nombre limpio · {artist} artista · {bpm} · {key} tono · {mood} · {channel}\n'
                   '[[ … ]] = bloque opcional: desaparece si le falta algún dato, '
                   'p. ej. [[({mood})]] o [[{key} · ]]')
@@ -66,10 +74,17 @@ class ProfileEditor(QDialog):
             media_row.addWidget(button)
         form.addRow('Contenido:', media_row)
 
+        self.style_combo = QComboBox()
+        for label, template in TITLE_STYLES:
+            self.style_combo.addItem(label, template)
+        self.style_combo.addItem('Personalizado…', None)
+        self.style_combo.currentIndexChanged.connect(self._on_style_changed)
+        form.addRow('Estilo de título:', self.style_combo)
         self.title_edit = QLineEdit()
         self.title_edit.setToolTip(VARIABLES_HELP)
         self.title_edit.textChanged.connect(self._refresh_preview)
-        form.addRow('Título:', self.title_edit)
+        self.title_edit_label = QLabel('Plantilla:')
+        form.addRow(self.title_edit_label, self.title_edit)
         self.title_preview = QLabel()
         self.title_preview.setWordWrap(True)
         form.addRow('', self.title_preview)
@@ -79,6 +94,17 @@ class ProfileEditor(QDialog):
                                      'escritura en {artist}. Si no, se toma del primer [corchete] del nombre.')
         self.artists_edit.textChanged.connect(self._refresh_preview)
         form.addRow('Artistas:', self.artists_edit)
+        self.thumb_check = QCheckBox('Poner el título sobre la miniatura')
+        form.addRow('', self.thumb_check)
+        layout.addLayout(form)
+
+        self.btn_more = QPushButton('Más opciones ▸  (descripción, redes, hashtags, tags)')
+        self.btn_more.setCheckable(True)
+        self.btn_more.toggled.connect(self._toggle_more)
+        layout.addWidget(self.btn_more)
+        self.more = QWidget()
+        form = QFormLayout(self.more)
+        form.setContentsMargins(0, 0, 0, 0)
 
         self.desc_edit = QPlainTextEdit()
         self.desc_edit.setMinimumHeight(140)
@@ -96,9 +122,8 @@ class ProfileEditor(QDialog):
         form.addRow('Tags:', self.tags_edit)
         self.tags_count = QLabel()
         form.addRow('', self.tags_count)
-        self.thumb_check = QCheckBox('Poner el título sobre la miniatura')
-        form.addRow('', self.thumb_check)
-        layout.addLayout(form)
+        self.more.setVisible(False)
+        layout.addWidget(self.more)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Save).setText('Guardar')
@@ -109,9 +134,27 @@ class ProfileEditor(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
+    def _on_style_changed(self, _index):
+        template = self.style_combo.currentData()
+        custom = template is None
+        self.title_edit.setVisible(custom)
+        self.title_edit_label.setVisible(custom)
+        if not custom:
+            self.title_edit.setText(template)
+        self._refresh_preview()
+
+    def _toggle_more(self, shown):
+        self.more.setVisible(shown)
+        self.btn_more.setText(('Menos opciones ▾' if shown else 'Más opciones ▸') +
+                              '  (descripción, redes, hashtags, tags)')
+        self.adjustSize()
+
     def _fill(self, profile):
         (self.radio_video if profile['fondo'] == cp.MODE_VIDEO else self.radio_image).setChecked(True)
         self.title_edit.setText(profile['titulo'])
+        index = self.style_combo.findData(profile['titulo'])
+        self.style_combo.setCurrentIndex(index if index >= 0 else self.style_combo.count() - 1)
+        self._on_style_changed(self.style_combo.currentIndex())
         self.desc_edit.setPlainText(profile['descripcion'])
         self.socials_edit.setPlainText(profile['socials'])
         self.hashtags_edit.setText(profile['hashtags'])

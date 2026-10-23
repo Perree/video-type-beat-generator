@@ -111,30 +111,5 @@ class BulkRenderTests(unittest.TestCase):
                 self.assertEqual(len(f.read().strip().splitlines()), 3)
 
 
-class BulkPanelTests(unittest.TestCase):
-    def test_scan_shows_rows_and_edits_titles(self):
-        from PyQt5.QtWidgets import QApplication
-        app = QApplication.instance() or QApplication([])
-        with tempfile.TemporaryDirectory() as base:
-            local = os.path.join(base, "local")
-            cp.create(local, "Canal")
-            touch(os.path.join(local, "entrada", "Canal", "uno 150bpm.mp3"))
-            touch(os.path.join(local, "entrada", "Fantasma", "x.mp3"))
-            from core.manual_tab import ManualTab
-            tab = ManualTab(settings_path=os.path.join(base, "mm.json"), local_root=local,
-                            legacy_root=os.path.join(base, "legacy"))
-            tab.setCurrentWidget(tab.bulk_panel)  # entrar a la subpestaña revisa las carpetas
-            panel = tab.bulk_panel
-            self.assertEqual(panel.table.rowCount(), 1)
-            self.assertEqual(panel.table.item(0, 0).text(), "Canal")
-            self.assertTrue(panel.btn_generate.isEnabled())
-            self.assertIn("Fantasma", panel.notes.text())
-            panel.table.item(0, 2).setText("Otro título")
-            self.assertEqual(list(panel.title_overrides.values()), ["Otro título"])
-            self.assertIn("1 títulos editados", panel.count_label.text())
-            tab.deleteLater()
-            app.processEvents()
-
-
 if __name__ == "__main__":
     unittest.main()

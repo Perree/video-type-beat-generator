@@ -800,3 +800,21 @@ carpetas listas para subir a mano (sin API de YouTube). Perfiles y fondos en `<D
 - **Fase C — Bulk** ✅ COMPLETADA (2026-10-22): `core/bulk_queue.py` (entrada/<canal>/ → cola; saltea archivos copiándose o «solo en línea»; hecho → `hechos/`, error → `errores.txt`; un canal con problemas no frena a los demás). Salida para subir a mano: `<salida>/<fecha>/<canal>/<título>/` con `<título>.mp4`, `<título> - miniatura.jpg` y `<título>.txt` (bloques TÍTULO/DESCRIPCIÓN/TAGS; el nombre del archivo es el título porque YouTube Studio lo usa como título inicial) + `<fecha>/pendientes.csv`. Pestaña Manual con subpestañas «Arrastrar» y «Tandas por canal» (`core/manual_tab.py`, `core/bulk_panel.py`: tabla canal/beat/título editable, «Generar todo»). Tests: `tests/test_bulk_queue.py`.
 - **Fase D — Velocidad del video stock** ✅ COMPLETADA (2026-10-22): `core/stock_cache.py` convierte cada video stock una vez a 1080p30 (sin B-frames, keyframe cada 2 s) en `%LOCALAPPDATA%/TypeBeat/cache` (no en Dropbox; clave ruta+tamaño+fecha; tope `cache_max_gb` en `config/manual_mode.json`, 5 GB por defecto, borra lo menos usado). Cada beat repite la caché y copia el video sin recodificar; si la caché falla, vuelve al método anterior. Medido en la PC sin NVENC (libx264), 3 beats con stock 1440p: 153 s → 61 s la primera vez → 17 s con la caché armada (≈6 s por beat de 3:24 vs 58 s). Video vs audio: < 1 cuadro de diferencia, sin saltos en el loop. Falta medir en la PC con NVIDIA. Tests: `tests/test_stock_cache.py`.
 - Fuera de alcance: subir a YouTube desde lo local, render en paralelo, Shorts, cambios en la nube.
+
+## Fase E — UI simple: Inicio, modo local en 3 pasos y guía ✅ COMPLETADA (2026-10-22)
+- `core/home_screen.py`: Inicio con una sola decisión — «Crear videos ahora» (local) o «Automatizar en la nube»
+  (Beats y Loop kits quedan detrás, en `core/cloud_page.py`). Armadura en `core/app_shell.py` (← Inicio, ? Guía).
+- `core/local_view.py`: canal → beats → generar en una pantalla; junta arrastrar/soltar y las carpetas de entrada
+  (los beats de `entrada/<canal>/` aparecen solos con 📥; aviso + «Generar todos esos canales» para el resto).
+  Lo poco usado (carpetas, importar, nuevo canal, caché) pasa a ⚙ Configuración (`core/local_settings.py`).
+- `core/profile_editor.py`: estilos de título listos (o «Personalizado…»), artistas y miniatura a la vista;
+  descripción/redes/hashtags/tags en «Más opciones».
+- `core/guide_panel.py`: guía checklist por pantalla; los pasos se tildan solos y tienen «Llevarme ahí».
+  Se abre sola la primera vez (`guide_seen` en `config/manual_mode.json`).
+- Se quitaron `core/manual_tab.py` y `core/bulk_panel.py`; `core/manual_panel.py` queda con piezas compartidas.
+  Tests: `tests/test_local_view.py`, `tests/test_main_shell.py`.
+
+## Fase F — Nube en modo asistente (pendiente)
+- Conexiones de Beats/Loop kits como pasos con luces (Dropbox → GitHub → YouTube → horario); SEO/Avanzado solo en
+  «Modo avanzado»; guía de nube que se tilde sola con el estado real. Arreglar el recuadro «Esta PC» de Beats, que
+  se aplasta sin barra de desplazamiento.
