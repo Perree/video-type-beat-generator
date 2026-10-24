@@ -64,6 +64,21 @@ class PackageTests(unittest.TestCase):
         with self.assertRaisesRegex(MetadataError, 'no coincide'):
             read_metadata(self.audio, verify=True)
 
+    def test_valid_unicode_metadata_at_schema_limits_can_be_rendered(self):
+        metadata = write_package(self.audio, title='\U0001f3b5' * 500)
+        metadata['tags'] = ['\U0001f3b5' * 98 + f'{number:02}' for number in range(40)]
+        raw = metadata_bytes(metadata)
+        self.assertGreater(len(raw), 16 * 1024)
+        Path(str(self.audio) + SIDECAR).write_bytes(raw)
+        self.assertEqual(read_metadata(self.audio, verify=True), metadata)
+
+    def test_oversized_valid_json_is_rejected_before_schema_validation(self):
+        metadata = write_package(self.audio)
+        metadata['unused'] = 'x' * (32 * 1024)
+        Path(str(self.audio) + SIDECAR).write_bytes(metadata_bytes(metadata))
+        with self.assertRaises(MetadataError):
+            read_metadata(self.audio)
+
     def test_invalid_json_schema_or_url_never_supplies_a_link(self):
         metadata = write_package(self.audio)
         bad = [b'{broken', b'x' * (16 * 1024 + 1), json.dumps({}).encode(),

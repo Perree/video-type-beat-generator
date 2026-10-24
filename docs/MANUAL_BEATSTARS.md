@@ -8,8 +8,10 @@ compartido, enlace en el TXT de cada video y movimiento conjunto a `hechos`.
 La fuente es el preview público del reproductor, no el MP3/WAV original. No usa
 login, cookies, Playwright ni Dropbox como alternativa. El catálogo y los medios
 conservan las restricciones de hosts y tamaños de la integración existente.
-La compatibilidad del servicio remoto actual queda pendiente de una prueba live
-autorizada: los tests usan respuestas falsas y audio sintético.
+Servicio remoto comprobado el 2026-10-24 con autorización: catálogo `matwyre`,
+descarga de un preview real, filtros/exclusión en Qt y generación manual de
+MP4/miniatura/TXT. Ver [la revisión real](BEATSTARS_LIVE_REVIEW_2026_10_24.md).
+Las pruebas automáticas siguen usando respuestas falsas y audio sintético.
 
 ## Uso desde la pantalla manual
 
@@ -113,7 +115,7 @@ aparece al final, después de sus archivos asociados. Si hay colisión se elige 
 nombre nuevo; el ID permanece en el nombre. El título de metadata debe usarse
 como origen de las variables del beat, no el nombre físico truncado del audio.
 
-`core.manual_beatstars_files.read_metadata` lee hasta 16 KiB y valida el esquema
+`core.manual_beatstars_files.read_metadata` lee hasta 32 KiB y valida el esquema
 y la URL. La vista previa usa esa lectura breve; el worker de render comprueba
 además tamaño y SHA-256 del audio antes de usar el enlace. Una metadata ilegible,
 incompleta o que no corresponda al audio se informa como error de ese beat; no
@@ -257,4 +259,5 @@ layout, asistente, revisión general, perfiles, estilo, caché y títulos. GitHu
 llavero aislados por prueba. No hubo SQL ni cambios en automatizaciones, ni se
 descargaron beats reales. Revisión propia del diff; Bugbot local no disponible,
 sin revisión independiente. La prueba contra el servicio real sigue siendo
-opcional y requiere autorización.
+opcional y requiere autorización. Se realizó después con autorización explícita;
+ver [la revisión real](BEATSTARS_LIVE_REVIEW_2026_10_24.md).

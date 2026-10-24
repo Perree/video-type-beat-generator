@@ -175,7 +175,12 @@ class HistoryStore:
             raise HistoryError('history_write_failed') from None
         finally:
             if temp is not None:
-                temp.unlink(missing_ok=True)
+                try:
+                    temp.unlink(missing_ok=True)
+                except OSError:
+                    # A locked temporary must never hide a fatal history error:
+                    # the batch must stop rather than continue as a per-track failure.
+                    pass
 
     def recover(self, data):
         """Complete journaled packages become history; incomplete packages roll back."""

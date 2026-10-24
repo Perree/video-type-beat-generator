@@ -9,6 +9,9 @@ from pathlib import Path
 from core.beat_http import BeatError
 from core.manual_beatstars_store import LINK, SIDECAR, digest, validate_metadata
 
+# Schema limits count Unicode characters; UTF-8 may require four bytes each.
+MAX_METADATA_BYTES = 32 * 1024
+
 
 class MetadataError(ValueError):
     """A sidecar exists but cannot safely identify this audio."""
@@ -22,8 +25,8 @@ def read_metadata(audio, verify=False):
         if sidecar.is_symlink():
             raise ValueError('linked_metadata')
         with sidecar.open('rb') as stream:
-            raw = stream.read(16 * 1024 + 1)
-        if len(raw) > 16 * 1024:
+            raw = stream.read(MAX_METADATA_BYTES + 1)
+        if len(raw) > MAX_METADATA_BYTES:
             raise ValueError('metadata_limit')
         metadata = validate_metadata(json.loads(raw))
     except FileNotFoundError:

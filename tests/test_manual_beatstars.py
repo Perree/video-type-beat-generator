@@ -325,6 +325,24 @@ class ManualBeatStarsTests(unittest.TestCase):
         self.assertFalse(any(p.suffix == '.tmp' for p in self.store.path.parent.iterdir()))
         self.assertFalse(any('TK102' in f.name for f in self.dest.iterdir()))
 
+    def test_history_cleanup_failure_does_not_hide_fatal_write_failure(self):
+        self.download()
+        before = self.store.path.read_bytes()
+        self.resolver.calls.clear()
+        unlink = Path.unlink
+        def locked_temp(path, *args, **kwargs):
+            if path.suffix == '.tmp':
+                raise PermissionError('temporary file locked')
+            return unlink(path, *args, **kwargs)
+        with patch('core.manual_beatstars_store.os.replace', side_effect=OSError('disk error')), \
+                patch.object(Path, 'unlink', locked_temp):
+            with self.assertRaisesRegex(HistoryError, 'history_write_failed') as raised:
+                self.download(('TK102', 'TK101'), include_downloaded=True)
+        self.assertEqual(self.resolver.calls, ['TK102'])
+        self.assertEqual(raised.exception.result.downloads, [])
+        self.assertEqual(self.store.path.read_bytes(), before)
+        self.assertFalse(any('TK102' in path.name for path in self.dest.iterdir()))
+
     def test_hls_cancel_between_segments_does_not_fetch_next(self):
         http = HLS()
         original = http.get

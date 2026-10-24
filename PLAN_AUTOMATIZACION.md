@@ -1032,3 +1032,27 @@ estados de automatización. Una fase por sesión. Migración SQL: no.
   sin revisión independiente. Migración SQL: no. `main.py` sin cambios. Las tres
   fases de código quedan completas; compatibilidad live de BeatStars pendiente
   de una prueba opcional autorizada, sin audios reales ni publicaciones en esta sesión.
+
+### Revisión de bugs y descarga real ✅ COMPLETADA (2026-10-24)
+
+- Prueba live autorizada por el usuario: catálogo `matwyre` de 1.139 beats y
+  descarga pública real de `TK18425328` (New York). M4A/AAC de 161,724082 s y
+  4.203.887 bytes, duración, SHA-256 y decodificación completa verificados.
+- Reinicio del diálogo/servicio con otro canal e historial compartido de prueba:
+  tag `BAD BUNNY` ofrece 58 candidatos; al incluir descargados, 59. El beat
+  descargado solo reaparece con la opción explícita y una selección anterior se
+  omite antes de volver a pedir el audio.
+- Render manual del preview completo: MP4 H.264/AAC 1920 × 1080, miniatura
+  1280 × 720 y TXT con enlace correcto pese al título editado. Movimiento a
+  `hechos` y metadata/enlace/tamaño/hash comprobados. Historial, canal y artefactos
+  de prueba aislados; no se alteró la configuración ni el historial habitual.
+- Corregidos dos bugs reproducidos: limpieza de temporales que ocultaba un
+  fallo fatal del historial y permitía continuar la tanda; límite de lectura
+  de metadata insuficiente para Unicode válido (ahora 32 KiB, todavía acotado).
+- Regresión amplia inicial: 426 pruebas, 424 aprobadas y 2 smokes opcionales
+  omitidos. Tras corregir: 111 pruebas manuales aprobadas, sin omisiones,
+  incluyendo tres nuevas de regresión. GitHub/llavero aislados por prueba.
+- Revisión propia y `git diff --check`, sin Bugbot local ni revisión independiente.
+  Migración SQL: no. Sin push ni publicaciones. Evidencia y límites en
+  `docs/BEATSTARS_LIVE_REVIEW_2026_10_24.md`; compatibilidad real comprobada para
+  este beat y el catálogo en esta fecha, sin garantizar todos los previews.
