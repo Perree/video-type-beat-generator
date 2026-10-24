@@ -2,9 +2,8 @@
 
 ## Estado
 
-Fases 1 y 2: motor y selector disponibles en «Crear videos ahora». La fase 3
-conecta los enlaces al TXT de cada video y al movimiento conjunto a `hechos`.
-Actualmente el enlace queda en los archivos asociados al audio descargado.
+Fases 1, 2 y 3 implementadas: búsqueda/descarga en «Crear videos ahora», historial
+compartido, enlace en el TXT de cada video y movimiento conjunto a `hechos`.
 
 La fuente es el preview público del reproductor, no el MP3/WAV original. No usa
 login, cookies, Playwright ni Dropbox como alternativa. El catálogo y los medios
@@ -25,6 +24,20 @@ autorizada: los tests usan respuestas falsas y audio sintético.
 4. Tocar **Descargar seleccionados**. Al terminar, el resumen muestra éxitos,
    errores y omitidos. Los audios completos aparecen en la entrada y tabla del
    canal, sin iniciar videos. Cerrar el diálogo y continuar el flujo manual.
+5. Generar los videos con los fondos y el estilo habituales. Cada TXT incluye
+   un bloque **BEATSTARS** con el enlace del beat. La descripción también lo usa
+   si su plantilla contiene `{beatstars_url}`; las plantillas existentes no se
+   modifican. Editar el título de la tabla solo cambia el título del video.
+
+Al terminar una generación desde la entrada del canal, audio, `.beatstars.json`
+y `.beatstars.txt` pasan a `hechos` con el mismo nombre final. Si el nombre ya
+existe, incluso si solo quedó un archivo asociado, se elige un sufijo nuevo para
+todo el paquete. El título original se conserva en la metadata, por lo que el ID
+del nombre del archivo y los sufijos de colisión no aparecen en el título generado.
+Podés volver a arrastrar el audio de `hechos`: conserva su título original y su
+enlace. Si copiás el audio a otra carpeta, copiá también sus archivos asociados
+manteniendo el mismo nombre base. Los audios arrastrados desde otras carpetas
+conservan su ubicación, como antes; solo se archivan los de la entrada del canal.
 
 El historial es compartido por todos los canales. **Incluir ya descargados**
 permite buscarlos y volver a seleccionarlos explícitamente. Los errores de un
@@ -59,7 +72,7 @@ resolver, HTTP, herramientas multimedia y un callback `cancelled()`.
 ```python
 from core.manual_beatstars import ManualBeatStars
 
-# Ejemplo de uso futuro; search/download acceden a red si no se inyectan dobles.
+# Ejemplo del motor; search/download acceden a red si no se inyectan dobles.
 service = ManualBeatStars(cancelled=lambda: False)
 search = service.search(
     "https://www.beatstars.com/MI_PERFIL", tags="trap, dark", match="any"
@@ -98,7 +111,30 @@ Cada descarga publica, sin reemplazar archivos existentes:
 Se valida duración, tipo de stream y decodificación antes de publicar. El audio
 aparece al final, después de sus archivos asociados. Si hay colisión se elige un
 nombre nuevo; el ID permanece en el nombre. El título de metadata debe usarse
-como origen al integrar los títulos manuales en la fase 3.
+como origen de las variables del beat, no el nombre físico truncado del audio.
+
+`core.manual_beatstars_files.read_metadata` lee hasta 16 KiB y valida el esquema
+y la URL. La vista previa usa esa lectura breve; el worker de render comprueba
+además tamaño y SHA-256 del audio antes de usar el enlace. Una metadata ilegible,
+incompleta o que no corresponda al audio se informa como error de ese beat; no
+se genera un video con un enlace ajeno y los demás beats siguen. Un TXT asociado
+sin su JSON indica un paquete incompleto. Un JSON válido basta para generar el
+enlace aunque falte el TXT asociado. Audios sin archivos asociados conservan su
+comportamiento anterior y su TXT no agrega el bloque BEATSTARS.
+
+Los helpers manuales aceptan metadata opcional en `beat_name`, `beat_values`,
+`beat_title`, `beat_tags` y `beat_text`. `render_beat` y `upload_text` aceptan
+`beatstars_url=''` al final de sus argumentos. Las llamadas anteriores siguen
+funcionando. La metadata no reemplaza los tags SEO configurados en el canal.
+
+El movimiento reserva un nombre libre para los tres componentes, mueve los
+archivos asociados antes del audio y revierte los pasos completados ante un
+error de I/O. Si también falla la reversión se informa el problema y se conservan
+los archivos existentes para revisar entrada y hechos. No se reemplazan colisiones
+concurrentes. Para destinos en otra unidad, cada archivo se copia a un temporal
+del destino, se publica sin sobrescribir y luego se retira del origen. Esto no
+constituye una transacción de varios archivos ante un cierre forzado o un fallo
+físico del disco.
 
 El historial vive en `config/manual_beatstars_history.json`, relativo al
 repositorio, no al directorio de ejecución. Tiene versión 1, un mapa `downloads`
@@ -122,12 +158,17 @@ Antes de publicar se guarda la intención en `pending`. En la siguiente búsqued
 o descarga, incluso para otro canal:
 
 - Paquete completo con hashes correctos: incorporar al historial sin descargar
-  ni convertir otra vez.
+  ni convertir otra vez. Si ya se archivó en `hechos`, buscar allí el nombre
+  original o su sufijo de colisión y comprobar los tres componentes por sus
+  hashes. Esto resuelve un fallo del guardado final del historial seguido de una
+  generación y archivado del audio; no reconstruye descargas antiguas.
 - Paquete incompleto: quitar únicamente los componentes de ese paquete cuyo
   contenido coincida con el registro y limpiar la intención.
 - Archivos modificados o enlaces simbólicos: detenerse con
   `package_recovery_conflict`, sin borrarlos ni marcar éxito. Se requiere revisar
   los tres archivos y restaurar el paquete o retirar sus restos antes de reintentar.
+  Un archivo de metadata del paquete pendiente repartido entre entrada y hechos
+  también detiene la recuperación antes de quitar el audio original.
 
 Un fallo al guardar el historial detiene la tanda; si los archivos ya estaban
 completos, permanecen con su intención pendiente para recuperarlos. Un fallo al
@@ -192,3 +233,28 @@ errores a 650 × 500, y del modo local a 900 × 620 con guía y scroll vertical.
 Revisión propia del diff; sin Bugbot local ni revisión independiente. Sin prueba
 de descarga real contra BeatStars. La integración de los enlaces al TXT final y
 al movimiento a `hechos` sigue pendiente en la fase 3.
+
+## Cierre de la fase 3
+
+Implementada el 2026-10-24. La nota anterior de cierre de fase 2 describe su estado
+en ese momento; el TXT final y el movimiento de archivos asociados ya están conectados.
+
+24 pruebas nuevas cubren metadata inválida o ajena al audio, lectura acotada,
+compatibilidad de helpers y audios locales, título editado, colisiones de audio
+y archivos asociados, errores de movimiento y reversión, copia entre unidades y
+recuperación del historial tras archivar. La prueba integral usa el diálogo y el
+motor real con HTTP falso y audio sintético: HLS → M4A → MP4/miniatura/TXT → hechos
+con sufijo → reutilización → exclusión desde otro canal al reabrir.
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_manual_beatstars_files.py" -v
+.\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_manual_beatstars_flow.py" -v
+```
+
+Regresión seleccionada: 178 pruebas aprobadas, sin fallos ni omisiones; incluye
+motor, diálogo, archivos/flujo nuevos, render manual, bulk, vista local, shell,
+layout, asistente, revisión general, perfiles, estilo, caché y títulos. GitHub y
+llavero aislados por prueba. No hubo SQL ni cambios en automatizaciones, ni se
+descargaron beats reales. Revisión propia del diff; Bugbot local no disponible,
+sin revisión independiente. La prueba contra el servicio real sigue siendo
+opcional y requiere autorización.

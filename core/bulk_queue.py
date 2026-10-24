@@ -8,12 +8,12 @@
   y el error se anota en ``entrada/<canal>/errores.txt``.
 """
 import os
-import shutil
 import time
 from datetime import datetime
 
 from core import channel_profile as cp
 from core import manual_render as mr
+from core.manual_beatstars_files import move_package
 
 DONE_DIR = 'hechos'
 ERRORS_FILE = 'errores.txt'
@@ -90,15 +90,9 @@ def settled(beats, wait=SETTLE_SECONDS, sleep=time.sleep, stat=os.stat):
 
 
 def mark_done(root, channel, path):
-    """Mueve el beat a ``entrada/<canal>/hechos/`` sin pisar otro con el mismo nombre."""
+    """Mueve audio y sidecars a ``hechos/`` con el mismo nombre final, sin pisar archivos."""
     done = os.path.join(cp.input_dir(root, channel), DONE_DIR)
-    os.makedirs(done, exist_ok=True)
-    stem, ext = os.path.splitext(os.path.basename(path))
-    target, n = os.path.join(done, stem + ext), 2
-    while os.path.exists(target):
-        target, n = os.path.join(done, f'{stem} ({n}){ext}'), n + 1
-    shutil.move(path, target)
-    return target
+    return move_package(path, done)
 
 
 def log_error(root, channel, path, message, now=None):

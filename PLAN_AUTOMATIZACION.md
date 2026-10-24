@@ -999,7 +999,7 @@ estados de automatización. Una fase por sesión. Migración SQL: no.
 - Migración SQL: no. Sin red real, credenciales ni publicación. La fase 3 sigue
   pendiente para el TXT final de videos y movimiento conjunto de sidecars.
 
-### Fase 3 — Enlaces por video y movimiento de tandas ⏳ PENDIENTE
+### Fase 3 — Enlaces por video y movimiento de tandas ✅ COMPLETADA (2026-10-24)
 
 - Leer metadata del audio para preservar título original y URL aunque se edite
   el título del video; habilitar `{beatstars_url}` y bloque BEATSTARS en TXT final.
@@ -1007,3 +1007,28 @@ estados de automatización. Una fase por sesión. Migración SQL: no.
   colisiones. Audios sin metadata mantienen su comportamiento actual.
 - Render sintético corto y validación integral de reinicio, repetición y enlaces;
   prueba live opcional autorizada. Actualizar documentación y cerrar con commit.
+- `core/manual_beatstars_files.py`: lectura acotada y esquema/URL validados;
+  tamaño/SHA-256 verificados por el worker de render. Metadata dañada o ajena
+  produce error por beat, sin contaminar los demás. Vista previa sin hashing en Qt.
+- Helpers manuales con metadata opcional: título original para nombre, artista,
+  BPM, tono y tags del perfil, sin prefijos TK ni sufijos de archivo. Título editado
+  conserva identidad y URL. `{beatstars_url}` rellena la descripción y un bloque
+  BEATSTARS queda siempre en el TXT si hay enlace, sin editar perfiles existentes.
+- Audio y archivos asociados se archivan con el mismo basename; colisiones de
+  cualquiera de los tres componentes reservan un sufijo para todo el paquete.
+  Movimientos sin sobrescritura, reversión ante errores y copia temporal segura
+  si el destino está en otra unidad. Sin metadata, formato y flujo anteriores.
+- Recuperación de historial pendiente también reconoce paquetes completos en
+  `hechos`, incluyendo colisiones, sin volver a descargarlos. Archivos repartidos
+  o modificados detienen la recuperación antes de borrar el audio original.
+- 24 pruebas nuevas; prueba integral Qt con motor y FFmpeg reales, audio sintético
+  y HTTP falso: descarga → título editado → MP4/miniatura/TXT con URL → archivado
+  con colisión → reutilización → exclusión al reabrir desde otro canal.
+  Perfil original intacto; CSV de pendientes, duración y miniatura comprobados.
+- Regresión seleccionada: 178 pruebas aprobadas, sin fallos ni omisiones, incluyendo
+  las fases anteriores, render/bulk/local, shell/layout/asistente, perfiles,
+  estilos, caché y títulos. GitHub/llavero falsos por prueba y temporales aislados.
+- Revisión propia del diff y escenarios de fallo; Bugbot local no disponible,
+  sin revisión independiente. Migración SQL: no. `main.py` sin cambios. Las tres
+  fases de código quedan completas; compatibilidad live de BeatStars pendiente
+  de una prueba opcional autorizada, sin audios reales ni publicaciones en esta sesión.

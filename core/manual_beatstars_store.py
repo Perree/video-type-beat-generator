@@ -63,6 +63,32 @@ def package_files(audio, metadata):
             (Path(str(audio) + LINK), hashlib.sha256((metadata['url'] + '\n').encode()).hexdigest()))
 
 
+def _complete_in_archive(audio, metadata):
+    """A render may archive a complete package before a failed history write recovers."""
+    audio = Path(audio)
+    archive = audio.parent / 'hechos'
+    pattern = re.compile(re.escape(audio.stem) + r'(?: \([0-9]+\))?' + re.escape(audio.suffix), re.I)
+    try:
+        entries = os.scandir(archive)
+    except FileNotFoundError:
+        return False
+    with entries:
+        for entry in entries:
+            if not entry.name.endswith(SIDECAR) or not entry.is_file(follow_symlinks=False):
+                continue
+            name = entry.name[:-len(SIDECAR)]
+            if not pattern.fullmatch(name):
+                continue
+            files = package_files(archive / name, metadata)
+            if digest(entry.path) != files[1][1]:
+                continue  # An older package with a colliding basename is unrelated.
+            if not all(path.is_file() and not path.is_symlink() and digest(path) == expected
+                       for path, expected in reversed(files)):
+                raise HistoryError('package_recovery_conflict')
+            return True
+    return False
+
+
 class HistoryStore:
     def __init__(self, path=HISTORY_FILE):
         self.path = Path(path).resolve()
@@ -164,7 +190,10 @@ class HistoryStore:
             if any(path.is_symlink() or (path.exists() and digest(path) != expected)
                    for path, expected in files):
                 raise HistoryError('package_recovery_conflict')
-            if len(existing) == len(files):
+            archived = len(existing) < len(files) and _complete_in_archive(pending['audio'], metadata)
+            if existing and archived:
+                raise HistoryError('package_recovery_conflict')
+            if len(existing) == len(files) or archived:
                 data['downloads'][identity(metadata['member_id'], metadata['track_id'])] = metadata
             else:
                 for path in existing:

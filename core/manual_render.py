@@ -5,7 +5,7 @@ El estilo de cada canal (fondo, título, descripción, tags, miniatura) y sus fo
 carpeta local de canales (normalmente ``<Dropbox>/TypeBeat Local``); ver ``core.channel_profile``.
 
 Por cada beat deja ``<salida>/<fecha>/<canal>/<título>/`` con ``<título>.mp4``,
-``<título> - miniatura.jpg`` (1280x720) y ``<título>.txt`` (bloques TÍTULO / DESCRIPCIÓN / TAGS),
+``<título> - miniatura.jpg`` (1280x720) y ``<título>.txt`` (TÍTULO / DESCRIPCIÓN / TAGS y BEATSTARS si hay enlace),
 y suma una fila a ``<salida>/<fecha>/pendientes.csv``. Nada se sube a YouTube ni a Dropbox.
 """
 import csv
@@ -23,6 +23,7 @@ from core import channel_profile as cp
 from core import beat_title as bt
 from core import channel_templates, description, dropbox_local, stock_cache
 from core import style as st
+from core.manual_beatstars_files import MetadataError, read_metadata
 from core.ffmpeg_util import get_available_video_codec, get_media_duration, resolve_tool
 
 AUDIO_SUFFIXES = ('.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg')
@@ -74,8 +75,8 @@ def _read_json(path):
         return {}
 
 
-def beat_name(audio):
-    return os.path.splitext(os.path.basename(audio))[0]
+def beat_name(audio, metadata=None):
+    return metadata['title'] if metadata else os.path.splitext(os.path.basename(audio))[0]
 
 
 def beat_info(name):
@@ -243,15 +244,16 @@ def unique_folder(parent, base):
     return candidate
 
 
-def upload_text(title, description_text, tags):
+def upload_text(title, description_text, tags, beatstars_url=''):
     """Texto en bloques para copiar y pegar en YouTube Studio."""
-    return (f'TÍTULO\n{title}\n\nDESCRIPCIÓN\n{description_text.strip()}\n\n'
+    text = (f'TÍTULO\n{title}\n\nDESCRIPCIÓN\n{description_text.strip()}\n\n'
             f'TAGS\n{", ".join(tags)}\n')
+    return text + (f'\nBEATSTARS\n{beatstars_url}\n' if beatstars_url else '')
 
 
 def render_beat(audio, mode, content, title, channel_folder, tools, thumbnail_source=None,
                 title_on_thumbnail=False, description_text='', tags=(), cancelled=lambda: False,
-                style=None, logo_path=None):
+                style=None, logo_path=None, beatstars_url=''):
     """Genera una carpeta ``<título>/`` con el video, la miniatura y el texto para subir a mano.
 
     ``style``: estilo del canal (``core.style``); sin estilo, como siempre (``title_on_thumbnail``
@@ -269,7 +271,7 @@ def render_beat(audio, mode, content, title, channel_folder, tools, thumbnail_so
     os.makedirs(folder)
     try:
         return _render_into(audio, mode, content, title, folder, base, seconds, tools, thumbnail_source,
-                            style, logo_path, description_text, tags, cancelled)
+                            style, logo_path, description_text, tags, cancelled, beatstars_url)
     except BaseException:
         shutil.rmtree(folder, ignore_errors=True)
         raise
@@ -332,7 +334,7 @@ def _video_args(content, audio, seconds, style, tools, tmp, title, logo_path, ca
 
 
 def _render_into(audio, mode, content, title, folder, base, seconds, tools, thumbnail_source,
-                 style, logo_path, description_text, tags, cancelled):
+                 style, logo_path, description_text, tags, cancelled, beatstars_url=''):
     video_out = os.path.join(folder, base + '.mp4')
     thumb_out = os.path.join(folder, base + ' - miniatura.jpg')
     text_out = os.path.join(folder, base + '.txt')
@@ -365,33 +367,36 @@ def _render_into(audio, mode, content, title, folder, base, seconds, tools, thum
             raise ManualError(f'No se pudo armar la miniatura con {os.path.basename(thumb_from)}.') from None
     os.replace(partial, video_out)
     with open(text_out, 'w', encoding='utf-8') as f:
-        f.write(upload_text(title, description_text, tags))
+        f.write(upload_text(title, description_text, tags, beatstars_url))
     return {'video': video_out, 'thumbnail': thumb_out, 'text': text_out, 'folder': folder,
             'title': title}
 
 
-def beat_values(profile, name, channel):
-    """Variables de plantilla para un beat: name, artist, bpm, key, mood y channel."""
-    return dict(bt.parse(name, profile.get('artistas', ())), channel=channel)
+def beat_values(profile, name, channel, metadata=None):
+    """Datos del título original si hay metadata, más channel y beatstars_url."""
+    stem = metadata['title'] if metadata else name
+    return dict(bt.parse(stem, profile.get('artistas', ())), channel=channel,
+                beatstars_url=metadata['url'] if metadata else '')
 
 
-def beat_title(profile, name, channel):
+def beat_title(profile, name, channel, metadata=None):
     """Título del perfil para el beat, con tope de 100 caracteres (límite de YouTube)."""
-    values = beat_values(profile, name, channel)
+    values = beat_values(profile, name, channel, metadata)
     return cp.fit_title(bt.fill(profile['titulo'], values) or values['name'] or name)
 
 
-def beat_tags(profile, name, channel):
+def beat_tags(profile, name, channel, metadata=None):
     """Tags del perfil para el beat (lista, hasta 500 caracteres en total)."""
-    return cp.render_tags(profile, beat_values(profile, name, channel))
+    return cp.render_tags(profile, beat_values(profile, name, channel, metadata))
 
 
-def beat_text(profile, name, channel):
+def beat_text(profile, name, channel, metadata=None):
     """Descripción del perfil con las variables del beat (los tags van aparte, en su bloque)."""
-    values = beat_values(profile, name, channel)
+    values = beat_values(profile, name, channel, metadata)
     tags = ', '.join(cp.render_tags(profile, values))
     filled = bt.fill(profile['descripcion'], values, tidy='gaps')
-    return description.render(filled, values['name'], tags=tags, socials=profile['socials'],
+    return description.render(filled, values['name'], beatstars_url=values['beatstars_url'],
+                              tags=tags, socials=profile['socials'],
                               hashtags=profile['hashtags']).strip()
 
 
@@ -464,12 +469,15 @@ def run_batch(beats, channel, local_root, output_root, profile=None,
             progress(index, len(beats), f'Preparando el video stock {os.path.basename(content)} '
                                         '(solo la primera vez, puede tardar un minuto)…')
         try:
-            title = cp.fit_title(titles[audio]) if titles.get(audio, '').strip() else beat_title(profile, name, channel)
+            metadata = read_metadata(audio, verify=True)
+            name = beat_name(audio, metadata)
+            title = cp.fit_title(titles[audio]) if titles.get(audio, '').strip() else beat_title(profile, name, channel, metadata)
             result = render_beat(audio, mode, content, title, out_folder, tools, thumbs.next(),
-                                 profile['miniatura_con_titulo'], beat_text(profile, name, channel),
-                                 beat_tags(profile, name, channel), cancelled, style=style, logo_path=logo_path)
-        except (ManualError, OSError) as exc:
-            message = str(exc) if isinstance(exc, ManualError) else 'No se pudieron guardar los archivos del video.'
+                                 profile['miniatura_con_titulo'], beat_text(profile, name, channel, metadata),
+                                 beat_tags(profile, name, channel, metadata), cancelled, style=style, logo_path=logo_path,
+                                 beatstars_url=metadata['url'] if metadata else '')
+        except (ManualError, MetadataError, OSError) as exc:
+            message = str(exc) if isinstance(exc, (ManualError, MetadataError)) else 'No se pudieron guardar los archivos del video.'
             errors.append((name, message))
             on_error(audio, message)
             continue

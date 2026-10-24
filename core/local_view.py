@@ -368,7 +368,11 @@ class LocalView(QWidget):
 
     def auto_title(self, path):
         name = mr.beat_name(path)
-        return mr.beat_title(self.profile, name, self.channel()) if self.profile else name
+        try:
+            metadata = mr.read_metadata(path)
+        except mr.MetadataError:
+            metadata = None  # The render worker reports the invalid package per beat.
+        return mr.beat_title(self.profile, name, self.channel(), metadata) if self.profile else name
 
     def titles(self):
         return [self.title_overrides.get(p) or self.auto_title(p) for p in self.beats]
