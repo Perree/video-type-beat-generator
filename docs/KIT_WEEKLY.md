@@ -12,6 +12,24 @@ propuesta como `publishAt`; si YouTube la rechaza queda `private_pending` y el s
 estado, así una segunda corrida de la misma semana no duplica. Al final manda por Telegram un resumen con los links a
 YouTube Studio (o una alerta con el paso que falló) y libera el lock en un `finally`.
 
+### Calendario de YouTube
+
+Misma regla que Type Beats: antes de elegir fechas, la corrida **real** lee el canal de YouTube
+destino (token `KIT_YT_TOKEN_JSON` del Environment). Un día en Buenos Aires está ocupado si hay un
+video publicado (público o no listado) o programado (privado con `publishAt`); un privado sin
+`publishAt` no ocupa. Si un slot de cron cae en un día ocupado —por ejemplo un video programado a
+mano en Studio— se salta al siguiente día libre del cron; un día libre **anterior** a otro día ya
+ocupado sigue valiendo.
+
+Por semana se publican hasta **tres** videos en los próximos slots libres (el tope habitual de
+horarios por corrida). El estado en Dropbox (`scheduled_packs`, corridas con el mismo `publish_at`)
+sigue evitando duplicar una fecha que el robot ya guardó; **no** es una copia del calendario de
+YouTube ni hay que migrarlo ni ampliarlo para esta regla. No se cancelan corridas por colisión con
+Studio: solo se elige otro día.
+
+Si la lectura del calendario falla, esa corrida no sube nada, no reescribe el estado por ese motivo
+y llega la alerta de Telegram que ya usa el worker. `--dry-run` no llama a YouTube.
+
 Qué kits salen y cómo se arma cada video lo decide `core/kit_week.py`:
 
 - Los kits salen de las categorías de `kit_preview.scan_folders` dentro de `kit_preview.dropbox_root` (obligatorio);

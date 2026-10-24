@@ -34,6 +34,41 @@ Los jobs vencidos generan un contador de alerta y no se suben con fechas pasadas
 Para Actions, usar imágenes/videos/miniaturas en Dropbox: las rutas locales del
 equipo no existen en el runner.
 
+## Calendario de YouTube
+
+Antes de planificar y antes de cada upload, el worker lee el calendario del canal
+de YouTube al que va a subir (mismo token OAuth de la corrida). Es una regla de
+calendario compartida con Loopkits y con cualquier automatización futura que elija
+su propia fecha: no depende del tipo de contenido. No aplica al flujo de escritorio
+donde una persona ya eligió la fecha y la hora; esos videos, una vez en YouTube,
+ocupan el día y la siguiente corrida automática los ve.
+
+Un día de calendario en `America/Argentina/Buenos_Aires` queda ocupado si en ese
+día hay un video **publicado** (público o no listado) o **programado** (privado con
+`status.publishAt`). Un privado sin `publishAt` (borrador o piloto) no ocupa nada.
+La ocupación es por **fecha**, no por la hora del slot del canal: dos videos el
+mismo día cuentan como un solo día tomado.
+
+Si el cron cae en un día ocupado, el planner salta al siguiente slot libre dentro
+del buffer de 14 días. Un día libre **antes** de otro día ya ocupado sigue siendo
+usable. Ejemplo: slots lun y jue a las 18:00. Un video programado a mano en Studio
+el lunes 26 oct a las 15:00 bloquea todo el lunes 26 oct; el worker no usa el slot
+del lunes 18:00 y planifica el jueves 29 oct a las 18:00. Un video solo el jueves
+5 nov no impide usar el lunes 2 nov si ese día sigue libre en YouTube.
+
+Si un job `planned` o `failed` quedó en un día que después se ocupó (en YouTube o
+por otro job en estado), la corrida lo cancela con el status `cancelled` existente:
+el instante del slot sigue reservado en el ciclo y el track vuelve al pool. Los jobs
+`uploaded` o ya `cancelled` no se tocan. No hay campos nuevos en
+`/type-beats/state.json` ni migración: `schema_version` sigue en `1`; la ocupación
+no se persiste, se lee en vivo.
+
+Si la lectura del calendario falla (API, red o canal vacío), esa corrida no planifica
+cambios por calendario al inicio, no sube nada y deja los jobs como estaban; Telegram
+incluye el contador `calendar_unavailable`. Un fallo justo antes de un insert concreto
+cancela ese job sin reservar intento y sigue con los demás elegibles. Los dry-run no
+llaman a YouTube: el conjunto de días ocupados queda vacío como antes.
+
 ## Presupuesto e idempotencia
 
 El presupuesto es compartido por **todos** los canales en el mismo archivo CAS:

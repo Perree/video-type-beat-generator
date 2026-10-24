@@ -65,7 +65,23 @@ python scripts/run_kit_preview.py --channel MiCanalKits
 
 `--dry-run` imprime pack, loops elegidos e imagen; **no** renderiza video ni sube a YouTube.
 
-Si ya existe una corrida en estado `scheduled` o `uploaded` con el mismo `publish_at` del próximo slot, el script termina con código 0 sin elegir otro pack (útil si el Programador dispara dos veces).
+### Calendario de YouTube
+
+En corridas reales, antes de fijar la fecha el script lee el calendario del canal de YouTube (misma
+regla que el worker semanal y Type Beats): ocupan un día de Buenos Aires los videos publicados
+(público o no listado) y los programados (privado con `publishAt`); un privado sin `publishAt` no
+ocupa. Si el próximo slot de cron cae en un día ya tomado —por un video en Studio— avanza al
+siguiente día libre del cron dentro del horizonte habitual; un día libre antes de otro ocupado sigue
+disponible.
+
+El estado del canal en Dropbox **no** guarda el calendario de YouTube: solo deduplica por
+`publish_at` exacto. Si ya existe una corrida en estado `scheduled` o `uploaded` con el mismo
+`publish_at` del slot que se iba a usar, el script termina con código 0 sin elegir otro pack (útil si
+el Programador dispara dos veces). Eso es distinto de un día ocupado solo en YouTube: ahí se prueba
+el siguiente slot libre, no se sale en silencio.
+
+Si la lectura del calendario falla, no se sube nada en esa corrida y llega la alerta de Telegram
+habitual; el estado no se reescribe por ese fallo. `--dry-run` no consulta YouTube.
 
 ## Programador de tareas (Windows)
 

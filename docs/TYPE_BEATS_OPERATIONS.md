@@ -117,6 +117,10 @@ intentos, descarga audios/imágenes, renderiza, crea journals, sube a YouTube ni
 envía Telegram. El estado propuesto vive en memoria y SQLite temporal. Requiere
 estado remoto existente para no simular sobre una cuota perdida.
 
+**Premieres o programaciones en Studio:** no editar `state.json` para reflejarlas;
+el worker las toma del calendario de YouTube en corridas reales (véase
+[Calendario de YouTube](TYPE_BEATS_DAILY.md#calendario-de-youtube)).
+
 En Actions: Run workflow, `dry_run=true`. Revisar summary y exit code; `failed`,
 `orphan`, `unknown` o `expired` hacen fallar el job. `blocked` y `budget` son
 contadores de atención, no habilitaciones para borrar historial. Inspeccionar

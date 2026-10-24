@@ -12,7 +12,8 @@ import os
 import random
 import sys
 import tempfile
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -25,11 +26,38 @@ from core.kit_render import render as kit_render
 from core.kit_select import KitSelectError, choose
 from core.kit_trim import trim_to_wav
 from core.publish_at import local_to_youtube_publish_at
+from core.publish_calendar import next_free_slots, occupied_days, slot_day
 from core import channel_kind
 from core.sections import SECTION_LOOP_KITS
 
 CONFIG_FILE = os.path.join('config', 'app_config.json')
 DEFAULT_OUTPUT = os.path.join('exported_videos', 'loop_kits')
+# Recorrido máximo para buscar un día libre: con un cron semanal, 4 semanas sobran.
+HORIZON_DAYS = 28
+# Pasado este tiempo desde la lectura, se relee el calendario antes de videos.insert.
+CALENDAR_MAX_AGE_S = 20 * 60
+
+
+def free_slot(slot, when, slots, calendar_fn, channel, tz=None):
+    """Slot del preview salteando los días ocupados en YouTube.
+
+    Parámetros: slot (``next_slot(when, slots)``); when (hora de la corrida, naive en ``tz``
+    o con zona); slots (cron del canal); calendar_fn (callable(channel) -> filas de
+    ``youtube.list_channel_calendar``); channel (canal que sube, con su token); tz (zona de
+    los datetimes naive; None = la del sistema, la misma que usa publishAt).
+    Devuelve el mismo ``slot`` si su día está libre, el próximo día libre del cron dentro de
+    HORIZON_DAYS, o None si no hay ninguno. Un error de lectura se propaga: sin calendario
+    no se sube nada.
+    """
+    zone = tz or datetime.now().astimezone().tzinfo
+    aware = when if when.tzinfo is not None else when.replace(tzinfo=zone)
+    # Una lectura alcanza: el preview elige y sube en la misma corrida, sin búfer de días
+    # (run_preview relee solo si el render tardó más de CALENDAR_MAX_AGE_S).
+    days = occupied_days(calendar_fn(channel), aware)
+    if slot_day(slot, zone) not in days:
+        return slot
+    found = next_free_slots(slots, when, days, 1, HORIZON_DAYS, tz=zone)
+    return found[0] if found else None
 
 
 def load_app_config(path: Optional[str] = None) -> dict:
@@ -111,6 +139,7 @@ def run_preview(
     llm_call: Optional[Callable[[str, str], str]] = None,
     art_client: Optional[Callable[..., bytes]] = None,
     art_notify: Optional[Callable[[str], Any]] = None,
+    calendar_fn: Optional[Callable[[str], List[dict]]] = None,
 ) -> Dict[str, Any]:
     """Ejecuta la corrida o dry-run. Parámetros inyectables para smokes.
 
@@ -119,6 +148,8 @@ def run_preview(
 
     ``store`` (default ``kit_store``) es el módulo de estado; ``kit_state`` va con el worker.
     ``tz`` se usa para armar publishAt; ``exclude_paths`` saca packs de la elección.
+    ``calendar_fn(channel)`` lee el calendario de YouTube del canal; si el día de
+    ``next_slot`` está ocupado se pasa al próximo día libre del cron. En dry-run no se usa.
     """
     store = store or kit_store
     when = now or datetime.now()
@@ -127,13 +158,27 @@ def run_preview(
     slot = next_slot(when, slots)
     publish_iso = local_to_youtube_publish_at(True, slot, tz=tz)
 
+    def already(iso, at):
+        return {'skipped': True, 'reason': 'already_scheduled', 'publish_at': iso, 'slot': at}
+
+    # Primero el estado del kit: si este mismo preview ya está programado, su propio video
+    # ocupa el día en YouTube y no hay que avanzar a otro.
     if store.has_scheduled_run(publish_iso, db_path=db_path):
-        return {
-            'skipped': True,
-            'reason': 'already_scheduled',
-            'publish_at': publish_iso,
-            'slot': slot,
-        }
+        return already(publish_iso, slot)
+    first_slot = slot
+    read_at = time.monotonic()
+    if calendar_fn is not None and not dry_run:
+        try:
+            slot = free_slot(slot, when, slots, calendar_fn, channel, tz)
+        except Exception as exc:
+            raise SystemExit(f"No se pudo leer el calendario de YouTube ({type(exc).__name__}); "
+                             "no se subió nada.") from None
+        if slot is None:
+            return {'skipped': True, 'reason': 'calendar_full', 'publish_at': None,
+                    'slot': first_slot}
+        publish_iso = local_to_youtube_publish_at(True, slot, tz=tz)
+        if slot != first_slot and store.has_scheduled_run(publish_iso, db_path=db_path):
+            return already(publish_iso, slot)
 
     list_packs = list_packs_fn or kit_source.list_packs
     packs = list_packs(
@@ -237,6 +282,16 @@ def run_preview(
             frame_local, thumbnail = (cover_fn or kit_cover.for_video)(
                 kit_cfg.get('cover'), background_local, display_name, tmp)
         render_impl(frame_local, wavs, video_out)
+        if calendar_fn is not None and time.monotonic() - read_at >= CALENDAR_MAX_AGE_S:
+            # Render largo: el día pudo ocuparse a mano mientras tanto. Se relee antes del insert.
+            try:
+                still_free = free_slot(slot, when, slots, calendar_fn, channel, tz) == slot
+            except Exception as exc:
+                raise SystemExit(f"No se pudo releer el calendario de YouTube "
+                                 f"({type(exc).__name__}); no se subió nada.") from None
+            if not still_free:
+                raise SystemExit("El día elegido se ocupó en YouTube durante el render; "
+                                 "no se subió nada.")
         loops_meta = [{'name': a['name'], 'path': a['path']} for a in audio_files]
         pub = publish_impl(
             channel,
@@ -248,7 +303,9 @@ def run_preview(
             pack_id=pack_id,
             audio_mode=audio_mode,
             db_path=db_path,
-            now=when,
+            # publish_preview recalcula next_slot(now): un minuto antes del slot elegido
+            # devuelve ese mismo slot aunque se haya salteado un día ocupado.
+            now=when if slot == first_slot else slot - timedelta(minutes=1),
             image_path=(image.get('path') if image else None) or image_local,
             loops_json=loops_meta,
             **({'video_name': video_name, 'tracking_id': tracking_id} if tracking_id else {}),
@@ -272,12 +329,17 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     app_config = load_app_config(args.config)
     channel, templates = resolve_channel(app_config, args.channel)
+    calendar_fn = None
+    if not args.dry_run:
+        from core import youtube
+        calendar_fn = youtube.list_channel_calendar
     run_preview(
         app_config=app_config,
         channel=channel,
         channel_templates=templates,
         dry_run=args.dry_run,
         seed=args.seed,
+        calendar_fn=calendar_fn,
     )
     return 0
 

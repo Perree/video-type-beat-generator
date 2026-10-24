@@ -71,7 +71,9 @@ def main(argv=None):
                     args.receipts, dry_run=args.dry_run, report_loader=loader,
                     notify=notifier, thumbnailer=client.thumbnail, seed=args.seed,
                     private_pilot=args.private_pilot, expected_owner=expected_owner,
-                    share_links=ShareLinks())
+                    share_links=ShareLinks(),
+                    # El token solo existe fuera del dry-run; el dry-run no lee YouTube.
+                    calendar=None if args.dry_run else client.calendar)
         except Exception:
             # Bootstrap failures are also a sanitized alert when Telegram exists.
             if notifier is not None:
@@ -80,4 +82,5 @@ def main(argv=None):
                 except Exception:
                     pass
     print(json.dumps(summary, sort_keys=True))
-    return 1 if any(summary.get(k, 0) for k in ('failed', 'orphan', 'unknown', 'expired')) else 0
+    return 1 if any(summary.get(k, 0) for k in ('failed', 'orphan', 'unknown', 'expired',
+                                                  'calendar_unavailable')) else 0

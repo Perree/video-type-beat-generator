@@ -19,6 +19,18 @@ from core.beat_visual import options
 from core.beat_guard import ChannelPaused, PublicationExpired
 from core.beat_selection import (eligible_tracks, selection_tags, ensure_selection,
                                  selection_fence, SelectionChanged, TrackNotMatching)
+from core.publish_calendar import occupied_days
+
+
+def calendar_days(calendar, channel_id, clock):
+    """Lee el calendario de YouTube del canal y devuelve los días ocupados.
+
+    Parámetros: calendar (callable(channel_id) -> filas de list_channel_calendar);
+    channel_id (canal de esta corrida; el token es el suyo); clock (reloj con zona).
+    Devuelve: set[datetime.date] de Buenos Aires. Cualquier error se propaga: el
+    llamador lo trata como calendario desconocido y no sube nada.
+    """
+    return occupied_days(calendar(channel_id), clock())
 
 
 def visual_genre(channel, track):
@@ -37,9 +49,19 @@ def visual_genre(channel, track):
 def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
               source=None, renderer=render_reserved, report_loader=None,
               notify=None, thumbnailer=None, seed=None, private_pilot=False,
-              expected_owner=None, share_links=None,
+              expected_owner=None, share_links=None, calendar=None,
               clock=lambda: datetime.now(timezone.utc)):
+    """Planifica el búfer del canal y sube los trabajos que tocan hoy.
+
+    ``calendar`` es el lector del calendario de YouTube de este canal
+    (callable(channel_id) -> filas de ``youtube.list_channel_calendar``). Sin él (dry-run
+    y pruebas viejas) no hay días ocupados y no se llama a YouTube. Si la lectura falla
+    se suma ``calendar_unavailable`` y la corrida no planifica, no cancela ni sube nada.
+    Devuelve el resumen de contadores (``COUNTERS``).
+    """
     summary = dict.fromkeys(COUNTERS, 0)
+    if dry_run:
+        calendar = None
     summary['dry_run'] = dry_run
     if private_pilot:
         summary['private_pilot'] = True
@@ -75,6 +97,14 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
             except Exception:
                 pass
         reports = {channel_id: payload}
+        taken = set()
+        if calendar is not None:
+            try:
+                taken = calendar_days(calendar, channel_id, clock)
+            except Exception:
+                # Calendario desconocido: un fallo de lectura nunca cancela trabajos.
+                summary['calendar_unavailable'] += 1
+                return summary
         # Each matrix runner owns only its channel's report/credentials. Let
         # other runners reserve their own buffers with their own metrics.
         planning_config = dict(config, channels=[channel])
@@ -91,8 +121,10 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
             owner = store.acquire(require_existing=True)
             try:
                 ensure_selection(selection_cloud, channel)
+                store.cancel_occupied(channel_id, taken, owner)
                 additions = store.fill_buffer(planning_config, tracks.values(), owner, seed=seed, reports=reports,
-                    before_commit=lambda: ensure_selection(selection_cloud, channel))
+                    before_commit=lambda: ensure_selection(selection_cloud, channel),
+                    occupied_days=taken)
             finally:
                 store.release(owner)
             state, _ = cloud.read('state')
@@ -126,6 +158,22 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
                 continue
             if instant(job['slot']) > now + timedelta(days=14):
                 continue
+            if calendar is not None and remaining > 0:
+                # Segunda lectura: el trabajo pudo quedar hasta 14 días en el búfer y alguien
+                # pudo agendar ese día a mano mientras tanto. Se relee antes de reservar el
+                # intento, así un día tomado no gasta cupo ni llega a videos.insert.
+                try:
+                    taken = calendar_days(calendar, channel_id, clock)
+                except Exception:
+                    summary['calendar_unavailable'] += 1
+                    break
+                day = instant(job['slot']).date()
+                if day in taken:
+                    try:
+                        BeatState(cloud, clock).cancel_occupied(channel_id, {day})
+                    except Exception:
+                        summary['failed'] += 1
+                    continue
             summary['eligible'] += 1
             if remaining <= 0:
                 summary['budget'] += 1

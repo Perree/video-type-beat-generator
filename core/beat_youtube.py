@@ -19,6 +19,10 @@ class BeatYouTube:
         if len(rows) != 1 or rows[0].get('id') != expected_id:
             raise ValueError('youtube_owner_mismatch')
 
+    def calendar(self, channel, max_videos=200):
+        """Videos del canal para el calendario (ver youtube.list_channel_calendar)."""
+        return youtube.list_channel_calendar(channel, self.tokens_dir, max_videos)
+
     def upload(self, **kwargs):
         from googleapiclient.http import MediaFileUpload
         from googleapiclient.errors import HttpError

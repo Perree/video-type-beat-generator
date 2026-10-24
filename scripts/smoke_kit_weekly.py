@@ -111,16 +111,53 @@ def _config(out_dir):
                             'pack_cooldown_days': 30}}
 
 
-def _run(dbx, tg, out_dir, dry_run=False, now=NOW, config=None, extra_hooks=None):
+def _run(dbx, tg, out_dir, dry_run=False, now=NOW, config=None, extra_hooks=None,
+         calendar_fn=None, channel='canal-smoke'):
     hooks = {'list_packs_fn': _packs, 'render_fn': _fake_render, 'cut_fn': _fake_cut,
              'end_fn': lambda path, **_k: 28.0, **(extra_hooks or {})}
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         code = run_kit_weekly.run_weekly(
-            app_config=config or _config(out_dir), channel='canal-smoke', channel_templates={},
+            app_config=config or _config(out_dir), channel=channel, channel_templates={},
             dbx=dbx, dry_run=dry_run, now=now, seed=1, notifier=tg, hooks=hooks,
-            output_dir=out_dir)
+            output_dir=out_dir, calendar_fn=calendar_fn)
     return code, buf.getvalue()
+
+
+def scheduled_row(publish_at):
+    """Fila de calendario de un video agendado (private con publishAt)."""
+    return {'youtube_id': 'manual', 'title': 'manual', 'privacy': 'private',
+            'published_at': '2026-10-01T10:00:00Z', 'publish_at': publish_at}
+
+
+def _check_calendar(out_dir):
+    """Día ocupado en YouTube: se saltea, no se duplica la semana y un fallo no sube nada."""
+    # Miércoles 7 ocupado a mano (15:00): los tres slots pasan a vie 9, lun 12 y mié 14.
+    manual = [scheduled_row('2026-10-07T18:00:00Z')]
+    expected = ['2026-10-09T21:00:00Z', '2026-10-12T21:00:00Z', '2026-10-14T21:00:00Z']
+    _reset()
+    dbx, tg = FakeDropbox(), FakeTelegram()
+    asked = []
+    code, _ = _run(dbx, tg, out_dir, calendar_fn=lambda ch: asked.append(ch) or manual)
+    if code != 0 or Counters.publish_ats != expected or asked != ['canal-smoke']:
+        return f"calendario: code={code} publishAt={Counters.publish_ats} canales={asked}"
+    # Segunda corrida: YouTube ya muestra los tres videos propios; no avanza ni sube más.
+    mine = manual + [scheduled_row(iso) for iso in expected]
+    code, _ = _run(dbx, FakeTelegram(), out_dir, calendar_fn=lambda ch: mine)
+    if code != 0 or Counters.uploads != 3:
+        return f"calendario: la segunda corrida subió de más ({Counters.uploads})"
+    # Lectura fallida: nada subido, alerta y sin escribir el estado del kit.
+    _reset()
+    dbx2, tg2 = FakeDropbox(), FakeTelegram()
+
+    def down(ch):
+        raise youtube.YouTubeError('SECRET calendario')
+    code, log = _run(dbx2, tg2, out_dir, calendar_fn=down)
+    if code != 1 or Counters.uploads or dbx2.uploads or 'SECRET' in log:
+        return f"calendario caído: code={code} subidas={Counters.uploads} escrituras={dbx2.uploads}"
+    if len(tg2.sent) != 1 or 'calendario' not in tg2.sent[0] or 'SECRET' in tg2.sent[0]:
+        return f"calendario caído: alerta incorrecta {tg2.sent}"
+    return None
 
 
 def _check_notify():
@@ -309,6 +346,10 @@ def main():
             return _fail("con lock ajeno no hubo alerta")
 
         err = _check_template(out_dir)
+        if err:
+            return _fail(err)
+
+        err = _check_calendar(out_dir)
         if err:
             return _fail(err)
 

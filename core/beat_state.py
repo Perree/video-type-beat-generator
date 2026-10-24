@@ -55,7 +55,13 @@ class BeatState:
                 state["lock"] = None
         self.cloud.update("state", mutate, require_existing=True)
 
-    def fill_buffer(self, config, tracks, owner, *, seed=None, reports=None, before_commit=None):
+    def fill_buffer(self, config, tracks, owner, *, seed=None, reports=None,
+                    before_commit=None, occupied_days=()):
+        """Persiste trabajos para los huecos libres del búfer.
+
+        Recibe configuración, pistas, dueño del lease y días ocupados opcionales.
+        Devuelve los trabajos agregados o recuperados por reintento.
+        """
         tracks = list(tracks)
         proposed = {}
         def mutate(state):
@@ -64,7 +70,8 @@ class BeatState:
             # response; never return unrelated jobs added by another planner.
             recovered = [state["jobs"][key] for key, job in proposed.items()
                          if state["jobs"].get(key) == job]
-            additions = plan(config, state, tracks, self.clock(), seed=seed, reports=reports)
+            additions = plan(config, state, tracks, self.clock(), seed=seed, reports=reports,
+                             occupied_days=occupied_days)
             proposed.update((job["id"], job) for job in additions)
             apply_plan(state, additions)
             return recovered + additions
@@ -72,6 +79,34 @@ class BeatState:
             if before_commit is not None:
                 before_commit()
             self._lease(source, owner)
+        return self.cloud.update("state", mutate, guard=guard)
+
+    def cancel_occupied(self, channel, days, owner=None):
+        """Cancela los trabajos de un canal cuyo día ya está ocupado en YouTube.
+
+        Parámetros: channel (id del canal; no toca otros canales); days (conjunto de
+        datetime.date de Buenos Aires); owner (lease del planificador; si viene, se exige).
+        Devuelve la lista de ids cancelados. Solo pasa a ``cancelled`` trabajos ``planned``
+        o ``failed`` sin intento reservado: uno con intento pudo haber llegado a YouTube
+        (resultado desconocido u huérfano) y ese mismo video es el que ocupa el día.
+        """
+        days = set(days)
+        cancelled = []
+        def mutate(state):
+            if owner is not None:
+                self._lease(state, owner)
+            cancelled.clear()
+            attempted = {entry["job_id"] for entries in state["attempts"].values()
+                         for entry in entries.values()}
+            for job in state["jobs"].values():
+                if (job["channel"] == channel and job["status"] in ("planned", "failed")
+                        and job["id"] not in attempted and instant(job["slot"]).date() in days):
+                    job["status"] = "cancelled"
+                    cancelled.append(job["id"])
+            return list(cancelled)
+        if not days:
+            return []
+        guard = (lambda source: self._lease(source, owner)) if owner is not None else None
         return self.cloud.update("state", mutate, guard=guard)
 
     def reserve_attempt(self, job_id, attempt_id, *, exclusive=False, before_commit=None):
@@ -118,9 +153,15 @@ class BeatState:
                 raise ValueError('upload_reservation_day_changed')
         return self.cloud.update("state", mutate, guard=guard if exclusive or before_commit else None)
 
-    def dry_run(self, config, tracks, now=None, *, seed=None, reports=None):
+    def dry_run(self, config, tracks, now=None, *, seed=None, reports=None, occupied_days=()):
+        """Simula la planificación sin persistir cambios.
+
+        Recibe configuración, pistas, fecha y días ocupados opcionales.
+        Devuelve el resumen de capacidad y los trabajos que se crearían.
+        """
         state, _ = self.cloud.read("state")
         now = instant(self.clock() if now is None else now)
         return {"as_of": now.isoformat(), "timezone": "America/Argentina/Buenos_Aires",
                 "buffer_days": 14, "upload_attempts_remaining": 6 - len(state["attempts"].get(now.date().isoformat(), {})),
-                "jobs": plan(config, state, tracks, now, seed=seed, reports=reports)}
+                "jobs": plan(config, state, tracks, now, seed=seed, reports=reports,
+                             occupied_days=occupied_days)}

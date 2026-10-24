@@ -23,7 +23,12 @@ def slots(channel, now):
     return sorted(set(result))
 
 
-def plan(config, state, tracks, now, *, seed=None, reports=None):
+def plan(config, state, tracks, now, *, seed=None, reports=None, occupied_days=()):
+    """Planifica trabajos futuros omitiendo fechas ocupadas.
+
+    Recibe configuración, estado, catálogo, fecha actual y opciones de selección.
+    Devuelve trabajos nuevos sin modificar los argumentos recibidos.
+    """
     if seed is not None and type(seed) not in (int, str):
         raise ValueError('invalid_selection_seed')
     config, state = migrate(config, "config"), migrate(state, "state")
@@ -36,8 +41,11 @@ def plan(config, state, tracks, now, *, seed=None, reports=None):
     pools = {ch['id']: eligible_tracks(ch, tracks) for ch in channels}
     catalog_ids = {cid: sorted({track['id'] for track in pool}) for cid, pool in pools.items()}
     occupied = {(j["channel"], instant(j["slot"])) for j in state["jobs"].values()}
+    occupied_days = set(occupied_days)
     queues = {ch["id"]: [s for s in slots(ch, now)
-                         if pools[ch['id']] and (ch["id"], s) not in occupied]
+                         if pools[ch['id']] and (ch["id"], s) not in occupied
+                         # Se compara la fecha porque cualquier hora ocupada bloquea todo el día local.
+                         and instant(s).date() not in occupied_days]
               for ch in channels}
     jobs = list(state["jobs"].values())
     attempted_ids = {entry['job_id'] for entries in state['attempts'].values()

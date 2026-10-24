@@ -22,6 +22,10 @@ class KitSkip(Exception):
     """Este kit no puede dar un video ahora; el worker prueba con el siguiente."""
 
 
+class SlotTaken(Exception):
+    """El día del slot se ocupó en YouTube antes de subir; el kit queda sin usar."""
+
+
 def load_catalog(app_config, dbx=None, path=None):
     """``kits.json`` de Dropbox ya validado, o None si todavía no existe.
 
@@ -165,6 +169,8 @@ def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_c
         state: estado leído al empezar la corrida (ciclo y tramos usados del kit).
         hooks: reemplazos para pruebas: ``end_fn``, ``cut_fn``, ``render_fn``,
             ``cover_fn``, ``llm_call``, ``art_client``, ``art_notify``, ``art_verify``.
+            ``before_insert(slot)`` corre justo antes de ``videos.insert`` (relectura del
+            calendario de YouTube) y puede levantar ``SlotTaken``.
         budget: ``kit_spend.Budget`` de la corrida (tope de gasto de las portadas con IA y
             del gancho de la descripción).
 
@@ -276,6 +282,8 @@ def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_c
         except Exception as exc:
             raise KitSkip(type(exc).__name__) from None
 
+        if hooks.get('before_insert'):
+            hooks['before_insert'](slot)
         pub = publish_preview(
             channel, video, thumbnail, display_name, slots_cfg, templates,
             pack_id=pack_id, audio_mode=plan['mode'], now=slot - timedelta(minutes=1),

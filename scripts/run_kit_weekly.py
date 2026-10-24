@@ -16,6 +16,7 @@ import os
 import random
 import sys
 import tempfile
+import time
 import warnings
 from datetime import datetime, timedelta, timezone
 
@@ -30,10 +31,15 @@ from core import (kit_art, kit_channel, kit_cloud, kit_notify, kit_settings, kit
                   kit_state, kit_trends)
 from core.kit_publish import DEFAULT_SLOTS, next_slot
 from core.publish_at import local_to_youtube_publish_at
+from core.publish_calendar import next_free_slots, occupied_days, slot_day
 
 CONFIG_DROPBOX_PATH = kit_settings.CONFIG_PATH
 TZ_NAME = 'America/Argentina/Buenos_Aires'
 SLOTS_PER_WEEK = 3
+# Recorrido máximo para buscar días libres: con un cron semanal, 4 semanas sobran.
+HORIZON_DAYS = 28
+# Pasado este tiempo desde la última lectura, se relee el calendario antes de videos.insert.
+CALENDAR_MAX_AGE_S = 20 * 60
 _PENDING_STATES = ('scheduled', 'uploaded', 'private_pending')
 
 
@@ -53,6 +59,29 @@ def upcoming_slots(now_local, slots, count=SLOTS_PER_WEEK):
         cur = next_slot(cur, slots)
         found.append(cur)
     return found
+
+
+def _iso_day(iso):
+    """Día de Buenos Aires de un publishAt guardado (``...Z``), o None si no se entiende."""
+    try:
+        return slot_day(datetime.fromisoformat(str(iso).replace('Z', '+00:00')))
+    except (TypeError, ValueError):
+        return None
+
+
+def free_slots(now_local, slots_cfg, count, youtube_days, taken, tz):
+    """Slots de la semana salteando los días ocupados en YouTube por otros videos.
+
+    Parámetros: now_local (naive, hora de ``tz``); slots_cfg (cron del canal); count (tope,
+    hasta SLOTS_PER_WEEK); youtube_days (días ocupados según ``occupied_days``); taken
+    (``scheduled_packs`` del estado del kit); tz (zona de los horarios).
+    Devuelve la lista de slots (naive). Los días de videos que este worker ya registró no
+    cuentan como ajenos: ese slot sigue saliendo y la deduplicación por iso lo omite, así
+    una segunda corrida de la semana no avanza a otros días ni sube de más.
+    """
+    own = {day for day in map(_iso_day, taken) if day is not None}
+    return next_free_slots(slots_cfg, now_local, set(youtube_days) - own, count,
+                           HORIZON_DAYS, tz=tz)
 
 
 def scheduled_packs(state):
@@ -140,12 +169,16 @@ def _with_warnings(text, warnings):
 
 def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, now=None,
                seed=None, notifier=kit_notify, output_dir=None, hooks=None, paths=None,
-               label=None):
+               label=None, calendar_fn=None):
     """Corre la semana y devuelve el código de salida (0 ok, 1 hubo un fallo).
 
-    ``hooks`` son reemplazos para pruebas: ``list_packs_fn`` y los de ``kit_week.make_video``.
+    ``hooks`` son reemplazos para pruebas: ``list_packs_fn``, ``monotonic`` y los de
+    ``kit_week.make_video``.
     ``paths`` (``kit_channel.paths``) son el estado y el catálogo del canal; sin él, los del
     canal por defecto. Con ``label`` cada aviso de Telegram empieza con el nombre del canal.
+    ``calendar_fn(channel)`` devuelve las filas de ``youtube.list_channel_calendar`` del canal
+    que sube esta corrida (con su propio token). Sin él, o en dry-run, no se lee YouTube y
+    no hay días ocupados. Si la lectura falla no se sube nada y se avisa por Telegram.
     Un kit que no da un video se saltea y se prueba con el siguiente; que no alcancen los
     kits para todos los horarios es un aviso, no un fallo.
     """
@@ -160,12 +193,40 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
     kit_cfg = app_config.get('kit_preview') or {}
     slots_cfg = kit_cfg.get('slots') or list(DEFAULT_SLOTS)
     # Un video por horario configurado, hasta SLOTS_PER_WEEK: con un solo horario sale uno.
-    slots = upcoming_slots(now_local, slots_cfg, min(len(slots_cfg), SLOTS_PER_WEEK))
-    proposed = [local_to_youtube_publish_at(True, slot, tz=tz) for slot in slots]
+    count = min(len(slots_cfg), SLOTS_PER_WEEK)
+    slots, proposed = [], []
     store = CloudStore(dbx, now_local, paths.state if own else None)
     # Tope de gasto de las portadas con IA: uno por corrida, contra el mes del canal.
     budget = kit_spend.Budget(kit_spend.settings(kit_cfg), store, now_local)
     rng = random.Random(seed)
+
+    if dry_run:
+        calendar_fn = None
+    monotonic = hooks.pop('monotonic', time.monotonic)
+    youtube_days = set()
+    if calendar_fn is not None:
+        # Una lectura al empezar alcanza: esta corrida elige y sube en el mismo proceso.
+        # Si un slot se sube mucho después (render largo), se relee antes de su insert.
+        try:
+            youtube_days = occupied_days(calendar_fn(channel), now_local.replace(tzinfo=tz))
+        except Exception as exc:
+            # Calendario desconocido: no se toma el lock ni se escribe nada en el estado.
+            _notify(notifier, kit_notify.alert(exc, step='calendario'))
+            print(f"Fallo en calendario ({kit_notify.error_kind(exc)}).")
+            return 1
+    read_at = monotonic()
+    # Días de los videos subidos en esta corrida: no bloquean otro horario del mismo día.
+    uploaded_days = set()
+
+    def before_insert(slot):
+        """Relee el calendario si la última lectura es vieja; levanta SlotTaken si el día se ocupó."""
+        nonlocal read_at
+        if calendar_fn is None or monotonic() - read_at < CALENDAR_MAX_AGE_S:
+            return
+        days = occupied_days(calendar_fn(channel), now_local.replace(tzinfo=tz))
+        read_at = monotonic()
+        if slot_day(slot, tz) in days - uploaded_days:
+            raise kit_week.SlotTaken()
 
     owner = None
     if not dry_run:
@@ -177,13 +238,18 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
             return 1
 
     videos, warnings, used, failure = [], [], set(), None
-    skipped = unfilled = 0
+    skipped = unfilled = collided = 0
     try:
         try:
             # kit_week trae numpy y Pillow: se importa acá para que un fallo también avise.
             from core import kit_week
             state = store.load()
             taken = scheduled_packs(state)
+            slots = free_slots(now_local, slots_cfg, count, youtube_days, taken, tz)
+            proposed = [local_to_youtube_publish_at(True, slot, tz=tz) for slot in slots]
+            if len(slots) < count:
+                warnings.append(f"Solo {len(slots)} de {count} horario(s) libres en YouTube en "
+                                f"los próximos {HORIZON_DAYS} días: el resto ya está ocupado.")
             # Los kits de los slots ya subidos esta semana no se vuelven a elegir.
             used.update(path for iso, path in taken.items() if iso in proposed and path)
             week = kit_week.open_week(
@@ -212,8 +278,13 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
             if iso in taken:
                 print(f"{step}: ya estaba programado, se omite.")
                 continue
+            if slot_day(slot, tz) in youtube_days:
+                # Día de un video propio con otro horario (cambió el cron): no se duplica.
+                collided += 1
+                print(f"{step}: el día ya tiene un video en YouTube, se omite.")
+                continue
             store.proposed = iso
-            done = False
+            done = slot_taken = False
             while queue and not done:
                 selection = queue.pop(0)
                 path = selection['pack']['dropbox_path']
@@ -228,11 +299,17 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
                             selection, week['entries'].get(path), kit_cfg=kit_cfg,
                             channel=channel, channel_templates=channel_templates,
                             slots_cfg=slots_cfg, slot=slot, now=now_local, state=state,
-                            store=store, rng=rng, dbx=dbx, tz=tz, hooks=hooks, budget=budget,
+                            store=store, rng=rng, dbx=dbx, tz=tz,
+                            hooks=dict(hooks, before_insert=before_insert), budget=budget,
                             output_dir=output_dir or tempfile.gettempdir())
                 except kit_week.KitSkip:
                     skipped += 1
                     continue
+                except kit_week.SlotTaken:
+                    # El kit no se subió: vuelve primero a la cola para el próximo horario.
+                    queue.insert(0, selection)
+                    slot_taken = True
+                    break
                 except (Exception, SystemExit) as exc:
                     failure = (exc, step)
                     if store.orphan:
@@ -240,6 +317,7 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
                                        'title': 'subido pero sin registrar en el estado'})
                     break
                 used.add(path)
+                uploaded_days.add(slot_day(slot, tz))
                 warnings += video['warnings']
                 if video.get('youtube_id'):
                     videos.append({'youtube_id': video['youtube_id'], 'slot': slot,
@@ -249,6 +327,9 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
                 break
             if done:
                 print(f"{step}: ok.")
+            elif slot_taken:
+                collided += 1
+                print(f"{step}: el día se ocupó en YouTube antes de subir, se omite.")
             else:
                 unfilled += 1
                 print(f"{step}: sin kit disponible.")
@@ -268,6 +349,9 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
     if unfilled:
         warnings.append(f"{unfilled} horario(s) quedaron sin video: no hay más kits disponibles "
                         "(el resto descansa o se usó hace poco).")
+    if collided:
+        warnings.append(f"{collided} horario(s) se omitieron: el día ya tenía un video en "
+                        "YouTube.")
     if failure is None and skipped and not videos and not dry_run:
         failure = ('ningún kit dio un video', 'previews')
 
@@ -351,16 +435,19 @@ def main(argv=None):
                 paths, channel,
                 kit_cloud.secret(kit_cloud.ENV_YT_CHANNEL) if kit_cloud.in_cloud() else None)
             label = channel
+            calendar_fn = None
             if not args.dry_run:
                 # Antes de gastar en portadas: ¿se puede entrar al canal? Es solo lectura
                 # (1 unidad de cuota) y, si falla, avisa sin haber generado nada.
                 from core import youtube
                 youtube.channel_title(channel)
+                # Mismo token del canal que sube (KIT_YT_TOKEN_JSON de este Environment).
+                calendar_fn = youtube.list_channel_calendar
             with tempfile.TemporaryDirectory(prefix='kit_weekly_') as out:
                 return run_weekly(app_config=app_config, channel=channel,
                                   channel_templates=templates, dbx=dbx,
                                   dry_run=args.dry_run, seed=args.seed, output_dir=out,
-                                  paths=paths, label=label)
+                                  paths=paths, label=label, calendar_fn=calendar_fn)
     except (Exception, SystemExit) as exc:
         # Sin traceback ni mensaje: el log de Actions es público. Los nombres de las
         # variables que faltan no son secretos.

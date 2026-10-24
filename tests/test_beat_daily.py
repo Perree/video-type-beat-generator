@@ -2,6 +2,7 @@
 import copy
 import io
 import json
+import sys
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -31,6 +32,9 @@ from core.beat_video import render_reserved
 from core.beat_worker import main as worker_main
 from core.beat_youtube import BeatYouTube
 from core.beat_publish import journal
+
+# Los fixtures compartidos viven en tests/; así corre también como tests.test_beat_daily.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_beat_sync import FakeTransport
 from test_beat_video import AssetsClient, HLS, Resolver, Processes
 
@@ -760,6 +764,172 @@ class DailyTests(unittest.TestCase):
         self.assertNotIn('SECRET', text)
         self.assertNotIn('private', text)
         self.assertIn('orphan: 1', text)
+
+
+MONDAY_TAKEN = [{'youtube_id': 'manual00001', 'title': 'manual', 'privacy': 'private',
+                 'published_at': '2026-10-01T10:00:00Z',
+                 # Lunes 12/10 15:00 en Buenos Aires: ocupa todo ese lunes.
+                 'publish_at': '2026-10-12T18:00:00Z'}]
+MONDAY = instant('2026-10-12T18:00:00-03:00').date()
+
+
+class CalendarTests(unittest.TestCase):
+    """Calendario de YouTube en el worker diario: lunes ocupado, slots lunes y jueves."""
+    renderer = DailyTests.renderer
+    upload = DailyTests.upload
+    run_worker = DailyTests.run_worker
+
+    def setUp(self):
+        DailyTests.setUp(self)
+        self.cloud.update('config', lambda config: config['channels'][0].update(
+            slots=[{'weekday': 0, 'hour': 18, 'minute': 0}, {'weekday': 3, 'hour': 18, 'minute': 0}]))
+        self.reads = []
+
+    def calendar(self, *answers):
+        """Lector falso: devuelve las respuestas en orden y repite la última."""
+        def read(channel):
+            self.reads.append(channel)
+            answer = answers[min(len(self.reads), len(answers)) - 1]
+            if isinstance(answer, Exception):
+                raise answer
+            return answer
+        return read
+
+    def preplan(self, channel='channel'):
+        state, rev = self.cloud.read('state')
+        config = self.cloud.read('config')[0]
+        config = dict(config, channels=[ch for ch in config['channels'] if ch['id'] == channel])
+        apply_plan(state, plan(config, state, [{'id': f'TK{n}'} for n in range(101, 115)], NOW))
+        self.cloud.write('state', state, rev)
+        return state
+
+    def days(self, status=None, channel='channel'):
+        state = self.cloud.read('state')[0]
+        return sorted(instant(job['slot']).date() for job in state['jobs'].values()
+                      if job['channel'] == channel and (status is None or job['status'] == status))
+
+    def test_taken_monday_moves_new_job_to_thursday(self):
+        summary = self.run_worker(calendar=self.calendar(MONDAY_TAKEN))
+        self.assertEqual(self.reads[0], 'channel')
+        self.assertNotIn(MONDAY, self.days())
+        self.assertEqual(self.days()[0].isoformat(), '2026-10-15')
+        self.assertEqual(summary['uploaded'], 3)
+        self.assertEqual(summary['calendar_unavailable'], 0)
+        self.assertTrue(all(instant(call['publish_at']).date() != MONDAY for call in self.calls))
+
+    def test_planned_monday_job_cancelled_without_reserving_attempt(self):
+        state = self.preplan()
+        monday = next(job['id'] for job in state['jobs'].values()
+                      if instant(job['slot']).date() == MONDAY)
+        reserved = []
+        original = BeatState.reserve_attempt
+        def reserve(store, job_id, *args, **kwargs):
+            reserved.append(job_id)
+            return original(store, job_id, *args, **kwargs)
+        with patch.object(BeatState, 'reserve_attempt', reserve):
+            summary = self.run_worker(calendar=self.calendar(MONDAY_TAKEN))
+        jobs = self.cloud.read('state')[0]['jobs']
+        self.assertEqual(jobs[monday]['status'], 'cancelled')
+        self.assertNotIn(monday, reserved)
+        self.assertEqual(summary['uploaded'], 3)
+        self.assertTrue(all(instant(call['publish_at']).date() != MONDAY for call in self.calls))
+
+    def test_loader_failure_keeps_jobs_and_uploads_nothing(self):
+        self.preplan()
+        before = self.cloud.read('state')
+        summary = self.run_worker(calendar=self.calendar(youtube.YouTubeError('SECRET')))
+        self.assertEqual(summary['calendar_unavailable'], 1)
+        self.assertEqual(summary['planned'], 0)
+        self.assertEqual(self.cloud.read('state'), before)
+        self.assertEqual(self.calls, [])
+        self.assertFalse(self.hls.calls)
+        self.assertEqual(self.notifications, [summary])
+        self.assertIn('calendar_unavailable: 1', message(summary))
+        self.assertNotIn('SECRET', message(summary))
+
+    def test_invalid_calendar_row_is_unavailable_too(self):
+        bad = [dict(MONDAY_TAKEN[0], publish_at='basura')]
+        summary = self.run_worker(calendar=self.calendar(bad))
+        self.assertEqual(summary['calendar_unavailable'], 1)
+        self.assertEqual(self.cloud.read('state')[0]['jobs'], {})
+        self.assertEqual(self.calls, [])
+
+    def test_second_read_blocks_upload_first_read_allowed(self):
+        summary = self.run_worker(calendar=self.calendar([], MONDAY_TAKEN))
+        state = self.cloud.read('state')[0]
+        monday = [job for job in state['jobs'].values() if instant(job['slot']).date() == MONDAY]
+        self.assertEqual([job['status'] for job in monday], ['cancelled'])
+        attempted = {e['job_id'] for day in state['attempts'].values() for e in day.values()}
+        self.assertNotIn(monday[0]['id'], attempted)
+        self.assertEqual(summary['uploaded'], 3)
+        self.assertEqual(summary['eligible'], 3)
+        self.assertTrue(all(instant(call['publish_at']).date() != MONDAY for call in self.calls))
+
+    def test_recheck_failure_stops_uploads(self):
+        summary = self.run_worker(calendar=self.calendar([], youtube.YouTubeError('down')))
+        self.assertEqual(summary['calendar_unavailable'], 1)
+        self.assertGreater(summary['planned'], 0)
+        self.assertEqual(self.calls, [])
+        self.assertEqual(self.cloud.read('state')[0]['attempts'], {})
+        self.assertTrue(all(job['status'] == 'planned'
+                            for job in self.cloud.read('state')[0]['jobs'].values()))
+
+    def test_uploaded_and_attempted_jobs_are_never_cancelled(self):
+        state = self.preplan()
+        ordered = sorted(state['jobs'].values(), key=lambda job: job['slot'])
+        uploaded, attempted = ordered[0], ordered[1]
+        self.assertEqual(instant(uploaded['slot']).date(), MONDAY)
+        self.cloud.update('state', lambda s: s['jobs'][uploaded['id']].update(
+            status='uploaded', youtube_id='video000099', uploaded_at=NOW.isoformat(),
+            publication_mode='scheduled'))
+        BeatState(self.cloud, lambda: NOW).reserve_attempt(attempted['id'], 'lost-response')
+        thursday = [dict(MONDAY_TAKEN[0], publish_at='2026-10-15T21:00:00Z')]
+        self.run_worker(calendar=self.calendar(MONDAY_TAKEN + thursday))
+        jobs = self.cloud.read('state')[0]['jobs']
+        self.assertEqual(jobs[uploaded['id']]['status'], 'uploaded')
+        # Un intento reservado pudo haber subido el video que ocupa ese jueves.
+        self.assertEqual(jobs[attempted['id']]['status'], 'planned')
+
+    def test_other_channel_jobs_untouched(self):
+        self.cloud.update('config', lambda config: config['channels'].append(
+            dict(config['channels'][0], id='second')))
+        self.preplan('second')
+        before = {k: v for k, v in self.cloud.read('state')[0]['jobs'].items()}
+        self.run_worker(calendar=self.calendar(MONDAY_TAKEN))
+        jobs = self.cloud.read('state')[0]['jobs']
+        self.assertTrue(all(jobs[key] == job for key, job in before.items()))
+        self.assertIn(MONDAY, self.days(channel='second'))
+        self.assertEqual(set(self.reads), {'channel'})
+
+    def test_dry_run_never_calls_loader(self):
+        summary = self.run_worker(dry_run=True, calendar=lambda channel: self.fail('YouTube read'))
+        self.assertGreater(summary['planned'], 0)
+        self.assertEqual(summary['calendar_unavailable'], 0)
+
+    def test_private_pilot_uses_free_day_without_publish_at(self):
+        calls = []
+        def uploader(**kwargs):
+            calls.append(kwargs)
+            return {'youtube_id': 'video000001', 'thumbnail_error': ''}
+        self.preplan()
+        summary = self.run_worker(uploader=uploader, private_pilot=True,
+                                  calendar=self.calendar(MONDAY_TAKEN))
+        self.assertEqual(summary['uploaded'], 1)
+        self.assertEqual(len(calls), 1)
+        self.assertIsNone(calls[0]['publish_at'])
+        state = self.cloud.read('state')[0]
+        job = next(job for job in state['jobs'].values() if job['status'] == 'uploaded')
+        self.assertNotEqual(instant(job['slot']).date(), MONDAY)
+
+    def test_cli_passes_calendar_only_outside_dry_run(self):
+        seen = []
+        with patch.dict('os.environ', {'BEAT_CHANNEL_ID': 'channel'}, clear=True), \
+             patch('core.beat_worker.DropboxTransport.from_env', return_value=self.memory), \
+             patch('core.beat_worker.DropboxAssets.from_env', return_value=DropboxAssets(self.assets_client)), \
+             patch('core.beat_worker.run_daily', side_effect=lambda *a, **kw: seen.append(kw) or {}), \
+             patch('sys.stdout', io.StringIO()):
+            worker_main(['--dry-run', '--receipts', str(self.receipts)])
+        self.assertIsNone(seen[0]['calendar'])
 
 
 class ActionsTests(unittest.TestCase):

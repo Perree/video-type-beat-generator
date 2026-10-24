@@ -270,6 +270,46 @@ def list_channel_videos(channel, tokens_dir=None, max_videos=2000):
     return videos
 
 
+def list_channel_calendar(channel, tokens_dir=None, max_videos=200):
+    """Videos del canal con los datos de calendario, para ``publish_calendar.occupied_days``.
+
+    Parámetros: channel (nombre del token); tokens_dir (carpeta de tokens); max_videos
+    (tope 200; se pagina toda la playlist hasta ese tope, sin cortar por orden).
+    Devuelve [{'youtube_id','title','privacy','published_at','publish_at'}].
+    Lanza YouTubeError ante HttpError, timeout o canal inexistente; nunca devuelve una
+    lista parcial.
+    """
+    from googleapiclient.errors import HttpError
+
+    cap = min(max(1, int(max_videos)), 200)
+    try:
+        yt = _service(_load_credentials(channel, tokens_dir))
+        playlist = _uploads_playlist_id(yt, channel)
+        ids = _playlist_video_ids(yt, playlist, cap)
+        rows = []
+        for i in range(0, len(ids), 50):
+            batch = ids[i:i + 50]
+            items = yt.videos().list(part='snippet,status', id=','.join(batch)).execute().get(
+                'items', [])
+            # Un video omitido podría ser uno agendado: mejor fallar que devolver una lista parcial
+            if {v['id'] for v in items} != set(batch):
+                raise YouTubeError(f"YouTube devolvió una página incompleta para '{channel}'.")
+            for v in items:
+                snippet, status = v.get('snippet') or {}, v.get('status') or {}
+                rows.append({'youtube_id': v['id'],
+                             'title': snippet.get('title', ''),
+                             'privacy': status.get('privacyStatus', ''),
+                             'published_at': snippet.get('publishedAt', ''),
+                             'publish_at': status.get('publishAt', '')})
+    except YouTubeError:
+        raise
+    except HttpError as e:
+        raise YouTubeError(f"Error de YouTube al leer el calendario de '{channel}': {e}") from e
+    except (TimeoutError, OSError) as e:  # socket.timeout y fallos de red
+        raise YouTubeError(f"No se pudo leer el calendario de '{channel}': {e}") from e
+    return rows
+
+
 def list_channel_video_stats(channel, tokens_dir=None, max_videos=30):
     """Título y views de los uploads más recientes del canal (tope 30).
 

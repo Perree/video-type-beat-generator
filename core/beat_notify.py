@@ -5,7 +5,8 @@ import urllib.request
 from core.beat_notion import NoRedirect
 
 COUNTERS = ('planned', 'eligible', 'uploaded', 'orphan', 'unknown', 'failed',
-            'blocked', 'budget', 'thumbnail_failed', 'expired', 'no_matching_tracks')
+            'blocked', 'budget', 'thumbnail_failed', 'expired', 'no_matching_tracks',
+            'calendar_unavailable')
 
 
 def message(summary):
