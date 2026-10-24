@@ -98,3 +98,5 @@ shorts_cache/
 
 # Preferencias locales de la pestaña Manual
 config/manual_mode.json
+config/manual_beatstars_history.json
+config/manual_beatstars_history.json.lock

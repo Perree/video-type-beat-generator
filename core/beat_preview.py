@@ -1,16 +1,18 @@
 """Resolve only the reserved public track; no temporary URLs in state/logs."""
 import re
 import time
-from core.beat_http import BeatError, PublicTransport
+from core.beat_http import BeatError, PublicTransport, check_cancelled
 from core.beat_queries import PROFILE_QUERY, PREVIEWS_QUERY
 from core.beat_source import profile_username
 
 
 class PreviewResolver:
-    def __init__(self, transport=None):
-        self.transport = transport or PublicTransport()
+    def __init__(self, transport=None, cancelled=lambda: False):
+        self.cancelled = cancelled
+        self.transport = transport or PublicTransport(cancelled=cancelled)
 
     def resolve(self, track, profile_url):
+        check_cancelled(self.cancelled)
         tid = track.get('id')
         ref = track.get('preview_ref', {})
         if (not isinstance(tid, str) or not re.fullmatch(r'TK[0-9]{1,20}', tid)
@@ -26,8 +28,10 @@ class PreviewResolver:
                     or profile['username'].casefold() != profile_username(profile_url).casefold()):
                 raise BeatError('profile_mismatch')
             for page in range(100):
+                check_cancelled(self.cancelled)
                 data = self.transport.query(PREVIEWS_QUERY, {
                     'memberId': member, 'page': page, 'size': 50}, deadline)['profileTracks']
+                check_cancelled(self.cancelled)
                 if (data['number'] != page or type(data['last']) is not bool
                         or not isinstance(data['content'], list) or len(data['content']) > 50):
                     raise BeatError('pagination_rejected')

@@ -17,6 +17,11 @@ class BeatError(Exception):
     """Only fixed codes: never include remote bodies, URLs or local paths."""
 
 
+def check_cancelled(cancelled):
+    if cancelled():
+        raise BeatError("cancelled")
+
+
 def check_url(value, hosts):
     try:
         p = urlsplit(value)
@@ -58,13 +63,15 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class PublicTransport:
-    def __init__(self, limits=None):
+    def __init__(self, limits=None, cancelled=lambda: False):
         self.limits = limits or Limits()
+        self.cancelled = cancelled
         # No environment proxies, cookie jar, authentication or automatic redirects.
         self._opener = urllib.request.build_opener(
             urllib.request.ProxyHandler({}), _NoRedirect())
 
     def query(self, query, variables, deadline):
+        check_cancelled(self.cancelled)
         if query not in (PROFILE_QUERY, TRACKS_QUERY, PREVIEWS_QUERY, SHARE_QUERY):
             raise BeatError("query_rejected")
         check_url(ENDPOINT, API_HOSTS)
@@ -86,6 +93,7 @@ class PublicTransport:
                     raise BeatError("response_limit")
                 data = bytearray()
                 while True:
+                    check_cancelled(self.cancelled)
                     if time.monotonic() >= deadline:
                         raise BeatError("scan_timeout")
                     chunk = r.read1(min(65536, self.limits.max_bytes + 1 - len(data)))
@@ -94,6 +102,7 @@ class PublicTransport:
                     data.extend(chunk)
                     if len(data) > self.limits.max_bytes:
                         raise BeatError("response_limit")
+            check_cancelled(self.cancelled)
             result = json.loads(data)
         except BeatError:
             raise

@@ -4,7 +4,7 @@ import re
 import time
 from dataclasses import dataclass, asdict
 
-from core.beat_http import BeatError, Limits, PROFILE_HOSTS, PublicTransport, check_url
+from core.beat_http import BeatError, Limits, PROFILE_HOSTS, PublicTransport, check_url, check_cancelled
 from core.beat_queries import PROFILE_QUERY, TRACKS_QUERY
 
 
@@ -84,9 +84,10 @@ def parse_track(raw, member_id):
 
 
 class BeatStarsSource:
-    def __init__(self, transport=None, limits=None):
+    def __init__(self, transport=None, limits=None, cancelled=lambda: False):
         self.limits = limits or Limits()
-        self.transport = transport or PublicTransport(self.limits)
+        self.cancelled = cancelled
+        self.transport = transport or PublicTransport(self.limits, cancelled)
 
     def scan(self, profile_url):
         username = profile_username(profile_url)
@@ -128,6 +129,7 @@ class BeatStarsSource:
             raise BeatError("remote_schema_error") from None
 
     def _query(self, query, variables, deadline):
+        check_cancelled(self.cancelled)
         if time.monotonic() >= deadline:
             raise BeatError("scan_timeout")
         try:
@@ -136,6 +138,7 @@ class BeatStarsSource:
             raise
         except Exception:
             raise BeatError("request_failed") from None
+        check_cancelled(self.cancelled)
         if time.monotonic() >= deadline:
             raise BeatError("scan_timeout")
         return data

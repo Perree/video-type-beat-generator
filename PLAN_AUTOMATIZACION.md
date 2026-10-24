@@ -931,3 +931,57 @@ carpetas listas para subir a mano (sin API de YouTube). Perfiles y fondos en `<D
   reales ni cambios de configuración/secretos remotos. `main.py` sin cambios.
 - Hallazgos, verificación y límites: `docs/APP_REVIEW_2026_10_23.md`.
   Commit y push solicitados por el usuario para el cierre de esta fase.
+
+## BeatStars en el modo manual local (2026-10-24)
+
+Objetivo: sumar beats propios por tags y cantidad a la creación manual, con
+historial global de esta instalación y enlace por video. Preview público;
+historial desde esta función, sin reconstruir descargas previas ni tocar los
+estados de automatización. Una fase por sesión. Migración SQL: no.
+
+### Fase 1 — Motor, historial y archivos asociados ✅ COMPLETADA
+
+- `core/manual_beatstars.py`: servicio sin Qt con búsqueda por tags exactos
+  (cualquiera/todos), selección de 1–100 IDs, exclusión por miembro/track y
+  repetición explícita; errores parciales y cancelación conservan éxitos previos.
+- `core/manual_beatstars_store.py`: JSON local versionado y atómico, bloqueo del
+  SO entre procesos y journal de publicación. Recupera paquetes completos sin
+  volver a descargarlos; revierte incompletos; conflictos/corrupción frenan la
+  operación sin reinicializar el historial ni borrar archivos modificados.
+- `core/manual_beatstars_media.py`: validación y M4A/AAC local; AAC compatible se
+  copia, otros codecs se convierten. FFmpeg solo recibe archivos locales y puede
+  cancelarse. Cada audio tiene `.beatstars.json` y `.beatstars.txt`, con ID estable
+  y URL pública; sin URLs HLS temporales. Publicación sin reemplazar archivos.
+- Hooks opcionales de cancelación en catálogo, resolver y HTTP/HLS, manteniendo
+  sus contratos predeterminados. Sin fallback a Dropbox, login ni dependencias
+  nuevas. `main.py`, UI y render manual sin cambios funcionales en esta fase.
+- 27 pruebas nuevas offline aprobadas, incluidas dos verificaciones reales con
+  audio sintético y FFmpeg: HLS/AAC → M4A sin recodificar y WAV → M4A/AAC.
+- Regresión conjunta: 378 pruebas ejecutadas, 376 aprobadas y dos omitidas,
+  sin fallos (BeatStars, motor nuevo, render manual, bulk y vista local).
+  GitHub/llavero aislados por prueba; TEMP/TMP dentro del workspace por permisos
+  del sandbox. Sin pytest instalado: runner unittest con dobles de credenciales.
+- Revisión local del diff: corregido fsync de archivos en Windows, fallos al
+  revertir paquetes detienen la tanda, colisiones no reemplazan archivos ajenos,
+  historial con versión inválida o demasiado grande falla explícitamente.
+  Bugbot local no disponible; revisión propia, sin afirmar revisión independiente.
+- Uso, API, recuperación y límites: `docs/MANUAL_BEATSTARS.md`. Prueba contra
+  BeatStars real pendiente de autorización; no se descargaron beats reales.
+
+### Fase 2 — Diálogo y conexión con la pantalla manual ⏳ PENDIENTE
+
+- Botón «Descargar desde BeatStars…» junto a las entradas actuales. Perfil y
+  filtros recordados, cantidad 1–100 (10 inicial), cualquiera/todos, tabla con
+  título/tags/enlace/estado y opción de incluir descargados.
+- Worker Qt con progreso, cancelación y cierre seguro; capturar canal/destino,
+  impedir cambios incompatibles y sumar únicamente paquetes completos a la
+  entrada/tabla. No iniciar generación automáticamente. Pruebas Qt offscreen.
+
+### Fase 3 — Enlaces por video y movimiento de tandas ⏳ PENDIENTE
+
+- Leer metadata del audio para preservar título original y URL aunque se edite
+  el título del video; habilitar `{beatstars_url}` y bloque BEATSTARS en TXT final.
+- Mover sidecars junto al audio a `hechos`, conservando asociaciones ante
+  colisiones. Audios sin metadata mantienen su comportamiento actual.
+- Render sintético corto y validación integral de reinicio, repetición y enlaces;
+  prueba live opcional autorizada. Actualizar documentación y cerrar con commit.
