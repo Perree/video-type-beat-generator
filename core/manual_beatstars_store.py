@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from core.beat_http import BeatError, PROFILE_HOSTS, check_url
+from core.beat_share import SHORT_LINK
 
 HISTORY_FILE = Path(__file__).resolve().parents[1] / 'config/manual_beatstars_history.json'
 SIDECAR = '.beatstars.json'
@@ -41,7 +42,21 @@ def validate_metadata(data):
             or not re.fullmatch(r'[a-f0-9]{64}', data['sha256'])
             or type(data['size']) is not int or not 0 < data['size'] <= 80 * 1024 * 1024):
         raise ValueError('invalid_metadata')
+    # Campos opcionales (los paquetes anteriores no los tienen): link corto, BPM y tono del beat.
+    short = data.get('short_url')
+    if short is not None and (type(short) is not str or not SHORT_LINK.fullmatch(short)):
+        raise ValueError('invalid_short_url')
+    for field in ('bpm', 'key'):
+        value = data.get(field)
+        if value is not None and (type(value) is not str or len(value) > 40
+                                  or any(ord(c) < 32 for c in value)):
+            raise ValueError('invalid_metadata')
     return data
+
+
+def link_text(metadata):
+    """Link que se entrega al usuario: el corto (bsta.rs) si existe; si no, la página del beat."""
+    return metadata.get('short_url') or metadata['url']
 
 
 def digest(path):
@@ -60,7 +75,7 @@ def package_files(audio, metadata):
     audio = Path(audio)
     return ((audio, metadata['sha256']),
             (Path(str(audio) + SIDECAR), hashlib.sha256(metadata_bytes(metadata)).hexdigest()),
-            (Path(str(audio) + LINK), hashlib.sha256((metadata['url'] + '\n').encode()).hexdigest()))
+            (Path(str(audio) + LINK), hashlib.sha256((link_text(metadata) + '\n').encode()).hexdigest()))
 
 
 def _complete_in_archive(audio, metadata):

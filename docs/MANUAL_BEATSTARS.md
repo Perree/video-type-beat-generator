@@ -26,10 +26,16 @@ Las pruebas automáticas siguen usando respuestas falsas y audio sintético.
 4. Tocar **Descargar seleccionados**. Al terminar, el resumen muestra éxitos,
    errores y omitidos. Los audios completos aparecen en la entrada y tabla del
    canal, sin iniciar videos. Cerrar el diálogo y continuar el flujo manual.
-5. Generar los videos con los fondos y el estilo habituales. Cada TXT incluye
-   un bloque **BEATSTARS** con el enlace del beat. La descripción también lo usa
-   si su plantilla contiene `{beatstars_url}`; las plantillas existentes no se
-   modifican. Editar el título de la tabla solo cambia el título del video.
+5. Generar los videos con los fondos y el estilo habituales. Todos los videos y
+   miniaturas de la tanda quedan juntos en `<salida>/<fecha>/<canal>/`, con un
+   único `info.txt` (o `info (2).txt`... si ya había uno de otra tanda). Cada
+   bloque del `info.txt` trae archivo, BPM, tono, link corto (`bsta.rs`, o la
+   página del beat si BeatStars no lo expone) y TÍTULO / DESCRIPCIÓN / TAGS para
+   pegar en YouTube. Los TAGS son las etiquetas del beat en BeatStars (hasta 500
+   caracteres); un audio sin metadata usa las del perfil. La descripción usa el
+   link corto si su plantilla contiene `{beatstars_url}`. Editar el título de la
+   tabla solo cambia el título del video. BPM y tono salen del título del beat
+   (`140bpm`, `key A Minor`); si no los trae quedan vacíos y no se analiza el audio.
 
 Al terminar una generación desde la entrada del canal, audio, `.beatstars.json`
 y `.beatstars.txt` pasan a `hechos` con el mismo nombre final. Si el nombre ya
@@ -107,8 +113,16 @@ Cada descarga publica, sin reemplazar archivos existentes:
 - `TK<ID> - <título>.m4a`: audio AAC. Si el preview ya usa AAC, se copia sin
   recodificar; en otro caso se convierte a AAC 192 kb/s.
 - `<audio>.beatstars.json`: versión 1, miembro, track, título, tags, URL pública,
-  fecha UTC, tamaño y SHA-256 del audio.
-- `<audio>.beatstars.txt`: URL pública y salto de línea.
+  fecha UTC, tamaño y SHA-256 del audio. Campos opcionales (ausentes en paquetes
+  anteriores, que siguen siendo válidos): `short_url` (`https://bsta.rs/...`),
+  `bpm` y `key`.
+- `<audio>.beatstars.txt`: el link corto si existe; si no, la URL pública, y salto
+  de línea. El hash de recuperación usa ese mismo texto.
+
+El link corto se consulta una sola vez por tanda (`core.beat_share.ShareLinks`) y
+nunca detiene la descarga: si falla, se guarda la URL de la página. El motor solo
+consulta links cortos con su catálogo real; al inyectar `source` sin `shares`
+(pruebas) no sale a la red.
 
 Se valida duración, tipo de stream y decodificación antes de publicar. El audio
 aparece al final, después de sus archivos asociados. Si hay colisión se elige un
@@ -122,12 +136,15 @@ incompleta o que no corresponda al audio se informa como error de ese beat; no
 se genera un video con un enlace ajeno y los demás beats siguen. Un TXT asociado
 sin su JSON indica un paquete incompleto. Un JSON válido basta para generar el
 enlace aunque falte el TXT asociado. Audios sin archivos asociados conservan su
-comportamiento anterior y su TXT no agrega el bloque BEATSTARS.
+comportamiento anterior; su bloque del `info.txt` no lleva link.
 
 Los helpers manuales aceptan metadata opcional en `beat_name`, `beat_values`,
 `beat_title`, `beat_tags` y `beat_text`. `render_beat` y `upload_text` aceptan
 `beatstars_url=''` al final de sus argumentos. Las llamadas anteriores siguen
-funcionando. La metadata no reemplaza los tags SEO configurados en el canal.
+funcionando. `render_beat(..., flat=True)` deja video y miniatura directo en la
+carpeta del canal y no escribe texto (lo usa la tanda); sin `flat` conserva la
+carpeta por título con su TXT (vista previa del editor de estilos). Con metadata,
+`beat_tags` devuelve las etiquetas del beat y el perfil solo se usa si no hay.
 
 El movimiento reserva un nombre libre para los tres componentes, mueve los
 archivos asociados antes del audio y revierte los pasos completados ante un

@@ -7,12 +7,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from core.beat_download import download_hls, duration
-from core.beat_http import BeatError, check_cancelled
+from core.beat_http import BeatError, PublicTransport, check_cancelled
 from core.beat_preview import PreviewResolver
+from core.beat_share import ShareLinks
 from core.beat_source import BeatStarsSource, Track
+from core.beat_title import parse as parse_title
 from core.manual_beatstars_media import ManualMediaTools
-from core.manual_beatstars_store import (HistoryError, HistoryStore, LINK, SIDECAR, digest,
-                                        identity, metadata_bytes, package_files, validate_metadata)
+from core.manual_beatstars_store import (HistoryError, HistoryStore, LINK, SIDECAR, digest, identity,
+                                        link_text, metadata_bytes, package_files, validate_metadata)
 
 
 @dataclass(frozen=True)
@@ -73,8 +75,13 @@ def _publish(source, target):
 
 class ManualBeatStars:
     def __init__(self, store=None, source=None, resolver=None, http=None, tools=None,
-                 cancelled=lambda: False):
+                 cancelled=lambda: False, shares=None):
         self.cancelled = cancelled
+        # Links cortos (bsta.rs): solo se consultan en producción. Si se inyecta un catálogo
+        # propio (pruebas) y no `shares`, no se sale a la red y queda la URL de la página.
+        if shares is None and source is None:
+            shares = ShareLinks(PublicTransport(cancelled=cancelled))
+        self.shares = shares
         self.store = store if store is not None else HistoryStore()
         self.source = source if source is not None else BeatStarsSource(cancelled=cancelled)
         self.resolver = resolver if resolver is not None else PreviewResolver(cancelled=cancelled)
@@ -161,15 +168,22 @@ class ManualBeatStars:
                     raise BeatError('duration_mismatch')
             self.tools.prepare(source, prepared, total)
             check_cancelled(self.cancelled)
-            metadata = validate_metadata({
+            info = parse_title(track.title)  # BPM y tono salen del título, no del audio
+            data = {
                 'version': 1, 'member_id': search.member_id, 'track_id': track.id,
                 'title': track.title, 'tags': list(track.tags), 'url': track.url,
+                'bpm': info['bpm'], 'key': info['key'],
                 'downloaded_at': datetime.now(timezone.utc).isoformat(),
                 'size': prepared.stat().st_size, 'sha256': digest(prepared),
-            })
+            }
+            short = self.shares.get(track.id, search.profile_url) if self.shares else None
+            if short:
+                data['short_url'] = short
+            check_cancelled(self.cancelled)
+            metadata = validate_metadata(data)
             sidecar, link = temp / 'metadata.part', temp / 'link.part'
             sidecar.write_bytes(metadata_bytes(metadata))
-            link.write_text(track.url + '\n', encoding='utf-8', newline='')
+            link.write_text(link_text(metadata) + '\n', encoding='utf-8', newline='')
             target = _target(destination, track)
             # Flush all payloads before recording the durable publication intent.
             for path in (prepared, sidecar, link):

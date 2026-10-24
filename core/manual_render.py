@@ -4,9 +4,10 @@
 El estilo de cada canal (fondo, título, descripción, tags, miniatura) y sus fondos viven en la
 carpeta local de canales (normalmente ``<Dropbox>/TypeBeat Local``); ver ``core.channel_profile``.
 
-Por cada beat deja ``<salida>/<fecha>/<canal>/<título>/`` con ``<título>.mp4``,
-``<título> - miniatura.jpg`` (1280x720) y ``<título>.txt`` (TÍTULO / DESCRIPCIÓN / TAGS y BEATSTARS si hay enlace),
-y suma una fila a ``<salida>/<fecha>/pendientes.csv``. Nada se sube a YouTube ni a Dropbox.
+Una tanda deja todos los videos juntos en ``<salida>/<fecha>/<canal>/``: ``<título>.mp4`` y
+``<título> - miniatura.jpg`` (1280x720) por beat, más un único ``info.txt`` con el bloque de cada video
+(BPM, tono, link y TÍTULO / DESCRIPCIÓN / TAGS para YouTube). Suma una fila por video a
+``<salida>/<fecha>/pendientes.csv``. Nada se sube a YouTube ni a Dropbox.
 """
 import csv
 import json
@@ -24,6 +25,7 @@ from core import beat_title as bt
 from core import channel_templates, description, dropbox_local, stock_cache
 from core import style as st
 from core.manual_beatstars_files import MetadataError, read_metadata
+from core.manual_beatstars_store import link_text
 from core.ffmpeg_util import get_available_video_codec, get_media_duration, resolve_tool
 
 AUDIO_SUFFIXES = ('.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg')
@@ -251,14 +253,29 @@ def upload_text(title, description_text, tags, beatstars_url=''):
     return text + (f'\nBEATSTARS\n{beatstars_url}\n' if beatstars_url else '')
 
 
+def unique_base(folder, base):
+    """``base`` o ``base (2)``... sin video ni miniatura previos en ``folder`` (modo plano)."""
+    def taken(name):
+        return any(os.path.lexists(os.path.join(folder, name + suffix))
+                   for suffix in ('.mp4', '.mp4.part', ' - miniatura.jpg'))
+    candidate, n = base, 2
+    while taken(candidate):
+        candidate, n = f'{base} ({n})', n + 1
+    return candidate
+
+
 def render_beat(audio, mode, content, title, channel_folder, tools, thumbnail_source=None,
                 title_on_thumbnail=False, description_text='', tags=(), cancelled=lambda: False,
-                style=None, logo_path=None, beatstars_url=''):
-    """Genera una carpeta ``<título>/`` con el video, la miniatura y el texto para subir a mano.
+                style=None, logo_path=None, beatstars_url='', flat=False):
+    """Genera el video y la miniatura de un beat; devuelve sus rutas.
+
+    Por defecto crea una carpeta ``<título>/`` con video, miniatura y el texto para subir a mano
+    (vista previa del editor de estilos). Con ``flat=True`` deja el video y la miniatura
+    directamente en ``channel_folder`` y no escribe texto: la tanda arma un único ``info.txt``.
 
     ``style``: estilo del canal (``core.style``); sin estilo, como siempre (``title_on_thumbnail``
     elige la franja en la miniatura). Los archivos llevan el título como nombre: YouTube Studio usa
-    el nombre del archivo como título inicial. Si algo falla, la carpeta del video se borra entera.
+    el nombre del archivo como título inicial. Si algo falla se borran solo los archivos de este video.
     """
     if style is None:
         style = st.from_profile({'miniatura_con_titulo': title_on_thumbnail})
@@ -266,14 +283,27 @@ def render_beat(audio, mode, content, title, channel_folder, tools, thumbnail_so
     if not seconds or seconds <= 0:
         raise ManualError(f'No se pudo leer la duración de {os.path.basename(audio)}.')
     os.makedirs(channel_folder, exist_ok=True)
-    base = unique_folder(channel_folder, safe_name(title))
-    folder = os.path.join(channel_folder, base)
-    os.makedirs(folder)
+    if flat:
+        base = unique_base(channel_folder, safe_name(title))
+        folder = channel_folder
+    else:
+        base = unique_folder(channel_folder, safe_name(title))
+        folder = os.path.join(channel_folder, base)
+        os.makedirs(folder)
     try:
         return _render_into(audio, mode, content, title, folder, base, seconds, tools, thumbnail_source,
-                            style, logo_path, description_text, tags, cancelled, beatstars_url)
+                            style, logo_path, description_text, tags, cancelled, beatstars_url,
+                            write_text=not flat)
     except BaseException:
-        shutil.rmtree(folder, ignore_errors=True)
+        if flat:
+            # Carpeta compartida: solo se limpian los archivos de este video, nunca los de otros.
+            for suffix in ('.mp4', '.mp4.part', ' - miniatura.jpg'):
+                try:
+                    os.remove(os.path.join(folder, base + suffix))
+                except OSError:
+                    pass
+        else:
+            shutil.rmtree(folder, ignore_errors=True)
         raise
 
 
@@ -292,9 +322,15 @@ def _image_args(frame, audio, seconds, style, tools):
         step = 0.15 / frames  # llega a 1.15 al final, lento y parejo
         chain = (f"zoompan=z='min(1+on*{step:.8f},1.15)':d={frames}:x='iw/2-(iw/zoom/2)':"
                  f"y='ih/2-(ih/zoom/2)':s=1920x1080:fps=30")
+        inputs = ['-y', '-i', frame, '-i', audio]
+        if v['encuadre'] == 'barras':
+            # El zoom agranda también las barras: se vuelven a tapar con una capa para que midan siempre lo mismo.
+            inputs += ['-loop', '1', '-framerate', '30', '-i', os.path.join(os.path.dirname(frame), 'barras.png')]
+            st.bars_layer(v).save(inputs[-1], 'PNG')
+            chain += '[z];[z][2:v]overlay=0:0:shortest=1'
         if v['fundido']:
             chain += ',' + _fades(seconds)
-        args = ['-y', '-i', frame, '-i', audio, '-filter_complex', f'[0:v]{chain},format=yuv420p[v]',
+        args = [*inputs, '-filter_complex', f'[0:v]{chain},format=yuv420p[v]',
                 '-map', '[v]', '-map', '1:a:0', *tools.encode_args()]
     else:
         args = ['-y', '-loop', '1', '-framerate', str(STILL_FPS), '-i', frame, '-i', audio,
@@ -310,7 +346,7 @@ def _image_args(frame, audio, seconds, style, tools):
 def _video_args(content, audio, seconds, style, tools, tmp, title, logo_path, cancelled):
     """Video stock: copia rápida si no hay nada encima; si hay, se procesa con la capa del estilo."""
     v = style['video']
-    framing = v['encuadre']
+    framing = st.framing_key(v)
     cached = tools.cached_stock(content, cancelled, framing)
     if not st.video_overlays(style):
         if cached:
@@ -318,11 +354,11 @@ def _video_args(content, audio, seconds, style, tools, tmp, title, logo_path, ca
             return ['-y', '-stream_loop', '-1', '-i', cached, '-i', audio, '-map', '0:v:0', '-map', '1:a:0',
                     '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart'], cached
         return ['-y', '-stream_loop', '-1', '-i', content, '-i', audio, '-map', '0:v:0', '-map', '1:a:0',
-                '-vf', stock_cache.FILTERS[framing], *tools.encode_args()], None
+                '-vf', stock_cache.video_filter(framing), *tools.encode_args()], None
     layer = os.path.join(tmp, 'capa.png')
     st.overlay_layer(style, title, logo_path).save(layer, 'PNG')
     source = cached or content
-    base = '[0:v]' if cached else f'[0:v]{stock_cache.FILTERS[framing]}[b];[b]'
+    base = '[0:v]' if cached else f'[0:v]{stock_cache.video_filter(framing)}[b];[b]'
     chain = f'{base}[2:v]overlay=0:0,format=yuv420p'
     if v['fundido']:
         chain += ',' + _fades(seconds)
@@ -334,7 +370,7 @@ def _video_args(content, audio, seconds, style, tools, tmp, title, logo_path, ca
 
 
 def _render_into(audio, mode, content, title, folder, base, seconds, tools, thumbnail_source,
-                 style, logo_path, description_text, tags, cancelled, beatstars_url=''):
+                 style, logo_path, description_text, tags, cancelled, beatstars_url='', write_text=True):
     video_out = os.path.join(folder, base + '.mp4')
     thumb_out = os.path.join(folder, base + ' - miniatura.jpg')
     text_out = os.path.join(folder, base + '.txt')
@@ -366,17 +402,23 @@ def _render_into(audio, mode, content, title, folder, base, seconds, tools, thum
         except (OSError, ValueError):
             raise ManualError(f'No se pudo armar la miniatura con {os.path.basename(thumb_from)}.') from None
     os.replace(partial, video_out)
-    with open(text_out, 'w', encoding='utf-8') as f:
-        f.write(upload_text(title, description_text, tags, beatstars_url))
-    return {'video': video_out, 'thumbnail': thumb_out, 'text': text_out, 'folder': folder,
-            'title': title}
+    if write_text:
+        with open(text_out, 'w', encoding='utf-8') as f:
+            f.write(upload_text(title, description_text, tags, beatstars_url))
+    return {'video': video_out, 'thumbnail': thumb_out, 'text': text_out if write_text else None,
+            'folder': folder, 'title': title}
 
 
 def beat_values(profile, name, channel, metadata=None):
     """Datos del título original si hay metadata, más channel y beatstars_url."""
     stem = metadata['title'] if metadata else name
-    return dict(bt.parse(stem, profile.get('artistas', ())), channel=channel,
-                beatstars_url=metadata['url'] if metadata else '')
+    values = dict(bt.parse(stem, profile.get('artistas', ())), channel=channel,
+                  beatstars_url=link_text(metadata) if metadata else '')
+    if metadata:
+        # BPM y tono guardados al descargar; si el título no los traía, queda lo del nombre.
+        values['bpm'] = metadata.get('bpm') or values['bpm']
+        values['key'] = metadata.get('key') or values['key']
+    return values
 
 
 def beat_title(profile, name, channel, metadata=None):
@@ -386,14 +428,30 @@ def beat_title(profile, name, channel, metadata=None):
 
 
 def beat_tags(profile, name, channel, metadata=None):
-    """Tags del perfil para el beat (lista, hasta 500 caracteres en total)."""
+    """Tags para YouTube (lista, hasta 500 caracteres en total).
+
+    Un beat de BeatStars usa sus propias etiquetas; si no tiene, o el audio es local, las del perfil.
+    """
+    if metadata and metadata.get('tags'):
+        out, seen, total = [], set(), 0
+        for tag in metadata['tags']:
+            tag = ' '.join(tag.split())
+            extra = len(tag) + (2 if out else 0)
+            if not tag or tag.lower() in seen:
+                continue
+            if total + extra > cp.TAGS_MAX:
+                break
+            out.append(tag)
+            seen.add(tag.lower())
+            total += extra
+        return out
     return cp.render_tags(profile, beat_values(profile, name, channel, metadata))
 
 
 def beat_text(profile, name, channel, metadata=None):
     """Descripción del perfil con las variables del beat (los tags van aparte, en su bloque)."""
     values = beat_values(profile, name, channel, metadata)
-    tags = ', '.join(cp.render_tags(profile, values))
+    tags = ', '.join(beat_tags(profile, name, channel, metadata))
     filled = bt.fill(profile['descripcion'], values, tidy='gaps')
     return description.render(filled, values['name'], beatstars_url=values['beatstars_url'],
                               tags=tags, socials=profile['socials'],
@@ -401,6 +459,37 @@ def beat_text(profile, name, channel, metadata=None):
 
 
 PENDING_CSV = 'pendientes.csv'
+INFO_FILE = 'info.txt'
+
+
+def info_block(number, entry):
+    """Bloque de un video para ``info.txt``: datos del beat y texto para pegar en YouTube.
+
+    ``entry``: ``title``, ``video`` (ruta o None), ``bpm``, ``key``, ``link``, ``description``, ``tags``.
+    """
+    head = [f'===== {number}. {entry["title"]} =====']
+    if entry.get('video'):
+        head.append(f'ARCHIVO: {os.path.basename(entry["video"])}')
+    for label, field in (('BPM', 'bpm'), ('TONO', 'key'), ('LINK', 'link')):
+        if entry.get(field):
+            head.append(f'{label}: {entry[field]}')
+    body = upload_text(entry['title'], entry.get('description', ''), entry.get('tags', ()))
+    return '\n'.join(head) + '\n\n' + body
+
+
+def write_batch_info(folder, entries):
+    """Escribe un único ``info.txt`` con todos los videos de la tanda; devuelve su ruta.
+
+    Si ya hay uno de otra tanda en la carpeta, usa ``info (2).txt``... para no pisarlo.
+    """
+    os.makedirs(folder, exist_ok=True)
+    path, n = os.path.join(folder, INFO_FILE), 2
+    while os.path.lexists(path):
+        path, n = os.path.join(folder, f'info ({n}).txt'), n + 1
+    text = '\n\n'.join(info_block(i, entry) for i, entry in enumerate(entries, 1))
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(text)
+    return path
 
 
 def _csv_text(value):
@@ -433,7 +522,8 @@ def run_batch(beats, channel, local_root, output_root, profile=None,
               on_done=lambda audio, result: None, on_error=lambda audio, message: None):
     """Genera todos los beats con el perfil del canal. Devuelve ``(resultados, errores)``.
 
-    Salida: ``<output_root>/<fecha>/<canal>/<título>/`` y una fila en ``<fecha>/pendientes.csv``.
+    Salida: videos y miniaturas juntos en ``<output_root>/<fecha>/<canal>/`` con un único ``info.txt``
+    de la tanda, y una fila por video en ``<fecha>/pendientes.csv``.
     ``titles``: ``{ruta_audio: título}`` editados a mano para esta tanda (se cortan a 100).
     Un beat con error no corta la tanda; ``on_done``/``on_error`` se llaman por beat.
     """
@@ -454,41 +544,54 @@ def run_batch(beats, channel, local_root, output_root, profile=None,
     if 'estilo' not in profile and thumbs.files:
         style['miniatura']['origen'] = 'miniaturas'  # como siempre: si hay miniaturas propias, se usan
     logo_path = os.path.join(cp.channel_dir(local_root, channel), st.LOGO_FILE)
-    framing = style['video']['encuadre']
+    framing = st.framing_key(style['video'])
     day_dir = day_folder(output_root, today)
     out_folder = os.path.join(day_dir, safe_name(channel))
-    results, errors = [], []
-    for index, audio in enumerate(beats):
-        if cancelled():
-            raise Cancelled()
-        name = beat_name(audio)
-        progress(index, len(beats), f'Generando {name} ({index + 1}/{len(beats)})')
-        content = picks.next()
-        cache = getattr(tools, 'cache', None)
-        if mode == MODE_VIDEO and cache is not None and not os.path.isfile(cache.path_for(content, framing)):
-            progress(index, len(beats), f'Preparando el video stock {os.path.basename(content)} '
-                                        '(solo la primera vez, puede tardar un minuto)…')
-        try:
-            metadata = read_metadata(audio, verify=True)
-            name = beat_name(audio, metadata)
-            title = cp.fit_title(titles[audio]) if titles.get(audio, '').strip() else beat_title(profile, name, channel, metadata)
-            result = render_beat(audio, mode, content, title, out_folder, tools, thumbs.next(),
-                                 profile['miniatura_con_titulo'], beat_text(profile, name, channel, metadata),
-                                 beat_tags(profile, name, channel, metadata), cancelled, style=style, logo_path=logo_path,
-                                 beatstars_url=metadata['url'] if metadata else '')
-        except (ManualError, MetadataError, OSError) as exc:
-            message = str(exc) if isinstance(exc, (ManualError, MetadataError)) else 'No se pudieron guardar los archivos del video.'
-            errors.append((name, message))
-            on_error(audio, message)
-            continue
-        results.append(result)
-        try:
-            add_pending(day_dir, channel, result)
-        except OSError:
-            message = 'Video generado, pero no se pudo actualizar pendientes.csv. Los archivos se conservaron.'
-            errors.append((name, message))
-            on_error(audio, message)
-        on_done(audio, result)
+    results, errors, entries = [], [], []
+    try:
+        for index, audio in enumerate(beats):
+            if cancelled():
+                raise Cancelled()
+            name = beat_name(audio)
+            progress(index, len(beats), f'Generando {name} ({index + 1}/{len(beats)})')
+            content = picks.next()
+            cache = getattr(tools, 'cache', None)
+            if mode == MODE_VIDEO and cache is not None and not os.path.isfile(cache.path_for(content, framing)):
+                progress(index, len(beats), f'Preparando el video stock {os.path.basename(content)} '
+                                            '(solo la primera vez, puede tardar un minuto)…')
+            try:
+                metadata = read_metadata(audio, verify=True)
+                name = beat_name(audio, metadata)
+                title = cp.fit_title(titles[audio]) if titles.get(audio, '').strip() else beat_title(profile, name, channel, metadata)
+                text = beat_text(profile, name, channel, metadata)
+                tags = beat_tags(profile, name, channel, metadata)
+                values = beat_values(profile, name, channel, metadata)
+                link = link_text(metadata) if metadata else ''
+                result = render_beat(audio, mode, content, title, out_folder, tools, thumbs.next(),
+                                     profile['miniatura_con_titulo'], text, tags, cancelled,
+                                     style=style, logo_path=logo_path, beatstars_url=link, flat=True)
+            except (ManualError, MetadataError, OSError) as exc:
+                message = str(exc) if isinstance(exc, (ManualError, MetadataError)) else 'No se pudieron guardar los archivos del video.'
+                errors.append((name, message))
+                on_error(audio, message)
+                continue
+            results.append(result)
+            entries.append({'title': title, 'video': result.get('video'), 'bpm': values['bpm'],
+                            'key': values['key'], 'link': link, 'description': text, 'tags': tags})
+            try:
+                add_pending(day_dir, channel, result)
+            except OSError:
+                message = 'Video generado, pero no se pudo actualizar pendientes.csv. Los archivos se conservaron.'
+                errors.append((name, message))
+                on_error(audio, message)
+            on_done(audio, result)
+    finally:
+        # Aun si se cancela a mitad de tanda, los videos ya hechos quedan documentados.
+        if entries:
+            try:
+                write_batch_info(out_folder, entries)
+            except OSError:
+                errors.append(('info.txt', 'No se pudo escribir info.txt. Los videos se conservaron.'))
     progress(len(beats), len(beats), 'Listo')
     return results, errors
 

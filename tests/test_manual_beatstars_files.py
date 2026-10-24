@@ -8,7 +8,8 @@ from unittest.mock import patch
 
 from core import bulk_queue as bq, channel_profile as cp, manual_render as mr
 from core.manual_beatstars_files import MetadataError, move_package, read_metadata
-from core.manual_beatstars_store import HistoryStore, LINK, SIDECAR, digest, metadata_bytes
+from core.manual_beatstars_store import (HistoryStore, LINK, SIDECAR, digest, link_text, metadata_bytes,
+                                        validate_metadata)
 
 URL = 'https://www.beatstars.com/beat/fixture-101'
 TITLE = '(BEAT PRO-527) [juice wrld, sad] Night - 140bpm - key A Minor'
@@ -281,8 +282,47 @@ class RenderMetadataTests(unittest.TestCase):
         self.assertEqual((values['name'], values['artist'], values['bpm'], values['key']),
                          ('Night', 'Juice WRLD', '140', 'A Minor'))
         self.assertEqual(mr.beat_title(self.profile, 'wrong filename', 'Canal', self.metadata), 'Juice WRLD - Night')
+        # Un beat de BeatStars usa sus propias etiquetas; el perfil solo cubre audios sin metadata.
         self.assertEqual(mr.beat_tags(self.profile, 'wrong filename', 'Canal', self.metadata),
+                         ['juice wrld', 'sad'])
+        self.assertEqual(mr.beat_tags(self.profile, 'wrong filename', 'Canal', dict(self.metadata, tags=[])),
                          ['Night type beat', 'Juice WRLD'])
+
+    def test_short_link_bpm_and_key_come_from_metadata(self):
+        short = 'https://bsta.rs/xyz789'
+        metadata = dict(self.metadata, short_url=short, bpm='128', key='F Minor')
+        values = mr.beat_values(self.profile, 'wrong', 'Canal', metadata)
+        self.assertEqual((values['beatstars_url'], values['bpm'], values['key']), (short, '128', 'F Minor'))
+        self.assertEqual(link_text(metadata), short)
+        self.assertEqual(link_text(self.metadata), URL)
+
+    def test_tags_are_capped_at_youtube_limit_and_deduplicated(self):
+        tags = ['Trap', 'trap'] + [f'tag{n:03}' + 'x' * 40 for n in range(30)]
+        out = mr.beat_tags(self.profile, 'x', 'Canal', dict(self.metadata, tags=tags))
+        self.assertEqual(out[0], 'Trap')
+        self.assertEqual(len([t for t in out if t.lower() == 'trap']), 1)
+        self.assertLessEqual(len(', '.join(out)), cp.TAGS_MAX)
+
+    def test_invalid_short_url_is_rejected(self):
+        with self.assertRaises(ValueError):
+            validate_metadata(dict(self.metadata, short_url='https://evil.example/abc123'))
+        ok = validate_metadata(dict(self.metadata, short_url='https://bsta.rs/abc123'))
+        self.assertEqual(ok['short_url'], 'https://bsta.rs/abc123')
+
+    def test_batch_delivers_all_videos_together_with_one_info_file(self):
+        folder = self.root / 'out'
+        second = dict(title='Second', video=str(folder / 'Second.mp4'), bpm='', key='', link='',
+                      description='Desc', tags=['b'])
+        first = dict(title='First', video=str(folder / 'First.mp4'), bpm='140', key='A Minor',
+                     link='https://bsta.rs/abc123', description='Buy', tags=['a', 'b'])
+        path = mr.write_batch_info(str(folder), [first, second])
+        text = Path(path).read_text(encoding='utf-8')
+        self.assertEqual(Path(path).name, 'info.txt')
+        self.assertIn('===== 1. First =====\nARCHIVO: First.mp4\nBPM: 140\nTONO: A Minor\nLINK: https://bsta.rs/abc123\n', text)
+        self.assertIn('===== 2. Second =====\nARCHIVO: Second.mp4\n\nTÍTULO\nSecond', text)
+        self.assertEqual(text.count('TAGS\n'), 2)
+        # Una segunda tanda en la misma carpeta no pisa la anterior.
+        self.assertEqual(Path(mr.write_batch_info(str(folder), [first])).name, 'info (2).txt')
         self.assertIn('Buy: ' + URL, mr.beat_text(self.profile, 'wrong filename', 'Canal', self.metadata))
 
     def test_url_is_not_inserted_into_existing_description_without_placeholder(self):

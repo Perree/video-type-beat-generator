@@ -132,20 +132,23 @@ class ManualRenderTests(unittest.TestCase):
     def check_outputs(self, results, expected_title):
         self.assertEqual(len(results), 1)
         out = results[0]
-        self.assertEqual(os.path.basename(out["folder"]), expected_title)
         self.assertEqual(os.path.basename(out["video"]), expected_title + ".mp4")
         self.assertEqual(os.path.basename(out["thumbnail"]), expected_title + " - miniatura.jpg")
         self.assertAlmostEqual(get_media_duration(out["video"]), 3.0, delta=0.3)
         from PIL import Image
         with Image.open(out["thumbnail"]) as img:
             self.assertEqual(img.size, (1280, 720))
-        with open(out["text"], encoding="utf-8") as f:
+        # Tanda: video y miniatura juntos en la carpeta del canal y un único info.txt.
+        self.assertIsNone(out["text"])
+        with open(os.path.join(out["folder"], "info.txt"), encoding="utf-8") as f:
             text = f.read()
-        self.assertTrue(text.startswith("TÍTULO\n" + expected_title))
+        self.assertIn("===== 1. " + expected_title + " =====", text)
+        self.assertIn("BPM: 150", text)
+        self.assertIn("TÍTULO\n" + expected_title, text)
         self.assertEqual(text.count("TAGS\n"), 1)
         self.assertIn("150 BPM", text)
         self.assertEqual(sorted(os.listdir(out["folder"])),
-                         sorted([expected_title + ext for ext in (".mp4", " - miniatura.jpg", ".txt")]))
+                         sorted([expected_title + ext for ext in (".mp4", " - miniatura.jpg")] + ["info.txt"]))
 
     def test_image_profile(self):
         out_root = os.path.join(self.root, "out-image")
@@ -154,7 +157,7 @@ class ManualRenderTests(unittest.TestCase):
         self.assertEqual(errors, [])
         self.check_outputs(results, "Dark Beat Type Beat")
         day = os.path.join(out_root, "2026-01-02")
-        self.assertEqual(os.path.dirname(results[0]["folder"]), os.path.join(day, "Img"))
+        self.assertEqual(results[0]["folder"], os.path.join(day, "Img"))
         with open(os.path.join(day, "pendientes.csv"), encoding="utf-8-sig") as f:
             rows = list(csv.reader(f))
         self.assertEqual(rows[0], ["canal", "título", "carpeta", "subido"])

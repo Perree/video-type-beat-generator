@@ -103,8 +103,11 @@ class BulkRenderTests(unittest.TestCase):
                                   today=datetime(2026, 3, 4))
             self.assertEqual({c: e["ok"] for c, e in summary.items()}, {"Rage": 1, "Sad": 1})
             day = os.path.join(out, "2026-03-04")
-            self.assertEqual(os.listdir(os.path.join(day, "Rage")), ["[RAGE] Night"])
-            self.assertEqual(os.listdir(os.path.join(day, "Sad")), ["A mano"])
+            # Cada canal recibe sus videos juntos y un único info.txt.
+            self.assertEqual(sorted(os.listdir(os.path.join(day, "Rage"))),
+                             ["[RAGE] Night - miniatura.jpg", "[RAGE] Night.mp4", "info.txt"])
+            self.assertEqual(sorted(os.listdir(os.path.join(day, "Sad"))),
+                             ["A mano - miniatura.jpg", "A mano.mp4", "info.txt"])
             self.assertEqual(bq.scan(root)[0], [])  # todo pasó a hechos/
             self.assertTrue(os.path.exists(os.path.join(root, "entrada", "Sad", "hechos", "Night 140bpm.mp3")))
             with open(os.path.join(day, mr.PENDING_CSV), encoding="utf-8-sig") as f:

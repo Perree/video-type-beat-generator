@@ -21,6 +21,8 @@ from test_manual_beatstars import HLS, PROFILE, Resolver, Source, track
 from test_manual_beatstars_dialog import APP, initial_preferences, pump_until
 from test_manual_beatstars_files import TITLE, URL, write_package
 
+SHORT = 'https://bsta.rs/abc123'
+
 
 class ManualFlowTests(unittest.TestCase):
     def setUp(self):
@@ -74,9 +76,13 @@ class ManualFlowTests(unittest.TestCase):
         history_path = self.root / 'config/beatstars_history.json'
         source = Source([track(101, title=TITLE), track(102, title='Second beat')])
         http = HLS(segment.read_bytes())
+        class Shares:
+            def get(self, track_id, profile_url):
+                return SHORT if track_id == 'TK101' else None
+
         def factory(cancelled):
             return ManualBeatStars(HistoryStore(history_path), source, Resolver(), http,
-                                   ManualMediaTools(cancelled=cancelled), cancelled)
+                                   ManualMediaTools(cancelled=cancelled), cancelled, shares=Shares())
         self.view._beatstars_service_factory = factory
         self.view.open_beatstars()
         dialog = self.view.beatstars_dialog
@@ -107,7 +113,8 @@ class ManualFlowTests(unittest.TestCase):
         self.assertEqual(self.view.beats, [])
         moved = done / f'{audio.stem} (2).m4a'
         self.assertEqual(read_metadata(moved, verify=True), metadata)
-        self.assertEqual(Path(str(moved) + LINK).read_text().strip(), URL)
+        self.assertEqual((metadata['short_url'], metadata['bpm'], metadata['key']), (SHORT, '140', 'A Minor'))
+        self.assertEqual(Path(str(moved) + LINK).read_text().strip(), SHORT)
         self.assertEqual(orphan.read_text(), 'existing unrelated link')
         for suffix in ('', SIDECAR, LINK):
             self.assertFalse(Path(str(audio) + suffix).exists())
@@ -119,15 +126,17 @@ class ManualFlowTests(unittest.TestCase):
         self.assertAlmostEqual(get_media_duration(str(video)), 2, delta=.3)
         with Image.open(video.parent / 'Mi título final - miniatura.jpg') as image:
             self.assertEqual(image.size, (1280, 720))
-        text = video.with_suffix('.txt').read_text(encoding='utf-8')
-        self.assertTrue(text.startswith('TÍTULO\nMi título final\n'))
-        self.assertIn('Buy: ' + URL, text)
+        # Video y miniatura juntos, y un único info.txt con los datos del beat.
+        self.assertEqual(sorted(p.name for p in video.parent.iterdir()),
+                         ['Mi título final - miniatura.jpg', 'Mi título final.mp4', 'info.txt'])
+        text = (video.parent / 'info.txt').read_text(encoding='utf-8')
+        self.assertIn('BPM: 140\nTONO: A Minor\nLINK: ' + SHORT + '\n', text)
+        self.assertIn('TÍTULO\nMi título final\n', text)
+        self.assertIn('Buy: ' + SHORT, text)
         self.assertIn('Night | 140 BPM', text)
-        self.assertIn('Night type beat', text)
-        self.assertIn('\nBEATSTARS\n' + URL + '\n', text)
+        self.assertIn('TAGS\ntrap, Dark\n', text)  # etiquetas del beat en el catálogo, no las del perfil
         self.assertNotIn('TK101', text)
         self.assertNotIn('truncated', text)
-        self.assertEqual(len(list(video.parent.iterdir())), 3)
         with next((self.root / 'videos').rglob('pendientes.csv')).open(encoding='utf-8-sig', newline='') as stream:
             rows = list(csv.reader(stream))
         self.assertEqual(rows[1][:2], ['Canal', 'Mi título final'])
@@ -141,7 +150,8 @@ class ManualFlowTests(unittest.TestCase):
             outputs, errors = mr.run_batch([str(moved)], 'Canal', str(self.local), str(self.root / 'reuse'), tools=object())
         self.assertEqual(errors, [])
         self.assertEqual(len(outputs), 1)
-        self.assertEqual(render.call_args.kwargs['beatstars_url'], URL)
+        # El paquete archivado conserva el link corto con el que se descargó.
+        self.assertEqual(render.call_args.kwargs['beatstars_url'], SHORT)
         self.assertEqual(render.call_args.args[3], 'Juice WRLD - Night')
 
         # A fresh dialog/service for another local channel excludes the downloaded track.

@@ -882,6 +882,9 @@ carpetas listas para subir a mano (sin API de YouTube). Perfiles y fondos en `<D
   canal («🎨 Estilo de video y miniatura…»).
 - Medido (60 s de beat, PC sin NVENC): imagen 3,5 s; + grano/tinte 4,4 s; + zoom 6,2 s; video stock 1,8 s;
   + título/oscurecer 14,5 s; difuminado: la primera vez arma su caché (~86 s con un stock 1440p de 3 min).
+- Encuadre «Centrado con barras» ✅ (2026-10-24): foto recortada al alto completo entre dos barras de igual ancho
+  (`barras` 8–32 % por lado, `barras_color`), igual en video y miniatura; oscurecer/tinte no tocan las barras; el
+  zoom las vuelve a tapar; la caché de stock usa la clave `barras:<%>:<hex>`.
 - Tests: `tests/test_style.py`. Siguen: J2 (mismo estilo en el robot de Beats) y J3 (portadas de Loop kits).
 
 ## Dropbox ordenado — todo en una carpeta ✅ COMPLETADA (2026-10-23)
@@ -1056,3 +1059,12 @@ estados de automatización. Una fase por sesión. Migración SQL: no.
   Migración SQL: no. Sin push ni publicaciones. Evidencia y límites en
   `docs/BEATSTARS_LIVE_REVIEW_2026_10_24.md`; compatibilidad real comprobada para
   este beat y el catálogo en esta fecha, sin garantizar todos los previews.
+
+### Link corto, BPM/tono y un info.txt por tanda ✅ COMPLETADA (2026-10-24)
+
+- Descarga: el JSON del beat suma short_url (bsta.rs, vía ShareLinks, sin frenar la descarga si falla), pm y key
+  (del título). El .beatstars.txt guarda el link corto y el hash de recuperación usa ese texto; paquetes anteriores siguen válidos.
+- Generación: videos y miniaturas de la tanda juntos en <salida>/<fecha>/<canal>/ y un único info.txt por tanda
+  (archivo, BPM, tono, link, TÍTULO/DESCRIPCIÓN/TAGS). Etiquetas del beat (≤500 caracteres); sin metadata, las del perfil.
+  ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de estilos). main.py sin cambios.
+- Guía: docs/MANUAL_BEATSTARS.md. Pruebas nuevas en 	est_manual_beatstars_files.py y flujo/render actualizados.
