@@ -8,10 +8,10 @@ caché) vive en ⚙ Configuración. La lógica está en ``manual_render`` y ``bu
 import os
 
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QColor, QPalette
 from PyQt5.QtWidgets import (QApplication, QComboBox, QFileDialog, QFrame, QHBoxLayout, QInputDialog,
                              QLabel, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
-                             QTableWidgetItem, QVBoxLayout, QWidget)
+                             QScrollArea, QTableWidgetItem, QVBoxLayout, QWidget)
 
 from core import bulk_queue as bq
 from core import channel_profile as cp
@@ -90,8 +90,10 @@ class LocalWorker(QThread):
 
 class LocalView(QWidget):
     assistant_requested = pyqtSignal()
+    shutdown_ready = pyqtSignal()
 
-    def __init__(self, parent=None, settings_path=mr.SETTINGS_FILE, local_root=None, legacy_root=REPO_ROOT):
+    def __init__(self, parent=None, settings_path=mr.SETTINGS_FILE, local_root=None, legacy_root=REPO_ROOT,
+                 beatstars_service_factory=None):
         super().__init__(parent)
         self.settings_path = settings_path
         self.legacy_root = legacy_root
@@ -101,6 +103,9 @@ class LocalView(QWidget):
         if not self.settings.get('output_folder_custom'):
             self.settings['output_folder'] = desktop_output_folder()
         self.worker = None
+        self.beatstars_dialog = None
+        self._beatstars_service_factory = beatstars_service_factory
+        self._shutdown_pending = False
         self.dropped = []        # beats arrastrados o elegidos a mano
         self.inbox = []          # beats en entrada/<canal>/ del canal elegido
         self.title_overrides = {}
@@ -140,7 +145,19 @@ class LocalView(QWidget):
         return frame, inner
 
     def _build(self):
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        body = QWidget()
+        palette = body.palette()
+        palette.setColor(QPalette.Window, QColor('#2b2b2b'))
+        body.setPalette(palette)
+        body.setAutoFillBackground(True)
+        layout = QVBoxLayout(body)
+        self.scroll.setWidget(body)
+        self.scroll.setFrameShape(QFrame.NoFrame)
+        outer.addWidget(self.scroll)
         header = QHBoxLayout()
         title = QLabel('Crear videos en esta PC')
         title.setStyleSheet('font-size: 18px; font-weight: bold;')
@@ -157,7 +174,7 @@ class LocalView(QWidget):
         self.step1, inner = self._step(layout, '1 · Elegí el canal')
         row = QHBoxLayout()
         self.channel_combo = QComboBox()
-        self.channel_combo.setMinimumWidth(260)
+        self.channel_combo.setMinimumWidth(230)
         self.channel_combo.currentTextChanged.connect(self._on_channel_changed)
         row.addWidget(self.channel_combo, 1)
         self.btn_style = QPushButton('Editar estilo del canal')
@@ -188,12 +205,19 @@ class LocalView(QWidget):
         self.btn_add.clicked.connect(self.pick_files)
         self.btn_add_folder = QPushButton('Agregar carpeta…')
         self.btn_add_folder.clicked.connect(self.pick_folder)
+        self.btn_beatstars = QPushButton('Descargar desde BeatStars…')
+        self.btn_beatstars.clicked.connect(self.open_beatstars)
         self.btn_remove = QPushButton('Quitar')
         self.btn_remove.clicked.connect(self.remove_selected)
         self.btn_reset = QPushButton('Restablecer títulos')
         self.btn_reset.clicked.connect(self.reset_titles)
-        for button in (self.btn_add, self.btn_add_folder, self.btn_remove, self.btn_reset):
+        for button in (self.btn_add, self.btn_add_folder, self.btn_beatstars):
             row.addWidget(button)
+        row.addStretch()
+        inner.addLayout(row)
+        row = QHBoxLayout()
+        row.addWidget(self.btn_remove)
+        row.addWidget(self.btn_reset)
         row.addStretch()
         self.count_label = QLabel()
         row.addWidget(self.count_label)
@@ -400,13 +424,14 @@ class LocalView(QWidget):
         self._update_buttons()
 
     def _update_buttons(self):
-        busy = self.worker is not None
+        busy = self.worker is not None or self.beatstars_dialog is not None
         n = len(self.beats)
         self.btn_generate.setText(f'Generar {n} video{"s" if n != 1 else ""}' if n else 'Generar videos')
         self.btn_generate.setEnabled(bool(n) and self.backgrounds_ready() and not busy)
-        self.btn_cancel.setVisible(busy)
+        self.btn_cancel.setVisible(self.worker is not None)
         self.btn_reset.setVisible(bool(self.title_overrides))
         self.btn_style.setEnabled(bool(self.channel()) and not busy)
+        self.btn_beatstars.setEnabled(bool(self.channel()) and not busy)
         self.btn_backgrounds.setEnabled(bool(self.channel()))
         for widget in (self.btn_add, self.btn_add_folder, self.btn_remove, self.channel_combo,
                        self.btn_settings, self.btn_all, self.btn_reset):
@@ -425,6 +450,38 @@ class LocalView(QWidget):
         self.status.setVisible(bool(text))
 
     # --- Acciones de canal y carpetas ---
+
+    def open_beatstars(self):
+        if self.worker is not None or self.beatstars_dialog is not None or not self.channel():
+            return
+        from core.manual_beatstars_dialog import ManualBeatStarsDialog, initial_preferences
+        preferences = initial_preferences(self.settings, os.path.join(self.legacy_root, 'config', 'app_config.json'))
+        kwargs = {} if self._beatstars_service_factory is None else {'service_factory': self._beatstars_service_factory}
+        dialog = ManualBeatStarsDialog(self.channel(), cp.input_dir(self.local_root, self.channel()),
+                                       preferences, self, **kwargs)
+        self.beatstars_dialog = dialog
+        dialog.preferences_changed.connect(self._save_beatstars_preferences)
+        dialog.packages_ready.connect(self._beatstars_downloaded)
+        dialog.finished.connect(self._beatstars_finished)
+        self._update_buttons()
+        dialog.open()
+
+    def _save_beatstars_preferences(self, preferences):
+        self.settings['beatstars'] = preferences
+        self.save_settings()
+
+    def _beatstars_downloaded(self, paths):
+        # Re-scan the frozen destination; never add its paths as drops to another channel.
+        self.scan_inbox()
+        self.say(f'BeatStars: {len(paths)} beats descargados. Revisalos antes de generar los videos.')
+
+    def _beatstars_finished(self, _result):
+        dialog, self.beatstars_dialog = self.beatstars_dialog, None
+        dialog.deleteLater()
+        self.scan_inbox()
+        if self._shutdown_pending:
+            self._shutdown_pending = False
+            self.shutdown_ready.emit()
 
     def open_folder(self, path):
         if path:
@@ -523,13 +580,13 @@ class LocalView(QWidget):
                     titles=dict(self.title_overrides))
 
     def start(self):
-        if self.worker is not None or not self.beats or not self.backgrounds_ready():
+        if self.worker is not None or self.beatstars_dialog is not None or not self.beats or not self.backgrounds_ready():
             return
         self._run(self.job(), len(self.beats), f'Generando {len(self.beats)} videos para {self.channel()}…')
 
     def start_all(self):
         """Genera todos los canales que tienen beats en su carpeta de entrada (cada uno con su estilo)."""
-        if self.worker is not None:
+        if self.worker is not None or self.beatstars_dialog is not None:
             return
         total = sum(getattr(self, 'other_inbox', {}).values()) + len(self.inbox)
         if QMessageBox.question(self, 'Generar todos los canales',
@@ -541,6 +598,8 @@ class LocalView(QWidget):
                   total, f'Generando {total} beats de todas las carpetas de entrada…')
 
     def _run(self, job, total, text):
+        if self.beatstars_dialog is not None:
+            return
         self.save_settings()
         self.worker = LocalWorker(job, self)
         self.worker.progress.connect(self._on_progress)
@@ -593,11 +652,24 @@ class LocalView(QWidget):
             worker.deleteLater()
         self.progress.setVisible(False)
         self.scan_inbox()  # lo generado de la entrada ya pasó a «hechos»
+        if self._shutdown_pending:
+            self._shutdown_pending = False
+            self.shutdown_ready.emit()
 
     def shutdown(self, wait_ms=5000):
+        if self.beatstars_dialog is not None:
+            if self.beatstars_dialog.task is not None:
+                self._shutdown_pending = True
+                self.beatstars_dialog.request_close()
+                return False
+            self.beatstars_dialog.request_close()
         if self.worker is not None:
+            self._shutdown_pending = True
             self.worker.cancel()
-            self.worker.wait(wait_ms)
+            finished = self.worker.wait(wait_ms)
+            self._shutdown_pending = not finished
+            return finished
+        return True
 
     # --- Guía ---
 
@@ -618,7 +690,7 @@ class LocalView(QWidget):
                  GuideStep('Revisar el estilo del canal (opcional)',
                            'Imagen o video, estilo del título y artista. Se guarda para la próxima.',
                            action=self.edit_profile, action_text='Editar estilo'),
-                 GuideStep('Sumar beats', 'Arrastralos a la tabla o dejalos en la carpeta de entrada del canal.',
+                 GuideStep('Sumar beats', 'Arrastralos a la tabla, dejalos en la entrada del canal o usá «Descargar desde BeatStars…».',
                            done=lambda: bool(self.beats) or self.generated > 0, action=self.pick_files,
                            action_text='Agregar beats'),
                  GuideStep('Generar', 'Paso 3. Mientras genera podés seguir usando la PC.',

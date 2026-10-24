@@ -968,7 +968,7 @@ estados de automatización. Una fase por sesión. Migración SQL: no.
 - Uso, API, recuperación y límites: `docs/MANUAL_BEATSTARS.md`. Prueba contra
   BeatStars real pendiente de autorización; no se descargaron beats reales.
 
-### Fase 2 — Diálogo y conexión con la pantalla manual ⏳ PENDIENTE
+### Fase 2 — Diálogo y conexión con la pantalla manual ✅ COMPLETADA (2026-10-24)
 
 - Botón «Descargar desde BeatStars…» junto a las entradas actuales. Perfil y
   filtros recordados, cantidad 1–100 (10 inicial), cualquiera/todos, tabla con
@@ -976,6 +976,28 @@ estados de automatización. Una fase por sesión. Migración SQL: no.
 - Worker Qt con progreso, cancelación y cierre seguro; capturar canal/destino,
   impedir cambios incompatibles y sumar únicamente paquetes completos a la
   entrada/tabla. No iniciar generación automáticamente. Pruebas Qt offscreen.
+- `core/manual_beatstars_dialog.py` y `core/manual_beatstars_task.py`: selección
+  hasta la cantidad pedida, resultados inválidos al cambiar filtros, progreso y
+  errores traducidos. Perfil/filtros en `manual_mode.json`; perfil local inicial
+  leído sin modificar automatizaciones. Apertura de enlaces solo por doble clic.
+- Canal/destino congelados; controles incompatibles bloqueados. Cancelar conserva
+  éxitos; Escape/cerrar difiere el cierre hasta que termine el hilo. `LocalView`
+  y `core/main_window.py` coordinan también el cierre de la app sin destruir un
+  worker activo. No se agrandó `main.py` ni se modificó el motor de la fase 1.
+- Scroll vertical local y acciones en dos filas para conservar 900 × 620 con la
+  guía abierta; capturas inspeccionadas, sin scroll horizontal. Formulario del
+  diálogo legible también con resúmenes de error y en tamaño 650 × 500.
+- 24 pruebas nuevas: Qt offscreen, selección/filtros, errores/cancelación/cierre,
+  preferencias y canal capturado, más UI → motor real con HTTP y medios falsos,
+  incorporación a la tabla y exclusión al reabrir. Regresión seleccionada: 114
+  pruebas aprobadas, sin omisiones ni fallos (motor, UI, render manual, bulk,
+  shell, layout, revisión general y asistente). GitHub/llavero aislados por prueba.
+- Revisión propia: cierre diferido y sin reentrada al cerrar un diálogo inactivo,
+  resultados tardíos descartados al cancelar búsquedas, errores sin detalles de
+  excepciones internas, controles sin recortes al mostrar errores. Bugbot local
+  no disponible; no se afirma revisión independiente.
+- Migración SQL: no. Sin red real, credenciales ni publicación. La fase 3 sigue
+  pendiente para el TXT final de videos y movimiento conjunto de sidecars.
 
 ### Fase 3 — Enlaces por video y movimiento de tandas ⏳ PENDIENTE
 

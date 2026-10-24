@@ -33,6 +33,7 @@ class MainWindow(QMainWindow):
         self.beat_panel = BeatPanel(self)
         self.loop_kit_panel = LoopKitPanel(self)
         self.local_view = LocalView(self, **settings)
+        self.local_view.shutdown_ready.connect(self.close)
         self._loop_kit_loaded = False
 
         self.tabs = QTabWidget()
@@ -107,7 +108,9 @@ class MainWindow(QMainWindow):
             self.beat_panel.cancel()
             event.ignore()
             return
+        if not self.local_view.shutdown():
+            event.ignore()
+            return
         self.loop_kit_panel.shutdown()
-        self.local_view.shutdown()
         self.assistant.shutdown()
         super().closeEvent(event)
