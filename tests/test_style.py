@@ -70,6 +70,38 @@ class StyleLogicTests(unittest.TestCase):
             with self.assertRaises(cp.ProfileError):
                 cp.save(root, "C", dict(saved, estilo={"video": {"encuadre": "raro"}}))
 
+    def test_bars_same_width_for_any_photo(self):
+        style = st.validate({"video": {"encuadre": "barras", "barras": 20, "barras_color": "#102030"}})
+        bar, _ = st.bars_geometry(st.FRAME, 20)
+        for size in ((800, 1200), (1600, 900), (500, 500)):
+            photo = Image.new("RGB", size, (200, 200, 200))
+            for image, dims in ((st.render_frame(photo, style, TITLE), st.FRAME),
+                                (st.render_thumbnail(photo, style, TITLE), st.THUMB)):
+                b, _ = st.bars_geometry(dims, 20)
+                self.assertEqual(image.getpixel((b - 1, 10)), (16, 32, 48))
+                self.assertEqual(image.getpixel((dims[0] - b, 10)), (16, 32, 48))
+                self.assertEqual(image.getpixel((b, 10)), (200, 200, 200))
+                self.assertEqual(image.getpixel((dims[0] - b - 1, 10)), (200, 200, 200))
+        dark = st.validate({"video": {"encuadre": "barras", "oscurecer": 50, "barras": 20,
+                                      "barras_color": "#102030"}})
+        img = st.render_frame(Image.new("RGB", (800, 600), (200, 200, 200)), dark, TITLE)
+        self.assertEqual(img.getpixel((5, 10)), (16, 32, 48))  # oscurecer no toca las barras
+        self.assertLess(img.getpixel((bar + 5, 10))[0], 200)
+        with self.assertRaises(st.StyleError):
+            st.validate({"video": {"barras": 60}})
+
+    def test_bars_cache_key_and_filter(self):
+        a = st.framing_key(st.validate({"video": {"encuadre": "barras", "barras": 18}})["video"])
+        b = st.framing_key(st.validate({"video": {"encuadre": "barras", "barras": 22}})["video"])
+        self.assertNotEqual(a, b)
+        self.assertIn("pad=1920:1080:344:0:color=0x000000", __import__("core.stock_cache", fromlist=["x"]).video_filter(a))
+        with tempfile.TemporaryDirectory() as tmp:
+            src = os.path.join(tmp, "v.mp4")
+            with open(src, "wb") as f:
+                f.write(b"x")
+            cache = StockCache(tmp)
+            self.assertNotEqual(cache.key(src, a), cache.key(src, b))
+
     def test_cache_key_keeps_crop_and_separates_blur(self):
         with tempfile.TemporaryDirectory() as tmp:
             src = os.path.join(tmp, "v.mp4")
@@ -118,6 +150,18 @@ class StyledRenderTests(unittest.TestCase):
         self.render("video", self.video, {"video": {"encuadre": "difuminado", "titulo": True, "oscurecer": 30,
                                                     "fundido": True},
                                           "miniatura": {"plantilla": "grande", "origen": "video"}}, "overlay")
+
+    def test_bars_image_zoom_and_stock(self):
+        bars = {"encuadre": "barras", "barras": 20, "barras_color": "#ff0000"}
+        self.render("image", self.image, {"video": dict(bars, zoom=True, fundido=True)}, "barras-zoom")
+        result = self.render("video", self.video, {"video": dict(bars, oscurecer=20)}, "barras-stock")
+        ff = resolve_tool("ffmpeg")
+        out = os.path.join(self.root, "edge.png")
+        subprocess.run([ff, "-v", "error", "-y", "-ss", "1", "-i", result["video"], "-frames:v", "1", out], check=True)
+        with Image.open(out) as img:
+            r, g, b = img.convert("RGB").getpixel((10, 500))
+            self.assertGreater(r, 200)
+            self.assertLess(g, 60)  # borde = barra roja
 
     def test_video_without_overlays_uses_fast_copy(self):
         with mock.patch.object(self.tools, "run", wraps=self.tools.run) as run:

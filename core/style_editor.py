@@ -14,7 +14,7 @@ from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QColor, QImage, QPixmap
 from PyQt5.QtWidgets import (QButtonGroup, QCheckBox, QColorDialog, QComboBox, QDialog, QDialogButtonBox,
                              QFileDialog, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QMessageBox, QPushButton,
-                             QRadioButton, QSlider, QVBoxLayout)
+                             QRadioButton, QSlider, QVBoxLayout, QWidget)
 
 from core import channel_profile as cp
 from core import manual_render as mr
@@ -96,12 +96,30 @@ class StyleEditor(QDialog):
         framing = QHBoxLayout()
         self.crop = QRadioButton('Llenar la pantalla')
         self.blur = QRadioButton('Centrado, fondo difuminado')
+        self.bars = QRadioButton('Centrado con barras')
         group = QButtonGroup(self)
-        for button in (self.crop, self.blur):
+        for button in (self.crop, self.blur, self.bars):
             group.addButton(button)
             framing.addWidget(button)
             button.toggled.connect(self._changed)
         form.addRow('Encuadre:', framing)
+        # Un solo ancho para el video y la miniatura: la foto no cambia las barras.
+        self.bars_width = QSlider(Qt.Horizontal)
+        self.bars_width.setRange(st.BARS_MIN, st.BARS_MAX)
+        self.bars_width.valueChanged.connect(self._changed)
+        self.bars_label = QLabel()
+        self.bars_color_button = QPushButton('Color de las barras…')
+        self.bars_color_button.clicked.connect(lambda: self._pick_color('barras_color'))
+        bars_row = QHBoxLayout()
+        bars_row.addWidget(self.bars_width, 1)
+        bars_row.addWidget(self.bars_label)
+        bars_row.addWidget(self.bars_color_button)
+        self.bars_box = QWidget()
+        self.bars_box.setLayout(bars_row)
+        bars_row.setContentsMargins(0, 0, 0, 0)
+        form.addRow('Ancho de cada barra:', self.bars_box)
+        self.bars_note = QLabel('La miniatura usa el mismo ancho de barra.')
+        form.addRow('', self.bars_note)
         self.darken = QSlider(Qt.Horizontal)
         self.darken.setRange(0, 80)
         self.darken.valueChanged.connect(self._changed)
@@ -206,7 +224,8 @@ class StyleEditor(QDialog):
     def _load(self, style):
         self._loading = True
         v, m = style['video'], style['miniatura']
-        (self.blur if v['encuadre'] == 'difuminado' else self.crop).setChecked(True)
+        {'difuminado': self.blur, 'barras': self.bars}.get(v['encuadre'], self.crop).setChecked(True)
+        self.bars_width.setValue(v['barras'])
         self.darken.setValue(v['oscurecer'])
         self.grain.setChecked(v['grano'])
         self.title_on.setChecked(v['titulo'])
@@ -227,7 +246,8 @@ class StyleEditor(QDialog):
     def current(self):
         style = deepcopy(self.style)
         v, m = style['video'], style['miniatura']
-        v.update(encuadre='difuminado' if self.blur.isChecked() else 'recortar', oscurecer=self.darken.value(),
+        encuadre = 'difuminado' if self.blur.isChecked() else 'barras' if self.bars.isChecked() else 'recortar'
+        v.update(encuadre=encuadre, barras=self.bars_width.value(), oscurecer=self.darken.value(),
                  grano=self.grain.isChecked(), titulo=self.title_on.isChecked(),
                  titulo_pos=self.title_pos.currentText(), logo=self.logo_on.isChecked(), zoom=self.zoom.isChecked(),
                  fundido=self.fade.isChecked())
@@ -261,14 +281,14 @@ class StyleEditor(QDialog):
         self._load(style)
 
     def _pick_color(self, which):
-        part = 'video' if which == 'tinte' else 'miniatura'
+        part = 'video' if which in ('tinte', 'barras_color') else 'miniatura'
         initial = QColor(self.style[part][which] or '#ffffff')
         color = QColorDialog.getColor(initial, self, 'Elegí un color')
         if color.isValid():
             self._set_color(which, color.name())
 
     def _set_color(self, which, value):
-        part = 'video' if which == 'tinte' else 'miniatura'
+        part = 'video' if which in ('tinte', 'barras_color') else 'miniatura'
         self.style[part][which] = value
         self._sync_preset()
         self.refresh_preview()
@@ -286,6 +306,10 @@ class StyleEditor(QDialog):
 
     def refresh_preview(self):
         style = self.style
+        on = style['video']['encuadre'] == 'barras'
+        for widget in (self.bars_box, self.bars_note):
+            widget.setVisible(on)
+        self.bars_label.setText(f"{style['video']['barras']} %")
         frame = st.render_frame(self.background, style, self.title, self.logo_path)
         self.video_preview.setPixmap(_pixmap(frame, 520))
         thumb = st.render_thumbnail(self.background, style, self.title, self.logo_path)
@@ -295,6 +319,8 @@ class StyleEditor(QDialog):
             notes.append('🐢 Con video stock, oscurecer, tinte, título, logo o fundido hacen que cada video tarde más '
                          '(se procesa entero, ~1 min por beat).')
         elif self.profile['fondo'] == cp.MODE_VIDEO:
+            if on:
+                notes.append('Con barras, la primera vez de cada ancho se prepara el video stock (puede tardar un minuto).')
             notes.append('⚡ Rápido: el video stock se copia sin procesar (~6 s por beat).')
         if style['video']['zoom'] and self.profile['fondo'] == cp.MODE_IMAGE:
             notes.append('🐢 El zoom lento procesa cada cuadro: tarda más que una imagen quieta.')

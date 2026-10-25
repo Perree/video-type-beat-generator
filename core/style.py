@@ -25,7 +25,8 @@ FONTS = {
     'Impact': ('impact.ttf', os.path.join(FONTS_DIR, 'Oswald.ttf')),
     'Courier Prime': (os.path.join(FONTS_DIR, 'CourierPrime-Bold.ttf'),),
 }
-FRAMINGS = ('recortar', 'difuminado')
+FRAMINGS = ('recortar', 'difuminado', 'barras')
+BARS_MIN, BARS_MAX = 8, 32  # % del ancho, por lado
 POSITIONS = ('arriba', 'centro', 'abajo')
 TEMPLATES = ('solo', 'franja', 'grande', 'logo')
 SOURCES = ('fondo', 'miniaturas', 'video')
@@ -33,7 +34,8 @@ LOGO_FILE = 'logo.png'  # en la carpeta del canal
 
 DEFAULT = {
     'video': {'encuadre': 'recortar', 'oscurecer': 0, 'tinte': '', 'grano': False, 'titulo': False,
-              'titulo_pos': 'abajo', 'logo': False, 'zoom': False, 'fundido': False},
+              'titulo_pos': 'abajo', 'logo': False, 'zoom': False, 'fundido': False,
+              'barras': 18, 'barras_color': '#000000'},
     'miniatura': {'plantilla': 'solo', 'fuente': 'Arial negrita', 'color': '#ffffff', 'tamano': 100,
                   'contorno': False, 'origen': 'fondo'},
 }
@@ -96,7 +98,10 @@ def validate(raw):
     checks = [
         (v['encuadre'] in FRAMINGS, 'encuadre'), (v['titulo_pos'] in POSITIONS, 'posición del título'),
         (isinstance(v['oscurecer'], int) and 0 <= v['oscurecer'] <= 80, 'oscurecer (0 a 80)'),
-        (_color(v['tinte']), 'tinte'), (m['plantilla'] in TEMPLATES, 'plantilla de miniatura'),
+        (_color(v['tinte']), 'tinte'),
+        (type(v['barras']) is int and BARS_MIN <= v['barras'] <= BARS_MAX, f'barras ({BARS_MIN} a {BARS_MAX})'),
+        (_color(v['barras_color']) and v['barras_color'], 'color de las barras'),
+        (m['plantilla'] in TEMPLATES, 'plantilla de miniatura'),
         (m['fuente'] in FONTS, 'fuente'), (_color(m['color']) and m['color'], 'color del texto'),
         (isinstance(m['tamano'], int) and 50 <= m['tamano'] <= 200, 'tamaño (50 a 200)'),
         (m['origen'] in SOURCES, 'origen de la miniatura'),
@@ -134,9 +139,61 @@ def _rgb(hex_color):
     return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
 
 
-def frame_image(source, size, framing='recortar'):
-    """Imagen ``size`` desde ``source`` (ruta o PIL.Image): recortada, o centrada sobre su versión difuminada."""
+def bars_geometry(size, percent):
+    """``(ancho_barra, ancho_foto)`` en px para un cuadro ``size``; ambos pares para que FFmpeg no se queje."""
+    bar = int(size[0] * percent / 100) // 2 * 2
+    return bar, size[0] - 2 * bar
+
+
+def framing_key(video):
+    """Encuadre como texto para la caché de stock: «barras» incluye ancho y color porque cambian el resultado."""
+    if video['encuadre'] == 'barras':
+        return f"barras:{video['barras']}:{video['barras_color'].lstrip('#').lower()}"
+    return video['encuadre']
+
+
+def _bars_inner(img, size, percent):
+    """Foto recortada al alto completo y al ancho interior (el mismo ancho de barra sin importar la foto)."""
+    from PIL import ImageOps
+    _, inner = bars_geometry(size, percent)
+    return ImageOps.fit(img, (inner, size[1]))
+
+
+def _with_bars(inner, size, percent, color):
+    from PIL import Image
+    bar, _ = bars_geometry(size, percent)
+    canvas = Image.new('RGB', size, _rgb(color))
+    canvas.paste(inner, (bar, 0))
+    return canvas
+
+
+def _open_rgb(source):
+    from PIL import Image, ImageOps
+    if isinstance(source, Image.Image):
+        return source.convert('RGB')
+    with Image.open(source) as opened:
+        opened.load()
+        return ImageOps.exif_transpose(opened).convert('RGB')
+
+
+def bars_layer(video, size=FRAME):
+    """Capa RGBA solo con las dos barras (centro transparente) para taparlas tras un zoom."""
+    from PIL import Image
+    bar, _ = bars_geometry(size, video['barras'])
+    layer = Image.new('RGBA', size, (0, 0, 0, 0))
+    solid = Image.new('RGBA', (bar, size[1]), _rgb(video['barras_color']) + (255,))
+    layer.paste(solid, (0, 0))
+    layer.paste(solid, (size[0] - bar, 0))
+    return layer
+
+
+def frame_image(source, size, framing='recortar', bars=None):
+    """Imagen ``size`` desde ``source`` (ruta o PIL.Image): recortada, centrada sobre su versión difuminada
+    o, con ``framing='barras'``, centrada entre dos barras iguales (``bars=(porcentaje, color)``)."""
     from PIL import Image, ImageFilter, ImageOps
+    if framing == 'barras':
+        percent, color = bars or (DEFAULT['video']['barras'], DEFAULT['video']['barras_color'])
+        return _with_bars(_bars_inner(_open_rgb(source), size, percent), size, percent, color)
     if isinstance(source, Image.Image):
         img = source
     else:
@@ -230,8 +287,12 @@ def _paste_logo(img, logo_path, corner='abajo-derecha'):
 def render_frame(source, style, title, logo_path=None, seed=0):
     """Cuadro de video 1920x1080 (fondo + efectos + título/logo si van en el video)."""
     v = style['video']
-    img = frame_image(source, FRAME, v['encuadre'])
-    img = _darken_tint_grain(img, v, seed)
+    if v['encuadre'] == 'barras':
+        # Los efectos van solo sobre la foto: las barras quedan del color elegido.
+        inner = _bars_inner(_open_rgb(source), FRAME, v['barras'])
+        img = _with_bars(_darken_tint_grain(inner, v, seed), FRAME, v['barras'], v['barras_color'])
+    else:
+        img = _darken_tint_grain(frame_image(source, FRAME, v['encuadre']), v, seed)
     if v['titulo'] and title:
         img = _text_block(img, title, style['miniatura']['fuente'], 64, style['miniatura']['color'],
                           v['titulo_pos'], outline=True, band=False, max_lines=2)
@@ -249,6 +310,12 @@ def overlay_layer(style, title, logo_path=None, size=FRAME):
         layer = Image.alpha_composite(layer, Image.new('RGBA', size, _rgb(v['tinte']) + (64,)))
     if v['oscurecer']:
         layer = Image.alpha_composite(layer, Image.new('RGBA', size, (0, 0, 0, int(255 * v['oscurecer'] / 100))))
+    if v['encuadre'] == 'barras':
+        # Oscurecer/tinte no tocan las barras (igual que en las imágenes fijas).
+        bar, _ = bars_geometry(size, v['barras'])
+        clear = Image.new('RGBA', (bar, size[1]), (0, 0, 0, 0))
+        layer.paste(clear, (0, 0))
+        layer.paste(clear, (size[0] - bar, 0))
     if v['titulo'] and title:
         text = Image.new('RGBA', size, (0, 0, 0, 0))
         text = _text_block(text, title, style['miniatura']['fuente'], 64, style['miniatura']['color'],
@@ -267,7 +334,11 @@ def overlay_layer(style, title, logo_path=None, size=FRAME):
 def render_thumbnail(source, style, title, logo_path=None):
     """Miniatura 1280x720 según la plantilla del estilo."""
     m = style['miniatura']
-    img = frame_image(source, THUMB, 'recortar')
+    v = style['video']
+    if v['encuadre'] == 'barras':  # misma barra (en %) que el video
+        img = frame_image(source, THUMB, 'barras', (v['barras'], v['barras_color']))
+    else:
+        img = frame_image(source, THUMB, 'recortar')
     px = int(THUMB[1] * 0.075 * m['tamano'] / 100)
     if m['plantilla'] == 'grande' and title:
         from PIL import Image

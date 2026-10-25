@@ -21,6 +21,18 @@ NORMALIZE_BLUR = ('split[a][b];[a]scale=1920:1080:force_original_aspect_ratio=in
 FILTERS = {'recortar': NORMALIZE, 'difuminado': NORMALIZE_BLUR}
 
 
+def video_filter(framing):
+    """Filtro FFmpeg del encuadre. «barras:<%>:<hex>» recorta la foto al alto completo y la centra entre
+    dos barras de ancho fijo (misma geometría que ``style.bars_geometry``)."""
+    if framing.startswith('barras:'):
+        from core import style
+        _, percent, color = framing.split(':')
+        bar, inner = style.bars_geometry(style.FRAME, int(percent))
+        return (f'scale={inner}:1080:force_original_aspect_ratio=increase,crop={inner}:1080,'
+                f'pad=1920:1080:{bar}:0:color=0x{color},setsar=1,fps=30,format=yuv420p')
+    return FILTERS.get(framing, NORMALIZE)
+
+
 def default_dir():
     base = os.environ.get('LOCALAPPDATA') or os.path.join(os.path.expanduser('~'), '.cache')
     return os.path.join(base, 'TypeBeat', 'cache')
@@ -51,7 +63,7 @@ class StockCache:
         partial = target + '.part'
         # Sin B-frames y con keyframe cada 2 s: se puede repetir y cortar sin recodificar.
         args = ['-y', '-i', source, '-t', str(MAX_SECONDS), '-map', '0:v:0', '-an', '-sn', '-dn',
-                '-vf', FILTERS.get(framing, NORMALIZE), '-c:v', tools.codec,
+                '-vf', video_filter(framing), '-c:v', tools.codec,
                 '-preset', 'veryfast' if tools.codec == 'libx264' else 'fast',
                 '-bf', '0', '-g', '60', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-f', 'mp4', partial]
         try:
