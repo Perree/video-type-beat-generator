@@ -102,12 +102,16 @@ def migrate(document, kind):
                 raise ValueError("invalid_job_identity")
             if job.get("status") not in ("planned", "uploaded", "failed", "cancelled"):
                 raise ValueError("invalid_job_status")
+            if "lost" in job and (job["lost"] is not True or job["status"] != "cancelled"):
+                raise ValueError("invalid_job_status")
             if 'publication_mode' in job and job['publication_mode'] not in ('scheduled', 'private_pilot'):
                 raise ValueError('invalid_publication_mode')
             pair = (job["channel"], instant(job["slot"]))
-            if pair in occupied:
-                raise ValueError("duplicate_channel_slot")
-            occupied.add(pair)
+            # Una subida perdida libera su horario: otro trabajo puede ocuparlo.
+            if not job.get("lost"):
+                if pair in occupied:
+                    raise ValueError("duplicate_channel_slot")
+                occupied.add(pair)
             if 'selection' in job:
                 selection = job['selection']
                 if (type(selection) is not dict or set(selection) != {'bucket', 'score', 'report_hash'}
