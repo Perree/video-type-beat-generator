@@ -64,6 +64,12 @@ class _Task(QThread):
             self.failed.emit(_error_text(exc))
 
 
+def _picker(parent, current):
+    """Selector de carpetas de Dropbox (el mismo de Beats), abierto en la carpeta actual."""
+    from core.beat_dropbox_picker import DropboxPicker
+    return DropboxPicker(parent, start=current)
+
+
 class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizardHost):
     """Formulario de canal, horarios, carpeta de kits, kits, géneros, SEO, portada y estado."""
     wizard_kind = KITS
@@ -282,11 +288,15 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
         box = QGroupBox("Carpeta de kits en Dropbox")
         form = theme.form_layout(box)
         self.kits_root = QLineEdit()
-        self.kits_root.setPlaceholderText("/ruta/en/Dropbox/tienda")
-        self.btn_categories = QPushButton("Leer categorías")
+        self.kits_root.setPlaceholderText("Tocá «Elegir en Dropbox…» (o escribí la ruta)")
+        self.btn_pick_root = QPushButton("Elegir en Dropbox…")
+        self.btn_pick_root.setToolTip("Navegá tu Dropbox con clics y elegí la carpeta de los kits.")
+        self.btn_pick_root.clicked.connect(lambda: self.pick_dropbox_folder(self.kits_root))
+        self.btn_categories = theme.flat(QPushButton("Leer categorías"))
         self.btn_categories.clicked.connect(self.read_categories)
         row = QHBoxLayout()
         row.addWidget(self.kits_root, 1)
+        row.addWidget(self.btn_pick_root)
         row.addWidget(self.btn_categories)
         form.addRow("Carpeta raíz", row)
         self.categories = QListWidget()
@@ -350,13 +360,19 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
         self.genres.setFixedHeight(80)
         self.genres.textChanged.connect(self._refresh_folders)
         self.refs_root = QLineEdit()
-        self.refs_root.setPlaceholderText("/ruta/en/Dropbox/referencias")
+        self.refs_root.setPlaceholderText("Tocá «Elegir en Dropbox…» (o escribí la ruta)")
         self.refs_root.textChanged.connect(self._refresh_folders)
+        self.btn_pick_refs = QPushButton("Elegir en Dropbox…")
+        self.btn_pick_refs.setToolTip("Navegá tu Dropbox con clics y elegí la carpeta de referencias.")
+        self.btn_pick_refs.clicked.connect(lambda: self.pick_dropbox_folder(self.refs_root))
+        refs_row = QHBoxLayout()
+        refs_row.addWidget(self.refs_root, 1)
+        refs_row.addWidget(self.btn_pick_refs)
         self.ref_folders = QLabel("")
         self.ref_folders.setWordWrap(True)
         theme.muted(self.ref_folders)
         form.addRow("Géneros", self.genres)
-        form.addRow("Carpeta de referencias", self.refs_root)
+        form.addRow("Carpeta de referencias", refs_row)
         form.addRow("Carpeta por género", self.ref_folders)
         return box
 
@@ -625,7 +641,8 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
 
     def _busy(self, on):
         widgets = [self.btn_reload, self.btn_save, self.btn_state, self.btn_dry, self.btn_new,
-                   self.automation, self.btn_categories, self.btn_detect, self.save_publish_button,
+                   self.automation, self.btn_categories, self.btn_detect, self.btn_pick_root,
+                   self.btn_pick_refs, self.save_publish_button,
                    self.sync_button, self.connect_youtube_button, self.dbx_start_button,
                    self.dbx_finish_button, self.save_telegram_button, self.test_telegram_button,
                    self.save_kit_notion_button, self.save_keys_button]
@@ -868,6 +885,20 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
         return True
 
     # --- Carpeta de kits ---
+
+    def pick_dropbox_folder(self, field):
+        """Elige una carpeta de Dropbox con clics y la escribe en ``field``.
+
+        En la carpeta raíz de kits, después lee sus categorías solo.
+        """
+        if self._task is not None:
+            return
+        picker = _picker(self, field.text())
+        if picker.exec_() == QDialog.Accepted and picker.selected_path:
+            field.setText(picker.selected_path)
+            if field is self.kits_root:
+                self.read_categories()
+        picker.deleteLater()
 
     def read_categories(self):
         """Arma las casillas con las subcarpetas de la raíz escrita en el formulario."""

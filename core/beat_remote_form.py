@@ -6,7 +6,7 @@ from core.beat_cloud import CloudError
 from core.beat_tasks import Cancelled
 from core.cloud_merge import MergeConflict
 from core.beat_panel_cloud import PanelCloud
-from core.beat_dropbox_picker import DropboxPicker
+from core.beat_dropbox_picker import DropboxPicker, start_folder
 
 
 class BeatRemoteForm:
@@ -22,7 +22,9 @@ class BeatRemoteForm:
             if len(genre) > 100 or any(c in genre for c in '=\r\n'):
                 self.status.setText('Género inválido.')
                 return
-        picker = DropboxPicker(self, file=target == 'thumbnail', provider=self.cloud_provider)
+        current = {'videos': self.videos_folder.text(), 'thumbnail': self.thumbnail_path.text()}.get(target, '')
+        picker = DropboxPicker(self, file=target == 'thumbnail', provider=self.cloud_provider,
+                               start=start_folder(current, file=target == 'thumbnail'))
         if picker.exec_() == QDialog.Accepted:
             self._apply_remote_selection(target, picker.selected_path, genre)
         picker.deleteLater()

@@ -278,6 +278,33 @@ class RemotePanelTests(unittest.TestCase):
         self.assertEqual(picker.selected_path, '/thumb.png')
         picker.deleteLater()
 
+    def test_picker_opens_in_the_current_folder_or_falls_back_to_root(self):
+        from core.beat_dropbox_picker import start_folder
+        self.assertEqual(start_folder('/Tienda/Kits/'), '/Tienda/Kits')
+        self.assertEqual(start_folder('/Art/thumb.png', file=True), '/Art')
+        self.assertEqual(start_folder('relativa'), '')
+        transport = BrowseTransport()
+        transport.pages = [SimpleNamespace(entries=[folder('/Tienda/Kits/Trap')], has_more=False)]
+        picker = DropboxPicker(provider=lambda: transport, start='/Tienda/Kits')
+        pump(lambda: picker.task is None)
+        self.assertEqual((picker.path, transport.calls[0][0]), ('/Tienda/Kits', '/Tienda/Kits'))
+        self.assertTrue(picker.choose.isEnabled())
+        picker.deleteLater()
+        gone = BrowseTransport()
+        listed = gone.files_list_folder
+
+        def files_list_folder(path, **kwargs):
+            if path:
+                gone.calls.append((path, kwargs, get_ident()))
+                raise RuntimeError('not_found')
+            return listed(path, **kwargs)
+        gone.files_list_folder = files_list_folder
+        picker = DropboxPicker(provider=lambda: gone, start='/Borrada')
+        pump(lambda: picker.task is None and picker.entries.count() > 0)
+        self.assertEqual(picker.path, '')  # la raíz, con sus carpetas
+        self.assertEqual(picker.entries.count(), 2)
+        picker.deleteLater()
+
     def test_picker_close_defers_and_discards_results(self):
         entered, release = Event(), Event()
         transport = BrowseTransport()

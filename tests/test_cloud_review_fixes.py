@@ -5,6 +5,7 @@ import os
 import sys
 import time
 import unittest
+from unittest.mock import patch
 from contextlib import redirect_stderr
 from copy import deepcopy
 
@@ -94,6 +95,35 @@ class KitPanelTests(unittest.TestCase):
         self.wait()
         self.assertEqual(results[1][0], False)
         self.assertIn("Beats", results[1][1])
+
+
+    def test_pick_folders_from_dropbox_with_clicks(self):
+        from PyQt5.QtWidgets import QDialog
+        picked = []
+
+        class Picker:
+            def __init__(self, path):
+                self.selected_path = path
+
+            def exec_(self):
+                return QDialog.Accepted
+
+            def deleteLater(self):
+                pass
+
+        def fake_picker(_parent, current):
+            picked.append(current)
+            return Picker('/Tienda/Kits')
+        self.panel.kits_root.setText('/Vieja')
+        with patch('loop_kit_panel._picker', fake_picker), \
+                patch.object(self.panel, 'read_categories') as read:
+            self.panel.btn_pick_root.click()
+            self.assertEqual(picked, ['/Vieja'])  # abre donde estaba
+            self.assertEqual(self.panel.kits_root.text(), '/Tienda/Kits')
+            read.assert_called_once_with()  # y lee las categorías solo
+            self.panel.btn_pick_refs.click()
+            self.assertEqual(self.panel.refs_root.text(), '/Tienda/Kits')
+            read.assert_called_once_with()
 
 
 class WorkerChannelTests(unittest.TestCase):
