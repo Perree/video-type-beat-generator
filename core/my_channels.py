@@ -268,6 +268,7 @@ class MyChannelsView(QWidget):
         self.kit_changes = {}       # {clave: {'active', 'day'} | 'remove'} sin guardar
         self.kit_schedule = None    # {clave: día} de KIT_CHANNELS (None = todavía no se sabe)
         self.kit_saving = False
+        self.kit_creating = False   # alta de Loop kits en curso (panel de kits)
         self._kit_worker = None
         self._signature = None
         self.beat_cards, self.kit_cards = [], []
@@ -366,7 +367,7 @@ class MyChannelsView(QWidget):
 
     def _state(self):
         return (self.blocked_reason(), repr(self.channels()), tuple(self.kits()), self.dirty, self.saving,
-                repr(self.kit_schedule), repr(self.kit_changes), self.kit_saving)
+                repr(self.kit_schedule), repr(self.kit_changes), self.kit_saving, self.kit_creating)
 
     def tick(self):
         if self.saving and self.beat_panel.task is None:
@@ -377,9 +378,16 @@ class MyChannelsView(QWidget):
                                 else f'✗ {self.beat_panel.status.text()}')
             self._signature = None
         if not self.kit_saving:
-            self.kit_schedule = kit_manage.read_schedule()
+            self._refresh_kit_schedule()
         if self._state() != self._signature:
             self.rebuild()
+
+    def _refresh_kit_schedule(self):
+        """Lee ``KIT_CHANNELS``. Mientras GitHub se vuelve a consultar (la caché vence cada minuto)
+        queda el último dato: si no, las tarjetas saltan entre «Activa» y «Pausada / Conectá GitHub»."""
+        fresh = kit_manage.read_schedule()
+        if fresh is not None or gh_status.default().auth() == gh_status.MISSING:
+            self.kit_schedule = fresh
 
     def rebuild(self):
         self._signature = self._state()
@@ -414,11 +422,11 @@ class MyChannelsView(QWidget):
         self.btn_save.setVisible(self.any_dirty() or saving)
         self.btn_save.setEnabled(self.any_dirty() and not busy)
         self.btn_save.setText('Guardando…' if saving else 'Guardar cambios')
-        self.btn_add.setEnabled(self.beats_loaded() and not busy)
+        self.btn_add.setEnabled(self.beats_loaded() and not busy and not self.kit_creating)
         self.action_distribution.setEnabled(self.beats_loaded() and not busy)
         if self.any_dirty() and not saving:
             self.status.setText('Tenés cambios sin guardar: tocá «Guardar cambios» para que el robot los use.')
-        elif not saving and not self.status.text().startswith(('✓', '✗')):
+        elif not saving and not self.kit_creating and not self.status.text().startswith(('✓', '✗')):
             self.status.setText('')
 
     def _heading(self, text):
@@ -467,9 +475,7 @@ class MyChannelsView(QWidget):
         if not dialog.exec_():
             return
         if dialog.kind() == 'kits':
-            self.kit_panel.ask_new_automation()  # su propio diálogo (elige el canal o escribe uno)
-            if self._ensure_kits:
-                self._ensure_kits(force=True)
+            self.add_kit()
             return
         key = dialog.beat_choice()
         if key is None:  # canal nuevo: lo crea en el registro (pide el nombre) y se guarda con «Guardar»
@@ -477,6 +483,19 @@ class MyChannelsView(QWidget):
             if not key:
                 return
         self.add_beat(key)
+
+    def add_kit(self):
+        """Alta de Loop kits con el diálogo del panel; el resultado (o el error) se ve acá."""
+        def result(ok, text):
+            self.kit_creating = False
+            self.status.setText(f'✓ Canal de Loop kits «{text}» creado. Tildá «Activa» y guardá para que el '
+                                'robot lo publique; «Editar todo» muestra lo que falta.' if ok else f'✗ {text}')
+            self._signature = None
+            self.tick()
+        if self.kit_panel.ask_new_automation(on_result=result):
+            self.kit_creating = True
+            self.status.setText('Creando el canal de Loop kits en Dropbox…')
+            self.rebuild()
 
     def add_beat(self, key):
         """Agrega la automatización de Beats de ``key`` con el slug que ya tiene en la nube."""
@@ -530,6 +549,8 @@ class MyChannelsView(QWidget):
 
         def done(result):
             self.kit_changes = {}
+            # Lo recién guardado es el estado conocido (la relectura de GitHub tarda un momento).
+            self.kit_schedule = dict(kit_channel.parse_schedule(result['kit_channels']))
             removed = len(result['removed'])
             self.status.setText('✓ Cambios de Loop kits guardados en GitHub'
                                 + (f' ({removed} quitado{"s" if removed != 1 else ""})' if removed else '') + '.')

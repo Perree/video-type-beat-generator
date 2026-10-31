@@ -82,6 +82,20 @@ class KitPanelTests(unittest.TestCase):
         self.assertNotIn("/Soft Projects/Type Beat Generator/datos/loop_kits/ey-mat/config.json", self.dbx.files)
 
 
+    def test_new_automation_reports_errors_to_the_caller(self):
+        self.put(cloud_registry.PATHS["canales"], registry(ficha("ey-mat", "beats", "ey mat")))
+        self.put(kit_settings.CONFIG_PATH, {"channels": {}, "kit_preview": {}})
+        self.panel.reload()
+        results = []
+        self.assertFalse(self.panel.ask_new_automation(lambda ok, text: results.append((ok, text))))
+        self.assertEqual(results[0][0], False)  # ocupado leyendo: se avisa, no se ignora
+        self.wait()
+        self.panel.create_automation("ey mat", lambda ok, text: results.append((ok, text)))
+        self.wait()
+        self.assertEqual(results[1][0], False)
+        self.assertIn("Beats", results[1][1])
+
+
 class WorkerChannelTests(unittest.TestCase):
     def test_untyped_channels_are_reported_and_only_fatal_when_selected(self):
         from run_kit_preview import resolve_channel

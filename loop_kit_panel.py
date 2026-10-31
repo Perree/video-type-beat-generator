@@ -651,24 +651,39 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
         self.automation.blockSignals(False)
         self.refresh_channel_chips()
 
-    def ask_new_automation(self):
+    def ask_new_automation(self, on_result=None):
+        """Pide el canal y lo crea. ``on_result(ok, texto)`` avisa el final (también si falla).
+
+        Devuelve True si empezó a crearlo; False si no (cancelado, ocupado o error).
+        """
+        def fail(text):
+            self._say(text, error=True)
+            if on_result:
+                on_result(False, text)
+            return False
+        if self._task is not None:
+            return fail("Loop kits todavía está leyendo Dropbox. Probá de nuevo en unos segundos.")
         if self._registry_error:
-            self._say(self._registry_error, error=True)
-            return
+            return fail(self._registry_error)
         try:
             names = kit_channel_setup.loop_kit_channels(
                 kit_channel_setup.registry_config(self._registry), self._base_config)
         except channel_kind.ChannelKindError as exc:
-            self._say(str(exc), error=True)
-            return
+            return fail(str(exc))
         taken = {self.automation.itemText(i) for i in range(1, self.automation.count())}
         name, ok = QInputDialog.getItem(
             self, "Crear automatización", "Canal de Loop kits:",
             [n for n in names if n not in taken], 0, True)
-        if ok:
-            self.create_automation(name)
+        name = (name or '').strip()
+        if not ok:
+            return False
+        if not name:
+            return fail("Escribí el nombre del canal de Loop kits.")
+        if name in taken:
+            return fail(f"«{name}» ya tiene automatización de Loop kits.")
+        return self.create_automation(name, on_result)
 
-    def create_automation(self, name):
+    def create_automation(self, name, on_result=None):
         """Arma la config mínima del canal en Dropbox y lo deja elegido."""
         base = self._base_config
         registry, registry_rev = self._registry, self._registry_rev
@@ -700,21 +715,30 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
             self.reload(note="Automatización creada. Falta cargar los secretos de "
                              f"{kit_channel.environment(created.slug)} "
                              "(scripts/kit_secrets_sync.py) y sumar el canal a KIT_CHANNELS.")
+            if on_result:
+                on_result(True, name)
 
-        self._run(work, done, "Creando la automatización…")
+        def failed(text):
+            if on_result:
+                on_result(False, text)
 
-    def _run(self, fn, on_done, message):
+        return self._run(work, done, "Creando la automatización…", failed)
+
+    def _run(self, fn, on_done, message, on_error=None):
         if self._task is not None:
-            return
+            if on_error:
+                on_error("Loop kits está ocupado. Probá de nuevo en unos segundos.")
+            return False
         self._busy(True)
         self._say(message)
         task = _Task(fn, self)
         task.done.connect(lambda result: self._finish(task, on_done, result))
-        task.failed.connect(lambda text: self._finish(task, None, None, text))
+        task.failed.connect(lambda text: self._finish(task, None, None, text, on_error))
         self._task = task
         task.start()
+        return True
 
-    def _finish(self, task, on_done, result, error=None):
+    def _finish(self, task, on_done, result, error=None, on_error=None):
         if task is not self._task:
             # El panel se cerró (shutdown) mientras la tarea corría: esta señal llega tarde,
             # cuando el hilo y los widgets ya no existen. No hay nada que actualizar.
@@ -726,6 +750,8 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
         if error:
             self._say(error, error=True)
             self.wizard_notify(False, error)
+            if on_error:
+                on_error(error)
         elif on_done:
             on_done(result)
 

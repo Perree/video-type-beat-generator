@@ -160,6 +160,86 @@ class MyChannelsTests(unittest.TestCase):
         self.assertEqual(opened, ["wyresounds"])
 
 
+class FakeGh:
+    """Cliente de gh: ``state`` = 'ok' (con KIT_CHANNELS), 'loading' (relectura) o 'missing'."""
+
+    def __init__(self):
+        self.state = "ok"
+
+    def auth(self):
+        return {"ok": "ok", "loading": "unknown", "missing": "missing"}[self.state]
+
+    def variable(self, _name):
+        return "default=6,wyresounds=2" if self.state == "ok" else None
+
+    def pending(self):
+        return self.state == "loading"
+
+    def invalidate(self):
+        pass
+
+    def enable_background(self, _listener):
+        pass
+
+    def secrets(self, *_args):
+        return None
+
+    def environments(self):
+        return None
+
+
+class KitStateTests(unittest.TestCase):
+    def setUp(self):
+        from core import gh_status
+        self.gh = FakeGh()
+        previous = gh_status.set_default(self.gh)
+        self.addCleanup(gh_status.set_default, previous)
+        self.memory = seed(MemoryDropbox())
+        self.panel = BeatPanel(cloud_provider=lambda: self.memory)
+        pump(lambda: self.panel.task is None)
+        self.kits = FakeKits()
+        self.view = MyChannelsView(self.panel, self.kits)
+        self.view.show()
+        self.view.tick()
+        self.addCleanup(self.panel.deleteLater)
+        self.addCleanup(self.view.deleteLater)
+
+    def test_reloading_github_does_not_flip_cards_to_paused(self):
+        self.assertEqual([(c.active.isEnabled(), c.active.text()) for c in self.view.kit_cards],
+                         [(True, "Activa"), (True, "Activa")])
+        self.gh.state = "loading"  # la caché de gh venció y se vuelve a consultar
+        self.view.tick()
+        self.assertEqual([(c.active.isEnabled(), c.active.text()) for c in self.view.kit_cards],
+                         [(True, "Activa"), (True, "Activa")])
+        self.assertEqual(self.view.kit_cards[1].day.currentIndex(), 2)
+        self.gh.state = "missing"  # sin sesión de verdad: ahí sí se avisa
+        self.view.tick()
+        self.assertFalse(self.view.kit_cards[0].active.isEnabled())
+
+    def test_add_kit_shows_the_result_here(self):
+        from core.my_channels import AddChannelDialog
+        calls = []
+
+        def ask(on_result=None):
+            calls.append(on_result)
+            return True
+        self.kits.ask_new_automation = ask
+        with mock.patch.object(AddChannelDialog, "exec_", return_value=True), \
+                mock.patch.object(AddChannelDialog, "kind", return_value="kits"):
+            self.view.btn_add.click()
+        self.assertIn("Creando", self.view.status.text())
+        self.assertFalse(self.view.btn_add.isEnabled())
+        calls[0](False, "Registro de canales ilegible")
+        self.assertEqual(self.view.status.text(), "✗ Registro de canales ilegible")
+        self.assertTrue(self.view.btn_add.isEnabled())
+        with mock.patch.object(AddChannelDialog, "exec_", return_value=True), \
+                mock.patch.object(AddChannelDialog, "kind", return_value="kits"):
+            self.view.btn_add.click()
+        calls[1](True, "Nuevo Kits")
+        self.assertIn("✓", self.view.status.text())
+        self.assertIn("Nuevo Kits", self.view.status.text())
+
+
 class BlockedTests(unittest.TestCase):
     def test_missing_registry_explains_and_links_to_connections(self):
         memory = seed(MemoryDropbox(), with_registry=False)
