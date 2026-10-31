@@ -165,6 +165,23 @@ QPushButton::menu-indicator {{
     width: 10px;
     height: 10px;
 }}
+/* Opciones grandes (Inicio, Asistente): una principal y el resto neutras. */
+QPushButton[role="choice"], QPushButton[role="choice_primary"] {{
+    text-align: left;
+    padding: {s['l']}px {s['xl']}px;
+    border-radius: {r + 2}px;
+    font-size: {f['subtitle']}px;
+}}
+QPushButton[role="choice"] {{ background-color: {c['surface']}; border: 1px solid {c['border']}; }}
+QPushButton[role="choice"]:hover {{ background-color: {c['surface_alt']}; border-color: {c['border_strong']}; }}
+QPushButton[role="choice_primary"] {{
+    background-color: {c['accent']}; border: 1px solid {c['accent']}; color: {c['on_accent']}; font-weight: 600;
+}}
+QPushButton[role="choice_primary"]:hover {{ background-color: {c['accent_hover']}; border-color: {c['accent_hover']}; }}
+QPushButton[role="flat"]:checked {{ color: {c['text']}; background-color: {c['surface_alt']}; }}
+QFrame#guide {{ background-color: {c['surface']}; border: none; border-left: 1px solid {c['border']}; }}
+QFrame[role="step"] {{ background-color: {c['bg']}; border: 1px solid {c['border']}; border-radius: {r}px; }}
+QFrame[role="step_current"] {{ background-color: {c['bg']}; border: 1px solid {c['accent']}; border-radius: {r}px; }}
 QPushButton#section_nav_active {{ border-color: {c['accent']}; font-weight: 600; }}
 QToolButton[role="disclosure"] {{
     background: transparent;

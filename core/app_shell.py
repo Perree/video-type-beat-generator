@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import QHBoxLayout, QLabel, QPushButton, QStackedWidget, QV
 
 from core import manual_render as mr
 from core.guide_panel import GuidePanel
+import ui_theme as theme
 
 
 class AppShell(QWidget):
@@ -16,15 +17,14 @@ class AppShell(QWidget):
         super().__init__(parent)
         self.home, self.pages, self.settings_path = home, pages, settings_path
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setContentsMargins(theme.SPACE['s'], theme.SPACE['s'], theme.SPACE['s'], 0)
         bar = QHBoxLayout()
-        self.btn_back = QPushButton('← Inicio')
+        self.btn_back = theme.flat(QPushButton('← Inicio'))
         self.btn_back.clicked.connect(self.show_home)
         bar.addWidget(self.btn_back)
-        self.title = QLabel()
-        self.title.setStyleSheet('font-size: 14px; font-weight: bold;')
+        self.title = theme.muted(QLabel(), wrap=False)  # dónde estás; el título grande lo pone cada pantalla
         bar.addWidget(self.title, 1)
-        self.btn_guide = QPushButton('? Guía')
+        self.btn_guide = theme.flat(QPushButton('? Guía'))
         self.btn_guide.setCheckable(True)
         self.btn_guide.setToolTip('Pasos para usar esta pantalla; se tildan solos.')
         self.btn_guide.toggled.connect(self.set_guide_visible)

@@ -13,7 +13,10 @@ from core.cloud_worker import CallWorker
 from core.guide_panel import GuideStep
 from core.wizard import Wizard
 
-_COLORS = {cs.OK: '#2ecc71', cs.MISSING: '#c0392b', cs.UNKNOWN: '#888888'}
+import ui_theme as theme
+
+_COLORS = {cs.OK: theme.color('success'), cs.MISSING: theme.color('danger'),
+           cs.UNKNOWN: theme.color('text_muted')}
 _CARD = ('QFrame#card {{ border: 1px solid {border}; border-radius: 10px; background: #333; }}'
          ' QFrame#card QLabel {{ border: none; background: transparent; }}')
 

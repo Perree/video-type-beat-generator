@@ -22,6 +22,9 @@ from core.manual_panel import BeatDropTable
 from core.profile_editor import ProfileEditor, TITLE_STYLES, SAMPLE
 from core.wizard import Wizard, WizardPage
 
+import ui_theme as theme
+from core.home_screen import centered_column, choice
+
 UPLOAD_HELP = ('<b>Cómo subirlos a YouTube:</b><ol>'
                '<li>Abrí YouTube Studio → Crear → Subir videos.</li>'
                '<li>Arrastrá el <b>.mp4</b> de la carpeta del video (el título ya viene en el nombre).</li>'
@@ -29,8 +32,6 @@ UPLOAD_HELP = ('<b>Cómo subirlos a YouTube:</b><ol>'
                '<li>En Miniatura, subí el archivo <b>«… - miniatura.jpg»</b>.</li>'
                '<li>Programá o publicá. Marcá «subido» en <b>pendientes.csv</b> para llevar la cuenta.</li></ol>')
 
-_GOAL = ('QPushButton {{ background: {bg}; color: white; font-size: 15px; font-weight: bold; padding: 18px; '
-         'border-radius: 8px; text-align: left; }} QPushButton:hover {{ background: {hover}; }}')
 
 
 def _vbox(*widgets):
@@ -140,22 +141,25 @@ class AssistantView(QWidget):
     # --- Elegir objetivo ---
 
     def _goal_page(self):
-        title = QLabel('¿Qué querés lograr?')
-        title.setStyleSheet('font-size: 22px; font-weight: bold;')
-        text = QLabel('Elegí una opción y te llevo paso a paso. En cada pantalla hay una sola cosa para hacer.')
-        text.setWordWrap(True)
-        self.btn_one = QPushButton('🎬  Hacer videos de beats nuevos para un canal   (recomendado)')
-        self.btn_many = QPushButton('📥  Hacer videos para varios canales a la vez')
-        self.btn_new = QPushButton('➕  Crear un canal nuevo')
-        self.btn_cloud = QPushButton('☁  Automatizar un canal en la nube')
-        styles = (('#27AE60', '#2ECC71'), ('#2c5d8f', '#3a75b0'), ('#7d5a9e', '#9670bb'), ('#555555', '#666666'))
-        for button, (bg, hover) in zip((self.btn_one, self.btn_many, self.btn_new, self.btn_cloud), styles):
-            button.setStyleSheet(_GOAL.format(bg=bg, hover=hover))
+        title = theme.set_role(QLabel('¿Qué querés lograr?'), 'display')
+        text = theme.muted(QLabel('Elegí una opción y te llevo paso a paso. En cada pantalla hay una sola '
+                                  'cosa para hacer.'))
+        self.btn_one = choice('🎬   Hacer videos de beats nuevos para un canal\nLo más común. Recomendado.',
+                              primary=True)
+        self.btn_many = choice('📥   Hacer videos para varios canales a la vez')
+        self.btn_new = choice('➕   Crear un canal nuevo')
+        self.btn_cloud = choice('☁   Automatizar un canal en la nube')
         self.btn_one.clicked.connect(lambda: self.start_one())
         self.btn_many.clicked.connect(self.start_many)
         self.btn_new.clicked.connect(self.start_new)
         self.btn_cloud.clicked.connect(self.start_cloud)
-        box, layout = _vbox(1, title, text, self.btn_one, self.btn_many, self.btn_new, self.btn_cloud, 2)
+        box = QWidget()
+        outer = QVBoxLayout(box)
+        outer.addStretch(1)
+        column = centered_column(outer)
+        for widget in (title, text, self.btn_one, self.btn_many, self.btn_new, self.btn_cloud):
+            column.addWidget(widget)
+        outer.addStretch(2)
         return box
 
     def show_goals(self):
@@ -337,7 +341,7 @@ class AssistantView(QWidget):
                 titles.setItem(row, BeatDropTable.COL_BEAT, name)
                 cell = QTableWidgetItem(title)
                 if path in state['titles']:
-                    cell.setForeground(QColor('#f1c40f'))
+                    cell.setForeground(QColor(theme.color('warning')))
                 titles.setItem(row, BeatDropTable.COL_TITLE, cell)
                 length = QTableWidgetItem(f'{len(title)}/100')
                 length.setFlags(length.flags() & ~Qt.ItemIsEditable)
@@ -429,7 +433,7 @@ class AssistantView(QWidget):
             for beat in state['beats']:
                 counts[beat['channel']] = counts.get(beat['channel'], 0) + 1
             lines = [f'• <b>{c}</b>: {n} beats' for c, n in sorted(counts.items())] or ['(no hay beats todavía)']
-            extra = ''.join(f'<br><span style="color:#f1c40f">⚠ {n}</span>' for n in notes)
+            extra = ''.join(f'<br><span style="color:{theme.color("warning")}">⚠ {n}</span>' for n in notes)
             folder = os.path.join(self.root, cp.INPUT_DIR, '<canal>') if self.root else '—'
             listing.setText(f'Carpeta: <b>{folder}</b><br><br>' + '<br>'.join(lines) + extra)
             self._recheck()
@@ -457,7 +461,7 @@ class AssistantView(QWidget):
                 title = state['titles'].get(beat['path']) or auto(beat)
                 cell = QTableWidgetItem(title)
                 if beat['path'] in state['titles']:
-                    cell.setForeground(QColor('#f1c40f'))
+                    cell.setForeground(QColor(theme.color('warning')))
                 table.setItem(row, 2, cell)
             table.blockSignals(False)
 

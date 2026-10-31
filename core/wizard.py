@@ -9,11 +9,8 @@ from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 from PyQt5.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton, QStackedWidget, QVBoxLayout,
                              QWidget)
 
-from ui_theme import ACCENT_GENERATE, ACCENT_GENERATE_HOVER
+import ui_theme as theme
 
-_NEXT = (f'QPushButton {{ background: {ACCENT_GENERATE}; color: white; font-size: 15px; font-weight: bold;'
-         f' padding: 10px 28px; }} QPushButton:hover {{ background: {ACCENT_GENERATE_HOVER}; }}'
-         ' QPushButton:disabled { background: #555; color: #aaa; }')
 
 
 class WizardPage:
@@ -47,19 +44,16 @@ class Wizard(QWidget):
         self.pages = list(pages)
         self.index = 0
         layout = QVBoxLayout(self)
-        self.flow_title = QLabel(title)
-        self.flow_title.setStyleSheet('color: #bbb;')
+        self.flow_title = theme.muted(QLabel(title))
         layout.addWidget(self.flow_title)
         self.dots = QLabel()
         self.dots.setTextFormat(Qt.RichText)
         layout.addWidget(self.dots)
-        self.title = QLabel()
-        self.title.setStyleSheet('font-size: 20px; font-weight: bold;')
+        self.title = theme.title(QLabel())
         self.title.setWordWrap(True)
         layout.addWidget(self.title)
         self.text = QLabel()
         self.text.setWordWrap(True)
-        self.text.setStyleSheet('font-size: 14px;')
         layout.addWidget(self.text)
         self.stack = QStackedWidget()
         for page in self.pages:
@@ -67,21 +61,17 @@ class Wizard(QWidget):
         layout.addWidget(self.stack, 1)
         self.hint = QLabel()
         self.hint.setWordWrap(True)
-        self.hint.setStyleSheet('color: #f1c40f; font-size: 13px;')
+        theme.tone(self.hint, 'warning')
         layout.addWidget(self.hint)
-        line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        layout.addWidget(line)
         buttons = QHBoxLayout()
-        self.btn_cancel = QPushButton('Salir del asistente')
+        self.btn_cancel = theme.flat(QPushButton('Salir del asistente'))
         self.btn_cancel.clicked.connect(self.cancelled)
         buttons.addWidget(self.btn_cancel)
         buttons.addStretch()
         self.btn_back = QPushButton('← Atrás')
         self.btn_back.clicked.connect(self.back)
         buttons.addWidget(self.btn_back)
-        self.btn_next = QPushButton()
-        self.btn_next.setStyleSheet(_NEXT)
+        self.btn_next = theme.primary(QPushButton())
         self.btn_next.clicked.connect(self.next)
         buttons.addWidget(self.btn_next)
         layout.addLayout(buttons)
@@ -138,8 +128,9 @@ class Wizard(QWidget):
         self.hint.setText(f'Para seguir: {hint}' if hint else '')
         self.hint.setVisible(bool(hint))
         total = len(self.pages)
-        dots = ' '.join('<span style="color:%s">●</span>' % ('#2ecc71' if i < self.index else
-                                                               '#f1c40f' if i == self.index else '#555')
+        dots = ' '.join('<span style="color:%s">●</span>' % (theme.color('success') if i < self.index else
+                                                               theme.color('accent_hover') if i == self.index
+                                                               else theme.color('border_strong'))
                         for i in range(total))
         self.dots.setText(f'{dots}&nbsp;&nbsp;Paso {self.index + 1} de {total}')
 

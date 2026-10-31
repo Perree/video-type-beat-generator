@@ -9,7 +9,10 @@ from PyQt5.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton, QScrollAr
                              QVBoxLayout, QWidget, QLayout, QSizePolicy)
 
 DONE, TODO, INFO = 'done', 'todo', 'info'
-_ICON = {DONE: ('✔', '#2ecc71'), TODO: ('○', '#888888'), INFO: ('•', '#3498db')}
+import ui_theme as theme
+
+_ICON = {DONE: ('✔', theme.color('success')), TODO: ('○', theme.color('text_muted')),
+         INFO: ('•', theme.color('accent_hover'))}
 
 
 class GuideStep:
@@ -56,24 +59,21 @@ class GuidePanel(QFrame):
         self.steps = []
         layout = QVBoxLayout(self)
         top = QHBoxLayout()
-        self.title = QLabel()
-        self.title.setStyleSheet('font-size: 15px; font-weight: bold;')
+        self.title = theme.subtitle(QLabel())
         self.title.setWordWrap(True)
         top.addWidget(self.title, 1)
-        close = QPushButton('✕')
+        close = theme.flat(QPushButton('✕'))
         close.setToolTip('Cerrar la guía (se vuelve a abrir con «? Guía»)')
         close.setFixedWidth(36)
         close.clicked.connect(self._close)
         top.addWidget(close)
         layout.addLayout(top)
-        self.intro = QLabel()
-        self.intro.setWordWrap(True)
+        self.intro = theme.muted(QLabel())
         layout.addWidget(self.intro)
         self.progress = QLabel()
         layout.addWidget(self.progress)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet('QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; }')
         self.body = QWidget()
         self.body_layout = QVBoxLayout(self.body)
         self.body_layout.setSizeConstraint(QLayout.SetMinimumSize)
@@ -119,15 +119,12 @@ class GuidePanel(QFrame):
     def _row(self, index, step, state, current):
         row = GuideRow()
         row.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
-        border = '#f1c40f' if current else '#555'
-        row.setStyleSheet(f'QFrame {{ border: 1px solid {border}; border-radius: 6px; }}'
-                          ' QLabel { border: none; background: transparent; }')
+        theme.set_role(row, 'step_current' if current else 'step')
         layout = QVBoxLayout(row)
         layout.setSizeConstraint(QLayout.SetMinimumSize)
         icon, color = _ICON[state]
-        head = QLabel(f'<span style="color:{color}; font-size:15px">{icon}</span> '
-                      f'<b>{index + 1}. {step.text}</b>' + ('  <span style="color:#f1c40f">← ahora</span>'
-                                                         if current else ''))
+        now = f'  <span style="color:{theme.color("accent_hover")}">← ahora</span>' if current else ''
+        head = QLabel(f'<span style="color:{color}">{icon}</span> <b>{index + 1}. {step.text}</b>{now}')
         head.setWordWrap(True)
         head.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
         layout.addWidget(head)
@@ -135,7 +132,7 @@ class GuidePanel(QFrame):
             hint = QLabel(step.hint)
             hint.setWordWrap(True)
             hint.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
-            hint.setStyleSheet('color: #bbb; font-size: 12px;')
+            theme.muted(hint)
             layout.addWidget(hint)
         if step.action:
             button = QPushButton(step.action_text)
