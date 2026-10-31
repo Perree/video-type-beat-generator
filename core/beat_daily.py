@@ -15,6 +15,7 @@ from core.beat_seo import beat_url
 from core.beat_video import render_reserved
 from core.beat_publish import publish
 from core.beat_notify import COUNTERS
+from core.beat_reasons import classify, note
 from core.beat_visual import options
 from core.beat_guard import ChannelPaused, PublicationExpired
 from core.beat_selection import (eligible_tracks, selection_tags, ensure_selection,
@@ -31,6 +32,11 @@ def calendar_days(calendar, channel_id, clock):
     llamador lo trata como calendario desconocido y no sube nada.
     """
     return occupied_days(calendar(channel_id), clock())
+
+
+def _note_calendar(summary, exc):
+    code = classify(exc)
+    note(summary, 'calendar_read_failed' if code.startswith('error_') else code)
 
 
 def visual_genre(channel, track):
@@ -101,9 +107,10 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
         if calendar is not None:
             try:
                 taken = calendar_days(calendar, channel_id, clock)
-            except Exception:
+            except Exception as exc:
                 # Calendario desconocido: un fallo de lectura nunca cancela trabajos.
                 summary['calendar_unavailable'] += 1
+                _note_calendar(summary, exc)
                 return summary
         # Each matrix runner owns only its channel's report/credentials. Let
         # other runners reserve their own buffers with their own metrics.
@@ -155,6 +162,7 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
                 remaining = 6 - len(latest['attempts'].get(budget_day.isoformat(), {}))
             if instant(job['slot']) <= now:
                 summary['expired'] += 1
+                note(summary, 'slot_expired')
                 continue
             if instant(job['slot']) > now + timedelta(days=14):
                 continue
@@ -164,15 +172,17 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
                 # intento, así un día tomado no gasta cupo ni llega a videos.insert.
                 try:
                     taken = calendar_days(calendar, channel_id, clock)
-                except Exception:
+                except Exception as exc:
                     summary['calendar_unavailable'] += 1
+                    _note_calendar(summary, exc)
                     break
                 day = instant(job['slot']).date()
                 if day in taken:
                     try:
                         BeatState(cloud, clock).cancel_occupied(channel_id, {day})
-                    except Exception:
+                    except Exception as exc:
                         summary['failed'] += 1
+                        note(summary, exc)
                     continue
             summary['eligible'] += 1
             if remaining <= 0:
@@ -201,7 +211,8 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
                         '{url}', link or beat_url(track))))
                     outcome = publish(cloud, job, media, seo, uploader, receipts, clock,
                                       thumbnailer=thumbnailer, private_pilot=private_pilot,
-                                      expected_owner=channel.get('youtube_channel_id'), selection_track=track)
+                                      expected_owner=channel.get('youtube_channel_id'), selection_track=track,
+                                      on_error=lambda exc: note(summary, exc))
                     summary[outcome] += 1
                     if outcome == 'thumbnail_failed':
                         summary['uploaded'] += 1
@@ -217,12 +228,15 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
                 break
             except PublicationExpired:
                 summary['expired'] += 1
-            except Exception:
+                note(summary, 'slot_expired')
+            except Exception as exc:
                 summary['failed'] += 1
+                note(summary, exc)
     except SelectionChanged:
         summary['blocked'] += 1
-    except Exception:
+    except Exception as exc:
         summary['failed'] += 1
+        note(summary, exc)
     finally:
         # Dry-run has NO Telegram sends either. Notifications never affect receipts.
         if notify is not None and not dry_run:

@@ -11,6 +11,7 @@ from core.beat_daily import run_daily
 from core.beat_share import ShareLinks
 from core.beat_notion import fetch_report
 from core.beat_notify import Telegram
+from core.beat_reasons import note
 from core.beat_youtube import BeatYouTube
 from core.beat_logs import quiet_dependencies
 from core.beat_actions import check_context, bind_channel
@@ -74,8 +75,9 @@ def main(argv=None):
                     share_links=ShareLinks(),
                     # El token solo existe fuera del dry-run; el dry-run no lee YouTube.
                     calendar=None if args.dry_run else client.calendar)
-        except Exception:
+        except Exception as exc:
             # Bootstrap failures are also a sanitized alert when Telegram exists.
+            note(summary, exc)
             if notifier is not None:
                 try:
                     notifier(summary)
