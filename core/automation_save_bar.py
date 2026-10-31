@@ -3,6 +3,7 @@
 from PyQt5.QtWidgets import QHBoxLayout, QLabel, QPushButton
 
 from core import automation_status as status
+import ui_theme as theme
 
 # Requisitos mínimos de conexiones (informe SEO aparte).
 BEATS_PILOT_REQUIRED = frozenset({'slug', 'youtube', 'dropbox', 'gh'})
@@ -27,17 +28,18 @@ class AutomationSaveBar:
     def _build_save_bar(self, outer):
         """Añade botón primario y checklist encima del ``status`` del panel."""
         row = QHBoxLayout()
-        self.save_publish_button = QPushButton('Publicar al robot')
-        self.save_publish_button.setMinimumHeight(36)
-        self.save_publish_button.clicked.connect(self.save_and_publish)
-        row.addWidget(self.save_publish_button, 0)
+        row.setContentsMargins(0, theme.SPACE['s'], 0, 0)
         self.pilot_ready_label = QLabel()
         self.pilot_ready_label.setWordWrap(True)
         row.addWidget(self.pilot_ready_label, 1)
+        self.save_publish_button = theme.primary(QPushButton('Publicar al robot'))
+        self.save_publish_button.clicked.connect(self.save_and_publish)
+        row.addWidget(self.save_publish_button, 0)
         outer.addLayout(row)
-        self.publish_checklist = QLabel()
-        self.publish_checklist.setWordWrap(True)
-        outer.addWidget(self.publish_checklist)
+        self.publish_checklist = theme.muted(QLabel())
+        details = theme.Collapsible('Ver qué falta')
+        details.body.addWidget(self.publish_checklist)
+        outer.addWidget(details)
 
     def _refresh_publish_readiness(self, items, seo_state, required):
         """Actualiza checklist e indicador «listo para piloto»."""
@@ -45,8 +47,8 @@ class AutomationSaveBar:
             return
         self.publish_checklist.setText(readiness_html(items))
         if pilot_ready(items, required, seo_state):
-            self.pilot_ready_label.setText('<span style="color:#2e9e4f">Listo para piloto</span>')
+            self.pilot_ready_label.setText(f'<span style="color:{theme.color("success")}">✔ Listo para publicar</span>')
         else:
             self.pilot_ready_label.setText(
-                '<span style="color:#c0392b">Faltan requisitos para piloto '
-                '(conexiones, informe SEO o sync de secretos)</span>')
+                f'<span style="color:{theme.color("warning")}">Falta completar algo antes de publicar '
+                '(conexiones, informe SEO o secretos del canal).</span>')

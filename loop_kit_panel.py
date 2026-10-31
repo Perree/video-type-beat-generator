@@ -29,6 +29,7 @@ from core.kit_connections_form import KitConnectionsForm
 from core.channel_wizard import KITS, ChannelWizardHost
 from core.seo_report_box import SeoReportBox
 from core.seo_report_status import KITS, local_status
+import ui_theme as theme
 
 _ROOT = os.path.dirname(os.path.abspath(__file__))
 _HEADERS = ("Carpeta", "Nombre", "Link de PayHip", "Género", "Descripción", "Activo")
@@ -91,17 +92,17 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
     def _build(self):
         outer = QVBoxLayout(self)
         top = QHBoxLayout()
-        top.addWidget(QLabel("Canal:"))
+        top.addWidget(QLabel("Automatización"))
         self.automation = QComboBox()
         self.automation.addItem("Canal por defecto", '')
         self.automation.currentIndexChanged.connect(lambda _i: self.reload())
         top.addWidget(self.automation, 1)
         self.chip_label = QLabel("")
         top.addWidget(self.chip_label)
-        self.btn_new = QPushButton("Crear automatización…")
+        self.btn_new = QPushButton("+ Nueva automatización…")
         self.btn_new.clicked.connect(self.ask_new_automation)
         top.addWidget(self.btn_new)
-        self.btn_wizard = QPushButton("Asistente de alta…")
+        self.btn_wizard = theme.flat(QPushButton("Asistente de alta…"))
         self.btn_wizard.clicked.connect(lambda: self.open_channel_wizard())
         top.addWidget(self.btn_wizard)
         outer.addLayout(top)
@@ -152,8 +153,8 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
         self.btn_dry = QPushButton('Probar sin subir')
         self.btn_state = QPushButton("Ver último estado")
         for btn in (self.btn_reload, self.btn_save, self.btn_dry, self.btn_state):
-            btn.setMinimumHeight(32)
             buttons.addWidget(btn)
+        buttons.addStretch(1)
         self.btn_reload.clicked.connect(self.reload)
         self.btn_save.clicked.connect(self.save)
         self.btn_dry.clicked.connect(self.run_dry_run)
@@ -255,10 +256,10 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
 
     def _build_channel_box(self):
         box = QGroupBox("Canal y horarios")
-        form = QFormLayout(box)
+        form = theme.form_layout(box)
         self.channel = QComboBox()
         self.channel.setEditable(True)
-        form.addRow("Canal de Loop kits:", self.channel)
+        form.addRow("Canal de Loop kits", self.channel)
         self.slot_day, self.slot_time = [], []
         for i in range(_SLOT_ROWS):
             day, tm = QComboBox(), QTimeEdit()
@@ -267,19 +268,19 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
             row = QHBoxLayout()
             row.addWidget(day, 1)
             row.addWidget(tm)
-            form.addRow(f"Horario {i + 1} (hora de Buenos Aires):", row)
+            form.addRow(f"Horario {i + 1}", row)
             self.slot_day.append(day)
             self.slot_time.append(tm)
-        hint = QLabel("Sale un video por horario distinto (hasta 3). Para publicar menos, "
+        hint = QLabel("Hora de Buenos Aires. Sale un video por horario distinto (hasta 3). Para publicar menos, "
                       "repetí el mismo horario en las filas que sobran.")
         hint.setWordWrap(True)
-        hint.setStyleSheet("color: #888;")
+        theme.muted(hint)
         form.addRow(hint)
         return box
 
     def _build_source_box(self):
         box = QGroupBox("Carpeta de kits en Dropbox")
-        form = QFormLayout(box)
+        form = theme.form_layout(box)
         self.kits_root = QLineEdit()
         self.kits_root.setPlaceholderText("/ruta/en/Dropbox/tienda")
         self.btn_categories = QPushButton("Leer categorías")
@@ -287,25 +288,25 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
         row = QHBoxLayout()
         row.addWidget(self.kits_root, 1)
         row.addWidget(self.btn_categories)
-        form.addRow("Carpeta raíz:", row)
+        form.addRow("Carpeta raíz", row)
         self.categories = QListWidget()
         self.categories.setDragDropMode(QAbstractItemView.InternalMove)
         self.categories.setFixedHeight(110)
-        form.addRow("Categorías a recorrer:", self.categories)
+        form.addRow("Categorías a recorrer", self.categories)
         self.loops_dirs = QLineEdit()
         self.loops_dirs.setPlaceholderText("loops")
-        form.addRow("Carpetas de loops:", self.loops_dirs)
+        form.addRow("Carpetas de loops", self.loops_dirs)
         self.ignore_names = QLineEdit()
         self.ignore_names.setPlaceholderText("tag, preview")
-        form.addRow("Nombres a ignorar:", self.ignore_names)
+        form.addRow("Nombres a ignorar", self.ignore_names)
         self.scan_depth = QSpinBox()
         self.scan_depth.setRange(1, kit_settings.MAX_SCAN_DEPTH)
-        form.addRow("Profundidad máxima:", self.scan_depth)
+        form.addRow("Profundidad máxima", self.scan_depth)
         hint = QLabel("Las categorías se recorren en el orden de la lista (se puede arrastrar). "
                       "Sin ninguna marcada, los kits se buscan directo en la carpeta raíz. "
                       "Carpetas de loops y nombres a ignorar van separados por coma.")
         hint.setWordWrap(True)
-        hint.setStyleSheet("color: #888;")
+        theme.muted(hint)
         form.addRow(hint)
         return box
 
@@ -332,18 +333,18 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
         row.addWidget(self.btn_detect)
         row.addStretch(1)
         lay.addLayout(row)
-        hint = QLabel("Un kit sin link se guarda, pero el worker no lo elige. \"Detectar kits\" "
+        hint = QLabel("Un kit sin link se guarda, pero el robot no lo elige. \"Detectar kits\" "
                       "suma las carpetas con loops que falten en la tabla, sin link ni género. "
                       "La descripción (opcional, 1 o 2 líneas, hasta 200 caracteres) le da "
                       "contexto al modelo que propone el nombre de cada video.")
         hint.setWordWrap(True)
-        hint.setStyleSheet("color: #888;")
+        theme.muted(hint)
         lay.addWidget(hint)
         return box
 
     def _build_genres_box(self):
         box = QGroupBox("Géneros y carpetas de referencia")
-        form = QFormLayout(box)
+        form = theme.form_layout(box)
         self.genres = QPlainTextEdit()
         self.genres.setPlaceholderText("Un género por línea")
         self.genres.setFixedHeight(80)
@@ -353,21 +354,21 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
         self.refs_root.textChanged.connect(self._refresh_folders)
         self.ref_folders = QLabel("")
         self.ref_folders.setWordWrap(True)
-        self.ref_folders.setStyleSheet("color: #888;")
-        form.addRow("Géneros:", self.genres)
-        form.addRow("Carpeta de referencias:", self.refs_root)
-        form.addRow("Carpeta por género:", self.ref_folders)
+        theme.muted(self.ref_folders)
+        form.addRow("Géneros", self.genres)
+        form.addRow("Carpeta de referencias", self.refs_root)
+        form.addRow("Carpeta por género", self.ref_folders)
         return box
 
     def _build_seo_box(self):
         box = QGroupBox("SEO por género")
-        form = QFormLayout(box)
+        form = theme.form_layout(box)
         self.seo_genre = QComboBox()
         self.seo_genre.currentIndexChanged.connect(lambda _i: self._seo_changed())
-        form.addRow("Género:", self.seo_genre)
+        form.addRow("Género", self.seo_genre)
         self.seo_phrase = QLineEdit()
         self.seo_phrase.setPlaceholderText("Frase que la gente busca")
-        form.addRow("Frase principal:", self.seo_phrase)
+        form.addRow("Frase principal", self.seo_phrase)
         self.seo_artists = QPlainTextEdit()
         self.seo_artists.setPlaceholderText("Un artista por línea")
         self.seo_tags = QPlainTextEdit()
@@ -378,10 +379,10 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
         self.seo_examples.setPlaceholderText("Un título de ejemplo por línea")
         for edit in (self.seo_artists, self.seo_tags, self.seo_examples):
             edit.setFixedHeight(70)
-        form.addRow("Artistas:", self.seo_artists)
-        form.addRow("Etiquetas:", self.seo_tags)
-        form.addRow("Plantilla del título:", self.seo_template)
-        form.addRow("Títulos de ejemplo:", self.seo_examples)
+        form.addRow("Artistas", self.seo_artists)
+        form.addRow("Etiquetas", self.seo_tags)
+        form.addRow("Plantilla del título", self.seo_template)
+        form.addRow("Títulos de ejemplo", self.seo_examples)
         self.vary_name = QCheckBox("Variar también el nombre")
         form.addRow("", self.vary_name)
         hint = QLabel("Con ficha, el título lo arma el programa: nombre real del kit, la frase "
@@ -394,7 +395,7 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
                       "reemplaza por uno de una sola palabra (necesita el modelo de texto "
                       "configurado).")
         hint.setWordWrap(True)
-        hint.setStyleSheet("color: #888;")
+        theme.muted(hint)
         form.addRow(hint)
         self.genres.textChanged.connect(self._refresh_seo_genres)
         return box
@@ -448,15 +449,15 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
 
     def _build_cover_box(self):
         box = QGroupBox("Portada")
-        form = QFormLayout(box)
+        form = theme.form_layout(box)
         self.cover_mode = QComboBox()
         self.cover_mode.addItem("Manual (imagen del pack)", 'manual')
         self.cover_mode.addItem("Auto (fondo generado con IA)", 'auto')
         self.cover_mode.addItem("Plantilla + fondo (portada completa con IA)", 'template')
-        form.addRow("Modo:", self.cover_mode)
+        form.addRow("Modo", self.cover_mode)
         self.art_prompt = QPlainTextEdit()
         self.art_prompt.setFixedHeight(120)
-        form.addRow("Prompt de la portada:", self.art_prompt)
+        form.addRow("Prompt de la portada", self.art_prompt)
         self.btn_prompt = QPushButton("Restaurar prompt por defecto")
         self.btn_prompt.clicked.connect(self.restore_prompt)
         row = QHBoxLayout()
@@ -468,7 +469,7 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
                       "título del video (si falta, se agrega al final). Los topes de gasto están "
                       "en Avanzado.")
         hint.setWordWrap(True)
-        hint.setStyleSheet("color: #888;")
+        theme.muted(hint)
         form.addRow(hint)
         return box
 
@@ -477,20 +478,20 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
 
     def _build_spend_box(self):
         box = QGroupBox("Topes de gasto e IA")
-        form = QFormLayout(box)
+        form = theme.form_layout(box)
         self.monthly_cap = QDoubleSpinBox()
         self.monthly_cap.setRange(0, kit_settings.MAX_MONTHLY_CAP)
         self.monthly_cap.setDecimals(2)
         self.monthly_cap.setPrefix("USD ")
-        form.addRow("Tope mensual estimado:", self.monthly_cap)
+        form.addRow("Tope mensual estimado", self.monthly_cap)
         self.max_images = QSpinBox()
         self.max_images.setRange(0, kit_settings.MAX_IMAGES_PER_RUN)
-        form.addRow("Máximo de imágenes por corrida:", self.max_images)
+        form.addRow("Máximo de imágenes por corrida", self.max_images)
         hint = QLabel("Al llegar a un tope no se generan más portadas: esos videos salen con la "
                       "imagen manual y llega un aviso por Telegram. El gasto es una estimación, "
                       "no la factura. Las claves LLM/imagen se cargan en Conexiones.")
         hint.setWordWrap(True)
-        hint.setStyleSheet("color: #888;")
+        theme.muted(hint)
         form.addRow(hint)
         return box
 
@@ -730,7 +731,7 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
 
     def _say(self, text, error=False):
         self.status.setText(text)
-        self.status.setStyleSheet("color: #d9534f;" if error else "")
+        theme.tone(self.status, 'error' if error else 'muted')
 
     def reload(self, note=None):
         paths = self.paths()

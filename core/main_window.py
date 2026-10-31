@@ -4,7 +4,7 @@
 Arma las páginas y las conecta entre sí. La armadura (barra, guía) está en ``core/app_shell.py``.
 Las pestañas técnicas de la nube (Beats / Loop kits) quedan en «Modo avanzado» (``core/cloud_page.py``).
 """
-from PyQt5.QtWidgets import QMainWindow, QTabWidget
+from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget
 
 from core.app_shell import AppShell
 from core.assistant import AssistantView
@@ -16,7 +16,7 @@ from core.local_view import LocalView
 from core.my_channels import MyChannelsView
 from core.sections import SECTION_BEATS, SECTION_LOOP_KITS
 from loop_kit_panel import LoopKitPanel
-from ui_theme import APPLICATION_STYLESHEET
+from ui_theme import apply_theme
 
 
 class MainWindow(QMainWindow):
@@ -28,7 +28,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Type Beat Video Generator")
         self.setMinimumSize(900, 620)
         self.resize(1100, 850)
-        self.setStyleSheet(APPLICATION_STYLESHEET)
+        apply_theme(QApplication.instance())  # también alcanza a los diálogos
 
         self.beat_panel = BeatPanel(self)
         self.loop_kit_panel = LoopKitPanel(self)

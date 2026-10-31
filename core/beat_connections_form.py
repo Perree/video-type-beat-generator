@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
 from core import automation_status as status
 from core.cloud_login_box import CloudLoginBox
 from core.connections_mixin import ConnectionsMixin, sanitize_log  # noqa: F401
+import ui_theme as theme
 
 
 def push_beat_channel(channel, slug, token_json=None, log=None, *, config_channels,
@@ -49,46 +50,47 @@ class BeatConnectionsForm(ConnectionsMixin):
         self.login_box.message.connect(lambda text, _err: self.status.setText(text))
         layout.addWidget(self.login_box)
 
-        form = QFormLayout()
+        box, form = theme.section('Canal en la nube', form=True)
         self.conn_channel = QComboBox()
         self.conn_channel.currentIndexChanged.connect(self.refresh_connections)
-        form.addRow('Canal de Beats:', self.conn_channel)
+        form.addRow('Canal de Beats', self.conn_channel)
         self.light_labels = {}
-        for key, title in (('youtube', 'YouTube (GitHub)'), ('dropbox', 'Dropbox worker (GitHub)'),
-                           ('notion', 'Notion Beats (GitHub)'), ('gh', 'GitHub')):
+        for key, title in (('youtube', 'YouTube'), ('dropbox', 'Dropbox del robot'),
+                           ('notion', 'Notion'), ('gh', 'GitHub')):
             self.light_labels[key] = QLabel()
-            form.addRow(title + ':', self.light_labels[key])
-        layout.addLayout(form)
-
+            form.addRow(title, self.light_labels[key])
         self.connect_youtube_button = QPushButton('Conectar YouTube y subir a GitHub')
         self.connect_youtube_button.clicked.connect(self.connect_youtube)
-        layout.addWidget(self.connect_youtube_button)
+        self.sync_button = theme.flat(QPushButton('Sincronizar secretos del canal'))
+        self.sync_button.clicked.connect(self.sync_secrets)
+        form.addRow('', theme.button_row(self.connect_youtube_button, self.sync_button))
+        layout.addWidget(box)
 
-        notion = QFormLayout()
+        notion_box = theme.Collapsible('Notion (opcional: informes de tendencias)')
+        notion = theme.form_layout()
         self.notion_token = QLineEdit()
         self.notion_token.setEchoMode(QLineEdit.Password)
         self.notion_token.setPlaceholderText('Token de la integración de Notion')
         self.notion_page = QLineEdit()
         self.notion_page.setPlaceholderText('ID de página de Notion (32 hex o UUID)')
-        notion.addRow('Token de Notion:', self.notion_token)
-        notion.addRow('ID de página de Notion:', self.notion_page)
-        layout.addLayout(notion)
+        notion.addRow('Token', self.notion_token)
+        notion.addRow('ID de la página', self.notion_page)
+        notion_box.body.addLayout(notion)
         self.save_notion_button = QPushButton('Guardar Notion en GitHub')
         self.save_notion_button.clicked.connect(self.save_notion)
-        layout.addWidget(self.save_notion_button)
+        notion_box.body.addLayout(theme.button_row(self.save_notion_button))
+        layout.addWidget(notion_box)
 
-        self.sync_button = QPushButton('Sincronizar secretos del canal')
-        self.sync_button.clicked.connect(self.sync_secrets)
-        layout.addWidget(self.sync_button)
-
-        layout.addWidget(QLabel('Checklist de preparación'))
+        box, lay = theme.section('Qué falta para publicar')
         self.checklist = QLabel()
         self.checklist.setWordWrap(True)
-        layout.addWidget(self.checklist)
+        lay.addWidget(self.checklist)
         self.conn_log = QPlainTextEdit()
         self.conn_log.setReadOnly(True)
         self.conn_log.setMaximumHeight(110)
-        layout.addWidget(self.conn_log)
+        self.conn_log.setPlaceholderText('Acá aparece el detalle de cada conexión.')
+        lay.addWidget(self.conn_log)
+        layout.addWidget(box)
         layout.addStretch()
 
     def _conn_channels(self):

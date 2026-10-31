@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (
     QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QPushButton,
 )
 
+import ui_theme as theme
 from core import automation_status as status
 from core.cloud_login_box import CloudLoginBox
 from core.connections_mixin import ConnectionsMixin, sanitize_log  # noqa: F401
@@ -46,83 +47,78 @@ class KitConnectionsForm(ConnectionsMixin):
         self.dbx_start_button = self.login_box.dbx_start_button
         self.dbx_finish_button = self.login_box.dbx_finish_button
 
-        form = QFormLayout()
+        box, form = theme.section('Canal en la nube', form=True)
         self.light_labels = {}
-        for key, title in (('youtube', 'YouTube'), ('dropbox', 'Dropbox worker'),
-                           ('telegram', 'Telegram'), ('notion', 'Notion Kits'),
-                           ('llm', 'LLM (nombres)'), ('image', 'Imágenes (portadas)'),
+        for key, title in (('youtube', 'YouTube'), ('dropbox', 'Dropbox del robot'),
+                           ('telegram', 'Telegram'), ('notion', 'Notion'),
+                           ('llm', 'Nombres con IA'), ('image', 'Portadas con IA'),
                            ('gh', 'GitHub')):
             self.light_labels[key] = QLabel()
-            form.addRow(title + ':', self.light_labels[key])
-        layout.addLayout(form)
-
-        self.telegram = QLabel('')
-        self.telegram.setWordWrap(True)
-        layout.addWidget(self.telegram)
-
+            form.addRow(title, self.light_labels[key])
+        self.telegram = theme.muted(QLabel(''))
+        form.addRow('', self.telegram)
         self.connect_youtube_button = QPushButton('Conectar YouTube y subir a GitHub')
         self.connect_youtube_button.clicked.connect(self.connect_youtube)
-        layout.addWidget(self.connect_youtube_button)
+        self.sync_button = theme.flat(QPushButton('Preparar Environment del canal'))
+        self.sync_button.clicked.connect(self.sync_kit_secrets)
+        form.addRow('', theme.button_row(self.connect_youtube_button, self.sync_button))
+        layout.addWidget(box)
 
-        tg = QFormLayout()
+        box, tg = theme.section('Avisos por Telegram', form=True)
         self.tg_token = QLineEdit()
         self.tg_token.setEchoMode(QLineEdit.Password)
         self.tg_token.setPlaceholderText('Token del bot')
         self.tg_chat = QLineEdit()
         self.tg_chat.setPlaceholderText('Chat id')
-        tg.addRow('Token de Telegram:', self.tg_token)
-        tg.addRow('Chat id de Telegram:', self.tg_chat)
-        layout.addLayout(tg)
-        tg_row = QHBoxLayout()
+        tg.addRow('Token del bot', self.tg_token)
+        tg.addRow('Chat id', self.tg_chat)
         self.save_telegram_button = QPushButton('Guardar Telegram en GitHub')
         self.save_telegram_button.clicked.connect(self.save_telegram)
-        self.test_telegram_button = QPushButton('Probar mensaje')
+        self.test_telegram_button = theme.flat(QPushButton('Probar mensaje'))
         self.test_telegram_button.setToolTip('Usa el token y el chat escritos arriba '
                                              '(GitHub no devuelve los guardados).')
         self.test_telegram_button.clicked.connect(self.test_telegram)
-        tg_row.addWidget(self.save_telegram_button)
-        tg_row.addWidget(self.test_telegram_button)
-        layout.addLayout(tg_row)
+        tg.addRow('', theme.button_row(self.save_telegram_button, self.test_telegram_button))
+        layout.addWidget(box)
 
-        notion = QFormLayout()
+        extra = theme.Collapsible('Opcionales: Notion y claves de IA')
+        notion = theme.form_layout()
         self.kit_notion_token = QLineEdit()
         self.kit_notion_token.setEchoMode(QLineEdit.Password)
         self.kit_notion_token.setPlaceholderText('Token de la integración de Notion')
         self.kit_notion_page = QLineEdit()
         self.kit_notion_page.setPlaceholderText('ID o URL de la página de Notion')
-        notion.addRow('Token de Notion:', self.kit_notion_token)
-        notion.addRow('Página de Notion:', self.kit_notion_page)
-        layout.addLayout(notion)
+        notion.addRow('Token de Notion', self.kit_notion_token)
+        notion.addRow('Página de Notion', self.kit_notion_page)
+        extra.body.addLayout(notion)
         self.save_kit_notion_button = QPushButton('Guardar Notion en GitHub')
         self.save_kit_notion_button.clicked.connect(self.save_kit_notion)
-        layout.addWidget(self.save_kit_notion_button)
-
-        keys = QFormLayout()
+        extra.body.addLayout(theme.button_row(self.save_kit_notion_button))
+        keys = theme.form_layout()
         self.llm_key = QLineEdit()
         self.llm_key.setEchoMode(QLineEdit.Password)
         self.llm_key.setPlaceholderText('Se sube a GitHub: no se muestra el valor')
         self.image_key = QLineEdit()
         self.image_key.setEchoMode(QLineEdit.Password)
         self.image_key.setPlaceholderText('Se sube a GitHub: no se muestra el valor')
-        keys.addRow('Clave LLM:', self.llm_key)
-        keys.addRow('Clave de imágenes:', self.image_key)
-        layout.addLayout(keys)
-        self.save_keys_button = QPushButton('Guardar claves LLM / imagen en GitHub')
+        keys.addRow('Clave de texto (IA)', self.llm_key)
+        keys.addRow('Clave de imágenes (IA)', self.image_key)
+        extra.body.addLayout(keys)
+        self.save_keys_button = QPushButton('Guardar claves en GitHub')
         self.save_keys_button.clicked.connect(self.save_llm_image)
-        layout.addWidget(self.save_keys_button)
+        extra.body.addLayout(theme.button_row(self.save_keys_button))
+        layout.addWidget(extra)
 
-        self.sync_button = QPushButton('Preparar Environment del canal')
-        self.sync_button.clicked.connect(self.sync_kit_secrets)
-        layout.addWidget(self.sync_button)
-
-        layout.addWidget(QLabel('Checklist de preparación'))
+        box, lay = theme.section('Qué falta para publicar')
         self.checklist = QLabel()
         self.checklist.setWordWrap(True)
-        layout.addWidget(self.checklist)
+        lay.addWidget(self.checklist)
         self.conn_log = QPlainTextEdit()
         self.conn_log.setReadOnly(True)
         self.conn_log.setMaximumHeight(110)
-        layout.addWidget(self.conn_log)
+        self.conn_log.setPlaceholderText('Acá aparece el detalle de cada conexión.')
+        lay.addWidget(self.conn_log)
+        layout.addWidget(box)
         layout.addStretch()
 
     def _conn_channel_name(self):

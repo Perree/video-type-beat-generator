@@ -12,9 +12,11 @@ from PyQt5.QtWidgets import (
 
 from core import automation_status as status
 from core import seo_report_status as sr
+import ui_theme as theme
 
-_COLORS = {status.OK: '#2e9e4f', status.MISSING: '#888888', status.UNKNOWN: '#888888',
-           status.INVALID: '#c0392b', sr.EXPIRED: '#d98e04'}
+_COLORS = {status.OK: theme.color('success'), status.MISSING: theme.color('text_muted'),
+           status.UNKNOWN: theme.color('text_muted'), status.INVALID: theme.color('danger'),
+           sr.EXPIRED: theme.color('warning')}
 
 
 class SeoReportBox(QGroupBox):
@@ -35,21 +37,18 @@ class SeoReportBox(QGroupBox):
         self.state.setWordWrap(True)
         self.state.setTextFormat(Qt.PlainText)
         lay.addWidget(self.state)
-        row = QHBoxLayout()
         self.import_button = QPushButton('Importar informe JSON…')
         self.import_button.clicked.connect(self.choose_file)
-        self.schema_button = QPushButton('Copiar schema')
+        self.schema_button = theme.flat(QPushButton('Copiar schema'))
         self.schema_button.clicked.connect(self.copy_schema)
-        row.addWidget(self.import_button)
-        row.addWidget(self.schema_button)
-        lay.addLayout(row)
-        self.hint = QLabel('Sugerencias (solo lectura, no cambian títulos ni la ficha):')
+        lay.addLayout(theme.button_row(self.import_button, self.schema_button))
+        self.hint = theme.muted(QLabel('Sugerencias (solo lectura, no cambian títulos ni la ficha):'))
         lay.addWidget(self.hint)
         self.suggestions = QPlainTextEdit()
         self.suggestions.setReadOnly(True)
         self.suggestions.setMaximumHeight(90)
         lay.addWidget(self.suggestions)
-        self.thumbnail_hint = QLabel('Recomendaciones de miniaturas (solo lectura):')
+        self.thumbnail_hint = theme.muted(QLabel('Recomendaciones de miniaturas (solo lectura):'))
         lay.addWidget(self.thumbnail_hint)
         self.thumbnail_notes = QPlainTextEdit()
         self.thumbnail_notes.setReadOnly(True)
@@ -70,7 +69,7 @@ class SeoReportBox(QGroupBox):
         info = sr.local_status(self.kind, key, base=self._base, max_age_days=max_age,
                                notion_state=notion)
         self.state.setText(sr.describe(info))
-        self.state.setStyleSheet(f"color: {_COLORS.get(info['state'], '#888888')};")
+        self.state.setStyleSheet(f"color: {_COLORS.get(info['state'], theme.color('text_muted'))};")
         self.suggestions.setPlainText('\n'.join(sr.suggestions(
             self.kind, key, names, base=self._base, max_age_days=max_age)))
         self.thumbnail_notes.setPlainText('\n'.join(sr.thumbnail_recommendations(

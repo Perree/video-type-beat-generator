@@ -113,7 +113,7 @@ def cloud_pages(assistant, cloud):
     creds_state = QLabel()
     creds_help = QLabel('El robot necesita sus propias credenciales en GitHub (nunca quedan en esta PC):<br>'
                         '• <b>YouTube</b>: «Conectar YouTube» abre el navegador; elegí la cuenta del canal.<br>'
-                        '• <b>Dropbox del robot</b>: en el paso anterior, «Subir al worker (GitHub)» con un código nuevo.'
+                        '• <b>Dropbox del robot</b>: en el paso anterior, «Subir al robot (GitHub)» con un código nuevo.'
                         '<br>• <b>Telegram</b> (solo Loop kits): en Conexiones.')
     creds_help.setWordWrap(True)
 

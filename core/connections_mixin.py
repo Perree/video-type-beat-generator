@@ -11,10 +11,11 @@ from PyQt5.QtCore import QObject, pyqtSignal
 
 from core import automation_status as status, gh_status
 from core.cloud_worker import CallWorker, detach
+import ui_theme as theme
 
-LIGHTS = {status.OK: ('●', '#2e9e4f', 'Listo'), status.MISSING: ('●', '#c0392b', 'Falta'),
-          status.INVALID: ('●', '#d98e04', 'Inválido'),
-          status.UNKNOWN: ('●', '#888888', 'Desconocido')}
+LIGHTS = {status.OK: ('●', theme.color('success'), 'Listo'), status.MISSING: ('●', theme.color('danger'), 'Falta'),
+          status.INVALID: ('●', theme.color('warning'), 'Inválido'),
+          status.UNKNOWN: ('●', theme.color('text_muted'), 'Desconocido')}
 _MAX_LOG = 4000
 
 

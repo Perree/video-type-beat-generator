@@ -5,7 +5,7 @@
 - ``readiness()``: el mismo checklist del panel (Dropbox, GitHub, YouTube…) para la guía y el
   asistente. No cambia nada de cómo trabaja el robot.
 """
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import QCheckBox, QFrame, QHBoxLayout, QLabel, QPushButton, QTabWidget, QVBoxLayout, QWidget
 
 from core import automation_status as status
@@ -13,6 +13,7 @@ from core import cloud_login
 from core.automation_save_bar import BEATS_PILOT_REQUIRED, KITS_PILOT_REQUIRED
 from core import manual_render as mr
 from core.guide_panel import GuideStep
+import ui_theme as theme
 
 BEATS, KITS = 'beats', 'kits'
 TAB_CONNECTIONS, TAB_CHANNEL, TAB_SEO, TAB_ADVANCED = range(4)
@@ -31,7 +32,8 @@ class CloudPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         self.banner = QFrame()
-        self.banner.setStyleSheet('QFrame { background: #3d3410; border: 1px solid #f1c40f; border-radius: 6px; }'
+        self.banner.setStyleSheet(f'QFrame {{ background: {theme.color("surface")}; border: 1px solid '
+                                  f'{theme.color("warning")}; border-radius: {theme.RADIUS}px; }}'
                                   ' QLabel { border: none; background: transparent; }')
         banner = QHBoxLayout(self.banner)
         self.banner_text = QLabel('🧭 Estás siguiendo el asistente. Hacé lo que te pidió acá y después volvé.')
@@ -43,13 +45,11 @@ class CloudPage(QWidget):
         self.banner.setVisible(False)
         layout.addWidget(self.banner)
 
-        top = QHBoxLayout()
-        top.addStretch()
-        self.advanced = QCheckBox('Mostrar opciones avanzadas (SEO y tendencias, Avanzado)')
+        self.advanced = QCheckBox('Mostrar SEO y opciones técnicas')
+        self.advanced.setToolTip('Muestra las pestañas «SEO y tendencias» y «Avanzado».')
         self.advanced.setChecked(bool(mr.load_settings(settings_path).get('cloud_advanced')))
         self.advanced.toggled.connect(self.set_advanced)
-        top.addWidget(self.advanced)
-        layout.addLayout(top)
+        tabs.setCornerWidget(self.advanced, Qt.TopRightCorner)  # al lado de Beats / Loop kits
         layout.addWidget(tabs, 1)
         self.set_advanced(self.advanced.isChecked(), save=False)
 
@@ -155,7 +155,7 @@ class CloudPage(QWidget):
                  GuideStep('Conectar YouTube del canal', 'Conexiones → «Conectar YouTube y subir a GitHub».',
                            done=ok('youtube'), action=lambda: self.open_tab(TAB_CONNECTIONS),
                            action_text='Abrir Conexiones'),
-                 GuideStep('Dropbox del robot', 'Conexiones → «Esta PC» → «Subir al worker (GitHub)» con un código '
+                 GuideStep('Dropbox del robot', 'Conexiones → «Esta PC» → «Subir al robot (GitHub)» con un código '
                            'nuevo de Dropbox.', done=ok('dropbox'), action=lambda: self.open_tab(TAB_CONNECTIONS),
                            action_text='Abrir Conexiones'),
                  GuideStep('Publicar al robot', 'Cuando el checklist de abajo esté completo, apretá «Publicar al '

@@ -14,10 +14,12 @@ from core import cloud_login, gh_status
 from core.automation_status import ROOT
 from core.cloud_worker import CallWorker, detach
 from core.connections_mixin import gh_updates
+import ui_theme as theme
 
-_LIGHTS = {cloud_login.OK: ('#2e9e4f', 'Conectado'), cloud_login.MISSING: ('#c0392b', 'Falta'),
-           cloud_login.INVALID: ('#d98e04', 'Inválido'),
-           cloud_login.UNKNOWN: ('#888888', 'Sin llavero (instalá keyring)')}
+_LIGHTS = {cloud_login.OK: (theme.color('success'), 'Conectado'),
+           cloud_login.MISSING: (theme.color('danger'), 'Falta'),
+           cloud_login.INVALID: (theme.color('warning'), 'Inválido'),
+           cloud_login.UNKNOWN: (theme.color('text_muted'), 'Sin llavero (instalá keyring)')}
 
 
 def light(code, text=None):
@@ -30,47 +32,49 @@ class CloudLoginBox(QGroupBox):
     message = pyqtSignal(str, bool)  # texto, es_error
 
     def __init__(self, parent=None):
-        super().__init__('Esta PC (Dropbox y GitHub)', parent)
+        super().__init__('Esta PC', parent)
         self.worker = None
         self._flow = None
-        form = QFormLayout(self)
+        form = theme.form_layout(self)
         self.dropbox_light, self.gh_light, self.google_light = QLabel(), QLabel(), QLabel()
-        form.addRow('Dropbox:', self.dropbox_light)
+        form.addRow('Dropbox', self.dropbox_light)
         self.dbx_app_key = QLineEdit()
         self.dbx_app_key.setEchoMode(QLineEdit.Password)
         self.dbx_app_key.setPlaceholderText('App key de la app App folder')
         self.dbx_code = QLineEdit()
         self.dbx_code.setEchoMode(QLineEdit.Password)
         self.dbx_code.setPlaceholderText('Código que muestra Dropbox')
-        form.addRow('App key de Dropbox:', self.dbx_app_key)
-        form.addRow('Código de Dropbox:', self.dbx_code)
+        form.addRow('Clave de la app', self.dbx_app_key)
+        form.addRow('Código de Dropbox', self.dbx_code)
         row = QHBoxLayout()
         self.dbx_start_button = QPushButton('Autorizar Dropbox')
         self.dbx_start_button.clicked.connect(self.start_dropbox)
         self.dbx_finish_button = QPushButton('Guardar en esta PC')
         self.dbx_finish_button.clicked.connect(self.finish_dropbox)
-        self.dbx_worker_button = QPushButton('Subir al worker (GitHub)')
+        self.dbx_worker_button = QPushButton('Subir al robot (GitHub)')
         self.dbx_worker_button.setToolTip('Autorización propia del worker: se sube a GitHub y no '
                                           'se guarda en esta PC. Pedí un código nuevo para esto.')
         self.dbx_worker_button.clicked.connect(self.finish_dropbox_worker)
-        self.dbx_forget_button = QPushButton('Desconectar')
+        self.dbx_forget_button = theme.danger(QPushButton('Desconectar'))
         self.dbx_forget_button.clicked.connect(self.forget_dropbox)
-        for button in (self.dbx_start_button, self.dbx_finish_button, self.dbx_worker_button,
-                       self.dbx_forget_button):
+        for button in (self.dbx_start_button, self.dbx_finish_button, self.dbx_worker_button):
             row.addWidget(button)
-        form.addRow(row)
+        row.addStretch(1)
+        row.addWidget(self.dbx_forget_button)
+        form.addRow('', row)
         gh_row = QHBoxLayout()
         gh_row.addWidget(self.gh_light, 1)
         self.gh_check_button = QPushButton('Revisar')
         self.gh_check_button.clicked.connect(self.check_github)
         gh_row.addWidget(self.gh_check_button)
-        form.addRow('GitHub:', gh_row)
+        form.addRow('GitHub', gh_row)
         g_row = QHBoxLayout()
         g_row.addWidget(self.google_light, 1)
-        self.import_secret_button = QPushButton('Importar client_secret.json…')
+        self.import_secret_button = QPushButton('Importar permiso de Google…')
+        self.import_secret_button.setToolTip('El archivo client_secret.json que descargaste de Google Cloud.')
         self.import_secret_button.clicked.connect(self.import_client_secret)
         g_row.addWidget(self.import_secret_button)
-        form.addRow('OAuth de Google:', g_row)
+        form.addRow('Permiso de Google', g_row)
         gh_updates().updated.connect(self.refresh)
         self.refresh()
 

@@ -2,6 +2,7 @@
 from PyQt5.QtWidgets import (QCheckBox, QComboBox, QLineEdit, QDoubleSpinBox, QHBoxLayout, QLabel,
                              QPushButton, QFileDialog, QPlainTextEdit)
 from core.beat_visual import options
+import ui_theme as theme
 
 
 class BeatVisualForm:
@@ -11,28 +12,27 @@ class BeatVisualForm:
         self.selection_tags.setPlaceholderText("Separados por comas; vacío conserva la selección anterior")
         self.tags = QLineEdit()
         self.tags.setPlaceholderText("Separados por comas")
-        form.addRow("Tags de selección:", self.selection_tags)
-        form.addRow("Tags (SEO):", self.tags)
+        form.addRow("Tags para elegir beats", self.selection_tags)
+        form.addRow("Tags de YouTube", self.tags)
         self._build_templates(form)
 
     def _build_templates(self, form):
         """Plantillas del canal: se guardan en /automatizacion/canales.json (registro)."""
         self.use_templates = QCheckBox("Usar estas plantillas para el título y la descripción")
-        form.addRow("Plantillas del canal:", self.use_templates)
+        form.addRow("Plantillas", self.use_templates)
         self.title_template = QLineEdit()
         self.title_template.setPlaceholderText('[Type] {name} | Free for Profit')
-        form.addRow("Título de YouTube:", self.title_template)
+        form.addRow("Título", self.title_template)
         self.description_template = QPlainTextEdit()
         self.description_template.setMinimumHeight(120)
         self.description_template.setPlaceholderText('{name} Type Beat\n\n{beatstars_url}\n\n{socials}')
-        form.addRow("Descripción:", self.description_template)
+        form.addRow("Descripción", self.description_template)
         self.socials, self.hashtags = QLineEdit(), QLineEdit()
-        form.addRow("Redes ({socials}):", self.socials)
-        form.addRow("Hashtags ({hashtags}):", self.hashtags)
-        hint = QLabel("Marcadores: {name}, {beatstars_url} o {url}, {channel}, {socials}, "
-                      "{hashtags}, {tags}. Se guardan en el registro de canales al publicar.")
-        hint.setWordWrap(True)
-        form.addRow(hint)
+        form.addRow("Redes", self.socials)
+        form.addRow("Hashtags", self.hashtags)
+        hint = theme.muted(QLabel("Podés usar {name}, {beatstars_url} o {url}, {channel}, {socials}, "
+                                  "{hashtags} y {tags}. Se guardan al publicar."))
+        form.addRow("", hint)
 
     def _template_fields(self):
         return {'title_template': self.title_template.text().strip(),
@@ -61,33 +61,35 @@ class BeatVisualForm:
         if changed:
             row['plantillas'] = dict(current, **changed)
 
-    def _build_visual(self, form):
+    def _build_visual(self, form, more=None):
+        """Filas del fondo en ``form``; fragmentos y miniatura (poco usados) en ``more``."""
+        more = form if more is None else more
         self.visual_mode = QComboBox()
         self.visual_mode.addItem('Imagen fija', 'image')
         self.visual_mode.addItem('Montaje de videos', 'video')
         self.visual_mode.addItem('Alternar imagen y video', 'alternate')
-        form.addRow('Modo visual:', self.visual_mode)
+        form.addRow('Tipo de fondo', self.visual_mode)
         self.dropbox_images = QPlainTextEdit()
         self.dropbox_images.setMaximumHeight(80)
         self.dropbox_images.setPlaceholderText('trap=/type-beats/images/trap (una carpeta por género)')
-        form.addRow('Imágenes Dropbox (género=carpeta):', self.dropbox_images)
-        button = QPushButton('Elegir carpeta Dropbox por género…')
+        form.addRow('Imágenes por género', self.dropbox_images)
+        button = QPushButton('Elegir carpeta de Dropbox…')
         button.clicked.connect(lambda: self.browse_remote('images'))
-        form.addRow(button)
+        form.addRow('', theme.button_row(button))
         self.video_source = QComboBox()
         self.video_source.addItem('Carpeta local', 'local')
         self.video_source.addItem('Dropbox', 'dropbox')
-        form.addRow('Origen de videos:', self.video_source)
+        form.addRow('Videos desde', self.video_source)
         self.videos_folder = QLineEdit()
         row = QHBoxLayout()
         row.addWidget(self.videos_folder)
-        button = QPushButton('Elegir carpeta local…')
+        button = QPushButton('Carpeta local…')
         button.clicked.connect(self._browse_videos)
         row.addWidget(button)
-        button = QPushButton('Elegir carpeta Dropbox…')
+        button = QPushButton('Dropbox…')
         button.clicked.connect(lambda: self.browse_remote('videos'))
         row.addWidget(button)
-        form.addRow('Carpeta de videos:', row)
+        form.addRow('Carpeta de videos', row)
         self.clip_min, self.clip_max = QDoubleSpinBox(), QDoubleSpinBox()
         row = QHBoxLayout()
         for widget, value in ((self.clip_min, 3), (self.clip_max, 6)):
@@ -96,21 +98,21 @@ class BeatVisualForm:
             widget.setSuffix(' s')
             widget.setValue(value)
             row.addWidget(widget)
-        form.addRow('Fragmentos (mínimo / máximo):', row)
+        more.addRow('Largo de cada clip (mín. / máx.)', row)
         self.thumbnail_source = QComboBox()
         for label, value in (('Automática', 'auto'), ('Archivo local', 'local'), ('Dropbox', 'dropbox')):
             self.thumbnail_source.addItem(label, value)
-        form.addRow('Imagen de miniatura:', self.thumbnail_source)
+        more.addRow('Miniatura', self.thumbnail_source)
         self.thumbnail_path = QLineEdit()
         row = QHBoxLayout()
         row.addWidget(self.thumbnail_path)
-        button = QPushButton('Elegir imagen local…')
+        button = QPushButton('Archivo local…')
         button.clicked.connect(self._browse_thumbnail)
         row.addWidget(button)
-        button = QPushButton('Elegir archivo Dropbox…')
+        button = QPushButton('Dropbox…')
         button.clicked.connect(lambda: self.browse_remote('thumbnail'))
         row.addWidget(button)
-        form.addRow('Archivo de miniatura:', row)
+        more.addRow('Archivo de miniatura', row)
 
     def _browse_videos(self):
         path = QFileDialog.getExistingDirectory(self, 'Carpeta de videos', self.videos_folder.text())
