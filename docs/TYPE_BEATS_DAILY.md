@@ -101,6 +101,10 @@ vence cada ~7 días, la app de Google está en «Testing»: hay que publicarla (
 Con `BEAT_SLUG`, el mensaje empieza con `[slug]` para distinguir canales en el mismo chat.
 Las alertas del worker de Loop kits (`kit_notify.alert`) suman los mismos pasos.
 
+Un canal que está en `BEAT_CHANNELS` pero no en la config de Beats de Dropbox queda **en pausa**
+(`blocked`, motivo `channel_missing_in_config`): la corrida no se marca en rojo y Telegram avisa
+con los pasos para configurarlo (Mis canales → el canal → «Arreglar» → «Guardar cambios»).
+
 ## Presupuesto e idempotencia
 
 El presupuesto es compartido por **todos** los canales en el mismo archivo CAS:

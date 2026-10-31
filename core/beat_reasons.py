@@ -58,7 +58,8 @@ TEXTS = {
     'invalid_profile': 'El link del perfil de BeatStars no es válido.',
     'render_failed': 'Falló el armado del video (FFmpeg).',
     'network_error': 'Falló la conexión a internet del runner.',
-    'channel_missing_in_config': 'El canal no está en la config de Beats.',
+    'channel_missing_in_config': 'El canal está en la lista del robot pero no en la config de Beats '
+                                 'en Dropbox: queda en pausa hasta configurarlo.',
     'missing_secret': 'Falta un secreto del canal en GitHub.',
     'thumbnail_rejected': 'YouTube no aceptó la miniatura (el canal tiene que estar verificado '
                           'por teléfono para usar miniaturas propias).',
@@ -74,6 +75,8 @@ RECONNECT = ('En la app: pestaña {panel} → elegí el canal → pestaña Conex
              '«Conectar YouTube y subir a GitHub», con la cuenta de Google del canal.')
 SEVEN_DAYS = ('Si se repite cada ~7 días: Google Cloud → «Pantalla de consentimiento de OAuth» → '
               '«Publicar app» (tiene que decir «En producción», no «Testing»).')
+CONFIGURE = ('En la app: Inicio → Mis canales → el canal → «Arreglar» (días, carpetas y '
+             'YouTube) → «Guardar cambios». Mientras tanto queda en pausa.')
 # Motivos que no se arreglan solos: van arriba del mensaje, con los pasos.
 ACTIONS = {
     'youtube_token_expired': ('Reconectar YouTube: el permiso venció o fue revocado.',
@@ -84,6 +87,8 @@ ACTIONS = {
                                (RECONNECT,)),
     'youtube_forbidden': ('Revisar el permiso de YouTube: YouTube lo rechazó (403).',
                           (RECONNECT,)),
+    'channel_missing_in_config': ('Configurar el canal: le faltan días, carpetas o YouTube en Dropbox.',
+                                  (CONFIGURE,)),
 }
 
 

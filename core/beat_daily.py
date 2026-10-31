@@ -75,7 +75,12 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
         config, rev = cloud.read('config')
         if rev is None:
             raise ValueError('beat_config_missing')
-        channel = next(ch for ch in config['channels'] if ch['id'] == channel_id)
+        channel = next((ch for ch in config['channels'] if ch['id'] == channel_id), None)
+        if channel is None:
+            # En la lista del robot pero sin config: en pausa con aviso, no un fallo.
+            summary['blocked'] += 1
+            note(summary, 'channel_missing_in_config')
+            return summary
         if expected_owner is not None and channel.get('youtube_channel_id') != expected_owner:
             raise ValueError('youtube_destination_changed')
         if not channel['active']:
