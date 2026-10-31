@@ -591,6 +591,28 @@ class DailyTests(unittest.TestCase):
         self.assertTrue(all(json.loads(p.read_text())['outcome'] == 'unknown'
                             for p in self.receipts.glob('*.json')))
 
+    def test_upload_error_reason_reaches_telegram(self):
+        from googleapiclient.errors import HttpError
+        from types import SimpleNamespace as NS
+        body = json.dumps({'error': {'message': 'SECRET',
+                                     'errors': [{'reason': 'quotaExceeded'}]}}).encode()
+        def quota(**kwargs):
+            self.upload(**kwargs)
+            raise HttpError(NS(status=403, reason='x'), body)
+        summary = self.run_worker(uploader=quota)
+        self.assertEqual(summary['unknown'], 6)
+        self.assertEqual(summary['reasons'], {'youtube_quota': 6})
+        text = message(self.notifications[0])
+        self.assertIn('cuota diaria', text)
+        self.assertNotIn('SECRET', text)
+
+    def test_render_failure_reports_a_reason(self):
+        self.process.fail = 'render'
+        summary = self.run_worker()
+        self.assertGreater(summary['failed'], 0)
+        self.assertEqual(sum(summary['reasons'].values()), summary['failed'])
+        self.assertIn('Motivos:', message(summary))
+
     def test_render_failure_never_consumes_upload_budget(self):
         self.process.fail = 'render'
         summary = self.run_worker()
@@ -744,7 +766,8 @@ class DailyTests(unittest.TestCase):
              patch('core.beat_worker.DropboxTransport.from_env', side_effect=RuntimeError('SECRET')), \
              patch('sys.stdout', output):
             self.assertEqual(worker_main([]), 1)
-        self.assertEqual(alerts, [{'failed': 1, 'dry_run': False}])
+        self.assertEqual(alerts, [{'failed': 1, 'dry_run': False,
+                                   'reasons': {'error_runtimeerror': 1}}])
         self.assertNotIn('SECRET', output.getvalue())
 
     def test_notification_failure_cannot_cause_repeat_upload(self):
@@ -845,6 +868,7 @@ class CalendarTests(unittest.TestCase):
         self.assertFalse(self.hls.calls)
         self.assertEqual(self.notifications, [summary])
         self.assertIn('calendar_unavailable: 1', message(summary))
+        self.assertEqual(summary['reasons'], {'calendar_read_failed': 1})
         self.assertNotIn('SECRET', message(summary))
 
     def test_invalid_calendar_row_is_unavailable_too(self):

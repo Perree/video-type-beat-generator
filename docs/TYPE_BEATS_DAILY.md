@@ -69,6 +69,15 @@ incluye el contador `calendar_unavailable`. Un fallo justo antes de un insert co
 cancela ese job sin reservar intento y sigue con los demás elegibles. Los dry-run no
 llaman a YouTube: el conjunto de días ocupados queda vacío como antes.
 
+## Motivos en Telegram
+
+Además de los contadores, el mensaje de Telegram trae una sección **Motivos** con una línea
+legible por cada tipo de fallo (por ejemplo, permiso de YouTube vencido, cuota agotada, Dropbox,
+BeatStars, render, horario vencido). `core/beat_reasons.py` convierte cada error en un código
+fijo: solo códigos del propio proyecto (`palabra_palabra`), motivos de una lista cerrada de la
+API de YouTube y, si no reconoce el error, `error_<clase>`. Nunca manda el texto del error,
+URLs ni tokens. Los mismos códigos quedan en el JSON del log de Actions (`reasons`).
+
 ## Presupuesto e idempotencia
 
 El presupuesto es compartido por **todos** los canales en el mismo archivo CAS:
