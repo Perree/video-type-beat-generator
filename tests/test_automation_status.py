@@ -33,9 +33,9 @@ class AutomationStatusTests(unittest.TestCase):
         self.assertEqual(st.kit_youtube_status('kit-weekly', self.gh), st.OK)
 
     def test_status_reads_only_names_and_dates(self):
-        self.put('kit-weekly', *st.KIT_DROPBOX_KEYS)
+        self.put(None, *st.KIT_DROPBOX_KEYS)
         self.assertEqual(st.dropbox_worker_status(gh=self.gh), st.OK)
-        code, text = st.secrets_badge(st.KIT_DROPBOX_KEYS, gh=self.gh)
+        code, text = st.shared_badge(st.KIT_DROPBOX_KEYS, gh=self.gh)
         self.assertEqual((code, text), (st.OK, 'cargado ✓ (2026-10-13)'))
         self.assertTrue(all(a[:2] in (['secret', 'list'], ['auth', 'status'])
                             for a, _ in self.fake.calls))
@@ -81,9 +81,9 @@ class AutomationStatusTests(unittest.TestCase):
         envs = st.save_kit_keys({'KIT_TELEGRAM_TOKEN': TOKEN, 'KIT_TELEGRAM_CHAT_ID': '-1001',
                                  'KIT_LLM_API_KEY': TOKEN, 'KIT_IMAGE_API_KEY': TOKEN}, self.gh)
         st.save_kit_notion(TOKEN, PAGE, self.gh)
-        self.assertEqual(envs, ['kit-weekly', 'kit-weekly-mi-canal'])
+        self.assertEqual(envs, [st.REPO, 'kit-weekly', 'kit-weekly-mi-canal'])
         for env in envs:
-            self.assertTrue(set(self.fake.envs[env]) <= set(st.KIT_SHARED_KEYS))
+            self.assertTrue(set(self.fake.envs[env or '(repo)']) <= set(st.KIT_SHARED_KEYS))
             self.assertEqual(st.kit_telegram_status(env, self.gh), st.OK)
             self.assertEqual(st.kit_llm_status(env, self.gh), st.OK)
             self.assertEqual(st.kit_image_status(env, self.gh), st.OK)
@@ -93,6 +93,21 @@ class AutomationStatusTests(unittest.TestCase):
         self.assertEqual(st.kit_env_name(''), 'kit-weekly')
         self.assertEqual(st.kit_env_name('mi-canal'), 'kit-weekly-mi-canal')
         self.assertIsNone(st.kit_env_name('../x'))
+
+    def test_new_channel_uses_the_shared_secrets_without_configuring_them_again(self):
+        st.save_kit_keys({'KIT_TELEGRAM_TOKEN': TOKEN, 'KIT_TELEGRAM_CHAT_ID': '-1001'}, self.gh)
+        st.save_worker_dropbox({'app_key': 'key', 'refresh_token': TOKEN}, self.gh)
+        self.fake.envs['kit-weekly-nuevo'] = {}  # canal creado después: su Environment está vacío
+        self.put('kit-weekly-nuevo', *st.KIT_YT_KEYS)  # solo se conectó su YouTube
+        by_id = {i['id']: i['ok'] for i in st.readiness_kits('Nuevo', 'nuevo', self.gh)}
+        self.assertTrue(by_id['telegram'] and by_id['dropbox'] and by_id['youtube'])
+        self.assertEqual(st.shared_badge(st.KIT_TELEGRAM_KEYS, 'kit-weekly-nuevo', self.gh)[0], st.OK)
+        self.assertEqual(st.kit_telegram_status(gh=self.gh), st.OK)
+
+    def test_old_copies_only_in_kit_weekly_ask_to_save_once_more(self):
+        self.put('kit-weekly', *st.KIT_TELEGRAM_KEYS)  # configurado antes, solo en kit-weekly
+        self.assertEqual(st.kit_telegram_status('kit-weekly', self.gh), st.OK)  # Beats sigue andando
+        self.assertEqual(st.kit_telegram_status(gh=self.gh), st.MISSING)  # Conexiones pide guardarlo
 
     def test_env_values_still_checked_in_memory(self):
         self.assertEqual(st.kit_telegram_status(env={}), st.MISSING)
@@ -110,7 +125,8 @@ class AutomationStatusTests(unittest.TestCase):
         self.fake.envs['kit-weekly-mi-canal'] = {}
         self.gh.invalidate()
         envs = st.save_worker_dropbox({'app_key': 'key', 'refresh_token': TOKEN}, self.gh)
-        self.assertEqual(envs, ['kit-weekly', 'kit-weekly-mi-canal'])
+        self.assertEqual(envs, [st.REPO, 'kit-weekly', 'kit-weekly-mi-canal'])
+        self.assertEqual(self.fake.value(None, 'KIT_DROPBOX_REFRESH_TOKEN'), TOKEN)
         self.assertEqual(self.fake.value('kit-weekly-mi-canal', 'KIT_DROPBOX_REFRESH_TOKEN'), TOKEN)
         self.assertIsNone(cloud_login.dropbox_credentials())
         with self.assertRaises(st.AutomationError):

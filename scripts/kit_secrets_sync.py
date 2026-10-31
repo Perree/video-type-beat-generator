@@ -4,8 +4,10 @@
 
 Uso: ``py -3 scripts/kit_secrets_sync.py --env kit-weekly-<slug> --channel "<canal>"``.
 
-Los secretos compartidos salen de ``--shared-file`` (si se indica), del entorno o, si faltan,
-de un prompt sin eco; dejar un prompt vacío no toca ese secreto. El Dropbox de esta PC (llavero)
+Los secretos compartidos (Dropbox del robot, Telegram, IA, Notion) son de todos los canales:
+van al repo, que cada Environment hereda, así un canal nuevo no los vuelve a pedir. Salen de
+``--shared-file`` (si se indica), del entorno o, si faltan, de un prompt sin eco; dejar un
+prompt vacío no toca ese secreto (con ``--no-prompt`` se usan los que ya estén en GitHub). El Dropbox de esta PC (llavero)
 nunca se copia al worker: el worker tiene su propia autorización. Ya no se lee ``tokens/`` por defecto. El token de YouTube
 sale de ``--yt-token-file`` o, si no se indica, del OAuth en memoria (abre el navegador).
 Cada valor viaja a ``gh`` por stdin: nunca va en un argumento ni se imprime. Si el
@@ -39,11 +41,6 @@ SHARED = (
     ('KIT_NOTION_PAGE_ID', 'Id de la página de Notion del informe de tendencias'),
 )
 _DROPBOX_FIELDS = {'KIT_DROPBOX_REFRESH_TOKEN': 'refresh_token', 'KIT_DROPBOX_APP_KEY': 'app_key'}
-# Con --no-prompt no se puede completar por stdin: sin estos nombres el Environment queda roto.
-_REQUIRED_NO_PROMPT = (
-    'KIT_DROPBOX_REFRESH_TOKEN', 'KIT_DROPBOX_APP_KEY',
-    'KIT_TELEGRAM_TOKEN', 'KIT_TELEGRAM_CHAT_ID',
-)
 
 
 class SyncError(Exception):
@@ -136,10 +133,14 @@ def ensure_environment(env_name, repo=None, branch='master', runner=_gh):
 
 
 def sync(env_name, values, repo=None, runner=_gh, out=print):
-    """Sube ``values`` como secretos del Environment. Devuelve los nombres que fallaron."""
+    """Sube ``values`` como secretos del Environment (``None``: del repo, para todos los canales).
+
+    Devuelve los nombres que fallaron.
+    """
     failed = []
+    scope = ['--env', env_name] if env_name else []
     for name, value in values.items():
-        args = ['secret', 'set', name, '--env', env_name] + (['--repo', repo] if repo else [])
+        args = ['secret', 'set', name, *scope] + (['--repo', repo] if repo else [])
         ok = runner(args, value) == 0
         out(f"{name}: {'ok' if ok else 'falló'}")
         if not ok:
@@ -214,19 +215,16 @@ def main(argv=None, runner=_gh):
         if not channel:
             raise SyncError("Falta el nombre del canal.")
         check_channel_env(args.env, channel, args.default_channel)
-        values = shared_values(args.shared_file, ask=ask_shared)
-        values['KIT_YT_CHANNEL'] = channel
-        values['KIT_YT_TOKEN_JSON'] = youtube_token(
+        shared = shared_values(args.shared_file, ask=ask_shared)
+        values = {'KIT_YT_CHANNEL': channel, 'KIT_YT_TOKEN_JSON': youtube_token(
             channel, args.yt_token_file, ask=ask_path,
-            authorize=None if args.no_prompt else oauth_token)
-        if args.no_prompt:
-            missing = [name for name in _REQUIRED_NO_PROMPT if not values.get(name)]
-            if missing:
-                raise SyncError('Faltan secretos obligatorios: ' + ', '.join(missing)
-                                + '. Completá Conexiones y repetí.')
+            authorize=None if args.no_prompt else oauth_token)}
         if ensure_environment(args.env, args.repo, args.branch, runner):
             print("Environment creado y restringido a la rama.")
-        failed = sync(args.env, values, args.repo, runner)
+        # Compartidos: al repo (los heredan todos los canales) y a este Environment, para que
+        # una copia vieja suya no tape la nueva.
+        failed = sync(None, shared, args.repo, runner) if shared else []
+        failed += sync(args.env, {**shared, **values}, args.repo, runner)
     except (SyncError, kit_channel.KitChannelError) as exc:
         print(exc)
         return 1
@@ -237,7 +235,7 @@ def main(argv=None, runner=_gh):
     if failed:
         print(f"{len(failed)} secreto(s) no se cargaron.")
         return 1
-    print(f"Listo: {len(values)} secreto(s) cargados.")
+    print(f"Listo: {len(values) + len(shared)} secreto(s) cargados.")
     return 0
 
 

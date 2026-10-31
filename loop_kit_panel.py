@@ -712,9 +712,9 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
         def done(result):
             created, registry = result
             self._set_automations(registry, select=created.slug)
-            self.reload(note="Automatización creada. Falta cargar los secretos de "
-                             f"{kit_channel.environment(created.slug)} "
-                             "(scripts/kit_secrets_sync.py) y sumar el canal a KIT_CHANNELS.")
+            self.reload(note="Automatización creada. Falta conectar su YouTube (Conexiones de este "
+                             "canal) y activarlo en «Mis canales». Telegram y Dropbox del robot "
+                             "son los mismos de todos los canales.")
             if on_result:
                 on_result(True, name)
 

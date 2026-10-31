@@ -19,6 +19,7 @@ from core.beat_actions import TRUSTED_REPOSITORY
 
 OK, MISSING, UNKNOWN = 'ok', 'missing', 'unknown'
 ENV = 'kit-weekly'
+REPO = None  # «sin Environment»: secretos del repo, que ven todos los Environments
 TTL = 60
 FAIL_TTL = 5  # un fallo (sin sesión, red) se reintenta pronto: p. ej. tras «gh auth login»
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -48,6 +49,11 @@ def check_env(env):
     if not isinstance(env, str) or not _ENV.fullmatch(env) or len(env) > 60:
         raise GhError('Environment de GitHub inválido.')
     return env
+
+
+def _scope(env):
+    """Argumentos de ``gh secret`` para un Environment, o ninguno para el repo (``REPO``)."""
+    return [] if env is REPO else ['--env', check_env(env)]
 
 
 def check_name(name):
@@ -138,11 +144,11 @@ class GhStatus:
                             else MISSING, good=lambda v: v == OK, pending=UNKNOWN)
 
     def secrets(self, env=ENV):
-        """``{nombre: updatedAt}`` del Environment, o ``None`` si no se pudo leer."""
-        check_env(env)
+        """``{nombre: updatedAt}`` del Environment (``REPO``: del repo), o ``None`` si falló."""
+        scope = _scope(env)
 
         def load():
-            code, out = self._run(['secret', 'list', '--env', env, '--json', 'name,updatedAt',
+            code, out = self._run(['secret', 'list', *scope, '--json', 'name,updatedAt',
                                    *self._repo()])
             if code != 0:
                 return None
@@ -186,13 +192,13 @@ class GhStatus:
             self.invalidate()  # lo usan los sync scripts para escribir
 
     def set_secret(self, name, value, env=ENV):
-        """Sube ``value`` por stdin. Devuelve True si gh terminó bien."""
+        """Sube ``value`` por stdin (``env=REPO``: secreto del repo). True si gh terminó bien."""
         check_name(name)
-        check_env(env)
+        scope = _scope(env)
         if not isinstance(value, str) or not value:
             raise GhError('Valor de secreto vacío.')
         try:
-            return self._run(['secret', 'set', name, '--env', env, *self._repo()], value)[0] == 0
+            return self._run(['secret', 'set', name, *scope, *self._repo()], value)[0] == 0
         finally:
             self.invalidate()
 

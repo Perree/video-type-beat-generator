@@ -18,6 +18,7 @@ OK, MISSING, INVALID, UNKNOWN = 'ok', 'missing', 'invalid', 'unknown'
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOKENS_DIR = os.path.join(ROOT, 'tokens')  # solo informes SEO locales (seo_report_status)
 ENV = gh_status.ENV
+REPO = gh_status.REPO  # secretos del repo: los ve el Environment de cada canal sin copiarlos
 NOTION_KEYS = ('BEAT_NOTION_TOKEN', 'BEAT_NOTION_PAGE_ID')
 KIT_NOTION_KEYS = ('KIT_NOTION_TOKEN', 'KIT_NOTION_PAGE_ID')
 KIT_TELEGRAM_KEYS = ('KIT_TELEGRAM_TOKEN', 'KIT_TELEGRAM_CHAT_ID')
@@ -26,6 +27,7 @@ KIT_YT_KEYS = ('KIT_YT_CHANNEL', 'KIT_YT_TOKEN_JSON')
 KIT_LLM_KEY = 'KIT_LLM_API_KEY'
 KIT_IMAGE_KEY = 'KIT_IMAGE_API_KEY'
 # Misma lista que scripts/kit_secrets_sync.SHARED: la UI no puede inventar nombres.
+# Son de todos los canales (Beats y Loop kits): se guardan una vez en el repo. Por canal solo va YouTube.
 KIT_SHARED_KEYS = (
     *KIT_DROPBOX_KEYS,
     KIT_LLM_KEY, KIT_IMAGE_KEY,
@@ -66,15 +68,38 @@ _printable = cloud_login.printable
 
 # --- Lectura (solo nombres y fechas) ---
 
-def secrets_state(names, environment=ENV, gh=None):
+def _list(environment, gh):
+    try:
+        return _gh(gh).secrets(environment)
+    except gh_status.GhError:
+        return None
+
+
+def _listed(names, environment, gh, shared):
+    """``{nombre: fecha}`` visibles para ``environment``; ``None`` si no se pudo saber.
+
+    ``shared``: también cuentan los del repo (GitHub los hereda a cada Environment; uno del
+    Environment con el mismo nombre tiene prioridad).
+    """
+    own = _list(environment, gh)
+    if not shared or environment is REPO:
+        return own
+    repo = _list(REPO, gh)
+    if own is None and repo is None:
+        return None
+    merged = dict(repo or {})
+    merged.update(own or {})
+    if (own is None or repo is None) and not all(n in merged for n in names):
+        return None  # falta una de las dos listas: no se puede decir «falta»
+    return merged
+
+
+def secrets_state(names, environment=ENV, gh=None, shared=False):
     """``ok`` si están todos, ``missing`` si ninguno, ``invalid`` si a medias.
 
     ``unknown`` si no se pudo listar (sin ``gh`` o sin sesión). Nunca lee valores.
     """
-    try:
-        listed = _gh(gh).secrets(environment)
-    except gh_status.GhError:
-        return UNKNOWN
+    listed = _listed(names, environment, gh, shared)
     if listed is None:
         return UNKNOWN
     present = [n in listed for n in names]
@@ -83,21 +108,18 @@ def secrets_state(names, environment=ENV, gh=None):
     return INVALID if any(present) else MISSING
 
 
-def secrets_date(names, environment=ENV, gh=None):
+def secrets_date(names, environment=ENV, gh=None, shared=False):
     """Fecha (``AAAA-MM-DD``) de la última actualización entre ``names``, o ``''``."""
-    try:
-        listed = _gh(gh).secrets(environment) or {}
-    except gh_status.GhError:
-        return ''
+    listed = _listed(names, environment, gh, shared) or {}
     days = [gh_status.day(listed[n]) for n in names if n in listed]
     return max(days) if days else ''
 
 
-def secrets_badge(names, environment=ENV, gh=None):
+def secrets_badge(names, environment=ENV, gh=None, shared=False):
     """``(código, texto)`` para la UI: «cargado ✓ (fecha)» en lugar del valor."""
-    code = secrets_state(names, environment, gh)
+    code = secrets_state(names, environment, gh, shared)
     if code == OK:
-        date = secrets_date(names, environment, gh)
+        date = secrets_date(names, environment, gh, shared)
         return code, f'cargado ✓ ({date})' if date else 'cargado ✓'
     if code == UNKNOWN and _gh(gh).pending():
         return code, 'Consultando GitHub…'
@@ -156,9 +178,14 @@ def kit_youtube_status(environment, gh=None):
     return secrets_state(KIT_YT_KEYS, environment, gh) if environment else UNKNOWN
 
 
-def dropbox_worker_status(environment=ENV, gh=None):
-    """Credenciales de Dropbox del worker (``KIT_DROPBOX_*``) en el Environment."""
-    return secrets_state(KIT_DROPBOX_KEYS, environment, gh)
+def shared_badge(names, environment=REPO, gh=None):
+    """Badge de una clave compartida: la del repo (o la que ve el Environment de un canal)."""
+    return secrets_badge(names, environment, gh, shared=True)
+
+
+def dropbox_worker_status(environment=REPO, gh=None):
+    """Credenciales de Dropbox del worker (``KIT_DROPBOX_*``): en el repo o en el Environment."""
+    return secrets_state(KIT_DROPBOX_KEYS, environment, gh, shared=True)
 
 
 def beat_notion_status(gh=None):
@@ -170,38 +197,38 @@ def _env_values(names, env):
     return [str(env.get(n) or '').strip() for n in names]
 
 
-def kit_notion_status(environment=ENV, gh=None, env=None):
+def kit_notion_status(environment=REPO, gh=None, env=None):
     """Notion Kits. ``env`` (dict) evalúa valores en memoria, p. ej. en el runner."""
     if env is not None:
         token, page = _env_values(KIT_NOTION_KEYS, env)
         if not token and not page:
             return MISSING
         return OK if _printable(token) and kit_notion.page_id(page) else INVALID
-    return secrets_state(KIT_NOTION_KEYS, environment, gh)
+    return secrets_state(KIT_NOTION_KEYS, environment, gh, shared=True)
 
 
-def kit_telegram_status(environment=ENV, gh=None, env=None):
-    """Telegram Kits: hacen falta token y chat id."""
+def kit_telegram_status(environment=REPO, gh=None, env=None):
+    """Telegram (avisos de todos los canales, Beats y Loop kits): hacen falta token y chat id."""
     if env is not None:
         token, chat = _env_values(KIT_TELEGRAM_KEYS, env)
         if not token and not chat:
             return MISSING
         return OK if _printable(token, 4096) and _printable(chat, 128) else INVALID
-    return secrets_state(KIT_TELEGRAM_KEYS, environment, gh)
+    return secrets_state(KIT_TELEGRAM_KEYS, environment, gh, shared=True)
 
 
-def kit_llm_status(environment=ENV, gh=None, env=None):
+def kit_llm_status(environment=REPO, gh=None, env=None):
     """``ok`` si hay clave LLM; no se valida contra la API."""
     if env is not None:
         return OK if _env_values((KIT_LLM_KEY,), env)[0] else MISSING
-    return secrets_state((KIT_LLM_KEY,), environment, gh)
+    return secrets_state((KIT_LLM_KEY,), environment, gh, shared=True)
 
 
-def kit_image_status(environment=ENV, gh=None, env=None):
+def kit_image_status(environment=REPO, gh=None, env=None):
     """``ok`` si hay clave de imágenes; no se valida contra la API."""
     if env is not None:
         return OK if _env_values((KIT_IMAGE_KEY,), env)[0] else MISSING
-    return secrets_state((KIT_IMAGE_KEY,), environment, gh)
+    return secrets_state((KIT_IMAGE_KEY,), environment, gh, shared=True)
 
 
 def kit_env_name(automation_slug):
@@ -213,7 +240,8 @@ def kit_env_name(automation_slug):
 
 
 def kit_environments(gh=None):
-    """``kit-weekly`` y los ``kit-weekly-<slug>`` que existan (destino de los compartidos).
+    """Destino de los compartidos: el repo (lo heredan los canales nuevos), ``kit-weekly`` y los
+    ``kit-weekly-<slug>`` que existan (una copia vieja en un Environment taparía la del repo).
 
     Si no se pudo listar, AutomationError: escribir solo en ``kit-weekly`` dejaría a los
     canales con Environment propio con un valor viejo sin avisar.
@@ -222,7 +250,7 @@ def kit_environments(gh=None):
     if found is None:
         raise AutomationError('No se pudieron listar los Environments de GitHub; no se '
                               'guardó nada. Reintentá.')
-    return [ENV] + sorted(e for e in found if e != ENV)
+    return [REPO, ENV] + sorted(e for e in found if e != ENV)
 
 
 # --- Escritura (directo a GitHub Secrets por stdin) ---
@@ -240,7 +268,7 @@ def _write(values, environments, gh=None):
             except gh_status.GhError:
                 ok = False
             if not ok:
-                failed.append(f'{name} ({environment})')
+                failed.append(f'{name} ({environment or "repo"})')
     if failed:
         raise AutomationError('No se cargaron en GitHub: ' + ', '.join(failed) + '.')
     return list(environments)
@@ -282,7 +310,7 @@ def clean_kit_keys(updates):
 
 
 def save_kit_keys(updates, gh=None, environments=None):
-    """Sube claves SHARED a ``kit-weekly`` y a cada ``kit-weekly-<slug>`` existente.
+    """Sube claves SHARED al repo, a ``kit-weekly`` y a cada ``kit-weekly-<slug>`` existente.
 
     Devuelve los Environments escritos. Los valores nunca tocan el disco.
     """

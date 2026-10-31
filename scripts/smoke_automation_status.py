@@ -26,7 +26,8 @@ def _settle(app, panel, timeout=5):
 
 def main():
     fake = FakeGhRun()
-    fake.put('kit-weekly', *st.KIT_DROPBOX_KEYS, 'BEAT_YT_TOKEN_JSON_EY_MAT')
+    fake.put(None, *st.KIT_DROPBOX_KEYS)  # compartidos: en el repo, para todos los canales
+    fake.put('kit-weekly', 'BEAT_YT_TOKEN_JSON_EY_MAT')
     gh_status.set_default(gh_status.GhStatus(run=fake))
     cloud_login.set_backend(MemoryKeyring())
     print('dropbox:', st.dropbox_worker_status())
@@ -34,7 +35,7 @@ def main():
     print('gh     :', st.gh_auth_status())
     assert st.dropbox_worker_status() == st.OK and st.beat_notion_status() == st.MISSING
     assert st.beat_youtube_status('ey-mat') == st.OK
-    code, text = st.secrets_badge(st.KIT_DROPBOX_KEYS)
+    code, text = st.shared_badge(st.KIT_DROPBOX_KEYS)
     assert code == st.OK and text == 'cargado ✓ (2026-10-13)', text
     assert st.dropbox_desktop_status() == st.MISSING
     reads = [c[0] for c in fake.calls]

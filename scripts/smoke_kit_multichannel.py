@@ -349,7 +349,7 @@ def _check_panel(dbx, a, b):
         new = kit_channel.for_channel('Canal Nuevo')
         check(new.config in dbx.files and panel.paths() == new
               and panel.channel.currentText() == 'Canal Nuevo'
-              and 'kit-weekly-canal-nuevo' in panel.status.text(),
+              and 'conectar su YouTube' in panel.status.text(),
               "panel: Crear automatización no dejó el canal nuevo elegido")
         check(json.loads(dbx.files[new.config][1])['kit_preview']['dropbox_root'] == '/smoke',
               "panel: el canal nuevo no heredó la carpeta de kits")

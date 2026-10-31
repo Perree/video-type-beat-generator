@@ -327,7 +327,7 @@ def check_youtube(fake, gh):
 def check_shared(fake, gh):
     envs = st.save_kit_keys({'KIT_TELEGRAM_TOKEN': S['tg'], 'KIT_TELEGRAM_CHAT_ID': '-1001',
                              'KIT_LLM_API_KEY': S['llm']})
-    check(envs == ['kit-weekly', 'kit-weekly-canal-smoke'],
+    check(envs == [None, 'kit-weekly', 'kit-weekly-canal-smoke'],
           f'compartidos: no fueron a todos los Environments ({envs})')
     check(all(fake.value(e, 'KIT_TELEGRAM_TOKEN') == S['tg'] for e in envs),
           'compartidos: valor distinto en algún Environment')
@@ -561,10 +561,16 @@ def check_cli(fake, gh, tmp):
                                       '--yt-token-file', token, '--repo', REPO], runner=gh.runner)
     check(code == 0 and fake.value('kit-weekly', 'KIT_DROPBOX_REFRESH_TOKEN') == S['dbx_worker'],
           'CLI de Kits: no tomó Dropbox del entorno')
+    check(fake.value(None, 'KIT_TELEGRAM_TOKEN') == S['tg']
+          and fake.value(None, 'KIT_DROPBOX_REFRESH_TOKEN') == S['dbx_worker'],
+          'CLI de Kits: los compartidos no quedaron en el repo para todos los canales')
     with patch.dict(os.environ, {'KIT_TELEGRAM_TOKEN': S['tg'], 'KIT_TELEGRAM_CHAT_ID': '-1001'}):
         code = kit_secrets_sync.main(['--env', 'kit-weekly', '--channel', 'cli', '--no-prompt',
                                       '--yt-token-file', token, '--repo', REPO], runner=gh.runner)
-    check(code == 1, 'CLI de Kits: usó el Dropbox del llavero de esta PC')
+    # Sin Dropbox en el entorno no se pide de nuevo (ya está en GitHub) ni se toma del llavero.
+    check(code == 0 and fake.value(None, 'KIT_DROPBOX_REFRESH_TOKEN') == S['dbx_worker']
+          and fake.value('kit-weekly', 'KIT_DROPBOX_REFRESH_TOKEN') == S['dbx_worker'],
+          'CLI de Kits: usó el Dropbox del llavero de esta PC')
     code = kit_secrets_sync.main(['--env', 'kit-weekly', '--channel', 'cli', '--no-prompt',
                                   '--yt-token-file', token, '--repo', REPO,
                                   '--default-channel', 'WyreSounds'], runner=gh.runner)
