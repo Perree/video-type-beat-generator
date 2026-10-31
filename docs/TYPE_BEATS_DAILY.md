@@ -69,6 +69,22 @@ incluye el contador `calendar_unavailable`. Un fallo justo antes de un insert co
 cancela ese job sin reservar intento y sigue con los demás elegibles. Los dry-run no
 llaman a YouTube: el conjunto de días ocupados queda vacío como antes.
 
+## Subidas perdidas
+
+Una subida con resultado desconocido (timeout, error de YouTube) nunca se reintenta, para no
+duplicar videos. Antes eso dejaba el día vacío y el beat bloqueado para siempre. Ahora, al
+empezar cada corrida, `BeatState.release_lost` (con `core/beat_lost.py`) libera esos trabajos
+solo si se cumple todo esto:
+
+- el último intento tiene más de 12 horas;
+- el día del trabajo no está ocupado en el calendario de YouTube;
+- ningún video del canal tiene el título que se iba a subir;
+- la lista de YouTube cubre el momento del intento (no está cortada por el tope de 200).
+
+El trabajo pasa a `cancelled` con `lost: true`: su horario y su beat vuelven a quedar libres y
+el planificador los llena con otro video. El intento queda en el registro (el cupo diario no se
+devuelve). Telegram lo cuenta en `released` y lo explica en «Motivos».
+
 ## Motivos en Telegram
 
 Además de los contadores, el mensaje de Telegram trae una sección **Motivos** con una línea

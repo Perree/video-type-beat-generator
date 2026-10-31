@@ -1089,3 +1089,15 @@ estados de automatización. Una fase por sesión. Migración SQL: no.
   recibo, miniatura) y el arranque de `beat_worker`.
 - Pruebas: `tests/test_beat_reasons.py` y casos nuevos en `tests/test_beat_daily.py`.
 - Pendiente: liberar el día de una subida fallida que no llegó a YouTube; aviso de token vencido.
+
+## Beats — Liberar subidas perdidas ✅ COMPLETADA (2026-10-31)
+
+- Antes una subida con resultado desconocido dejaba el día vacío y, por `repeat_ready`, el beat
+  bloqueado para siempre (cada fallo achicaba el catálogo usable).
+- `core/beat_lost.py` + `BeatState.release_lost`: con el calendario de YouTube, libera los trabajos
+  con intento de más de 12 h, día libre, título ausente en el canal y lista que cubre el intento.
+  Pasan a `cancelled` + `lost: true`; el esquema acepta otro trabajo en ese horario y el
+  planificador lo vuelve a llenar. El cupo no se devuelve. Contador `released` en Telegram.
+- Pruebas: `tests/test_beat_lost.py` (punta a punta, período de gracia, título y día ocupados,
+  lista cortada, esquema).
+- Pendiente: aviso de token de YouTube vencido.

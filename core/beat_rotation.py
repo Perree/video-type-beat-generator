@@ -28,7 +28,8 @@ def publication_time(job):
 
 
 def repeat_ready(history, tid, at, attempted_ids=()):
-    rows = [row for row in history if row['track_id'] == tid
+    # Una subida perdida (``lost``) ya se verificó fuera de YouTube: no bloquea el beat.
+    rows = [row for row in history if row['track_id'] == tid and not row.get('lost')
             and (row['status'] != 'cancelled' or row['id'] in attempted_ids)]
     # Failed/planned reservations (including ambiguous inserts) must resolve first.
     return all(row['status'] == 'uploaded' and instant(at) >= publication_time(row) + REST
