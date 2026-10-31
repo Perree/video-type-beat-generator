@@ -40,7 +40,10 @@ def plan(config, state, tracks, now, *, seed=None, reports=None, occupied_days=(
                       key=lambda ch: (-ch["priority"], ch["id"]))
     pools = {ch['id']: eligible_tracks(ch, tracks) for ch in channels}
     catalog_ids = {cid: sorted({track['id'] for track in pool}) for cid, pool in pools.items()}
-    occupied = {(j["channel"], instant(j["slot"])) for j in state["jobs"].values()}
+    # Las subidas perdidas (``lost``) ya no ocupan su horario.
+    occupied = {(j["channel"], instant(j["slot"])) for j in state["jobs"].values()
+                if not j.get("lost")}
+    existing_ids = set(state["jobs"])
     occupied_days = set(occupied_days)
     queues = {ch["id"]: [s for s in slots(ch, now)
                          if pools[ch['id']] and (ch["id"], s) not in occupied
@@ -67,7 +70,9 @@ def plan(config, state, tracks, now, *, seed=None, reports=None, occupied_days=(
                 cycle += 1
                 available = ids
             slot = queues[cid].pop(0).isoformat()
-            available = [tid for tid in available if repeat_ready(history, tid, slot, attempted_ids)]
+            available = [tid for tid in available if repeat_ready(history, tid, slot, attempted_ids)
+                         # Nunca el mismo id que una subida perdida en ese horario.
+                         and identity(tid, cid, cycle, slot) not in existing_ids]
             if not available:
                 continue
             # Missing performance data: oldest public use first, stable ID ties.

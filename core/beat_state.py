@@ -109,6 +109,26 @@ class BeatState:
         guard = (lambda source: self._lease(source, owner)) if owner is not None else None
         return self.cloud.update("state", mutate, guard=guard)
 
+    def release_lost(self, channel, rows, taken, owner=None):
+        """Libera las subidas perdidas del canal (ver ``beat_lost.lost_jobs``).
+
+        Cada una pasa a ``cancelled`` con ``lost: True``: el día y el beat vuelven a estar
+        libres para el planificador. El intento queda en el registro (el cupo no se devuelve).
+        Devuelve la lista de ids liberados.
+        """
+        from core.beat_lost import lost_jobs
+        released = []
+        def mutate(state):
+            if owner is not None:
+                self._lease(state, owner)
+            released.clear()
+            for job_id in lost_jobs(state, channel, rows, self.clock(), taken):
+                state["jobs"][job_id].update(status="cancelled", lost=True)
+                released.append(job_id)
+            return list(released)
+        guard = (lambda source: self._lease(source, owner)) if owner is not None else None
+        return self.cloud.update("state", mutate, guard=guard)
+
     def reserve_attempt(self, job_id, attempt_id, *, exclusive=False, before_commit=None):
         """Reserve BEFORE an upload call. Failures/unknown outcomes never refund.
 

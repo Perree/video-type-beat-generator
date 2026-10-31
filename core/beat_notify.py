@@ -7,7 +7,7 @@ from core.beat_reasons import lines
 
 COUNTERS = ('planned', 'eligible', 'uploaded', 'orphan', 'unknown', 'failed',
             'blocked', 'budget', 'thumbnail_failed', 'expired', 'no_matching_tracks',
-            'calendar_unavailable')
+            'calendar_unavailable', 'released')
 
 
 def message(summary):

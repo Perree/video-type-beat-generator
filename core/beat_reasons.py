@@ -62,6 +62,8 @@ TEXTS = {
     'missing_secret': 'Falta un secreto del canal en GitHub.',
     'thumbnail_rejected': 'YouTube no aceptó la miniatura (el canal tiene que estar verificado '
                           'por teléfono para usar miniaturas propias).',
+    'upload_lost_released': 'Una subida fallida no llegó a YouTube: se liberó su día y su beat '
+                            'para planificar otro video.',
     'slot_expired': 'El horario de un video pasó sin subirse (la corrida no llegó a tiempo).',
     'upload_reservation_day_changed': 'La subida cruzó la medianoche y se frenó por seguridad.',
 }

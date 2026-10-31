@@ -103,10 +103,11 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
             except Exception:
                 pass
         reports = {channel_id: payload}
-        taken = set()
+        taken, rows = set(), None
         if calendar is not None:
             try:
-                taken = calendar_days(calendar, channel_id, clock)
+                rows = list(calendar(channel_id))
+                taken = occupied_days(rows, clock())
             except Exception as exc:
                 # Calendario desconocido: un fallo de lectura nunca cancela trabajos.
                 summary['calendar_unavailable'] += 1
@@ -129,6 +130,11 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
             try:
                 ensure_selection(selection_cloud, channel)
                 store.cancel_occupied(channel_id, taken, owner)
+                if rows is not None:
+                    released = store.release_lost(channel_id, rows, taken, owner)
+                    summary['released'] += len(released)
+                    for _ in released:
+                        note(summary, 'upload_lost_released')
                 additions = store.fill_buffer(planning_config, tracks.values(), owner, seed=seed, reports=reports,
                     before_commit=lambda: ensure_selection(selection_cloud, channel),
                     occupied_days=taken)
