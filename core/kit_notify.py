@@ -123,8 +123,29 @@ def error_kind(error):
     return f"{kind} HTTP {status}" + (f" {reason}" if reason else '')
 
 
+def _action(error):
+    """Bloque «ACCIÓN NECESARIA» si el error pide reconectar YouTube, o ''."""
+    from core import beat_reasons
+    if isinstance(error, str):
+        return ''
+    try:
+        code = beat_reasons.classify(error)
+    except Exception:
+        return ''
+    if type(error).__name__ == 'YouTubeError' and code.startswith('error_'):
+        # Motivos propios de core.youtube: canal sin conectar o token inválido.
+        kind = error_kind(error)
+        code = 'youtube_token_invalid' if kind.endswith(('token_invalid', 'not_connected')) else code
+    return '\n'.join(beat_reasons.action_lines([code], panel='Loop kits'))
+
+
 def alert(error, step=None):
-    """Texto de alerta: paso que falló y tipo de error, sin mensaje (puede traer datos)."""
+    """Texto de alerta: paso que falló y tipo de error, sin mensaje (puede traer datos).
+
+    Si el error pide reconectar YouTube, el aviso empieza con los pasos para hacerlo.
+    """
     kind = error_kind(error)
     where = f" en el paso '{step}'" if step else ''
-    return f"Loop kits: fallo el worker semanal{where} ({kind}). Revisar el log de Actions."
+    text = f"Loop kits: fallo el worker semanal{where} ({kind}). Revisar el log de Actions."
+    action = _action(error)
+    return f"{action}\n\n{text}" if action else text

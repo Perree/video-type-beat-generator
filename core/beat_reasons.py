@@ -69,6 +69,37 @@ TEXTS = {
 }
 
 
+# Pasos para reconectar YouTube (``{panel}``: «Beats» o «Loop kits»).
+RECONNECT = ('En la app: pestaña {panel} → elegí el canal → pestaña Conexiones → '
+             '«Conectar YouTube y subir a GitHub», con la cuenta de Google del canal.')
+SEVEN_DAYS = ('Si se repite cada ~7 días: Google Cloud → «Pantalla de consentimiento de OAuth» → '
+              '«Publicar app» (tiene que decir «En producción», no «Testing»).')
+# Motivos que no se arreglan solos: van arriba del mensaje, con los pasos.
+ACTIONS = {
+    'youtube_token_expired': ('Reconectar YouTube: el permiso venció o fue revocado.',
+                              (RECONNECT, SEVEN_DAYS)),
+    'youtube_token_invalid': ('Reconectar YouTube: el token guardado en GitHub no es válido.',
+                              (RECONNECT,)),
+    'youtube_owner_mismatch': ('Reconectar YouTube con la cuenta correcta: el permiso es de otro canal.',
+                               (RECONNECT,)),
+    'youtube_forbidden': ('Revisar el permiso de YouTube: YouTube lo rechazó (403).',
+                          (RECONNECT,)),
+}
+
+
+def action_lines(codes, panel='Beats'):
+    """Bloque «ACCIÓN NECESARIA» para los ``codes`` que piden intervención, o []."""
+    out, steps = [], []
+    for code in sorted(set(codes or ())):
+        if code in ACTIONS:
+            title, extra = ACTIONS[code]
+            out.append(f'- {title}')
+            steps += [s for s in extra if s not in steps]
+    if not out:
+        return []
+    return ['ACCIÓN NECESARIA:', *out, *(s.format(panel=panel) for s in steps)]
+
+
 def _chain(exc):
     seen = []
     while exc is not None and exc not in seen and len(seen) < _DEPTH:
@@ -157,6 +188,15 @@ def note(summary, code_or_exc):
         reasons[code] = reasons.get(code, 0) + 1
     except Exception:
         pass
+
+
+def codes(summary):
+    """Códigos válidos de ``summary['reasons']`` (ignora todo lo demás)."""
+    reasons = summary.get(KEY) if isinstance(summary, dict) else None
+    if not isinstance(reasons, dict):
+        return []
+    return [code for code, count in reasons.items()
+            if isinstance(code, str) and _CODE.fullmatch(code) and type(count) is int]
 
 
 def lines(summary):

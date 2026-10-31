@@ -94,6 +94,13 @@ fijo: solo códigos del propio proyecto (`palabra_palabra`), motivos de una list
 API de YouTube y, si no reconoce el error, `error_<clase>`. Nunca manda el texto del error,
 URLs ni tokens. Los mismos códigos quedan en el JSON del log de Actions (`reasons`).
 
+Si un motivo necesita que hagas algo (permiso de YouTube vencido o revocado, token inválido,
+permiso de otro canal, 403), el mensaje **empieza** con «ACCIÓN NECESARIA» y los pasos:
+pestaña Beats → el canal → Conexiones → «Conectar YouTube y subir a GitHub». Si el permiso
+vence cada ~7 días, la app de Google está en «Testing»: hay que publicarla («En producción»).
+Con `BEAT_SLUG`, el mensaje empieza con `[slug]` para distinguir canales en el mismo chat.
+Las alertas del worker de Loop kits (`kit_notify.alert`) suman los mismos pasos.
+
 ## Presupuesto e idempotencia
 
 El presupuesto es compartido por **todos** los canales en el mismo archivo CAS:
