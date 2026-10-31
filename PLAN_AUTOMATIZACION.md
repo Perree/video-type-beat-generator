@@ -1068,3 +1068,14 @@ estados de automatización. Una fase por sesión. Migración SQL: no.
   (archivo, BPM, tono, link, TÍTULO/DESCRIPCIÓN/TAGS). Etiquetas del beat (≤500 caracteres); sin metadata, las del perfil.
   ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de estilos). main.py sin cambios.
 - Guía: docs/MANUAL_BEATSTARS.md. Pruebas nuevas en 	est_manual_beatstars_files.py y flujo/render actualizados.
+
+## Loop kits — Portada sin IA cuando falla la API de imágenes ✅ COMPLETADA (2026-10-31)
+
+- Causa: con `cover_mode` `auto`/`template` los kits sin imágenes propias entran a la cola; si la API
+  fallaba (sin saldo en OpenAI) no había imagen manual de respaldo y cada video terminaba en `KitSkip('cover')`.
+- `kit_art.free_background`: imagen del género desenfocada (fondos de plantilla o referencias, con la misma
+  rotación) y, si no hay, degradado con los colores del género. `for_cover` la usa cuando no hay portada.
+- El aviso de Telegram por fallo de la IA sale una vez por corrida (antes, uno por video).
+- Pruebas: `tests/test_kit_free_cover.py`; smokes de kit_art, plantilla, cableado, semanal y simulación OK.
+- Pendiente del diagnóstico (próximas fases): motivo legible en Telegram de Beats, liberar el día de una
+  subida fallida que no llegó a YouTube y aviso de token de YouTube vencido.
