@@ -623,7 +623,7 @@ class AssistantView(QWidget):
         def enter_done():
             self.local.reload_channels(select=name.text().strip())
             done_label.setText(f'El canal <b>{name.text().strip()}</b> está listo. Su estilo se puede cambiar cuando '
-                               'quieras con «Editar estilo del canal».')
+                               'quieras con «Editar estilo».')
 
         page6, _ = _vbox(done_label, _row(_button('Terminar', self.show_goals), None), 1)
         pages = [

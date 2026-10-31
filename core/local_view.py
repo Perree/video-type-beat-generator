@@ -8,10 +8,10 @@ caché) vive en ⚙ Configuración. La lógica está en ``manual_render`` y ``bu
 import os
 
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QColor, QPalette
+from PyQt5.QtGui import QColor, QKeySequence
 from PyQt5.QtWidgets import (QApplication, QComboBox, QFileDialog, QFrame, QHBoxLayout, QInputDialog,
-                             QLabel, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
-                             QScrollArea, QTableWidgetItem, QVBoxLayout, QWidget)
+                             QLabel, QMenu, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
+                             QScrollArea, QShortcut, QTableWidgetItem, QVBoxLayout, QWidget)
 
 from core import bulk_queue as bq
 from core import channel_profile as cp
@@ -20,13 +20,7 @@ from core import manual_render as mr
 from core.guide_panel import GuideStep
 from core.manual_panel import REPO_ROOT, BeatDropTable, _open_path, desktop_output_folder
 from core.profile_editor import ProfileEditor
-from ui_theme import ACCENT_GENERATE, ACCENT_GENERATE_HOVER
-
-_STEP = 'QFrame#step { border: 1px solid #555; border-radius: 8px; }'
-_GENERATE = (f'QPushButton {{ background: {ACCENT_GENERATE}; color: white; font-size: 16px; font-weight: bold;'
-             f' padding: 12px 24px; }} QPushButton:hover {{ background: {ACCENT_GENERATE_HOVER}; }}'
-             ' QPushButton:disabled { background: #555; color: #aaa; }')
-
+import ui_theme as theme
 
 class LocalWorker(QThread):
     """Genera un canal (beats arrastrados + su carpeta de entrada) o todos los canales con entrada."""
@@ -134,15 +128,9 @@ class LocalView(QWidget):
     # --- UI ---
 
     def _step(self, layout, title):
-        frame = QFrame()
-        frame.setObjectName('step')
-        frame.setStyleSheet(_STEP)
-        inner = QVBoxLayout(frame)
-        label = QLabel(title)
-        label.setStyleSheet('font-size: 15px; font-weight: bold;')
-        inner.addWidget(label)
-        layout.addWidget(frame)
-        return frame, inner
+        box, inner = theme.section(title)
+        layout.addWidget(box)
+        return box, inner
 
     def _build(self):
         outer = QVBoxLayout(self)
@@ -150,93 +138,95 @@ class LocalView(QWidget):
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         body = QWidget()
-        palette = body.palette()
-        palette.setColor(QPalette.Window, QColor('#2b2b2b'))
-        body.setPalette(palette)
-        body.setAutoFillBackground(True)
         layout = QVBoxLayout(body)
+        layout.setContentsMargins(theme.SPACE['l'], theme.SPACE['s'], theme.SPACE['l'], theme.SPACE['l'])
+        layout.setSpacing(theme.SPACE['s'])
         self.scroll.setWidget(body)
         self.scroll.setFrameShape(QFrame.NoFrame)
         outer.addWidget(self.scroll)
+
         header = QHBoxLayout()
-        title = QLabel('Crear videos en esta PC')
-        title.setStyleSheet('font-size: 18px; font-weight: bold;')
-        header.addWidget(title)
+        header.addWidget(theme.title(QLabel('Crear videos en esta PC')))
         header.addStretch()
-        self.btn_assistant = QPushButton('🧭 Guiame paso a paso')
+        self.btn_assistant = theme.flat(QPushButton('🧭 Guiame paso a paso'))
         self.btn_assistant.clicked.connect(self.assistant_requested)
         header.addWidget(self.btn_assistant)
-        self.btn_settings = QPushButton('⚙ Configuración')
+        self.btn_settings = theme.flat(QPushButton('⚙ Configuración'))
+        self.btn_settings.setToolTip('Carpetas de canales, de entrada y de videos; importar canales.')
         self.btn_settings.clicked.connect(self.open_settings)
         header.addWidget(self.btn_settings)
         layout.addLayout(header)
 
+        # 1 · Canal
         self.step1, inner = self._step(layout, '1 · Elegí el canal')
         row = QHBoxLayout()
         self.channel_combo = QComboBox()
         self.channel_combo.setMinimumWidth(230)
         self.channel_combo.currentTextChanged.connect(self._on_channel_changed)
         row.addWidget(self.channel_combo, 1)
-        self.btn_style = QPushButton('Editar estilo del canal')
+        self.btn_style = QPushButton('Editar estilo')
+        self.btn_style.setToolTip('Imagen o video, títulos, miniatura y textos del canal.')
         self.btn_style.clicked.connect(self.edit_profile)
         row.addWidget(self.btn_style)
-        self.btn_backgrounds = QPushButton('Abrir fondos')
+        self.btn_backgrounds = theme.flat(QPushButton('Abrir fondos'))
         self.btn_backgrounds.setToolTip('Carpeta con las imágenes o videos stock del canal.')
         self.btn_backgrounds.clicked.connect(self.open_backgrounds)
         row.addWidget(self.btn_backgrounds)
         inner.addLayout(row)
-        self.summary_label = QLabel()
-        self.summary_label.setWordWrap(True)
+        self.summary_label = theme.muted(QLabel())
         inner.addWidget(self.summary_label)
 
+        # 2 · Beats
         self.step2, inner = self._step(layout, '2 · Sumá beats')
-        hint = QLabel('Arrastralos a la tabla (archivos o carpetas). También aparecen solos los que dejes en la '
-                      'carpeta de entrada del canal. Doble clic en un título para cambiarlo.')
-        hint.setWordWrap(True)
-        hint.setStyleSheet('color: #bbb;')
-        inner.addWidget(hint)
+        inner.addWidget(theme.muted(QLabel('Arrastrá archivos o carpetas a la tabla. Doble clic en un título '
+                                           'para cambiarlo.')))
         self.table = BeatDropTable()
         self.table.setMinimumHeight(170)
+        self.table.verticalHeader().setVisible(False)
         self.table.paths_dropped.connect(self.add_paths)
         self.table.itemChanged.connect(self._on_title_edited)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._table_menu)
+        QShortcut(QKeySequence.Delete, self.table, self.remove_selected, context=Qt.WidgetShortcut)
         inner.addWidget(self.table, 1)
-        row = QHBoxLayout()
-        self.btn_add = QPushButton('Agregar beats…')
-        self.btn_add.clicked.connect(self.pick_files)
-        self.btn_add_folder = QPushButton('Agregar carpeta…')
+
+        self.btn_add = QPushButton('+ Agregar beats')
+        add_menu = QMenu(self.btn_add)
+        add_menu.addAction('Elegir archivos…', self.pick_files)
+        add_menu.addAction('Elegir una carpeta…', self.pick_folder)
+        theme.with_menu(self.btn_add, add_menu)
+        self.btn_add_folder = QPushButton('Agregar carpeta…')  # vive en el menú de «Agregar beats»
         self.btn_add_folder.clicked.connect(self.pick_folder)
-        self.btn_beatstars = QPushButton('Descargar desde BeatStars…')
+        self.btn_add_folder.setVisible(False)
+        self.btn_beatstars = QPushButton('Descargar de BeatStars…')
         self.btn_beatstars.clicked.connect(self.open_beatstars)
-        self.btn_remove = QPushButton('Quitar')
+        self.btn_remove = theme.flat(QPushButton('Quitar'))
+        self.btn_remove.setToolTip('Quita los beats elegidos de esta tanda (también con la tecla Supr).')
         self.btn_remove.clicked.connect(self.remove_selected)
-        self.btn_reset = QPushButton('Restablecer títulos')
+        self.btn_reset = theme.flat(QPushButton('Restablecer títulos'))
         self.btn_reset.clicked.connect(self.reset_titles)
-        for button in (self.btn_add, self.btn_add_folder, self.btn_beatstars):
-            row.addWidget(button)
-        row.addStretch()
-        inner.addLayout(row)
-        row = QHBoxLayout()
-        row.addWidget(self.btn_remove)
-        row.addWidget(self.btn_reset)
-        row.addStretch()
-        self.count_label = QLabel()
-        row.addWidget(self.count_label)
+        self.count_label = theme.muted(QLabel(), wrap=False)
+        row = theme.button_row(self.btn_add, self.btn_beatstars, None, self.btn_reset, self.btn_remove,
+                               self.count_label, align=None)
         inner.addLayout(row)
         layout.setStretchFactor(self.step2, 1)
 
+        # 3 · Generar
         self.step3, inner = self._step(layout, '3 · Generá')
         row = QHBoxLayout()
-        self.btn_generate = QPushButton()
-        self.btn_generate.setStyleSheet(_GENERATE)
+        self.btn_generate = theme.primary(QPushButton())
+        self.btn_generate.setMinimumWidth(220)
         self.btn_generate.clicked.connect(self.start)
         row.addWidget(self.btn_generate)
-        self.btn_cancel = QPushButton('Cancelar')
+        self.btn_cancel = theme.flat(QPushButton('Cancelar'))
         self.btn_cancel.clicked.connect(self.cancel)
         row.addWidget(self.btn_cancel)
         self.progress = QProgressBar()
+        self.progress.setTextVisible(False)
         self.progress.setVisible(False)
         row.addWidget(self.progress, 1)
-        self.btn_open_output = QPushButton('Abrir carpeta de videos')
+        row.addStretch()
+        self.btn_open_output = theme.flat(QPushButton('Abrir carpeta de videos'))
         self.btn_open_output.clicked.connect(lambda: self.open_folder(self.output_root))
         row.addWidget(self.btn_open_output)
         inner.addLayout(row)
@@ -247,21 +237,30 @@ class LocalView(QWidget):
         self.others = QFrame()
         others = QHBoxLayout(self.others)
         others.setContentsMargins(0, 0, 0, 0)
-        self.others_label = QLabel()
+        self.others_label = theme.tone(QLabel(), 'warning')
         self.others_label.setWordWrap(True)
-        self.others_label.setStyleSheet('color: #f1c40f;')
         others.addWidget(self.others_label, 1)
         self.btn_all = QPushButton('Generar todos esos canales')
         self.btn_all.clicked.connect(self.start_all)
         others.addWidget(self.btn_all)
         inner.addWidget(self.others)
 
+        details = theme.Collapsible('Ver detalle del avance')
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
-        self.log.setMaximumHeight(90)
+        self.log.setMaximumHeight(120)
         self.log.setPlaceholderText('Acá aparece el avance.')
-        layout.addWidget(self.log)
+        details.body.addWidget(self.log)
+        layout.addWidget(details)
         self._refresh()
+
+    def _table_menu(self, pos):
+        menu = QMenu(self.table)
+        remove = menu.addAction('Quitar de la tanda', self.remove_selected)
+        remove.setEnabled(bool(self.table.selected_rows()) and self.worker is None)
+        reset = menu.addAction('Restablecer títulos', self.reset_titles)
+        reset.setEnabled(bool(self.title_overrides) and self.worker is None)
+        menu.exec_(self.table.viewport().mapToGlobal(pos))
 
     # --- Canales ---
 
@@ -392,7 +391,9 @@ class LocalView(QWidget):
     # --- Refresco ---
 
     def _refresh(self):
-        self.summary_label.setText(self.summary_text())
+        summary = self.summary_text()
+        self.summary_label.setText(summary)
+        theme.tone(self.summary_label, 'warning' if '⚠' in summary else 'muted')
         table, beats = self.table, self.beats
         table.blockSignals(True)
         table.setRowCount(len(beats))
@@ -404,13 +405,13 @@ class LocalView(QWidget):
             table.setItem(row, BeatDropTable.COL_BEAT, beat)
             cell = QTableWidgetItem(title)
             if path in self.title_overrides:
-                cell.setForeground(QColor('#f1c40f'))
+                cell.setForeground(QColor(theme.color('warning')))
                 cell.setToolTip('Editado a mano (solo para esta tanda).')
             table.setItem(row, BeatDropTable.COL_TITLE, cell)
             length = QTableWidgetItem(f'{len(title)}/100')
             length.setFlags(length.flags() & ~Qt.ItemIsEditable)
             if len(title) > 100:
-                length.setForeground(QColor('#e74c3c'))
+                length.setForeground(QColor(theme.color('danger')))
             table.setItem(row, BeatDropTable.COL_LEN, length)
         table.blockSignals(False)
         from_inbox = sum(1 for p in self.inbox if p not in self.dropped)
@@ -434,6 +435,7 @@ class LocalView(QWidget):
         self.btn_generate.setEnabled(bool(n) and self.backgrounds_ready() and not busy)
         self.btn_cancel.setVisible(self.worker is not None)
         self.btn_reset.setVisible(bool(self.title_overrides))
+        self.btn_remove.setVisible(n > 0)
         self.btn_style.setEnabled(bool(self.channel()) and not busy)
         self.btn_beatstars.setEnabled(bool(self.channel()) and not busy)
         self.btn_backgrounds.setEnabled(bool(self.channel()))
@@ -452,6 +454,8 @@ class LocalView(QWidget):
     def set_status(self, text):
         self.status.setText(text)
         self.status.setVisible(bool(text))
+        kind = 'success' if text.startswith('✓') else 'error' if text.startswith('✗') else None
+        theme.tone(self.status, kind)
 
     # --- Acciones de canal y carpetas ---
 
@@ -694,7 +698,7 @@ class LocalView(QWidget):
                  GuideStep('Revisar el estilo del canal (opcional)',
                            'Imagen o video, estilo del título y artista. Se guarda para la próxima.',
                            action=self.edit_profile, action_text='Editar estilo'),
-                 GuideStep('Sumar beats', 'Arrastralos a la tabla, dejalos en la entrada del canal o usá «Descargar desde BeatStars…».',
+                 GuideStep('Sumar beats', 'Arrastralos a la tabla, dejalos en la entrada del canal o usá «Descargar de BeatStars…».',
                            done=lambda: bool(self.beats) or self.generated > 0, action=self.pick_files,
                            action_text='Agregar beats'),
                  GuideStep('Generar', 'Paso 3. Mientras genera podés seguir usando la PC.',

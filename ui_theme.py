@@ -156,6 +156,15 @@ QPushButton[role="danger"] {{
 }}
 QPushButton[role="danger"]:hover {{ background-color: #3A2427; }}
 QPushButton[role="danger"]:disabled {{ color: {c['text_disabled']}; background: transparent; }}
+QPushButton[menu="true"] {{ padding-right: {s['xl'] + s['s']}px; }}
+QPushButton::menu-indicator {{
+    image: url({_icon('chevron-down')});
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    right: {s['m']}px;
+    width: 10px;
+    height: 10px;
+}}
 QPushButton#section_nav_active {{ border-color: {c['accent']}; font-weight: 600; }}
 QToolButton[role="disclosure"] {{
     background: transparent;
@@ -336,6 +345,15 @@ def set_role(widget, role):
     style.unpolish(widget)
     style.polish(widget)
     return widget
+
+
+def with_menu(button, menu):
+    """Botón que abre un menú (con flechita y espacio para ella)."""
+    button.setMenu(menu)
+    button.setProperty('menu', 'true')
+    button.style().unpolish(button)
+    button.style().polish(button)
+    return button
 
 
 def primary(button):
