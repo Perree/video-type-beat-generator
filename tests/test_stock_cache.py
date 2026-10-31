@@ -73,7 +73,9 @@ class CacheRenderTests(unittest.TestCase):
             beat = os.path.join(tmp, "beat.mp3")
             subprocess.run([ff, "-v", "error", "-y", "-f", "lavfi", "-i", "sine=duration=4", beat], check=True)
             result = mr.render_beat(beat, mr.MODE_VIDEO, src, "T", os.path.join(tmp, "out"), tools)
-            self.assertAlmostEqual(get_media_duration(result["video"]), 4.0, delta=1 / 30 + 0.02)
+            # Contra la duración medida del beat: el MP3 trae relleno del codificador (4,0 s no es exacto).
+            self.assertAlmostEqual(get_media_duration(result["video"]), get_media_duration(beat),
+                                   delta=1 / 30 + 0.02)
             check = subprocess.run([ff, "-v", "error", "-i", result["video"], "-f", "null", "-"],
                                    capture_output=True, text=True)
             self.assertEqual(check.stderr.strip(), "")

@@ -146,8 +146,9 @@ class LocalView(QWidget):
         outer.addWidget(self.scroll)
 
         header = QHBoxLayout()
-        header.addWidget(theme.title(QLabel('Crear videos en esta PC')))
-        header.addStretch()
+        title = theme.title(QLabel('Crear videos en esta PC'))
+        title.setWordWrap(True)  # en ventanas angostas baja de renglón en vez de forzar scroll horizontal
+        header.addWidget(title, 1)
         self.btn_assistant = theme.flat(QPushButton('🧭 Guiame paso a paso'))
         self.btn_assistant.clicked.connect(self.assistant_requested)
         header.addWidget(self.btn_assistant)
