@@ -20,10 +20,9 @@ from core.guide_panel import GuideStep
 from core.local_view import LocalWorker
 from core.manual_panel import BeatDropTable
 from core.profile_editor import ProfileEditor, TITLE_STYLES, SAMPLE
-from core.wizard import Wizard, WizardPage
-
-import ui_theme as theme
 from core.home_screen import centered_column, choice
+from core.wizard import Wizard, WizardPage
+import ui_theme as theme
 
 UPLOAD_HELP = ('<b>Cómo subirlos a YouTube:</b><ol>'
                '<li>Abrí YouTube Studio → Crear → Subir videos.</li>'
@@ -31,7 +30,6 @@ UPLOAD_HELP = ('<b>Cómo subirlos a YouTube:</b><ol>'
                '<li>Copiá la descripción y los tags del <b>.txt</b> de la misma carpeta.</li>'
                '<li>En Miniatura, subí el archivo <b>«… - miniatura.jpg»</b>.</li>'
                '<li>Programá o publicá. Marcá «subido» en <b>pendientes.csv</b> para llevar la cuenta.</li></ol>')
-
 
 
 def _vbox(*widgets):

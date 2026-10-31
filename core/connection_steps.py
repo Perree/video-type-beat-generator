@@ -19,6 +19,7 @@ from core import automation_status as status
 from core import cloud_login, gh_status
 from core.cloud_worker import CallWorker
 from core.wizard import WizardPage
+import ui_theme as theme
 
 OK, MISSING, UNKNOWN = status.OK, status.MISSING, status.UNKNOWN
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -33,6 +34,7 @@ LINKS = {
 
 
 # --- Utilidades ---
+
 
 def open_url(url):
     QDesktopServices.openUrl(QUrl(url))
@@ -136,7 +138,7 @@ def _task_label(task):
     label.setWordWrap(True)
 
     def refresh():
-        color = '#e74c3c' if task.error else '#f1c40f' if task.busy() else '#2ecc71'
+        color = theme.color('danger' if task.error else 'warning' if task.busy() else 'success')
         label.setText(f'<span style="color:{color}">{task.message}</span>' if task.message else '')
         label.setVisible(bool(task.message))
     label.setVisible(False)
@@ -148,9 +150,9 @@ def _done_page(connection):
 
     def refresh():
         code = connection.status()
-        light.setText(('<span style="color:#2ecc71; font-size:18px">●</span> Conectado. Ya podés cerrar este '
+        light.setText((f'<span style="color:{theme.color("success")}">●</span> Conectado. Ya podés cerrar este '
                        'asistente.') if code == OK else
-                      '<span style="color:#c0392b; font-size:18px">●</span> Todavía no aparece conectado. '
+                      f'<span style="color:{theme.color("danger")}">●</span> Todavía no aparece conectado. '
                       'Si recién lo hiciste, esperá unos segundos.')
     return WizardPage('Listo', '', _page(light), refresh=refresh, next_text='Terminar', can_back=True)
 

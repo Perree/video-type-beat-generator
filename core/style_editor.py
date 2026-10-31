@@ -21,6 +21,7 @@ from core import manual_render as mr
 from core import style as st
 from core.cloud_worker import CallWorker
 from core.ffmpeg_util import resolve_tool
+import ui_theme as theme
 
 SAMPLE = '(BEAT PRO-527) [juice wrld, sad] This is for me - 160bpm - key A Minor'
 CUSTOM = 'Personalizado'
@@ -60,7 +61,6 @@ class StyleEditor(QDialog):
         super().__init__(parent)
         self.root, self.channel = root, channel
         self.setWindowTitle(f'Estilo de video y miniatura — {channel}')
-        self.setStyleSheet('QDialog { background-color: #2b2b2b; }')
         self.resize(1080, 720)
         self.profile = cp.load(root, channel)
         self.style = st.from_profile(self.profile)
@@ -127,7 +127,7 @@ class StyleEditor(QDialog):
         tint_row = QHBoxLayout()
         self.tint_button = QPushButton('Elegir tinte…')
         self.tint_button.clicked.connect(lambda: self._pick_color('tinte'))
-        self.tint_clear = QPushButton('Sin tinte')
+        self.tint_clear = theme.flat(QPushButton('Sin tinte'))
         self.tint_clear.clicked.connect(lambda: self._set_color('tinte', ''))
         tint_row.addWidget(self.tint_button)
         tint_row.addWidget(self.tint_clear)
@@ -212,7 +212,7 @@ class StyleEditor(QDialog):
         right.addWidget(self.test_status)
         right.addStretch(1)
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
-        buttons.button(QDialogButtonBox.Save).setText('Guardar estilo')
+        theme.primary(buttons.button(QDialogButtonBox.Save)).setText('Guardar estilo')
         buttons.button(QDialogButtonBox.Cancel).setText('Cancelar')
         buttons.accepted.connect(self.save)
         buttons.rejected.connect(self.reject)

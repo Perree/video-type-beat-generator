@@ -136,7 +136,7 @@ class ChannelWizard(QDialog):
         self.header = QLabel()
         self.message = QLabel()
         self.message.setWordWrap(True)
-        self.back_button, self.next_button = QPushButton('Atrás'), QPushButton('Siguiente')
+        self.back_button, self.next_button = QPushButton('Atrás'), theme.primary(QPushButton('Siguiente'))
         self.back_button.clicked.connect(lambda: self._go(-1))
         self.next_button.clicked.connect(lambda: self._go(1))
         nav = QHBoxLayout()
@@ -221,7 +221,7 @@ class ChannelWizard(QDialog):
         rows = self.rows()
         for r in rows:
             self.state_labels[r['id'] - 1].setText(
-                f'<span style="color:{_GREEN if r["ok"] else "#c0392b"}">'
+                f'<span style="color:{_GREEN if r["ok"] else theme.color("danger")}">'
                 f'{"✔ Listo" if r["ok"] else "✘ Pendiente"}</span>')
         index = self.stack.currentIndex()
         self.header.setText(f'<b>Canal: {self.channel or "(sin elegir)"}</b> — paso '

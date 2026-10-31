@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDialog, QDialo
 from core import channel_profile as cp
 from core import beat_title as bt
 from core import manual_render as mr
+import ui_theme as theme
 
 SAMPLE = '(BEAT PRO-527) [juice wrld, sad] This is for me - 160bpm - key A Minor'
 SAMPLE_PLAIN = 'Legends Fall'
@@ -38,7 +39,6 @@ class ProfileEditor(QDialog):
         self.root, self.name, self.created = root, name, None
         self.setWindowTitle(f'Perfil del canal — {name}')
         self.setMinimumWidth(640)
-        self.setStyleSheet('QDialog { background-color: #2b2b2b; }')  # textos claros del tema
         self.profile = cp.load(root, name)
         self._build()
         self._fill(self.profile)
@@ -50,7 +50,7 @@ class ProfileEditor(QDialog):
             warn = QLabel('⚠ Dropbox dejó copias en conflicto en la carpeta del canal: '
                           + ', '.join(conflicts) + '. Revisalas y borrá la que sobre.')
             warn.setWordWrap(True)
-            warn.setStyleSheet('color: #d98e04;')
+            theme.tone(warn, 'warning')
             layout.addWidget(warn)
         form = QFormLayout()
         mode_row = QHBoxLayout()
@@ -103,7 +103,7 @@ class ProfileEditor(QDialog):
         form.addRow('Estilo:', self.btn_style)
         layout.addLayout(form)
 
-        self.btn_more = QPushButton('Más opciones ▸  (descripción, redes, hashtags, tags)')
+        self.btn_more = theme.flat(QPushButton('Más opciones ▸  (descripción, redes, hashtags, tags)'))
         self.btn_more.setCheckable(True)
         self.btn_more.toggled.connect(self._toggle_more)
         layout.addWidget(self.btn_more)
@@ -131,7 +131,7 @@ class ProfileEditor(QDialog):
         layout.addWidget(self.more)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
-        buttons.button(QDialogButtonBox.Save).setText('Guardar')
+        theme.primary(buttons.button(QDialogButtonBox.Save)).setText('Guardar')
         buttons.button(QDialogButtonBox.Cancel).setText('Cancelar')
         self.btn_duplicate = buttons.addButton('Duplicar como…', QDialogButtonBox.ActionRole)
         self.btn_duplicate.clicked.connect(self._duplicate)

@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import QButtonGroup, QHBoxLayout, QLabel, QPushButton, QRad
 from core.cloud_login_box import CloudLoginBox
 from core.cloud_page import BEATS, KITS, REQUIRED, TAB_CHANNEL, TAB_CONNECTIONS
 from core.wizard import WizardPage
+import ui_theme as theme
 
 LABELS = {
     'pc_dropbox': 'Dropbox conectado en esta PC',
@@ -26,8 +27,8 @@ def lights(state, ids):
     rows = []
     for key in ids:
         ok = state.get(key)
-        color, mark = ('#2ecc71', '●') if ok else ('#c0392b', '●')
-        rows.append(f'<span style="color:{color}; font-size:16px">{mark}</span> {LABELS.get(key, key)}'
+        color, mark = (theme.color('success'), '●') if ok else (theme.color('danger'), '●')
+        rows.append(f'<span style="color:{color}">{mark}</span> {LABELS.get(key, key)}'
                     f'{"" if ok else "  — <i>falta</i>"}')
     return '<br>'.join(rows)
 

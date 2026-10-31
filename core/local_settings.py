@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import (QDialog, QDialogButtonBox, QDoubleSpinBox, QFormLay
 
 from core import channel_profile as cp
 from core import stock_cache
+import ui_theme as theme
 
 
 class LocalSettingsDialog(QDialog):
@@ -16,7 +17,6 @@ class LocalSettingsDialog(QDialog):
         self.view = view
         self.setWindowTitle('Configuración — Crear videos')
         self.setMinimumWidth(620)
-        self.setStyleSheet('QDialog { background-color: #2b2b2b; }')
         layout = QVBoxLayout(self)
         form = QFormLayout()
         self.root_label = QLabel()

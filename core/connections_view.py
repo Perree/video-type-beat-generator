@@ -12,13 +12,11 @@ from core import connection_steps as cs
 from core.cloud_worker import CallWorker
 from core.guide_panel import GuideStep
 from core.wizard import Wizard
-
 import ui_theme as theme
+
 
 _COLORS = {cs.OK: theme.color('success'), cs.MISSING: theme.color('danger'),
            cs.UNKNOWN: theme.color('text_muted')}
-_CARD = ('QFrame#card {{ border: 1px solid {border}; border-radius: 10px; background: #333; }}'
-         ' QFrame#card QLabel {{ border: none; background: transparent; }}')
 
 
 class ConnectionCard(QFrame):
@@ -26,14 +24,14 @@ class ConnectionCard(QFrame):
         super().__init__(parent)
         self.connection = connection
         self.setObjectName('card')
+        theme.set_role(self, 'card')
         layout = QVBoxLayout(self)
-        head = QLabel(f'<span style="font-size:20px">{connection.icon}</span>  <b style="font-size:15px">'
-                      f'{connection.title}</b>')
+        layout.setContentsMargins(theme.SPACE['l'], theme.SPACE['m'], theme.SPACE['l'], theme.SPACE['m'])
+        layout.setSpacing(theme.SPACE['s'])
+        head = theme.subtitle(QLabel(f'{connection.icon}  {connection.title}'))
         head.setWordWrap(True)
         layout.addWidget(head)
-        text = QLabel(connection.description)
-        text.setWordWrap(True)
-        text.setStyleSheet('color: #bbb;')
+        text = theme.muted(QLabel(connection.description))
         layout.addWidget(text, 1)
         row = QHBoxLayout()
         self.light = QLabel()
@@ -47,11 +45,10 @@ class ConnectionCard(QFrame):
     def refresh(self):
         code = self.connection.status()
         code = code if code in _COLORS else cs.MISSING
-        self.light.setText(f'<span style="color:{_COLORS[code]}; font-size:16px">●</span> '
+        self.light.setText(f'<span style="color:{_COLORS[code]}">●</span> '
                            f'{self.connection.status_text()}')
         self.button.setText('Cambiar' if code == cs.OK else 'Configurar')
-        border = '#2ecc71' if code == cs.OK else '#555'
-        self.setStyleSheet(_CARD.format(border=border))
+        theme.set_role(self.button, 'flat' if code == cs.OK else None)  # lo pendiente se destaca
 
 
 class ConnectionsView(QWidget):
@@ -75,24 +72,24 @@ class ConnectionsView(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setStyleSheet('QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; }')
         body = QWidget()
         layout = QVBoxLayout(body)
-        title = QLabel('Conexiones')
-        title.setStyleSheet('font-size: 22px; font-weight: bold;')
+        layout.setContentsMargins(theme.SPACE['l'], theme.SPACE['s'], theme.SPACE['l'], theme.SPACE['l'])
+        layout.setSpacing(theme.SPACE['s'])
+        title = theme.title(QLabel('Conexiones'))
         layout.addWidget(title)
         note = QLabel('Para <b>crear videos en esta PC</b> no hace falta ninguna. Para <b>automatizar en la nube</b> '
                       'completá las de arriba en orden; cada una tiene su paso a paso.')
-        note.setWordWrap(True)
+        theme.muted(note)
         layout.addWidget(note)
         self.summary = QLabel()
-        self.summary.setStyleSheet('font-size: 14px;')
         layout.addWidget(self.summary)
         for heading, required in (('Necesarias para la nube', True), ('Opcionales', False)):
-            label = QLabel(heading)
-            label.setStyleSheet('font-size: 15px; font-weight: bold; color: #ddd; margin-top: 8px;')
+            label = theme.subtitle(QLabel(heading))
+            label.setContentsMargins(0, theme.SPACE['l'], 0, theme.SPACE['xs'])
             layout.addWidget(label)
             grid = QGridLayout()
+            grid.setSpacing(theme.SPACE['s'])
             group = [c for c in self.connections if c.required == required]
             for index, connection in enumerate(group):
                 card = ConnectionCard(connection, self.open)
@@ -113,6 +110,7 @@ class ConnectionsView(QWidget):
         done = sum(c.status() == cs.OK for c in required)
         text = f'{done} de {len(required)} conexiones necesarias listas'
         self.summary.setText(text + (' — ¡todo listo para automatizar! ✓' if done == len(required) else ''))
+        theme.tone(self.summary, 'success' if done == len(required) else None)
 
     def check_cloud(self):
         """«Preparar la nube» lee Dropbox: se revisa en segundo plano."""

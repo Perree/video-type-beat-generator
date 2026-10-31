@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QListWidg
 from core.beat_assets import IMAGE_SUFFIXES
 from core.beat_tasks import BeatTask
 from core.beat_panel_cloud import PanelCloud, local_transport
+import ui_theme as theme
 
 
 class DropboxPicker(QDialog):
@@ -28,9 +29,9 @@ class DropboxPicker(QDialog):
         row = QHBoxLayout()
         self.up = QPushButton('Subir')
         self.up.clicked.connect(lambda: self.load(self.path.rsplit('/', 1)[0]))
-        self.choose = QPushButton('Seleccionar archivo' if file else 'Seleccionar esta carpeta')
+        self.choose = theme.primary(QPushButton('Seleccionar archivo' if file else 'Seleccionar esta carpeta'))
         self.choose.clicked.connect(self.select)
-        self.cancel_button = QPushButton('Cancelar')
+        self.cancel_button = theme.flat(QPushButton('Cancelar'))
         self.cancel_button.clicked.connect(self.reject)
         for button in (self.up, self.choose, self.cancel_button):
             row.addWidget(button)

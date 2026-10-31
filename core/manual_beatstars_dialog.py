@@ -13,6 +13,7 @@ from core.beat_http import BeatError, PROFILE_HOSTS, check_url
 from core.beat_source import profile_username
 from core.manual_beatstars import ManualBeatStars, filter_tags
 from core.manual_beatstars_task import ManualBeatStarsTask, error_message
+import ui_theme as theme
 
 
 def initial_preferences(settings, config_path):
@@ -49,7 +50,6 @@ class ManualBeatStarsDialog(QDialog):
         self.setWindowModality(Qt.WindowModal)
         self.setMinimumSize(650, 500)
         self.resize(900, 640)
-        self.setStyleSheet('QDialog { background-color: #2b2b2b; }')
         layout = QVBoxLayout(self)
         destination_label = QLabel(f'Canal: {channel}\nCarpeta de entrada: {self.destination}')
         destination_label.setTextFormat(Qt.PlainText)
@@ -114,9 +114,9 @@ class ManualBeatStarsDialog(QDialog):
         layout.addWidget(self.status)
         actions = QHBoxLayout()
         self.search_button = QPushButton('Buscar beats')
-        self.download_button = QPushButton('Descargar seleccionados')
-        self.cancel_button = QPushButton('Cancelar operación')
-        self.close_button = QPushButton('Cerrar')
+        self.download_button = theme.primary(QPushButton('Descargar seleccionados'))
+        self.cancel_button = theme.flat(QPushButton('Cancelar'))
+        self.close_button = theme.flat(QPushButton('Cerrar'))
         for button in (self.search_button, self.download_button, self.cancel_button, self.close_button):
             button.setAutoDefault(False)
             actions.addWidget(button)

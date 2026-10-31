@@ -7,9 +7,9 @@ cada poco tiempo, así el usuario ve que avanzó sin tener que tocar nada.
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 from PyQt5.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea,
                              QVBoxLayout, QWidget, QLayout, QSizePolicy)
+import ui_theme as theme
 
 DONE, TODO, INFO = 'done', 'todo', 'info'
-import ui_theme as theme
 
 _ICON = {DONE: ('✔', theme.color('success')), TODO: ('○', theme.color('text_muted')),
          INFO: ('•', theme.color('accent_hover'))}

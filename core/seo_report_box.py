@@ -69,7 +69,7 @@ class SeoReportBox(QGroupBox):
         info = sr.local_status(self.kind, key, base=self._base, max_age_days=max_age,
                                notion_state=notion)
         self.state.setText(sr.describe(info))
-        self.state.setStyleSheet(f"color: {_COLORS.get(info['state'], theme.color('text_muted'))};")
+        self.state.setStyleSheet(f"color: {_COLORS.get(info['state'], theme.color('text_muted'))};")  # color según estado
         self.suggestions.setPlainText('\n'.join(sr.suggestions(
             self.kind, key, names, base=self._base, max_age_days=max_age)))
         self.thumbnail_notes.setPlainText('\n'.join(sr.thumbnail_recommendations(
