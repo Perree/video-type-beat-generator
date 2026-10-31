@@ -10,11 +10,24 @@ from core.beat_cloud import BeatCloud, DropboxTransport, decode_document
 from core.beat_daily import run_daily
 from core.beat_share import ShareLinks
 from core.beat_notion import fetch_report
-from core.beat_notify import Telegram
+from core.beat_notify import COUNTERS, Telegram
 from core.beat_reasons import note
 from core.beat_youtube import BeatYouTube
 from core.beat_logs import quiet_dependencies
 from core.beat_actions import check_context, bind_channel
+
+
+class ChannelNotConfigured(Exception):
+    """El canal está en BEAT_CHANNELS pero no en la config de Beats de Dropbox."""
+
+
+def _paused_summary(args):
+    summary = dict.fromkeys(COUNTERS, 0)
+    summary.update(dry_run=args.dry_run, blocked=1)
+    if args.private_pilot:
+        summary['private_pilot'] = True
+    note(summary, 'channel_missing_in_config')
+    return summary
 
 
 def _with_slug(notifier, slug):
@@ -69,7 +82,9 @@ def main(argv=None):
                     config, config_rev = cloud.read('config')
                     if config_rev is None:
                         raise ValueError('beat_config_missing')
-                    spec = next(ch for ch in config['channels'] if ch['id'] == channel)
+                    spec = next((ch for ch in config['channels'] if ch['id'] == channel), None)
+                    if spec is None:
+                        raise ChannelNotConfigured()
                     if actions:
                         bind_channel(spec, slug)
                     if not args.dry_run:
@@ -82,6 +97,14 @@ def main(argv=None):
                     share_links=ShareLinks(),
                     # El token solo existe fuera del dry-run; el dry-run no lee YouTube.
                     calendar=None if args.dry_run else client.calendar)
+        except ChannelNotConfigured:
+            # Canal sin config: queda en pausa (no pone en rojo la corrida) y avisa qué falta.
+            summary = _paused_summary(args)
+            if notifier is not None:
+                try:
+                    notifier(summary)
+                except Exception:
+                    pass
         except Exception as exc:
             # Bootstrap failures are also a sanitized alert when Telegram exists.
             note(summary, exc)

@@ -769,6 +769,33 @@ class DailyTests(unittest.TestCase):
         self.assertEqual(alerts[0]['slug'], 'ey-mat')
         self.assertTrue(message(alerts[0]).startswith('[ey-mat] Type Beats daily'))
 
+    def test_cli_channel_missing_in_config_is_paused_not_failed(self):
+        output, alerts = io.StringIO(), []
+        with patch.dict('os.environ', {'BEAT_CHANNEL_ID': 'mattwyyre', 'BEAT_YT_TOKEN_JSON': '{}',
+                'BEAT_TELEGRAM_TOKEN': '123:abc', 'BEAT_TELEGRAM_CHAT_ID': '456'}, clear=True), \
+             patch('core.beat_worker.Telegram', return_value=alerts.append), \
+             patch('core.beat_worker.DropboxTransport.from_env', return_value=self.memory), \
+             patch('core.beat_worker.DropboxAssets.from_env', return_value=DropboxAssets(self.assets_client)), \
+             patch('sys.stdout', output):
+            self.assertEqual(worker_main(['--receipts', str(self.receipts)]), 0)
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0]['blocked'], 1)
+        self.assertEqual(alerts[0]['failed'], 0)
+        self.assertEqual(alerts[0]['reasons'], {'channel_missing_in_config': 1})
+        text = message(alerts[0])
+        self.assertTrue(text.startswith('ACCIÓN NECESARIA:'))
+        self.assertIn('Mis canales', text)
+        self.assertEqual(self.calls, [])
+
+    def test_run_daily_channel_missing_in_config_is_paused(self):
+        summary = run_daily(self.cloud, 'mattwyyre', DropboxAssets(self.assets_client), self.upload,
+                            self.receipts, source=self.source, renderer=self.renderer,
+                            clock=lambda: NOW, notify=self.notifications.append)
+        self.assertEqual((summary['blocked'], summary['failed']), (1, 0))
+        self.assertEqual(summary['reasons'], {'channel_missing_in_config': 1})
+        self.assertEqual(self.notifications, [summary])
+        self.assertEqual(self.calls, [])
+
     def test_cli_cloud_bootstrap_failure_sends_sanitized_alert(self):
         output, alerts = io.StringIO(), []
         with patch.dict('os.environ', {'BEAT_CHANNEL_ID': 'channel',

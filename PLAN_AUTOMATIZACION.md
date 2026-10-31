@@ -1112,3 +1112,13 @@ estados de automatización. Una fase por sesión. Migración SQL: no.
 - Pruebas en `tests/test_beat_reasons.py` y `tests/test_beat_daily.py`.
 - Cierra los 4 puntos del diagnóstico del 2026-10-31. Queda proponer la fase de simplificación del flujo
   (canal → BeatStars → estilo → cronograma → automático).
+
+## Beats — Canal sin config queda en pausa ✅ COMPLETADA (2026-10-31)
+
+- Diagnóstico real: mattwyyre falla todos los días desde el 24/10 con `channel_missing_in_config`. Está en
+  `BEAT_CHANNELS` y en el registro (pausado), pero la mudanza de Dropbox del 23/10 dejó la config de Beats
+  solo con ey mat (sin días, carpetas ni ID de YouTube de mattwyyre).
+- `beat_worker` y `run_daily`: un canal sin config cuenta como `blocked` (en pausa), la corrida sale en verde y
+  Telegram abre con «ACCIÓN NECESARIA» y los pasos de Mis canales → «Arreglar».
+- Pruebas en `tests/test_beat_daily.py`.
+- Pendiente del usuario: reconfigurar mattwyyre desde Mis canales y probar sin subir antes de activarlo.
