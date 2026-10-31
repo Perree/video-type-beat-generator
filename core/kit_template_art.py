@@ -72,7 +72,7 @@ _VERIFY_PROMPT = (
 _QUOTES = '"\'“”‘’«»`'
 
 _FALLBACK_TEXT = ("Loop kits: no se generó la portada con IA ({}). "
-                  "Ese video sale con la imagen manual del kit.")
+                  "Los videos salen con la imagen del kit o con una portada sin IA.")
 _REVIEW_TEXT = ("Loop kits: el título de una portada generada no coincide con el pedido, "
                 "incluso después de un reintento. Se usó igual: revisala antes de programar "
                 "el video.")
@@ -372,8 +372,8 @@ def for_video(kit_cfg, title, fallback_image, store, rng, work_dir, dbx=None, cl
             reason, once = str(exc), exc.reason
         else:
             reason, once = ('pedido rechazado' if isinstance(exc, kit_art.KitArtRejected)
-                            else type(exc).__name__), None
-        print(f"Portada con IA no generada ({reason}); se usa la imagen manual.")
+                            else type(exc).__name__), kit_art._API_FAILED
+        print(f"Portada con IA no generada ({reason}); se usa la imagen del kit o la portada sin IA.")
         if once not in budget.notified:
             if once:
                 budget.notified.add(once)
