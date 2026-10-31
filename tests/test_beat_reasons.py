@@ -87,5 +87,50 @@ class MessageTests(unittest.TestCase):
         self.assertIn('seo_duplicate', message(summary))
 
 
+class ActionTests(unittest.TestCase):
+    def test_token_expired_goes_first_with_steps(self):
+        summary = {'failed': 1}
+        note(summary, RefreshError('SECRET'))
+        text = message(summary)
+        self.assertTrue(text.startswith('ACCIÓN NECESARIA:'))
+        self.assertIn('pestaña Beats', text)
+        self.assertIn('Conectar YouTube y subir a GitHub', text)
+        self.assertIn('En producción', text)
+        self.assertNotIn('SECRET', text)
+
+    def test_no_action_for_transient_errors(self):
+        summary = {'failed': 1}
+        note(summary, http_error(503))
+        self.assertTrue(message(summary).startswith('Type Beats daily'))
+
+    def test_owner_mismatch_has_no_seven_day_hint(self):
+        text = message({'reasons': {'youtube_owner_mismatch': 1}})
+        self.assertIn('cuenta correcta', text)
+        self.assertNotIn('7 días', text)
+
+    def test_slug_prefix_only_when_valid(self):
+        self.assertTrue(message({'slug': 'ey-mat'}).startswith('[ey-mat] Type Beats daily'))
+        for bad in ('SECRET', 'a b', 'https://x', 7):
+            self.assertTrue(message({'slug': bad}).startswith('Type Beats daily'))
+
+
+class KitAlertTests(unittest.TestCase):
+    def test_kit_alert_adds_reconnect_steps(self):
+        from core import kit_notify
+        text = kit_notify.alert(RefreshError('SECRET'), step='calendario')
+        self.assertTrue(text.startswith('ACCIÓN NECESARIA:'))
+        self.assertIn('pestaña Loop kits', text)
+        self.assertIn("paso 'calendario'", text)
+        self.assertNotIn('SECRET', text)
+        wrapped = youtube.YouTubeError("El token de 'canal' no es válido; volvé a conectar el canal.")
+        self.assertIn('token guardado en GitHub', kit_notify.alert(wrapped))
+
+    def test_kit_alert_unchanged_for_other_errors(self):
+        from core import kit_notify
+        self.assertEqual(kit_notify.alert(ValueError('SECRET'), step='lock'),
+                         "Loop kits: fallo el worker semanal en el paso 'lock' (ValueError). "
+                         "Revisar el log de Actions.")
+
+
 if __name__ == '__main__':
     unittest.main()

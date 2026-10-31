@@ -17,6 +17,10 @@ from core.beat_logs import quiet_dependencies
 from core.beat_actions import check_context, bind_channel
 
 
+def _with_slug(notifier, slug):
+    return lambda summary: notifier(dict(summary, slug=slug))
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dry-run', action='store_true')
@@ -36,6 +40,9 @@ def main(argv=None):
                 check_context()
             notifier = None if args.dry_run else Telegram(os.environ['BEAT_TELEGRAM_TOKEN'],
                                                          os.environ['BEAT_TELEGRAM_CHAT_ID'])
+            if notifier is not None and slug:
+                # Con varios canales en el mismo chat, el mensaje dice de cuál es.
+                notifier = _with_slug(notifier, slug)
             channel = os.environ['BEAT_CHANNEL_ID']
             transport = DropboxTransport.from_env()
             assets = DropboxAssets.from_env()

@@ -3,7 +3,7 @@ import json
 import re
 import urllib.request
 from core.beat_notion import NoRedirect
-from core.beat_reasons import lines
+from core.beat_reasons import action_lines, codes, lines
 
 COUNTERS = ('planned', 'eligible', 'uploaded', 'orphan', 'unknown', 'failed',
             'blocked', 'budget', 'thumbnail_failed', 'expired', 'no_matching_tracks',
@@ -14,10 +14,17 @@ def message(summary):
     prefix = 'Type Beats DRY RUN' if summary.get('dry_run') else 'Type Beats daily'
     if summary.get('private_pilot') and not summary.get('dry_run'):
         prefix = 'Type Beats PRIVATE PILOT'
+    slug = summary.get('slug')
+    # Solo un slug válido de canal (mismo formato que beat_actions.matrix).
+    if isinstance(slug, str) and re.fullmatch('[a-z][a-z0-9-]{0,39}', slug):
+        prefix = f'[{slug}] {prefix}'
     text = prefix + '\n' + '\n'.join(f'{key}: {summary.get(key, 0)}'
         for key in COUNTERS if type(summary.get(key, 0)) is int)
     reasons = lines(summary)
-    return text + ('\n\nMotivos:\n' + '\n'.join(reasons) if reasons else '')
+    text += '\n\nMotivos:\n' + '\n'.join(reasons) if reasons else ''
+    action = action_lines(codes(summary), panel='Beats')
+    # Lo que necesita intervención va primero: es lo que se ve en la notificación.
+    return '\n'.join(action) + '\n\n' + text if action else text
 
 
 class Telegram:

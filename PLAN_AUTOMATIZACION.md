@@ -1091,3 +1091,14 @@ estados de automatización. Una fase por sesión. Migración SQL: no.
 - Pruebas: `tests/test_beat_lost.py` (punta a punta, período de gracia, título y día ocupados,
   lista cortada, esquema).
 - Pendiente: aviso de token de YouTube vencido.
+
+## Beats y Loop kits — Aviso de permiso de YouTube vencido ✅ COMPLETADA (2026-10-31)
+
+- `beat_reasons.ACTIONS` y `action_lines`: los motivos que piden intervención (token vencido o
+  inválido, permiso de otro canal, 403) abren el mensaje con «ACCIÓN NECESARIA» y los pasos para
+  reconectar (y el aviso de «En producción» si vence cada 7 días).
+- `kit_notify.alert` suma los mismos pasos en las alertas de Loop kits.
+- El mensaje de Beats lleva `[slug]` del canal (validado) para distinguir canales en un mismo chat.
+- Pruebas en `tests/test_beat_reasons.py` y `tests/test_beat_daily.py`.
+- Cierra los 4 puntos del diagnóstico del 2026-10-31. Queda proponer la fase de simplificación del flujo
+  (canal → BeatStars → estilo → cronograma → automático).

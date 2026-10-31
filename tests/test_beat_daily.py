@@ -758,6 +758,17 @@ class DailyTests(unittest.TestCase):
             self.assertEqual(worker_main(['--dry-run']), 1)
         self.assertNotIn('SECRET', output.getvalue())
 
+    def test_cli_alert_names_the_channel_slug(self):
+        output, alerts = io.StringIO(), []
+        with patch.dict('os.environ', {'BEAT_CHANNEL_ID': 'channel', 'BEAT_SLUG': 'ey-mat',
+                'BEAT_TELEGRAM_TOKEN': '123:abc', 'BEAT_TELEGRAM_CHAT_ID': '456'}, clear=True), \
+             patch('core.beat_worker.Telegram', return_value=alerts.append), \
+             patch('core.beat_worker.DropboxTransport.from_env', side_effect=RuntimeError('SECRET')), \
+             patch('sys.stdout', output):
+            self.assertEqual(worker_main([]), 1)
+        self.assertEqual(alerts[0]['slug'], 'ey-mat')
+        self.assertTrue(message(alerts[0]).startswith('[ey-mat] Type Beats daily'))
+
     def test_cli_cloud_bootstrap_failure_sends_sanitized_alert(self):
         output, alerts = io.StringIO(), []
         with patch.dict('os.environ', {'BEAT_CHANNEL_ID': 'channel',
