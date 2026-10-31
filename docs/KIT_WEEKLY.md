@@ -307,7 +307,8 @@ hasta ahora.
 ```
 
 - Opcionales en `art`: `base_url` (https), `quality`, `key_file`, `ref_cooldown_days` (30),
-  `refs_per_video` (2), `styles` (`{"<genero>": {"palette": "…", "motifs": ["…"]}}`) y `banned_words`.
+  `refs_per_video` (2), `styles` (`{"<genero>": {"palette": "…", "motifs": ["…"], "colors": ["#e8662a", "#0f4c5c"]}}`)
+  y `banned_words`.
   Si falta `art.genre` se usa `names.genre`.
 - La clave va en el secret `KIT_IMAGE_API_KEY` (tiene prioridad sobre `key_file`).
 - Una referencia no se repite dentro de `ref_cooldown_days`; cada video guarda las suyas en el
@@ -316,7 +317,20 @@ hasta ahora.
   personas y sin el nombre del kit ni el de los archivos. Las referencias se envían achicadas, sin
   metadatos y con nombre genérico.
 - Un solo pedido por video, sin reintentos. Si la API rechaza la referencia o falla, ese video sale
-  con la imagen manual del pack, llega un aviso por Telegram y la corrida sigue.
+  con la imagen manual del pack, llega un aviso por Telegram (uno por corrida) y la corrida sigue.
+
+### Portada sin IA (respaldo)
+
+Si la IA falla (sin saldo, clave vencida, rechazo, tope de gasto) y el kit no tiene imagen propia,
+`kit_art.free_background` arma el fondo sin costo y el video sale igual:
+
+1. Una imagen de la carpeta del género, desenfocada y oscurecida: en `template`, uno de `fondos/`
+   (desenfoque leve); en `auto`, una referencia (desenfoque fuerte, solo queda el color). Rota con la
+   misma regla de `ref_cooldown_days`.
+2. Si no hay imágenes o Dropbox falla, un degradado con los colores del género (`styles.<genero>.colors`,
+   dos hex; sin ellos, unos fijos derivados del nombre).
+
+El compositor le pone el título encima, como en `auto`.
 
 ## Portada por plantilla + fondo (opcional)
 
