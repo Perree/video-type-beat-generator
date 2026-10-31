@@ -3,6 +3,7 @@ import json
 import re
 import urllib.request
 from core.beat_notion import NoRedirect
+from core.beat_reasons import lines
 
 COUNTERS = ('planned', 'eligible', 'uploaded', 'orphan', 'unknown', 'failed',
             'blocked', 'budget', 'thumbnail_failed', 'expired', 'no_matching_tracks',
@@ -13,8 +14,10 @@ def message(summary):
     prefix = 'Type Beats DRY RUN' if summary.get('dry_run') else 'Type Beats daily'
     if summary.get('private_pilot') and not summary.get('dry_run'):
         prefix = 'Type Beats PRIVATE PILOT'
-    return prefix + '\n' + '\n'.join(f'{key}: {summary.get(key, 0)}'
+    text = prefix + '\n' + '\n'.join(f'{key}: {summary.get(key, 0)}'
         for key in COUNTERS if type(summary.get(key, 0)) is int)
+    reasons = lines(summary)
+    return text + ('\n\nMotivos:\n' + '\n'.join(reasons) if reasons else '')
 
 
 class Telegram:

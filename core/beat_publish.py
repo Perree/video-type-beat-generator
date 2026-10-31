@@ -28,7 +28,18 @@ def journal(folder, job_id, outcome, youtube_id=None):
 
 
 def publish(cloud, job, media, seo, uploader, receipts, clock, *, thumbnailer=None,
-            private_pilot=False, expected_owner=None, selection_track=None):
+            private_pilot=False, expected_owner=None, selection_track=None, on_error=None):
+    """Sube un trabajo una sola vez. ``on_error(exc)`` recibe los errores que se tragan
+    (subida ambigua, recibo en la nube, miniatura) para contar el motivo; nunca cambia el
+    resultado."""
+    def report(exc):
+        # ``exc`` es la excepción o un código fijo ya elegido.
+        if on_error is not None:
+            try:
+                on_error(exc)
+            except Exception:
+                pass
+
     store = BeatState(cloud, clock)
     track = selection_track if selection_track is not None else seo.get('track')
     require_track(active_channel(cloud, job['channel'], expected_owner), track, job['track_id'])
@@ -58,8 +69,9 @@ def publish(cloud, job, media, seo, uploader, receipts, clock, *, thumbnailer=No
         result = uploader(channel=job['channel'], video_path=str(media['video']),
                           thumbnail=str(media['thumbnail']), **seo['selected'],
                           privacy='private', publish_at=None if private_pilot else job['slot'])
-    except Exception:
+    except Exception as exc:
         # Even a timeout could hide a successful insert. Never retry this job.
+        report(exc)
         return 'unknown'
     video_id = result.get('youtube_id') if isinstance(result, dict) else None
     if not isinstance(video_id, str) or not re.fullmatch(r'[A-Za-z0-9_-]{11}', video_id):
@@ -83,7 +95,8 @@ def publish(cloud, job, media, seo, uploader, receipts, clock, *, thumbnailer=No
                        publication_mode='private_pilot' if private_pilot else 'scheduled')
     try:
         cloud.update('state', record)
-    except Exception:
+    except Exception as exc:
+        report(exc)
         return 'orphan'
     try:
         journal(receipts, job['id'], 'uploaded', video_id)
@@ -94,5 +107,6 @@ def publish(cloud, job, media, seo, uploader, receipts, clock, *, thumbnailer=No
         try:
             thumbnailer(job['channel'], video_id, media['thumbnail'])
         except Exception:
+            report('thumbnail_rejected')
             return 'thumbnail_failed'
     return 'thumbnail_failed' if result.get('thumbnail_error') else 'uploaded'

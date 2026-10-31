@@ -1079,3 +1079,13 @@ estados de automatización. Una fase por sesión. Migración SQL: no.
 - Pruebas: `tests/test_kit_free_cover.py`; smokes de kit_art, plantilla, cableado, semanal y simulación OK.
 - Pendiente del diagnóstico (próximas fases): motivo legible en Telegram de Beats, liberar el día de una
   subida fallida que no llegó a YouTube y aviso de token de YouTube vencido.
+## Beats — Motivo legible de cada fallo en Telegram ✅ COMPLETADA (2026-10-31)
+
+- Antes Telegram solo mandaba contadores (`failed: 1`) y los errores se tragaban sin rastro.
+- `core/beat_reasons.py`: `classify` da un código fijo (token vencido, cuota, Dropbox, BeatStars,
+  render, red, horario vencido, miniatura...) sin usar el texto del error; `note` los cuenta en
+  `summary['reasons']` y `lines` arma la sección «Motivos» del mensaje.
+- Cableado en `run_daily` (calendario, trabajos, corrida), `publish` (`on_error`: subida ambigua,
+  recibo, miniatura) y el arranque de `beat_worker`.
+- Pruebas: `tests/test_beat_reasons.py` y casos nuevos en `tests/test_beat_daily.py`.
+- Pendiente: liberar el día de una subida fallida que no llegó a YouTube; aviso de token vencido.
