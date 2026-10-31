@@ -19,8 +19,8 @@ from PyQt5.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QDialog, Q
                              QScrollArea, QSpinBox, QTabWidget, QTableWidget, QTableWidgetItem,
                              QTimeEdit, QVBoxLayout, QWidget)
 
-from core import (channel_kind, cloud_merge, cloud_registry, kit_channel, kit_channel_setup,
-                  kit_cloud, kit_detect, kit_seo, kit_settings, kit_source, kit_spend,
+from core import (channel_kind, cloud_merge, cloud_registry, dropbox_layout, kit_channel,
+                  kit_channel_setup, kit_cloud, kit_detect, kit_seo, kit_settings, kit_source, kit_spend,
                   kit_state, kit_trends)
 from core.automation_status import AutomationError
 from core import automation_status as status
@@ -889,11 +889,15 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
     def pick_dropbox_folder(self, field):
         """Elige una carpeta de Dropbox con clics y la escribe en ``field``.
 
-        En la carpeta raíz de kits, después lee sus categorías solo.
+        En la carpeta raíz de kits, después lee sus categorías solo. Las referencias vacías
+        abren en la carpeta estándar (``dropbox_layout.KITS_REFS_DIR``).
         """
         if self._task is not None:
             return
-        picker = _picker(self, field.text())
+        current = field.text().strip()
+        if not current and field is self.refs_root:
+            current = dropbox_layout.KITS_REFS_DIR  # la carpeta estándar: un clic y listo
+        picker = _picker(self, current)
         if picker.exec_() == QDialog.Accepted and picker.selected_path:
             field.setText(picker.selected_path)
             if field is self.kits_root:

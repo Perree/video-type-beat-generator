@@ -121,9 +121,26 @@ class KitPanelTests(unittest.TestCase):
             self.assertEqual(picked, ['/Vieja'])  # abre donde estaba
             self.assertEqual(self.panel.kits_root.text(), '/Tienda/Kits')
             read.assert_called_once_with()  # y lee las categorías solo
+            self.panel.refs_root.clear()
             self.panel.btn_pick_refs.click()
             self.assertEqual(self.panel.refs_root.text(), '/Tienda/Kits')
             read.assert_called_once_with()
+        from core import dropbox_layout
+        self.assertEqual(picked[-1], dropbox_layout.KITS_REFS_DIR)  # vacía: abre en la estándar
+
+    def test_reference_folder_with_spaces_is_valid(self):
+        from core import dropbox_layout
+        self.assertIn(' ', dropbox_layout.KITS_REFS_DIR)  # «/Soft Projects/...»
+        form = {'slots': [{'weekday': 6, 'hour': 18, 'minute': 0}], 'genres': ['trap'],
+                'refs_root': dropbox_layout.KITS_REFS_DIR, 'cover_mode': 'auto'}
+        try:
+            settings = kit_settings.validate_settings(form)
+        except kit_settings.SettingsError as exc:
+            self.assertNotIn('referencias', str(exc))  # puede faltar otro dato, no este
+        else:
+            self.assertEqual(settings['refs_root'], dropbox_layout.KITS_REFS_DIR)
+        with self.assertRaises(kit_settings.SettingsError):
+            kit_settings.validate_settings(dict(form, refs_root='sin/barra'))
 
 
 class WorkerChannelTests(unittest.TestCase):
