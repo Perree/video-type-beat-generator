@@ -8,20 +8,16 @@ y quitar. «Editar todo» abre la pestaña completa del canal (Modo avanzado).
 """
 from PyQt5.QtCore import Qt, QTime, QTimer, pyqtSignal
 from PyQt5.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFrame, QGridLayout, QHBoxLayout,
-                             QLabel, QMessageBox, QPushButton, QRadioButton, QScrollArea, QTimeEdit, QVBoxLayout,
-                             QWidget)
+                             QLabel, QMenu, QMessageBox, QPushButton, QRadioButton, QScrollArea, QTimeEdit,
+                             QVBoxLayout, QWidget)
 
 from core import beat_settings, gh_status, kit_channel, kit_manage
 from core.cloud_worker import CallWorker
 from core.guide_panel import GuideStep
-from ui_theme import ACCENT_GENERATE, ACCENT_GENERATE_HOVER
+import ui_theme as theme
 
 DAYS = ('Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo')
 SHORT = ('Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom')
-_CARD = ('QFrame#channel {{ border: 1px solid {border}; border-radius: 10px; background: #333; }}'
-         ' QFrame#channel QLabel {{ border: none; background: transparent; }}')
-_SAVE = (f'QPushButton {{ background: {ACCENT_GENERATE}; color: white; font-weight: bold; padding: 10px 22px; }}'
-         f' QPushButton:hover {{ background: {ACCENT_GENERATE_HOVER}; }}')
 
 
 def schedule_text(slots):
@@ -55,7 +51,6 @@ class ScheduleDialog(QDialog):
     def __init__(self, name, slots, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f'Horario — {name}')
-        self.setStyleSheet('QDialog { background-color: #2b2b2b; }')
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel('¿Qué días publica?'))
         grid = QGridLayout()
@@ -79,7 +74,7 @@ class ScheduleDialog(QDialog):
         if len({(s['hour'], s['minute']) for s in slots}) > 1:
             note = QLabel('Ahora tiene horas distintas según el día: al guardar, todos los días usan esta hora.')
             note.setWordWrap(True)
-            note.setStyleSheet('color: #f1c40f;')
+            theme.tone(note, 'warning')
             layout.addWidget(note)
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Ok).setText('Listo')
@@ -106,7 +101,6 @@ class AddChannelDialog(QDialog):
     def __init__(self, free_beats, parent=None):
         super().__init__(parent)
         self.setWindowTitle('Agregar canal automatizado')
-        self.setStyleSheet('QDialog { background-color: #2b2b2b; }')
         self.setMinimumWidth(460)
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel('¿Qué querés automatizar?'))
@@ -142,18 +136,36 @@ class AddChannelDialog(QDialog):
         return self.choice.currentData()
 
 
+def _card_layout(card):
+    layout = QVBoxLayout(card)
+    layout.setContentsMargins(theme.SPACE['l'], theme.SPACE['m'], theme.SPACE['l'], theme.SPACE['m'])
+    layout.setSpacing(theme.SPACE['s'])
+    return layout
+
+
+def _name_label(name, kind):
+    """Nombre del canal, destacado. El tipo va en el tooltip: ya lo dice el título de la sección."""
+    label = theme.subtitle(QLabel(name))
+    label.setToolTip(kind)
+    return label
+
+
+def _health_label(chip, color):
+    return QLabel(f'<span style="color:{color}">{health_text(chip)}</span>')
+
+
 class BeatCard(QFrame):
     def __init__(self, view, index, channel, parent=None):
         super().__init__(parent)
         self.setObjectName('channel')
+        theme.set_role(self, 'card')
         self.view, self.index = view, index
         slug = channel.get('actions_slug', '') or ''
         chip, color = view.beat_panel.channel_chip(channel['id'], slug, channel['id'])
         ready = chip.startswith('✔')
-        self.setStyleSheet(_CARD.format(border='#2ecc71' if ready and channel['active'] else '#555'))
-        layout = QVBoxLayout(self)
+        layout = _card_layout(self)
         top = QHBoxLayout()
-        top.addWidget(QLabel(f'<b style="font-size:15px">{channel["id"]}</b>  <span style="color:#bbb">🎵 Beats</span>'), 1)
+        top.addWidget(_name_label(channel['id'], '🎵 Beats'), 1)
         self.active = QCheckBox('Activa' if channel['active'] else 'Pausada')
         self.active.setChecked(channel['active'])
         self.active.setToolTip('Destildá para pausarla sin borrarla.')
@@ -161,23 +173,25 @@ class BeatCard(QFrame):
         top.addWidget(self.active)
         layout.addLayout(top)
         row = QHBoxLayout()
-        row.addWidget(QLabel(f'🕒 {schedule_text(channel.get("slots", []))}'), 1)
-        self.btn_schedule = QPushButton('Cambiar horario')
+        row.addWidget(QLabel(f'🕒  {schedule_text(channel.get("slots", []))}'))
+        self.btn_schedule = theme.flat(QPushButton('Cambiar'))
+        self.btn_schedule.setToolTip('Cambiar los días y la hora de publicación.')
         self.btn_schedule.clicked.connect(lambda: view.edit_schedule(index))
         row.addWidget(self.btn_schedule)
+        row.addStretch(1)
         layout.addLayout(row)
         row = QHBoxLayout()
-        row.addWidget(QLabel(f'<span style="color:{color}">{health_text(chip)}</span>'), 1)
+        row.addWidget(_health_label(chip, color), 1)
         if not ready:
             fix = QPushButton('Arreglar')
             fix.setToolTip('Abre el asistente de alta de este canal: te dice qué falta y cómo resolverlo.')
             fix.clicked.connect(lambda: view.fix(index))
             row.addWidget(fix)
-        edit = QPushButton('Editar todo')
+        edit = theme.flat(QPushButton('Editar todo'))
         edit.setToolTip('Abre la pestaña completa de este canal (géneros, fondos, títulos, SEO…).')
         edit.clicked.connect(lambda: view.open_beat(index))
         row.addWidget(edit)
-        remove = QPushButton('Quitar')
+        remove = theme.danger(QPushButton('Quitar'))
         remove.clicked.connect(lambda: view.remove(index))
         row.addWidget(remove)
         layout.addLayout(row)
@@ -189,17 +203,17 @@ class KitCard(QFrame):
     def __init__(self, view, name, slug, parent=None):
         super().__init__(parent)
         self.setObjectName('channel')
+        theme.set_role(self, 'card')
         self.key = kit_manage.key_of(slug)
         change = view.kit_changes.get(self.key)
         schedule = view.kit_schedule
         chip, color = view.kit_panel.channel_chip(name, slug, slug)
         ready = chip.startswith('✔')
-        layout = QVBoxLayout(self)
-        label = f'<b style="font-size:15px">{name}</b>  <span style="color:#bbb">📦 Loop kits</span>'
+        layout = _card_layout(self)
         if change == 'remove':
-            self.setStyleSheet(_CARD.format(border='#c0392b'))
             row = QHBoxLayout()
-            row.addWidget(QLabel(label + '  <span style="color:#e74c3c">— se quita al guardar</span>'), 1)
+            row.addWidget(_name_label(name, '📦 Loop kits'))
+            row.addWidget(theme.tone(QLabel('Se quita al guardar'), 'error'), 1)
             undo = QPushButton('Deshacer')
             undo.clicked.connect(lambda: view.kit_change(self.key, None))
             row.addWidget(undo)
@@ -208,9 +222,8 @@ class KitCard(QFrame):
         known = schedule is not None
         active = change['active'] if change else (known and self.key in schedule)
         day = (change or {}).get('day', (schedule or {}).get(self.key, kit_channel.FIRST_WEEKDAY))
-        self.setStyleSheet(_CARD.format(border='#2ecc71' if ready and active else '#555'))
         top = QHBoxLayout()
-        top.addWidget(QLabel(label), 1)
+        top.addWidget(_name_label(name, '📦 Loop kits'), 1)
         self.active = QCheckBox('Activa' if active else 'Pausada')
         self.active.setChecked(bool(active))
         self.active.setEnabled(known)
@@ -218,7 +231,7 @@ class KitCard(QFrame):
         top.addWidget(self.active)
         layout.addLayout(top)
         row = QHBoxLayout()
-        row.addWidget(QLabel('📅 Publica los'))
+        row.addWidget(QLabel('📅  Publica los'))
         self.day = QComboBox()
         self.day.addItems(DAYS)
         self.day.setCurrentIndex(day)
@@ -226,17 +239,17 @@ class KitCard(QFrame):
         self.day.currentIndexChanged.connect(lambda d: view.kit_change(self.key, {'active': True, 'day': d}))
         row.addWidget(self.day)
         if not known:
-            row.addWidget(QLabel('<span style="color:#888">Conectá GitHub para pausar o cambiar el día</span>'))
+            row.addWidget(theme.muted(QLabel('Conectá GitHub para pausar o cambiar el día'), wrap=False))
         row.addStretch(1)
         layout.addLayout(row)
         row = QHBoxLayout()
-        row.addWidget(QLabel(f'<span style="color:{color}">{health_text(chip)}</span>'), 1)
-        edit = QPushButton('Editar todo')
+        row.addWidget(_health_label(chip, color), 1)
+        edit = theme.flat(QPushButton('Editar todo'))
         edit.setToolTip('Horario de subida, kits, géneros, portada, títulos…')
         edit.clicked.connect(lambda: view.open_kit(slug))
         row.addWidget(edit)
         if self.key != kit_manage.DEFAULT:
-            remove = QPushButton('Quitar')
+            remove = theme.danger(QPushButton('Quitar'))
             remove.clicked.connect(lambda: view.remove_kit(self.key, name))
             row.addWidget(remove)
         layout.addLayout(row)
@@ -259,30 +272,30 @@ class MyChannelsView(QWidget):
         self._signature = None
         self.beat_cards, self.kit_cards = [], []
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(theme.SPACE['l'], theme.SPACE['s'], theme.SPACE['l'], theme.SPACE['m'])
+        layout.setSpacing(theme.SPACE['m'])
         head = QHBoxLayout()
-        title = QLabel('Mis canales automatizados')
-        title.setStyleSheet('font-size: 22px; font-weight: bold;')
-        head.addWidget(title, 1)
+        head.addWidget(theme.title(QLabel('Mis canales automatizados')), 1)
         self.btn_add = QPushButton('+ Agregar canal')
         self.btn_add.clicked.connect(self.add)
-        self.btn_reload = QPushButton('🔄 Recargar')
-        self.btn_reload.clicked.connect(self.reload)
-        self.btn_advanced = QPushButton('Modo avanzado')
+        self.btn_advanced = theme.flat(QPushButton('Modo avanzado'))
         self.btn_advanced.setToolTip('Las pestañas completas de Beats y Loop kits.')
         self.btn_advanced.clicked.connect(self.advanced_requested)
-        for button in (self.btn_add, self.btn_reload, self.btn_advanced):
+        self.btn_more = QPushButton('⋯')
+        self.btn_more.setToolTip('Más acciones')
+        more = QMenu(self.btn_more)
+        self.action_reload = more.addAction('Recargar desde Dropbox', self.reload)
+        self.action_distribution = more.addAction('Distribuir publicaciones de Beats…', self.distribute_beats)
+        theme.with_menu(self.btn_more, more)
+        for button in (self.btn_advanced, self.btn_more, self.btn_add):
             head.addWidget(button)
         layout.addLayout(head)
 
-        self.btn_distribution = QPushButton('Distribuir publicaciones de Beats…')
-        self.btn_distribution.clicked.connect(self.distribute_beats)
-        layout.addWidget(self.btn_distribution, 0, Qt.AlignLeft)
-
         self.blocked = QFrame()
-        blocked = QVBoxLayout(self.blocked)
+        theme.set_role(self.blocked, 'card')
+        blocked = _card_layout(self.blocked)
         self.blocked_text = QLabel()
         self.blocked_text.setWordWrap(True)
-        self.blocked_text.setStyleSheet('font-size: 14px;')
         blocked.addWidget(self.blocked_text)
         go = QPushButton('🔌 Ir a Conexiones')
         go.clicked.connect(self.connections_requested)
@@ -292,19 +305,18 @@ class MyChannelsView(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setStyleSheet('QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; }')
         self.body = QWidget()
         self.body_layout = QVBoxLayout(self.body)
+        self.body_layout.setContentsMargins(0, 0, 0, 0)
+        self.body_layout.setSpacing(theme.SPACE['s'])
         self.body_layout.setAlignment(Qt.AlignTop)
         scroll.setWidget(self.body)
         layout.addWidget(scroll, 1)
 
         bar = QHBoxLayout()
-        self.status = QLabel()
-        self.status.setWordWrap(True)
+        self.status = theme.muted(QLabel())
         bar.addWidget(self.status, 1)
-        self.btn_save = QPushButton('💾 Guardar cambios')
-        self.btn_save.setStyleSheet(_SAVE)
+        self.btn_save = theme.primary(QPushButton('Guardar cambios'))
         self.btn_save.clicked.connect(self.save)
         bar.addWidget(self.btn_save)
         layout.addLayout(bar)
@@ -343,7 +355,7 @@ class MyChannelsView(QWidget):
             return 'Leyendo tus canales de Dropbox…'
         if not self.beats_loaded():
             return ('No se pudieron leer tus canales automatizados. Lo más común: Dropbox no está conectado en '
-                    'esta PC o falta «Preparar la nube». Resolvelo en Conexiones y tocá «Recargar».')
+                    'esta PC o falta «Preparar la nube». Resolvelo en Conexiones y tocá «⋯» → «Recargar desde Dropbox».')
         if getattr(panel, 'registry_rev', None) is None:
             return ('Falta «Preparar la nube» (una sola vez): crea la lista de canales en Dropbox. '
                     'Está en Conexiones.')
@@ -388,7 +400,8 @@ class MyChannelsView(QWidget):
                 self.beat_cards.append(card)
                 self.body_layout.addWidget(card)
             if not channels:
-                self.body_layout.addWidget(QLabel('Todavía no hay canales de Beats. Tocá «+ Agregar canal».'))
+                self.body_layout.addWidget(theme.muted(QLabel('Todavía no hay canales de Beats. '
+                                                              'Tocá «+ Agregar canal».')))
         kits = self.kits()
         if kits:
             self.body_layout.addWidget(self._heading(f'📦 Loop kits ({len(kits)})'))
@@ -400,17 +413,17 @@ class MyChannelsView(QWidget):
         saving = self.saving or self.kit_saving
         self.btn_save.setVisible(self.any_dirty() or saving)
         self.btn_save.setEnabled(self.any_dirty() and not busy)
-        self.btn_save.setText('Guardando…' if saving else '💾 Guardar cambios')
+        self.btn_save.setText('Guardando…' if saving else 'Guardar cambios')
         self.btn_add.setEnabled(self.beats_loaded() and not busy)
-        self.btn_distribution.setEnabled(self.beats_loaded() and not busy)
+        self.action_distribution.setEnabled(self.beats_loaded() and not busy)
         if self.any_dirty() and not saving:
             self.status.setText('Tenés cambios sin guardar: tocá «Guardar cambios» para que el robot los use.')
         elif not saving and not self.status.text().startswith(('✓', '✗')):
             self.status.setText('')
 
     def _heading(self, text):
-        label = QLabel(text)
-        label.setStyleSheet('font-size: 15px; font-weight: bold; color: #ddd; margin-top: 6px;')
+        label = theme.subtitle(QLabel(text))
+        label.setContentsMargins(0, theme.SPACE['m'], 0, theme.SPACE['xs'])
         return label
 
     # --- Acciones de Beats (sobre el modelo del panel) ---
@@ -591,7 +604,7 @@ class MyChannelsView(QWidget):
                            done=lambda: self.beats_loaded() and not self.blocked_reason(),
                            action=self.connections_requested.emit, action_text='Ir a Conexiones'),
                  GuideStep('Pausar o reanudar', 'Destildá «Activa» para pausar un canal sin borrarlo.'),
-                 GuideStep('Cambiar el horario', '«Cambiar horario»: elegís días y hora.'),
+                 GuideStep('Cambiar el horario', '«Cambiar», al lado del horario: elegís días y hora.'),
                  GuideStep('Arreglar lo que falta', 'Si un canal no dice «✔ Listo», tocá «Arreglar».'),
                  GuideStep('Editar todo', '«Editar todo» abre la configuración completa del canal.'),
                  GuideStep('Guardar', 'Hasta que no guardes, el robot sigue con lo anterior.',

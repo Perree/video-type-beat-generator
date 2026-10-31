@@ -11,12 +11,13 @@ from PyQt5.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit,
                              QStackedWidget, QVBoxLayout, QWidget)
 
 from core import automation_status as status
+import ui_theme as theme
 
 BEATS, KITS = 'beats', 'kits'
 TITLES = ('Canal', 'YouTube', 'Dropbox y avisos', 'Secretos de GitHub', 'Publicar y activar')
 # Flags de sesión por canal: lo que la app no puede deducir leyendo archivos locales.
 SECRETS, CONFIG, DRYRUN = 'secrets', 'config', 'dryrun'
-_GREEN, _AMBER, _GRAY = '#2e9e4f', '#d98e04', '#888888'
+_GREEN, _AMBER, _GRAY = theme.color('success'), theme.color('warning'), theme.color('text_muted')
 
 
 def _items(kind, channel, slug, deps):
