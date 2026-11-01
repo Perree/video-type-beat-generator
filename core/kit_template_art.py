@@ -373,7 +373,7 @@ def for_video(kit_cfg, title, fallback_image, store, rng, work_dir, dbx=None, cl
         else:
             reason, once = ('pedido rechazado' if isinstance(exc, kit_art.KitArtRejected)
                             else type(exc).__name__), kit_art._API_FAILED
-        print(f"Portada con IA no generada ({reason}); se usa la imagen del kit o la portada sin IA.")
+        print(f"Portada con IA no generada ({reason}); se usa una imagen de Dropbox (o la del kit).")
         if once not in budget.notified:
             if once:
                 budget.notified.add(once)

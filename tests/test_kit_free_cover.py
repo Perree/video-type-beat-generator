@@ -47,7 +47,7 @@ class FreeBackgroundTests(unittest.TestCase):
     def cfg(self, mode='auto'):
         return {'cover_mode': mode, 'art': {'refs_root': ROOT, 'genre': 'reggaeton house'}}
 
-    def test_uses_blurred_reference_of_genre(self):
+    def test_uses_reference_of_genre(self):
         folder = ROOT + '/reggaeton_house'
         fetch, calls = _fake_fetch()
         with mock.patch.object(dropbox_client, 'list_folder_entries',
@@ -72,23 +72,71 @@ class FreeBackgroundTests(unittest.TestCase):
                                               self.tmp.name, now=NOW, fetch=fetch)
         self.assertEqual(refs, [f'{folder}/b.png'])
 
-    def test_template_mode_uses_backgrounds_folder(self):
+    def test_prefers_backgrounds_folder(self):
+        folder = ROOT + '/reggaeton_house'
         seen = []
 
-        def listing(folder, dbx=None):
-            seen.append(folder)
-            return _entries(folder, ['fondo.jpg'])
+        def listing(path, dbx=None):
+            seen.append(path)
+            if path.endswith('/fondos'):
+                return _entries(path, ['fondo.jpg'])
+            return [{'name': 'fondos', 'path': folder + '/fondos', 'is_folder': True},
+                    *_entries(path, ['ref.jpg'])]
+        fetch, _ = _fake_fetch()
+        for mode in ('template', 'auto', 'dropbox'):
+            seen.clear()
+            with mock.patch.object(dropbox_client, 'list_folder_entries', side_effect=listing):
+                _, refs = kit_art.free_background(self.cfg(mode), None, random.Random(1),
+                                                  self.tmp.name, now=NOW, fetch=fetch)
+            self.assertEqual(seen, [folder, folder + '/fondos'])
+            self.assertEqual(refs, [folder + '/fondos/fondo.jpg'])
+
+    def test_empty_backgrounds_folder_falls_back_to_genre_folder(self):
+        folder = ROOT + '/reggaeton_house'
+
+        def listing(path, dbx=None):
+            if path.endswith('/fondos'):
+                return []
+            return [{'name': 'Fondos', 'path': folder + '/Fondos', 'is_folder': True},
+                    *_entries(path, ['ref.jpg'])]
         fetch, _ = _fake_fetch()
         with mock.patch.object(dropbox_client, 'list_folder_entries', side_effect=listing):
-            _, refs = kit_art.free_background(self.cfg('template'), None, random.Random(1),
+            _, refs = kit_art.free_background(self.cfg(), None, random.Random(1),
                                               self.tmp.name, now=NOW, fetch=fetch)
-        self.assertEqual(seen, [ROOT + '/reggaeton_house/fondos'])
-        self.assertEqual(refs, [ROOT + '/reggaeton_house/fondos/fondo.jpg'])
+        self.assertEqual(refs, [folder + '/ref.jpg'])
+
+    def test_image_is_used_sharp(self):
+        """La imagen de Dropbox va tal cual: sin desenfoque, solo recortada y con viñeta."""
+        folder = ROOT + '/reggaeton_house'
+
+        def fetch(paths, dest_dir):
+            os.makedirs(dest_dir, exist_ok=True)
+            img = Image.new('RGB', (400, 400), (0, 0, 0))
+            for x in range(0, 400, 2):            # rayas finas: un desenfoque las borraría
+                for y in range(400):
+                    img.putpixel((x, y), (255, 255, 255))
+            path = os.path.join(dest_dir, 'r.png')
+            img.save(path)
+            return [path]
+        with mock.patch.object(dropbox_client, 'list_folder_entries',
+                               return_value=_entries(folder, ['a.jpg'])):
+            path, _ = kit_art.dropbox_image(self.cfg('dropbox'), None, random.Random(1),
+                                            self.tmp.name, now=NOW, fetch=fetch)
+        with Image.open(path) as img:
+            row = [img.getpixel((x, 512))[0] for x in range(500, 524)]
+        self.assertGreater(max(row) - min(row), 100)
+
+    def test_dropbox_image_without_config_or_images(self):
+        self.assertEqual(kit_art.dropbox_image({'cover_mode': 'dropbox'}, None,
+                                               random.Random(1), self.tmp.name), (None, []))
+        with mock.patch.object(dropbox_client, 'list_folder_entries', return_value=[]):
+            self.assertEqual(kit_art.dropbox_image(self.cfg('dropbox'), None, random.Random(1),
+                                                   self.tmp.name), (None, []))
 
     def test_gradient_when_no_images_or_dropbox_fails(self):
         for listing in ([], OSError('dropbox caído')):
-            with mock.patch.object(dropbox_client, 'list_folder_entries',
-                                   side_effect=[listing] if isinstance(listing, list) else listing):
+            kw = {'return_value': listing} if isinstance(listing, list) else {'side_effect': listing}
+            with mock.patch.object(dropbox_client, 'list_folder_entries', **kw):
                 path, refs = kit_art.free_background(self.cfg(), None, random.Random(2),
                                                      self.tmp.name, now=NOW)
             self.assertEqual(refs, [])
@@ -131,6 +179,46 @@ class ForCoverTests(unittest.TestCase):
             self.assertFalse(complete)
         # El aviso por Telegram sale una sola vez por corrida, no uno por video.
         self.assertEqual(len(notes), 1)
+
+    def _fetch_patch(self):
+        return mock.patch.object(
+            kit_art.kit_source, 'download_pack_files',
+            side_effect=lambda paths, dest, dbx=None: _fake_fetch()[0](paths, dest))
+
+    def test_dropbox_mode_never_calls_ai_and_rotates(self):
+        cfg = {'cover_mode': 'dropbox', 'art': {'refs_root': ROOT, 'genre': 'guitarras'}}
+        folder = ROOT + '/guitarras'
+        used = {}
+        store = mock.Mock(ref_usage=lambda: dict(used))
+
+        def no_ai(*_a, **_k):
+            raise AssertionError('no debe llamar a la IA')
+        with mock.patch.object(dropbox_client, 'list_folder_entries',
+                               return_value=_entries(folder, ['a.jpg', 'b.jpg', 'c.jpg'])), \
+                self._fetch_patch():
+            picked = []
+            for i in range(3):
+                path, refs, complete = kit_art.for_cover(
+                    cfg, 'Kit', 'T', '/tmp/kit.png', store, random.Random(i),
+                    os.path.join(self.tmp.name, str(i)), client=no_ai, now=NOW)
+                self.assertTrue(os.path.exists(path))
+                self.assertFalse(complete)
+                used[refs[0]] = NOW.isoformat()
+                picked.append(refs[0])
+        self.assertEqual(len(set(picked)), 3)   # no repite mientras haya otras
+        self.assertTrue(kit_art.generates(cfg))
+
+    def test_api_failure_prefers_dropbox_over_kit_image(self):
+        cfg = {'cover_mode': 'auto', 'art': {'refs_root': ROOT, 'genre': 'guitarras'}}
+        folder = ROOT + '/guitarras'
+        with mock.patch.object(dropbox_client, 'list_folder_entries',
+                               return_value=_entries(folder, ['x.jpg'])), self._fetch_patch():
+            path, refs, _ = kit_art.for_cover(
+                cfg, 'Kit', 'T', '/tmp/kit.png', None, random.Random(1), self.tmp.name,
+                client=_failing_client, notify=lambda _: None, now=NOW,
+                budget=kit_spend.Budget({}, None, NOW))
+        self.assertNotEqual(path, '/tmp/kit.png')
+        self.assertEqual(refs, [folder + '/x.jpg'])
 
     def test_manual_kit_image_still_wins(self):
         cfg = {'cover_mode': 'auto', 'art': {}}

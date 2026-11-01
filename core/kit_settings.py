@@ -23,7 +23,7 @@ KITS_PATH = os.environ.get('KIT_CATALOG_PATH') or dropbox_layout.KITS_CATALOG
 STATE_PATH = kit_state.STATE_PATH
 
 WEEKDAYS = ('Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo')
-COVER_MODES = ('manual', 'auto', 'template')
+COVER_MODES = ('manual', 'auto', 'template', 'dropbox')
 KIT_FIELDS = ('folder', 'name', 'payhip_url', 'genre', 'description', 'active')
 SCAN_KEYS = ('scan_folders', 'loops_dirs', 'ignore_names', 'scan_max_depth')
 SPEND_KEYS = ('monthly_cap_usd', 'max_images_per_run')
@@ -229,6 +229,8 @@ def validate_settings(form):
         raise SettingsError('El modo auto necesita la carpeta de referencias.')
     if cover_mode == 'template' and not refs_root:
         raise SettingsError('El modo plantilla + fondo necesita la carpeta de referencias.')
+    if cover_mode == 'dropbox' and not refs_root:
+        raise SettingsError('El modo imágenes de Dropbox necesita la carpeta de referencias.')
     return {'channel': _text(form.get('channel')), 'slots': slots, 'genres': genres,
             'refs_root': refs_root, 'cover_mode': cover_mode, **_validate_scan(form),
             **_validate_template(form), **_validate_seo(form, genres)}

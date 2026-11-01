@@ -454,6 +454,7 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
         self.cover_mode.addItem("Manual (imagen del pack)", 'manual')
         self.cover_mode.addItem("Auto (fondo generado con IA)", 'auto')
         self.cover_mode.addItem("Plantilla + fondo (portada completa con IA)", 'template')
+        self.cover_mode.addItem("Imágenes de Dropbox (sin IA)", 'dropbox')
         form.addRow("Modo", self.cover_mode)
         self.art_prompt = QPlainTextEdit()
         self.art_prompt.setFixedHeight(120)
@@ -466,8 +467,10 @@ class LoopKitPanel(QWidget, KitConnectionsForm, AutomationSaveBar, ChannelWizard
         form.addRow("", row)
         hint = QLabel("Plantilla + fondo usa, en la carpeta de referencias de cada género, "
                       "modelo.png y la subcarpeta fondos/. {titulo} en el prompt se reemplaza por el "
-                      "título del video (si falta, se agrega al final). Los topes de gasto están "
-                      "en Avanzado.")
+                      "título del video (si falta, se agrega al final). Imágenes de Dropbox usa, "
+                      "rotando, las fotos de fondos/ del género (o de la carpeta del género si "
+                      "no hay fondos/); es también lo que se usa cuando la IA falla. Los topes "
+                      "de gasto están en Avanzado.")
         hint.setWordWrap(True)
         theme.muted(hint)
         form.addRow(hint)

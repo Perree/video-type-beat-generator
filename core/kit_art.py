@@ -7,6 +7,10 @@ el resultado en disco. ``for_video`` es la entrada del worker: con ``cover_mode:
 ese fondo y, si la API rechaza la referencia o falla, vuelve a la imagen manual del pack y
 avisa por Telegram sin cortar la corrida.
 
+``cover_mode: dropbox`` no usa IA: cada video toma una imagen de Dropbox del género
+(``<refs_root>/<genero>/fondos/`` o, si no hay, la carpeta del género), rotando. Es también
+el respaldo cuando la IA falla (``for_cover``).
+
 El prompt describe solo estética y nunca lleva el nombre del kit ni el de las referencias.
 La clave viaja solo en el header Authorization: no se imprime ni aparece en los errores.
 Se hace un único pedido por video (sin reintentos: cada pedido se cobra).
@@ -26,13 +30,15 @@ import uuid
 from datetime import date, datetime
 from functools import partial
 
-from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+from PIL import Image, ImageEnhance, ImageOps
 
 from core import dropbox_client, kit_cloud, kit_http, kit_llm, kit_notify, kit_source, kit_spend
 
 ENV_KEY = 'KIT_IMAGE_API_KEY'
 MODE_AUTO, MODE_MANUAL = 'auto', 'manual'
 MODE_TEMPLATE = 'template'  # portada completa a partir de un modelo y un fondo (kit_template_art)
+MODE_DROPBOX = 'dropbox'    # sin IA: una imagen de Dropbox del género, rotando
+BACKGROUNDS_DIR = 'fondos'  # subcarpeta del género con las imágenes a usar tal cual
 DEFAULTS = {
     'base_url': 'https://api.openai.com/v1',
     'model': 'gpt-image-1',
@@ -72,12 +78,9 @@ _PROMPT = (
     "reference image: replace any person with scenery or abstract shapes.")
 
 _FALLBACK_TEXT = ("Loop kits: no se pudo generar el fondo con IA ({}). "
-                  "Los videos salen con la imagen del kit o con una portada sin IA.")
+                  "Los videos salen con una imagen de Dropbox del género (o la del kit).")
 FREE_NAME = 'kit_free.png'
 FREE_SIZE = 1024
-# Desenfoque del respaldo sin IA (fracción del lado). Las referencias solo marcan el clima:
-# van muy desenfocadas para que no se reconozca nada. Los fondos de plantilla ya son fondos.
-BLUR_REF, BLUR_BACKGROUND = 0.06, 0.012
 _API_FAILED = 'api_failed'  # motivo de aviso (uno por corrida) cuando la IA falla
 
 
@@ -402,13 +405,13 @@ def background(kit, genre, refs, used, rng, client=None, *, cfg=None, out_dir=No
 # --- Entrada del worker ---
 
 def mode(kit_cfg):
-    """``auto`` o ``template`` solo si ``kit_preview.cover_mode`` lo dice; si no, manual."""
+    """``auto``, ``template`` o ``dropbox`` si ``kit_preview.cover_mode`` lo dice; si no, manual."""
     value = str((kit_cfg or {}).get('cover_mode') or '').strip().lower()
-    return value if value in (MODE_AUTO, MODE_TEMPLATE) else MODE_MANUAL
+    return value if value in (MODE_AUTO, MODE_TEMPLATE, MODE_DROPBOX) else MODE_MANUAL
 
 
 def generates(kit_cfg):
-    """True si la portada se genera con IA: el kit no necesita imágenes propias."""
+    """True si la portada no sale del pack (IA o Dropbox): el kit no necesita imágenes propias."""
     return mode(kit_cfg) != MODE_MANUAL
 
 
@@ -452,7 +455,7 @@ def for_video(kit_cfg, kit, fallback_image, store, rng, work_dir, dbx=None, clie
         else:
             reason, once = ('pedido rechazado' if isinstance(exc, KitArtRejected)
                             else type(exc).__name__), _API_FAILED
-        print(f"Fondo con IA no generado ({reason}); se usa la imagen del kit o la portada sin IA.")
+        print(f"Fondo con IA no generado ({reason}); se usa una imagen de Dropbox (o la del kit).")
         if once not in budget.notified:
             if once:
                 budget.notified.add(once)
@@ -467,26 +470,36 @@ def for_cover(kit_cfg, kit, title, fallback_image, store, rng, work_dir, dbx=Non
               notify=None, now=None, budget=None, verify=None):
     """Imagen de portada del video: ``(ruta, referencias usadas, completa)``.
 
-    Con ``cover_mode: template`` la API devuelve la portada cuadrada ya terminada, con
-    ``title`` escrito (``completa`` es True: no pasa por el compositor). En ``auto`` y
-    ``manual`` es ``for_video``: un fondo al que el compositor le pone el título. Si la
-    plantilla falla, se rechaza o se llega al tope de gasto, ese video cae a manual.
-    Si el kit no tiene imagen propia (portada generada), cae a ``free_background``: así un
-    fallo de la IA (sin saldo, clave vencida) nunca deja la corrida sin videos.
+    - ``manual``: la imagen del pack (``fallback_image``).
+    - ``dropbox``: una imagen de Dropbox del género, tal cual, rotando (sin IA ni costo).
+    - ``auto``: fondo con IA al que el compositor le pone el título.
+    - ``template``: la API devuelve la portada ya terminada con ``title`` (``completa`` True).
+
+    Si la IA falla, se rechaza o se llega al tope de gasto, ese video sale con una imagen de
+    Dropbox del género; si no hay, con la del pack; si tampoco, con un degradado. Así un fallo
+    de la IA (sin saldo, clave vencida) nunca deja la corrida sin videos.
     """
-    if mode(kit_cfg) != MODE_TEMPLATE:
-        path, refs = for_video(kit_cfg, kit, fallback_image, store, rng, work_dir, dbx=dbx,
+    current = mode(kit_cfg)
+    if current == MODE_MANUAL:
+        return fallback_image, [], False
+    path, refs, complete = None, [], False
+    if current == MODE_AUTO:
+        path, refs = for_video(kit_cfg, kit, None, store, rng, work_dir, dbx=dbx,
                                client=client, notify=notify, now=now, budget=budget)
-        complete = False
-    else:
+    elif current == MODE_TEMPLATE:
         from core import kit_template_art
         path, refs, complete = kit_template_art.for_video(
-            kit_cfg, title, fallback_image, store, rng, work_dir, dbx=dbx, client=client,
+            kit_cfg, title, None, store, rng, work_dir, dbx=dbx, client=client,
             notify=notify, now=now, budget=budget, verify=verify)
-    if not path and generates(kit_cfg):
-        path, refs = free_background(kit_cfg, store, rng, work_dir, dbx=dbx, now=now)
-        complete = False
-    return path, refs, complete
+    if path:
+        return path, refs, complete
+    path, refs = dropbox_image(kit_cfg, store, rng, work_dir, dbx=dbx, now=now)
+    if path:
+        return path, refs, False
+    if fallback_image:
+        return fallback_image, [], False
+    path, refs = free_background(kit_cfg, store, rng, work_dir, dbx=dbx, now=now)
+    return path, refs, False
 
 
 # --- Respaldo sin IA ---
@@ -537,59 +550,85 @@ def _vignette(img):
     return Image.composite(Image.new('RGB', img.size, (0, 0, 0)), img, edge)
 
 
-def _soften(src, dest, blur_ratio, size=FREE_SIZE):
-    """Recorta al cuadrado, desenfoca y oscurece una imagen; deja un PNG sin metadatos."""
+def _prepare_cover(src, dest, size=FREE_SIZE):
+    """Recorta al cuadrado y oscurece apenas los bordes (lugar para el título); PNG sin metadatos."""
     with Image.open(src) as raw:
-        img = ImageOps.fit(raw.convert('RGB'), (size, size), Image.LANCZOS)
-    img = img.filter(ImageFilter.GaussianBlur(max(1, int(size * blur_ratio))))
-    img = ImageEnhance.Brightness(img).enhance(0.75)
+        img = ImageOps.fit(ImageOps.exif_transpose(raw).convert('RGB'), (size, size),
+                           Image.LANCZOS)
+    img = ImageEnhance.Brightness(img).enhance(0.85)
     _vignette(img).save(dest, 'PNG')
     return dest
 
 
-def _free_candidates(kit_cfg, art, genre, dbx):
-    """``(imágenes, desenfoque)`` para el respaldo: fondos de plantilla o referencias."""
-    if mode(kit_cfg) == MODE_TEMPLATE:
-        from core import kit_template_art
-        sub = {**kit_template_art.DEFAULTS, **art}['backgrounds_dir']
-        folder = f"{genre_folder(art['refs_root'], genre)}/{sub}"
-        return ([{'name': e['name'], 'path': e['path']}
-                 for e in dropbox_client.list_folder_entries(folder, dbx=dbx)
-                 if not e['is_folder'] and dropbox_client.is_image(e['name'])],
-                BLUR_BACKGROUND)
-    return list_refs(art['refs_root'], genre, dbx=dbx), BLUR_REF
+def _images(entries):
+    return [{'name': e['name'], 'path': e['path']}
+            for e in entries if not e['is_folder'] and dropbox_client.is_image(e['name'])]
+
+
+def dropbox_candidates(art, genre, dbx=None):
+    """Imágenes de Dropbox para la portada sin IA.
+
+    Las de ``<refs_root>/<genero>/fondos/`` si esa subcarpeta tiene alguna; si no, las de la
+    carpeta del género (las mismas referencias que usa la IA).
+    """
+    folder = genre_folder(art['refs_root'], genre)
+    entries = dropbox_client.list_folder_entries(folder, dbx=dbx)
+    sub = str(art.get('backgrounds_dir') or BACKGROUNDS_DIR).strip('/')
+    if any(e['is_folder'] and e['name'].casefold() == sub.casefold() for e in entries):
+        found = _images(dropbox_client.list_folder_entries(f"{folder}/{sub}", dbx=dbx))
+        if found:
+            return found
+    return _images(entries)
+
+
+def dropbox_image(kit_cfg, store, rng, work_dir, dbx=None, now=None, fetch=None):
+    """Portada sin IA con una imagen de Dropbox del género: ``(ruta, [imagen usada])``.
+
+    Rota igual que las referencias de la IA: no repite una usada en los últimos
+    ``ref_cooldown_days`` días mientras haya otras. Sin config, sin imágenes o si Dropbox
+    falla devuelve ``(None, [])``; nunca levanta.
+    """
+    kit_cfg = kit_cfg or {}
+    art = kit_cfg.get('art') or {}
+    genre = str(art.get('genre') or (kit_cfg.get('names') or {}).get('genre') or '').strip()
+    if not genre or not art.get('refs_root'):
+        return None, []
+    try:
+        images = dropbox_candidates(art, genre, dbx)
+        if not images:
+            print("Portada sin IA: no hay imágenes del género en Dropbox.")
+            return None, []
+        usage = getattr(store, 'ref_usage', None)
+        cooldown = int({**DEFAULTS, **art}['ref_cooldown_days'])
+        chosen, _ = choose_refs(images, usage() if usage else {}, rng, now=now,
+                                cooldown_days=cooldown, max_refs=1)
+        chosen = chosen[:1]
+        os.makedirs(work_dir, exist_ok=True)
+        out = os.path.join(work_dir, FREE_NAME)
+        with tempfile.TemporaryDirectory(prefix='kit_free_') as tmp:
+            local = (fetch or partial(kit_source.download_pack_files, dbx=dbx))(chosen, tmp)
+            _prepare_cover(local[0], out)
+    except Exception as exc:
+        print(f"Portada sin IA: no se pudo usar una imagen de Dropbox ({type(exc).__name__}).")
+        return None, []
+    print("Portada sin IA: imagen de Dropbox del género.")
+    return out, chosen
 
 
 def free_background(kit_cfg, store, rng, work_dir, dbx=None, now=None, fetch=None):
     """Fondo sin IA y sin costo: ``(ruta, referencias usadas)``. Nunca levanta.
 
-    Primero una imagen de la carpeta del género (en ``template``, de sus fondos; en ``auto``,
-    una referencia) desenfocada y oscurecida, rotando igual que las referencias de la IA. Si
-    no hay ninguna o no se puede bajar, un degradado con los colores del género.
+    Primero una imagen de Dropbox del género (``dropbox_image``); si no hay ninguna o no se
+    puede bajar, un degradado con los colores del género.
     """
+    path, chosen = dropbox_image(kit_cfg, store, rng, work_dir, dbx=dbx, now=now, fetch=fetch)
+    if path:
+        return path, chosen
     kit_cfg = kit_cfg or {}
     art = kit_cfg.get('art') or {}
     genre = str(art.get('genre') or (kit_cfg.get('names') or {}).get('genre') or '').strip()
     os.makedirs(work_dir, exist_ok=True)
     out = os.path.join(work_dir, FREE_NAME)
-    if genre and art.get('refs_root'):
-        try:
-            images, blur = _free_candidates(kit_cfg, art, genre, dbx)
-            if images:
-                usage = getattr(store, 'ref_usage', None)
-                cooldown = int({**DEFAULTS, **art}['ref_cooldown_days'])
-                chosen, _ = choose_refs(images, usage() if usage else {}, rng, now=now,
-                                        cooldown_days=cooldown, max_refs=1)
-                chosen = chosen[:1]
-                with tempfile.TemporaryDirectory(prefix='kit_free_') as tmp:
-                    local = (fetch or partial(kit_source.download_pack_files, dbx=dbx))(
-                        chosen, tmp)
-                    _soften(local[0], out, blur)
-                print("Portada sin IA: imagen del género desenfocada.")
-                return out, chosen
-        except Exception as exc:
-            print(f"Portada sin IA: no se pudo usar una imagen del género "
-                  f"({type(exc).__name__}); se usa un degradado.")
     gradient_background(genre, out, art.get('styles'), rng)
     print("Portada sin IA: degradado con los colores del género.")
     return out, []
