@@ -128,7 +128,7 @@ class FakeCreds:
 
     def to_json(self):
         return json.dumps({'token': S['yt_access'], 'refresh_token': S['yt_refresh'],
-                           'client_id': 'id.apps', 'client_secret': S['client_secret']})
+                           'client_id': 'id.apps.googleusercontent.com', 'client_secret': S['client_secret']})
 
 
 class FakeFlow:
@@ -234,7 +234,7 @@ def check_client_secret(tmp):
           'client_secret: sin importar debería faltar')
     path = os.path.join(tmp, 'client_secret.json')
     with open(path, 'w', encoding='utf-8') as f:
-        json.dump({'installed': {'client_id': 'id.apps', 'client_secret': S['client_secret'],
+        json.dump({'installed': {'client_id': 'id.apps.googleusercontent.com', 'client_secret': S['client_secret'],
                                  'redirect_uris': ['http://localhost']}}, f)
     cloud_login.import_client_secret(path)
     check(os.path.exists(path), 'client_secret: se borró el archivo importado')
@@ -487,10 +487,10 @@ def check_review_fixes(fake, tmp):
 
     appdata = os.path.join(tmp, 'appdata_client_secret.json')
     with open(appdata, 'w', encoding='utf-8') as f:
-        json.dump({'installed': {'client_id': 'id.apps', 'client_secret': S['client_secret']}}, f)
+        json.dump({'installed': {'client_id': 'id.apps.googleusercontent.com', 'client_secret': S['client_secret']}}, f)
     previous = cloud_login.set_backend(DeadKeyring())
     try:
-        check(cloud_login.client_secret_config(appdata)['installed']['client_id'] == 'id.apps',
+        check(cloud_login.client_secret_config(appdata)['installed']['client_id'] == 'id.apps.googleusercontent.com',
               'sin llavero no se usó el client_secret de %APPDATA%')
         check(cloud_login.client_secret_status(os.path.join(tmp, 'no.json')) == st.UNKNOWN,
               'sin llavero ni archivo el estado no es unknown')

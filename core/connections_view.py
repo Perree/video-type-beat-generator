@@ -16,7 +16,7 @@ import ui_theme as theme
 
 
 _COLORS = {cs.OK: theme.color('success'), cs.MISSING: theme.color('danger'),
-           cs.UNKNOWN: theme.color('text_muted')}
+           cs.UNKNOWN: theme.color('text_muted'), cs.INVALID: theme.color('danger')}
 
 
 class ConnectionCard(QFrame):
@@ -164,7 +164,7 @@ class ConnectionsView(QWidget):
             self.wizard.deleteLater()
             self.wizard = None
         self.stack.setCurrentWidget(self.cards_page)
-        cs.CloudPrep._cache['at'] = 0.0
+        cs.CloudPrep._cache.update(at=0.0, reason='')  # quizá se reconectó Dropbox: revisar de nuevo
         self.check_cloud()
         self.refresh()
 

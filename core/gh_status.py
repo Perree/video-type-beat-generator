@@ -34,6 +34,9 @@ class GhError(Exception):
 
 def _run(args, stdin=None):
     """``(código, stdout)`` de ``gh``; 127 si no está instalada. Sin shell ni consola."""
+    from core import sandbox_guard
+    if sandbox_guard.running_tests():
+        return 127, ''  # en tests, como si gh no estuviera: nunca toca el repo real
     try:
         result = subprocess.run(
             ['gh', *args], cwd=ROOT, capture_output=True, timeout=_TIMEOUT,

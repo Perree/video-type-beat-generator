@@ -100,7 +100,7 @@ class ConnectionsViewTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "client_secret.json")
             with open(path, "w", encoding="utf-8") as f:
-                json.dump({"installed": {"client_id": "id.apps", "client_secret": "sec"}}, f)
+                json.dump({"installed": {"client_id": "id.apps.googleusercontent.com", "client_secret": "sec"}}, f)
             wizard = self.view.open("google")
             self.assertFalse(wizard.btn_next.isEnabled())
             with mock.patch("core.connection_steps.QFileDialog.getOpenFileName", return_value=(path, "")):

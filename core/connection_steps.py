@@ -22,6 +22,7 @@ from core.wizard import WizardPage
 import ui_theme as theme
 
 OK, MISSING, UNKNOWN = status.OK, status.MISSING, status.UNKNOWN
+INVALID = cloud_login.INVALID  # hay algo guardado pero no sirve
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GH_DEFAULT_DIRS = (r'C:\Program Files\GitHub CLI', r'C:\Program Files (x86)\GitHub CLI')
 LINKS = {
@@ -170,7 +171,9 @@ class Connection:
         return UNKNOWN
 
     def status_text(self):
-        return {OK: 'Conectado', MISSING: 'Falta', UNKNOWN: 'Revisando…'}.get(self.status(), 'Falta')
+        return {OK: 'Conectado', MISSING: 'Falta', UNKNOWN: 'Revisando…',
+                INVALID: 'La clave guardada no sirve: tocá «Cambiar» y volvé a conectar'}.get(
+                    self.status(), 'Falta')
 
     def pages(self, owner):
         raise NotImplementedError
@@ -181,7 +184,10 @@ class DropboxPC(Connection):
     description = 'Para leer tus canales y fondos desde la app. Una vez por computadora.'
 
     def status(self):
-        return cloud_login.dropbox_status()
+        code = cloud_login.dropbox_status()
+        if code == OK and CloudPrep.rejected():
+            return INVALID  # hay clave guardada, pero Dropbox no la acepta
+        return code
 
     def pages(self, owner):
         state = {'flow': None}
@@ -473,8 +479,30 @@ class AI(_SecretsConnection):
 class CloudPrep(Connection):
     key, title, icon = 'cloud_prep', 'Preparar la nube (una vez)', '☁'
     description = 'Crea en Dropbox la lista de canales automatizados a partir de tu configuración anterior.'
-    # reason: 'dropbox' = no se puede revisar sin Dropbox conectado; 'offline' = no respondió.
+    # reason: 'dropbox' = no se puede revisar sin Dropbox conectado; 'offline' = no respondió;
+    # 'auth' = Dropbox rechazó la clave de esta PC; 'error' = otra falla al leer.
     _cache = {'at': 0.0, 'code': UNKNOWN, 'reason': ''}
+    _REASON_TEXT = {'offline': 'No se pudo revisar: Dropbox no respondió (¿internet?)',
+                    'auth': 'Dropbox rechazó la clave de esta PC: reconectá «Dropbox (esta PC)»',
+                    'error': 'No se pudo leer la lista de canales en Dropbox'}
+
+    @classmethod
+    def rejected(cls):
+        return cls._cache['reason'] == 'auth'
+
+    @staticmethod
+    def _reason(exc):
+        """Motivo de una falla al leer ``canales.json`` (nunca usa valores del error)."""
+        from core.beat_cloud import CloudError, Transient
+        if isinstance(exc, Transient):
+            return 'offline'
+        if isinstance(exc, CloudError):
+            code = exc.args[0] if exc.args else ''
+            if code == 'dropbox_auth_error' or not str(code).isidentifier():
+                return 'auth'  # rechazada, o local_transport no pudo armar la conexión
+            return 'error'
+        name = type(exc).__name__
+        return 'offline' if name in ('ConnectionError', 'Timeout', 'TimeoutError') else 'error'
 
     def status(self):
         if cloud_login.dropbox_status() != OK:
@@ -494,8 +522,8 @@ class CloudPrep(Connection):
             from core.cloud_registry import CloudRegistry
             _doc, rev = CloudRegistry(local_transport()).read('canales')
             code, reason = (OK if rev is not None else MISSING), ''
-        except Exception:  # noqa: BLE001 - sin red: se reintenta después
-            code, reason = UNKNOWN, 'offline'
+        except Exception as exc:  # noqa: BLE001 - se muestra el motivo y se reintenta después
+            code, reason = UNKNOWN, cls._reason(exc)
         cls._cache.update(at=time.monotonic(), code=code, reason=reason)
         return code
 
@@ -503,7 +531,7 @@ class CloudPrep(Connection):
         if cloud_login.dropbox_status() != OK:
             return 'Conectá Dropbox para revisar'
         if self.status() == UNKNOWN:
-            return 'No se pudo revisar (sin conexión)' if self._cache['reason'] == 'offline' else 'Revisando…'
+            return self._REASON_TEXT.get(self._cache['reason'], 'Revisando…')
         return {OK: 'Lista', MISSING: 'Falta'}[self.status()]
 
     def pages(self, owner):

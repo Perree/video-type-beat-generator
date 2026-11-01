@@ -14,19 +14,21 @@ Los mensajes de ``LoginError`` nunca incluyen valores.
 import json
 import os
 
-from core import gh_status as gh_api
+from core import gh_status as gh_api, sandbox_guard
 
 OK, MISSING, INVALID, UNKNOWN = 'ok', 'missing', 'invalid', 'unknown'
 SERVICE = 'video-type-beat-generator'
 DROPBOX_APP_KEY = 'dropbox_app_key'
 DROPBOX_REFRESH_TOKEN = 'dropbox_refresh_token'
 YOUTUBE_CLIENT_SECRET = 'youtube_client_secret'
+GOOGLE_CLIENT_SUFFIX = '.apps.googleusercontent.com'  # todo client_id real de Google termina así
 # Credential Manager guarda hasta 2560 bytes en UTF-16: ~1280 caracteres.
 MAX_VALUE = 1200
 APPDATA_CLIENT_SECRET = os.path.join(
     os.environ.get('APPDATA') or os.path.expanduser('~'), 'TypeBeat', 'client_secret.json')
 
 _backend = None
+_test_backend = None  # llavero en memoria que se usa solo si corren tests (core/sandbox_guard)
 
 
 class LoginError(Exception):
@@ -62,8 +64,14 @@ def _secure_backend(backend):
 
 
 def _keyring():
+    global _test_backend
     if _backend is not None:
         backend = _backend
+    elif sandbox_guard.running_tests():
+        if _test_backend is None:
+            from core.cloud_fakes import MemoryKeyring
+            _test_backend = MemoryKeyring()
+        backend = _test_backend  # nunca el llavero real durante los tests
     else:
         try:
             import keyring as backend
@@ -203,6 +211,9 @@ def _check_client_config(data):
     if (not isinstance(block, dict) or not printable(block.get('client_id'), 256)
             or not printable(block.get('client_secret'), 256)):
         raise LoginError('El client_secret.json no es de una app OAuth «Escritorio».')
+    if not block['client_id'].endswith(GOOGLE_CLIENT_SUFFIX):
+        raise LoginError('Ese client_secret no es de Google Cloud (el client_id no termina en '
+                         f'«{GOOGLE_CLIENT_SUFFIX}»). Volvé a importarlo.')
     return data
 
 

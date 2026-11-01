@@ -66,10 +66,14 @@ class DropboxTransport:
                                    max_retries_on_rate_limit=0))
 
     def _call(self, operation):
-        from dropbox.exceptions import ApiError, RateLimitError, InternalServerError
+        from dropbox.exceptions import (ApiError, AuthError, BadInputError, RateLimitError,
+                                        InternalServerError)
         from requests.exceptions import ConnectionError, Timeout
         try:
             return operation()
+        except (AuthError, BadInputError):
+            # App key o refresh token que Dropbox no reconoce (p. ej. «invalid_client").
+            raise CloudError("dropbox_auth_error") from None
         except RateLimitError as exc:
             raise Transient(exc.backoff or 1) from None
         except (InternalServerError, ConnectionError, Timeout):

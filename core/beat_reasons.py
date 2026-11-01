@@ -43,6 +43,7 @@ TEXTS = {
     'calendar_read_failed': 'No se pudo leer el calendario de YouTube: hoy no se subió nada.',
     'dropbox_error': 'Falló Dropbox (estado del canal). Revisá la conexión de Dropbox.',
     'dropbox_api_error': 'Dropbox rechazó un pedido. Revisá la conexión de Dropbox.',
+    'dropbox_auth_error': 'Dropbox rechazó la clave guardada (app key o permiso). Volvé a conectar Dropbox.',
     'dropbox_busy': 'Dropbox estaba ocupado o limitado. Se reintenta en otra corrida.',
     'document_missing': 'Falta un archivo del canal en Dropbox (config o estado).',
     'missing_beat_dropbox_credentials': 'Faltan las credenciales de Dropbox en GitHub.',
