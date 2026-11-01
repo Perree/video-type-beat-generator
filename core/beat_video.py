@@ -78,7 +78,9 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
             montage = {}
             if image:
                 fetch(image, source_image, 20 * 1024 * 1024, dropbox)
-                compose(source_image, track.get('title'), frame, thumbnail, plain=spec['mode'] == 'video' or spec.get('plain_image', False))
+                compose(source_image, track.get('title'), frame, thumbnail,
+                        plain=spec['mode'] == 'video' or spec.get('plain_image', False),
+                        fit=spec.get('image_fit', 'cover'))
                 image['sha256'] = image_digest(source_image)
                 prior = previous_publication(state, job)
                 prior_visual = publication_visual(state, prior) if prior else None

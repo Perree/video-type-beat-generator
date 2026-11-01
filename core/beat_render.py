@@ -70,8 +70,12 @@ class MediaTools:
             raise BeatError('render_output_missing')
 
 
-def compose(image, title, frame, thumbnail, plain=False):
-    """plain=True keeps finished artwork untouched: no caption banner, only resized."""
+def compose(image, title, frame, thumbnail, plain=False, fit='cover'):
+    """plain=True keeps finished artwork untouched: no caption banner, only resized.
+
+    fit='cover' recorta la imagen para llenar 16:9; 'contain' la deja entera, centrada y
+    con barras negras (fotos verticales).
+    """
     from PIL import Image, ImageOps, ImageDraw, ImageFont
     if not isinstance(title, str) or not title.strip() or len(title) > 500:
         raise BeatError('title_rejected')
@@ -83,7 +87,9 @@ def compose(image, title, frame, thumbnail, plain=False):
                         or source.width < 320 or source.height < 180 or getattr(source, 'n_frames', 1) != 1):
                     raise BeatError('image_rejected')
                 source.load()
-                picture = ImageOps.fit(ImageOps.exif_transpose(source).convert('RGB'), (1920, 1080))
+                upright = ImageOps.exif_transpose(source).convert('RGB')
+                picture = (ImageOps.pad(upright, (1920, 1080), color=(0, 0, 0)) if fit == 'contain'
+                           else ImageOps.fit(upright, (1920, 1080)))
                 picture.info.clear()
         if plain:
             picture.save(frame, 'PNG')

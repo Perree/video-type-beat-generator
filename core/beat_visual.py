@@ -23,6 +23,9 @@ def options(channel):
     # (canales sin verificación por teléfono, donde thumbnails.set falla siempre).
     if type(result.get('custom_thumbnail', True)) is not bool:
         raise ValueError('invalid_custom_thumbnail')
+    # image_fit: 'cover' recorta para llenar la pantalla; 'contain' foto entera con barras negras.
+    if result.get('image_fit', 'cover') not in ('cover', 'contain'):
+        raise ValueError('invalid_image_fit')
     if (result['mode'] not in ('image', 'video', 'alternate')
             or result['video_source'] not in ('local', 'dropbox')
             or result['thumbnail_source'] not in ('auto', 'local', 'dropbox')):
