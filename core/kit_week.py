@@ -156,6 +156,20 @@ def _seo_texts(seo, name, path, plan, entry, genre, kit_cfg, templates, state, s
     return title, variant, desc_vars, warnings
 
 
+def video_link(link, channel_templates):
+    """``(tracking_id, plantillas)`` con el link del kit para ``{link}``.
+
+    Por defecto el link lleva ``utm_source``/``utm_content`` propios del video. Con
+    ``track_links: false`` en el canal va tal cual (p. ej. un link acortado).
+    """
+    if not link:
+        return None, channel_templates
+    if channel_templates.get('track_links', True) is False:
+        return None, {**channel_templates, 'link': link}
+    tracking_id = kit_names.new_tracking_id()
+    return tracking_id, {**channel_templates, 'link': kit_names.track_link(link, tracking_id)}
+
+
 def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_cfg, slot, now,
                state, store, rng, output_dir, dbx=None, tz=None, hooks=None, budget=None):
     """Arma, sube y registra el video de un kit para ``slot``.
@@ -238,10 +252,7 @@ def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_c
                                 else "Un video salió sin nombre generado (falló el LLM).")
             display_name = video_name or base_name
             link = (entry or {}).get('payhip_url') or channel_templates.get('link') or ''
-            tracking_id, templates = None, channel_templates
-            if link:
-                tracking_id = kit_names.new_tracking_id()
-                templates = {**channel_templates, 'link': kit_names.track_link(link, tracking_id)}
+            tracking_id, templates = video_link(link, channel_templates)
 
             art_cfg = kit_cfg
             if genre:

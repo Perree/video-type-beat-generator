@@ -571,7 +571,8 @@ def dropbox_candidates(art, genre, dbx=None):
     Las de ``<refs_root>/<genero>/fondos/`` si esa subcarpeta tiene alguna; si no, las de la
     carpeta del género (las mismas referencias que usa la IA).
     """
-    folder = genre_folder(art['refs_root'], genre)
+    # ``art.backgrounds_folder``: carpeta fija del canal (se ignora el género).
+    folder = str(art.get('backgrounds_folder') or '').rstrip('/') or genre_folder(art['refs_root'], genre)
     entries = dropbox_client.list_folder_entries(folder, dbx=dbx)
     sub = str(art.get('backgrounds_dir') or BACKGROUNDS_DIR).strip('/')
     if any(e['is_folder'] and e['name'].casefold() == sub.casefold() for e in entries):
