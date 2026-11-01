@@ -59,6 +59,15 @@ class NewEntriesTests(unittest.TestCase):
         packs = [pack('Kit (1)'), pack('_refs'), pack('Vacio', loops=0)]
         self.assertEqual(kit_autoadd.new_entries(packs, [], ['guitarras'], LINK), ([], []))
 
+    def test_keywords_keep_other_genres_out(self):
+        """WyreGuitars comparte categorías con reggaeton: solo entran los que dicen Guitar."""
+        packs = [pack('NEW - Emotional Guitars (Loop Kit)', 'Individual Kits'),
+                 pack('NEW - Reggaeton x House (Loop Kit)', 'Individual Kits')]
+        added, _ = kit_autoadd.new_entries(packs, [], ['guitarras'], LINK, keywords=['guitar'])
+        self.assertEqual([e['name'] for e in added], ['NEW - Emotional Guitars (Loop Kit)'])
+        added, _ = kit_autoadd.new_entries(packs, [], ['guitarras'], LINK)
+        self.assertEqual(len(added), 2)
+
     def test_without_channel_link_nothing_enters(self):
         added, warnings = kit_autoadd.new_entries([pack('Nuevo')], [], ['guitarras'], '')
         self.assertEqual(added, [])

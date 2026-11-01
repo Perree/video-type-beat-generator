@@ -100,7 +100,8 @@ def open_week(app_config, state, history, now, rng, *, dbx=None, exclude=(), lis
     added, warnings = [], []
     if catalog is not None:
         added, warnings = kit_autoadd.new_entries(
-            packs, catalog, kit_catalog.configured_genres(app_config), channel_link)
+            packs, catalog, kit_catalog.configured_genres(app_config), channel_link,
+            keywords=kit_cfg.get('autoadd_keywords'))
         catalog = catalog + added
     pool, entries, more = candidates(packs, catalog, require_images)
     warnings += more

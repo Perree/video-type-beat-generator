@@ -34,7 +34,13 @@ def pick_genre(category, genres):
     return next((g for g in genres if kit_catalog._norm(g) == wanted), None)
 
 
-def new_entries(packs, catalog, genres, channel_link):
+def matches_keywords(name, keywords):
+    """True si no hay filtro o si el nombre del kit contiene alguna palabra (sin mayúsculas)."""
+    words = [str(k).strip().casefold() for k in keywords or [] if str(k).strip()]
+    return not words or any(w in str(name).casefold() for w in words)
+
+
+def new_entries(packs, catalog, genres, channel_link, keywords=None):
     """Entradas de catálogo para los kits de ``packs`` que el catálogo todavía no tiene.
 
     Args:
@@ -42,6 +48,8 @@ def new_entries(packs, catalog, genres, channel_link):
         catalog: catálogo validado del canal.
         genres: géneros del canal (``kit_catalog.configured_genres``).
         channel_link: link del canal (``channels.<canal>.link``).
+        keywords: ``kit_preview.autoadd_keywords``; si hay, solo entran los kits cuyo
+            nombre contiene alguna (canales que comparten categorías con otro género).
 
     Returns:
         ``(entradas, avisos)``.
@@ -50,7 +58,8 @@ def new_entries(packs, catalog, genres, channel_link):
     fresh = [p for p in packs or []
              if p.get('loops') and not p['name'].startswith('_') and not is_copy(p['name'])
              and kit_catalog._norm(p['name']) not in known
-             and kit_catalog._norm(p['dropbox_path']) not in known]
+             and kit_catalog._norm(p['dropbox_path']) not in known
+             and matches_keywords(p['name'], keywords)]
     if not fresh:
         return [], []
     if not kit_catalog.is_valid_link(channel_link):
