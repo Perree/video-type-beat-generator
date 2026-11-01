@@ -64,7 +64,7 @@ class KitConnectionsForm(ConnectionsMixin):
         form.addRow('', theme.button_row(self.connect_youtube_button, self.sync_button))
         layout.addWidget(box)
 
-        box, tg = theme.section('Avisos por Telegram', form=True)
+        box, tg = theme.section('Avisos por Telegram (uno solo para todos los canales)', form=True)
         self.tg_token = QLineEdit()
         self.tg_token.setEchoMode(QLineEdit.Password)
         self.tg_token.setPlaceholderText('Token del bot')
@@ -140,11 +140,11 @@ class KitConnectionsForm(ConnectionsMixin):
         slug = self._conn_slug()
         env = self._conn_env() or status.ENV
         self._set_light('youtube', *status.secrets_badge(status.KIT_YT_KEYS, env))
-        self._set_light('dropbox', *status.secrets_badge(status.KIT_DROPBOX_KEYS, env))
-        self._set_light('telegram', *status.secrets_badge(status.KIT_TELEGRAM_KEYS, env))
-        self._set_light('notion', *status.secrets_badge(status.KIT_NOTION_KEYS, env))
-        self._set_light('llm', *status.secrets_badge((status.KIT_LLM_KEY,), env))
-        self._set_light('image', *status.secrets_badge((status.KIT_IMAGE_KEY,), env))
+        self._set_light('dropbox', *status.shared_badge(status.KIT_DROPBOX_KEYS, env))
+        self._set_light('telegram', *status.shared_badge(status.KIT_TELEGRAM_KEYS, env))
+        self._set_light('notion', *status.shared_badge(status.KIT_NOTION_KEYS, env))
+        self._set_light('llm', *status.shared_badge((status.KIT_LLM_KEY,), env))
+        self._set_light('image', *status.shared_badge((status.KIT_IMAGE_KEY,), env))
         gh = status.gh_auth_status()
         self._set_gh_light(gh)
         items = status.readiness_kits(channel, slug)
@@ -164,9 +164,9 @@ class KitConnectionsForm(ConnectionsMixin):
 
     def refresh_telegram(self):
         """Texto de estado de Telegram: configurado o no, nunca el token."""
-        code, text = status.secrets_badge(status.KIT_TELEGRAM_KEYS, self._conn_env() or status.ENV)
-        self.telegram.setText(f'Configurado en GitHub: {text}.' if code == status.OK else
-                              'No configurado en GitHub (el worker no podrá avisar).')
+        code, text = status.shared_badge(status.KIT_TELEGRAM_KEYS, self._conn_env() or status.ENV)
+        self.telegram.setText(f'Configurado en GitHub para todos los canales: {text}.' if code == status.OK
+                              else 'No configurado en GitHub (el robot no podrá avisar).')
 
     def _conn_say(self, text, error=False):
         self._say(text, error=error)
@@ -214,13 +214,14 @@ class KitConnectionsForm(ConnectionsMixin):
         self._youtube_two_steps(channel, None, push, pushed)
 
     def _save_shared(self, updates, fields, wait_text):
-        """Sube claves SHARED a todos los Environments de kits y limpia los campos."""
+        """Sube claves SHARED una vez para todos los canales (repo + Environments) y limpia los campos."""
         for field in fields:
             field.clear()
         self._conn_start(lambda: status.save_kit_keys(updates),
                          'No se pudieron guardar las credenciales en GitHub.',
                          'Guardado en GitHub.', wait_text,
-                         lambda envs: self._say('Guardado en GitHub: ' + ', '.join(envs) + '.'))
+                         lambda _envs: self._say('Guardado en GitHub para todos los canales '
+                                                 '(también los que crees después).'))
 
     def save_telegram(self):
         """Sube token y chat de Telegram a GitHub Secrets."""

@@ -203,8 +203,8 @@ class ChannelWizard(QDialog):
             ('Definí el slug de Actions del canal (cada canal tiene sus secretos por slug).' if beats
              else 'El canal necesita un Environment válido (canal por defecto o slug de la lista).',
              'Autorizá la cuenta de YouTube del canal (se abre el navegador).',
-             'Dropbox del worker' + ('' if beats else ' y Telegram') + ' se cargan en la pestaña '
-             'Conexiones. Este paso se completa solo al quedar en verde.',
+             'Dropbox del robot' + ('' if beats else ' y Telegram') + ' se cargan una sola vez en '
+             'Conexiones y sirven para todos los canales. Este paso se completa solo al quedar en verde.',
              'Con GitHub CLI instalada y logueada (TODO: gh auth login), subí los secretos del canal.',
              'Publicá la config (pausada), corré el dry-run y recién entonces activá el canal.'))[index]
 

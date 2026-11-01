@@ -117,7 +117,7 @@ def _check_validation():
     check(kit_settings.validate_settings(good)['cover_mode'] == 'auto', 'ajustes válidos')
     for bad in ({'slots': []}, {'slots': [{'weekday': 7, 'hour': 1, 'minute': 0}]},
                 {'slots': good['slots'] + good['slots'][:1]}, {'genres': []},
-                {'refs_root': 'sin-barra'}, {'refs_root': '/con espacio'},
+                {'refs_root': 'sin-barra'}, {'refs_root': 'sin/barra/inicial'},
                 {'refs_root': '', 'cover_mode': 'auto'}, {'cover_mode': 'otro'}):
         check(_rejects(kit_settings.validate_settings, {**good, **bad}), f'ajustes inválidos: {bad}')
 

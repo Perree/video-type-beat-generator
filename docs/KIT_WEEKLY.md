@@ -105,13 +105,15 @@ El canal por defecto no cambia nada de lo que ya tenía. Para sumar un canal:
    Dropbox su config mínima (carpeta de kits y géneros del canal por defecto, horarios de fábrica y las plantillas
    del canal) y lo deja elegido en el selector de arriba. Marca de la portada, `names`, `art` y demás opcionales no
    se copian: se agregan a mano en la config de ese canal. Después se cargan sus kits y se guarda.
-2. En la pestaña Conexiones, *Sincronizar secretos del canal* (o a mano
+2. En la pestaña Conexiones del canal, conectar su YouTube (o a mano
    `py -3 scripts/kit_secrets_sync.py --env kit-weekly-<slug> --channel "<canal>" --no-prompt`): crea el Environment
-   (limitado a `master`) si no existe y carga los secretos, con los mismos nombres que en el canal por defecto. Los
-   compartidos salen de `tokens/kit_secrets.json` (`{"KIT_LLM_API_KEY": "…", …}`, fuera de git), de
-   `tokens/dropbox_worker.json`, del entorno o de un prompt sin eco (Enter no toca ese secreto; `--no-prompt` no pide
-   nada); el token de YouTube, de `tokens/<canal>.json`. Los valores viajan a `gh` por stdin. Un Environment que ya
-   existe no se modifica: solo se cargan secretos.
+   (limitado a `master`) si no existe y carga `KIT_YT_CHANNEL` y `KIT_YT_TOKEN_JSON`. Es lo único por canal.
+   Los compartidos (Dropbox del robot, Telegram, IA y Notion) se cargan **una sola vez** en Conexiones y van como
+   secretos **del repo**: GitHub se los pasa a todos los Environments, así un canal nuevo (de Beats o de Loop kits)
+   los usa sin volver a configurarlos. También se copian a los Environments que ya existen, porque un secreto del
+   Environment con el mismo nombre tapa al del repo. Si los habías cargado antes de este cambio (solo en
+   `kit-weekly`), guardalos una vez más en Conexiones. El script los toma de `--shared-file`, del entorno o de un
+   prompt sin eco (Enter no toca ese secreto; `--no-prompt` no pide nada). Los valores viajan a `gh` por stdin.
 3. Sumar el canal a la variable del repo `KIT_CHANNELS` (es una variable, no un secreto):
    `gh variable set KIT_CHANNELS --body "default,<slug>"`.
 

@@ -8,12 +8,23 @@ from core.beat_panel_cloud import PanelCloud, local_transport
 import ui_theme as theme
 
 
+def start_folder(path, file=False):
+    """Carpeta donde abrir el selector: la del valor actual (la de su archivo si ``file``)."""
+    path = (path or '').strip().rstrip('/')
+    if not path.startswith('/'):
+        return ''
+    return path.rsplit('/', 1)[0] if file else path
+
+
 class DropboxPicker(QDialog):
-    def __init__(self, parent=None, *, file=False, provider=local_transport):
+    """Navegar Dropbox con clics. ``start``: carpeta inicial (si ya no existe, abre la raíz)."""
+
+    def __init__(self, parent=None, *, file=False, provider=local_transport, start=''):
         super().__init__(parent)
         self.file, self.provider = file, provider
         self.path, self.selected_path, self.task = '', None, None
         self.close_pending = False
+        self._back_to_root = False
         self.setWindowTitle('Dropbox: elegir imagen' if file else 'Dropbox: elegir carpeta')
         self.resize(620, 450)
         layout = QVBoxLayout(self)
@@ -36,7 +47,7 @@ class DropboxPicker(QDialog):
         for button in (self.up, self.choose, self.cancel_button):
             row.addWidget(button)
         layout.addLayout(row)
-        self.load('')
+        self.load(start_folder(start))
 
     def load(self, path):
         if self.task is not None:
@@ -48,7 +59,7 @@ class DropboxPicker(QDialog):
         self.status.setText('Leyendo Dropbox…')
         self.task = BeatTask(lambda event, progress: PanelCloud(self.provider()).list_folder(path, event), self)
         self.task.done.connect(lambda rows: self.loaded(path, rows))
-        self.task.failed.connect(self.status.setText)
+        self.task.failed.connect(lambda text: self._failed(path, text))
         self.task.finished.connect(self.finished_task)
         self.task.start()
 
@@ -67,11 +78,20 @@ class DropboxPicker(QDialog):
             self.entries.addItem(item)
         self.status.setText('Doble clic para abrir una carpeta. Las rutas parten de la raíz visible de esta app.')
 
+    def _failed(self, path, text):
+        self.status.setText(text)
+        # La carpeta guardada ya no existe (o no se puede leer): se arranca de la raíz.
+        self._back_to_root = bool(path) and not self.path and self.entries.count() == 0
+
     def finished_task(self):
         task, self.task = self.task, None
         task.deleteLater()
         if self.close_pending:
             super().reject()
+            return
+        if self._back_to_root:
+            self._back_to_root = False
+            self.load('')
             return
         self.entries.setEnabled(True)
         self.up.setEnabled(bool(self.path))

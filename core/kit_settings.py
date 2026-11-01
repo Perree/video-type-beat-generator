@@ -219,9 +219,10 @@ def validate_settings(form):
     if not genres:
         raise SettingsError('Cargá al menos un género.')
     refs_root = _text(form.get('refs_root')).rstrip('/')
-    if refs_root and (not refs_root.startswith('/') or any(c.isspace() for c in refs_root)):
+    # Los espacios valen: la carpeta estándar (/Soft Projects/...) los tiene y la API de Dropbox los acepta.
+    if refs_root and (not refs_root.startswith('/') or any(c in '\r\n\t' for c in refs_root)):
         raise SettingsError('La carpeta de referencias debe ser una ruta de Dropbox que '
-                            'empiece con "/" y no tenga espacios.')
+                            'empiece con "/". Elegila con «Elegir en Dropbox…».')
     cover_mode = _text(form.get('cover_mode')).lower() or 'manual'
     if cover_mode not in COVER_MODES:
         raise SettingsError('Modo de portada inválido.')

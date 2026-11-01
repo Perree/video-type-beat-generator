@@ -417,8 +417,9 @@ class _SecretsConnection(Connection):
 
 
 class Telegram(_SecretsConnection):
-    key, title, icon, required = 'telegram', 'Telegram (avisos de Loop kits)', '✈', False
-    description = 'Te avisa por Telegram cuando el robot de Loop kits publica o falla. Obligatorio para Loop kits.'
+    key, title, icon, required = 'telegram', 'Telegram (avisos de todos tus canales)', '✈', False
+    description = ('Un solo bot que te avisa cuando el robot publica o falla, en todos tus canales (Beats y '
+                   'Loop kits). Se configura una vez; los canales nuevos lo usan solos. Obligatorio para Loop kits.')
     fields = (('KIT_TELEGRAM_TOKEN', 'Token del bot (de @BotFather)'), ('KIT_TELEGRAM_CHAT_ID', 'Chat id'))
     intro = ('<ol><li>En Telegram hablá con <b>@BotFather</b> → /newbot → copiá el <b>token</b>.</li>'
              '<li>Mandale un mensaje a tu bot y abrí <code>api.telegram.org/bot&lt;token&gt;/getUpdates</code>: '

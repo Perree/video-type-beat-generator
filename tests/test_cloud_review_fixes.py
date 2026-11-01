@@ -5,6 +5,7 @@ import os
 import sys
 import time
 import unittest
+from unittest.mock import patch
 from contextlib import redirect_stderr
 from copy import deepcopy
 
@@ -94,6 +95,52 @@ class KitPanelTests(unittest.TestCase):
         self.wait()
         self.assertEqual(results[1][0], False)
         self.assertIn("Beats", results[1][1])
+
+
+    def test_pick_folders_from_dropbox_with_clicks(self):
+        from PyQt5.QtWidgets import QDialog
+        picked = []
+
+        class Picker:
+            def __init__(self, path):
+                self.selected_path = path
+
+            def exec_(self):
+                return QDialog.Accepted
+
+            def deleteLater(self):
+                pass
+
+        def fake_picker(_parent, current):
+            picked.append(current)
+            return Picker('/Tienda/Kits')
+        self.panel.kits_root.setText('/Vieja')
+        with patch('loop_kit_panel._picker', fake_picker), \
+                patch.object(self.panel, 'read_categories') as read:
+            self.panel.btn_pick_root.click()
+            self.assertEqual(picked, ['/Vieja'])  # abre donde estaba
+            self.assertEqual(self.panel.kits_root.text(), '/Tienda/Kits')
+            read.assert_called_once_with()  # y lee las categorías solo
+            self.panel.refs_root.clear()
+            self.panel.btn_pick_refs.click()
+            self.assertEqual(self.panel.refs_root.text(), '/Tienda/Kits')
+            read.assert_called_once_with()
+        from core import dropbox_layout
+        self.assertEqual(picked[-1], dropbox_layout.KITS_REFS_DIR)  # vacía: abre en la estándar
+
+    def test_reference_folder_with_spaces_is_valid(self):
+        from core import dropbox_layout
+        self.assertIn(' ', dropbox_layout.KITS_REFS_DIR)  # «/Soft Projects/...»
+        form = {'slots': [{'weekday': 6, 'hour': 18, 'minute': 0}], 'genres': ['trap'],
+                'refs_root': dropbox_layout.KITS_REFS_DIR, 'cover_mode': 'auto'}
+        try:
+            settings = kit_settings.validate_settings(form)
+        except kit_settings.SettingsError as exc:
+            self.assertNotIn('referencias', str(exc))  # puede faltar otro dato, no este
+        else:
+            self.assertEqual(settings['refs_root'], dropbox_layout.KITS_REFS_DIR)
+        with self.assertRaises(kit_settings.SettingsError):
+            kit_settings.validate_settings(dict(form, refs_root='sin/barra'))
 
 
 class WorkerChannelTests(unittest.TestCase):

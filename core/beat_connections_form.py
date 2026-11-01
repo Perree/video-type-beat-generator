@@ -128,7 +128,7 @@ class BeatConnectionsForm(ConnectionsMixin):
             self._set_light('youtube', *status.secrets_badge(names[1:]))
         else:
             self._set_light('youtube', status.UNKNOWN, 'Falta el actions_slug del canal')
-        self._set_light('dropbox', *status.secrets_badge(status.KIT_DROPBOX_KEYS))
+        self._set_light('dropbox', *status.shared_badge(status.KIT_DROPBOX_KEYS, status.ENV))
         self._set_light('notion', *status.secrets_badge(status.NOTION_KEYS))
         gh = status.gh_auth_status()
         self._set_gh_light(gh)
