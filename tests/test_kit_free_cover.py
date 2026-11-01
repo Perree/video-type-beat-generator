@@ -91,6 +91,21 @@ class FreeBackgroundTests(unittest.TestCase):
             self.assertEqual(seen, [folder, folder + '/fondos'])
             self.assertEqual(refs, [folder + '/fondos/fondo.jpg'])
 
+    def test_jfif_backgrounds_count_as_images(self):
+        """Las fotos que baja el navegador vienen en .jfif (es JPEG): tienen que servir de fondo."""
+        folder = ROOT + '/reggaeton_house'
+
+        def listing(path, dbx=None):
+            if path.endswith('/fondos'):
+                return _entries(path, ['foto.jfif'])
+            return [{'name': 'fondos', 'path': folder + '/fondos', 'is_folder': True},
+                    *_entries(path, ['modelo.png'])]
+        fetch, _ = _fake_fetch()
+        with mock.patch.object(dropbox_client, 'list_folder_entries', side_effect=listing):
+            _, refs = kit_art.free_background(self.cfg('dropbox'), None, random.Random(1),
+                                              self.tmp.name, now=NOW, fetch=fetch)
+        self.assertEqual(refs, [folder + '/fondos/foto.jfif'])
+
     def test_empty_backgrounds_folder_falls_back_to_genre_folder(self):
         folder = ROOT + '/reggaeton_house'
 

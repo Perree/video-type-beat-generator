@@ -11,7 +11,7 @@ import os
 APP_CONFIG_FILE = os.path.join('config', 'dropbox_app.json')
 TOKEN_FILE = os.path.join('tokens', 'dropbox.json')
 AUDIO_EXTENSIONS = ('.mp3', '.wav')
-IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.webp')
+IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.jfif', '.png', '.webp')  # .jfif = JPEG (lo que baja el navegador)
 
 
 class DropboxError(Exception):
