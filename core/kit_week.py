@@ -11,7 +11,7 @@ import os
 import tempfile
 from datetime import timedelta
 
-from core import (kit_art, kit_audio, kit_catalog, kit_cloud, kit_cover, kit_cycle, kit_names,
+from core import (kit_art, kit_audio, kit_autoadd, kit_catalog, kit_cloud, kit_cover, kit_cycle, kit_names,
                   kit_seo, kit_settings, kit_source, kit_spend)
 from core import kit_publish
 from core.kit_publish import publish_preview
@@ -75,14 +75,17 @@ def candidates(packs, catalog, require_images=True):
 
 
 def open_week(app_config, state, history, now, rng, *, dbx=None, exclude=(), list_packs_fn=None,
-              kits_path=None):
+              kits_path=None, channel_link=None):
     """Kits de la semana en orden de prioridad (primero el que hace más que no sale).
 
     Entre kits con la misma prioridad manda el orden del recorrido: las categorías de
     ``kit_preview.scan_folders`` y, dentro de cada una, el orden de las carpetas.
+    Los kits de Dropbox que el catálogo no tiene entran solos con ``channel_link``
+    (``kit_autoadd``); guardarlos en ``kits.json`` le toca al worker.
 
     Returns:
-        dict ``{queue, entries, warnings}``; ``queue`` son selecciones de ``kit_cycle.pick_week``.
+        dict ``{queue, entries, warnings, added}``; ``queue`` son selecciones de
+        ``kit_cycle.pick_week`` y ``added`` las entradas nuevas del catálogo.
     """
     kit_cfg = app_config.get('kit_preview') or {}
     root = str(kit_cfg.get('dropbox_root') or '').strip()
@@ -93,12 +96,19 @@ def open_week(app_config, state, history, now, rng, *, dbx=None, exclude=(), lis
         scan=kit_source.scan_settings(kit_cfg))
     # Con portada generada (auto o plantilla) el kit no necesita imágenes propias.
     require_images = not kit_art.generates(kit_cfg)
-    pool, entries, warnings = candidates(
-        packs, load_catalog(app_config, dbx=dbx, path=kits_path), require_images)
+    catalog = load_catalog(app_config, dbx=dbx, path=kits_path)
+    added, warnings = [], []
+    if catalog is not None:
+        added, warnings = kit_autoadd.new_entries(
+            packs, catalog, kit_catalog.configured_genres(app_config), channel_link)
+        catalog = catalog + added
+    pool, entries, more = candidates(packs, catalog, require_images)
+    warnings += more
     picked = kit_cycle.pick_week(
         pool, state, history, now, rng, kit_cycle.settings(kit_cfg), exclude=exclude,
         require_images=require_images, limit=len(pool), keep_order=True)
-    return {'queue': picked['selections'], 'entries': entries, 'warnings': warnings}
+    return {'queue': picked['selections'], 'entries': entries, 'warnings': warnings,
+            'added': added}
 
 
 def _image_local(image, dest_dir, dbx):

@@ -38,6 +38,14 @@ Qué kits salen y cómo se arma cada video lo decide `core/kit_week.py`:
 - Solo entran los kits de `kits.json` (panel de la app) activos, con link y con carpeta en Dropbox; las carpetas que
   empiezan con `_` y los kits sin loops quedan afuera. Un kit sin imágenes solo entra con `cover_mode: "auto"` (el
   fondo se genera); con `manual` necesita su `images/`. Sin `kits.json` se usan todas las carpetas y el link del canal.
+- **Kits nuevos solos** (`core/kit_autoadd.py`): en cada corrida, una carpeta con loops de las categorías del canal
+  que no está en su `kits.json` entra a la rueda con el link del canal (`channels.<canal>.link`) y queda anotada en
+  `kits.json` (se relee y se escribe con el `rev`, sin pisar lo que se cargó en el panel; si choca, el kit sale igual
+  y se anota la próxima corrida). Género: si el canal tiene uno solo, ese; con varios, el que se llama igual que la
+  categoría; si no, queda afuera y Telegram avisa para completarlo en el panel. Sin link en el canal tampoco entra.
+  Como cada canal solo revisa sus `scan_folders`, un kit nuevo nunca cae en un canal que no mira esa categoría.
+  No se suman copias (` (1)`), carpetas con `_` ni kits que ya estén en el catálogo (aunque estén inactivos o sin
+  link). Para cambiarle el link o apagarlo, se edita en el panel como cualquier kit. `--dry-run` no anota nada.
 - Sale primero el kit que hace más que no se usa; entre kits parejos manda el orden de `scan_folders` y, dentro de
   cada categoría, el de las carpetas. Cada kit hace hasta `cycle_max_videos` (3) videos y descansa `cycle_rest_days`
   (30); entre dos usos pasan al menos `kit_min_gap_days` (7).

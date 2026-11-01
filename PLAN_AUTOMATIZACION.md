@@ -1122,3 +1122,14 @@ estados de automatización. Una fase por sesión. Migración SQL: no.
   Telegram abre con «ACCIÓN NECESARIA» y los pasos de Mis canales → «Arreglar».
 - Pruebas en `tests/test_beat_daily.py`.
 - Pendiente del usuario: reconfigurar mattwyyre desde Mis canales y probar sin subir antes de activarlo.
+
+## Loop kits — Kits nuevos entran solos a la rueda ✅ COMPLETADA (2026-11-01)
+
+- `core/kit_autoadd.py`: en cada corrida, las carpetas con loops de las categorías del canal que no están en su
+  `kits.json` entran con el link del canal. Género: el único del canal, o el que se llama como la categoría; si no,
+  queda afuera y Telegram avisa. Sin link en el canal no entra nadie. Copias ` (N)`, carpetas `_` y kits ya
+  cargados (aunque estén apagados) no se tocan.
+- `kit_week.open_week(channel_link=…)` los suma en memoria; `run_kit_weekly.save_new_kits` los anota en el
+  `kits.json` del canal por CAS (relee, agrega solo lo que falta, reintenta). Si falla, salen igual y se reintenta
+  la próxima corrida. `--dry-run` no escribe.
+- Pruebas: `tests/test_kit_autoadd.py`. Doc: `docs/KIT_WEEKLY.md`.

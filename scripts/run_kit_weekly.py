@@ -167,6 +167,24 @@ def _with_warnings(text, warnings):
     return text if not unique else text + "\nAvisos:\n" + "\n".join(f"- {w}" for w in unique)
 
 
+def save_new_kits(added, app_config, dbx, path, dry_run):
+    """Anota en ``kits.json`` los kits nuevos que entraron solos; devuelve avisos.
+
+    En dry-run no escribe. Si no se puede guardar, el kit igual sale esta semana y se
+    vuelve a intentar en la próxima corrida.
+    """
+    from core import kit_autoadd, kit_catalog, kit_settings
+    if dry_run:
+        return ["Probar sin subir: los kits nuevos no se anotan en el catálogo."]
+    path = path or kit_settings.KITS_PATH
+    try:
+        kit_autoadd.persist(path, added, kit_catalog.configured_genres(app_config), dbx=dbx)
+    except Exception:
+        return ["No se pudieron anotar los kits nuevos en el catálogo: salen igual y se "
+                "vuelve a probar la próxima corrida."]
+    return []
+
+
 def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, now=None,
                seed=None, notifier=kit_notify, output_dir=None, hooks=None, paths=None,
                label=None, calendar_fn=None):
@@ -255,9 +273,13 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
             week = kit_week.open_week(
                 app_config, state, store.selection_history(), now_local, rng, dbx=dbx,
                 exclude=sorted(used), list_packs_fn=hooks.get('list_packs_fn'),
+                channel_link=channel_templates.get('link'),
                 **({'kits_path': paths.kits} if own else {}))
             queue = list(week['queue'])
             warnings += week['warnings']
+            if week.get('added'):
+                warnings += save_new_kits(week['added'], app_config, dbx,
+                                          paths.kits if own else None, dry_run)
             if not dry_run and queue and any(iso not in taken for iso in proposed):
                 # Ficha de SEO de la semana según el informe de tendencias (Notion), solo para
                 # los géneros de los kits de hoy. Nunca levanta: sin informe o sin secretos se
