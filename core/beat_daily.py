@@ -39,6 +39,11 @@ def _note_calendar(summary, exc):
     note(summary, 'calendar_read_failed' if code.startswith('error_') else code)
 
 
+def channel_thumbnailer(channel, thumbnailer):
+    """``None`` si el canal no sube miniatura propia (``visual.custom_thumbnail: false``)."""
+    return thumbnailer if options(channel).get('custom_thumbnail', True) else None
+
+
 def visual_genre(channel, track):
     # Genre folders are channel configuration, not a catalog eligibility rule.
     genres = channel.get('genres', [])
@@ -221,7 +226,8 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
                     seo = dict(seo, selected=dict(selected, description=selected['description'].replace(
                         '{url}', link or beat_url(track))))
                     outcome = publish(cloud, job, media, seo, uploader, receipts, clock,
-                                      thumbnailer=thumbnailer, private_pilot=private_pilot,
+                                      thumbnailer=channel_thumbnailer(channel, thumbnailer),
+                                      private_pilot=private_pilot,
                                       expected_owner=channel.get('youtube_channel_id'), selection_track=track,
                                       on_error=lambda exc: note(summary, exc))
                     summary[outcome] += 1

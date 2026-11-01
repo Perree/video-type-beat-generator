@@ -19,6 +19,10 @@ def options(channel):
     result.update(raw)
     if type(result.get('plain_image', False)) is not bool:
         raise ValueError('invalid_plain_image')
+    # custom_thumbnail: False → no se sube miniatura; YouTube usa un cuadro del video
+    # (canales sin verificación por teléfono, donde thumbnails.set falla siempre).
+    if type(result.get('custom_thumbnail', True)) is not bool:
+        raise ValueError('invalid_custom_thumbnail')
     if (result['mode'] not in ('image', 'video', 'alternate')
             or result['video_source'] not in ('local', 'dropbox')
             or result['thumbnail_source'] not in ('auto', 'local', 'dropbox')):
