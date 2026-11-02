@@ -14,7 +14,7 @@ def telegram_probe():
     chat = os.environ['KIT_TELEGRAM_CHAT_ID'].strip()
     for method, body in [('getMe', {}), ('getChat', {'chat_id': chat}),
                          ('sendMessage', {'chat_id': chat, 'text':
-                          'Type Beat Generator: avisos compartidos para todos los canales conectados. Prueba correcta.'})]:
+                          'Type Beat Generator: configuración de Telegram verificada (' + os.environ.get('TELEGRAM_SOURCE', 'repo') + ').'})]:
         request = urllib.request.Request('https://api.telegram.org/bot' + token + '/' + method,
             data=json.dumps(body).encode(), headers={'Content-Type': 'application/json'})
         try:

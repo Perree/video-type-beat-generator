@@ -4,7 +4,7 @@ on:
     inputs:
       operation:
         type: choice
-        options: [telegram, guitars]
+        options: [telegram, telegram-channels, guitars]
         default: telegram
       apply:
         type: boolean
@@ -12,6 +12,22 @@ on:
 permissions:
   contents: read
 jobs:
+  telegram-channels:
+    if: inputs.operation == 'telegram-channels' && github.ref == 'refs/heads/master'
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [kit-weekly, kit-weekly-wyreguitars]
+    environment: ${{ matrix.environment }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - run: python3 -m core.automation_maintenance telegram
+        env:
+          KIT_TELEGRAM_TOKEN: ${{ secrets.KIT_TELEGRAM_TOKEN }}
+          KIT_TELEGRAM_CHAT_ID: ${{ secrets.KIT_TELEGRAM_CHAT_ID }}
+          TELEGRAM_SOURCE: ${{ matrix.environment }}
   telegram:
     if: inputs.operation == 'telegram' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-24.04
