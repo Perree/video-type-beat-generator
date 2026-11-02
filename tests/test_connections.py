@@ -119,11 +119,26 @@ class ConnectionsViewTests(unittest.TestCase):
         gh_status.default().invalidate()
         wizard.update_state()
         self.assertTrue(wizard.btn_next.isEnabled())
-        wizard.btn_next.click()
-        self.assertTrue(wait_until(lambda: wizard.index == 1))
-        self.assertEqual(self.gh.value("kit-weekly", "KIT_TELEGRAM_CHAT_ID"), "999")
+        with mock.patch('core.kit_notify.send') as send:
+            wizard.btn_next.click()
+            self.assertTrue(wait_until(lambda: wizard.index == 1))
+        send.assert_called_once()
+        self.assertEqual(self.gh.value(None, "AUTOMATION_TELEGRAM_CHAT_ID"), "999")
         for args, _stdin in self.gh.calls:
             self.assertNotIn("123:ABC", args)  # los valores viajan por stdin, nunca como argumento
+
+    def test_telegram_probe_displays_actionable_error(self):
+        from core.kit_notify import KitNotifyError
+        from PyQt5.QtWidgets import QLabel
+        wizard = self.view.open('telegram')
+        for field, value in zip(fields(wizard), ('123:ABC', '999')):
+            field.setText(value)
+        with mock.patch('core.kit_notify.send', side_effect=KitNotifyError('Chat no encontrado. Enviá /start.')):
+            button(wizard, 'Probar').click()
+            self.assertTrue(wait_until(lambda: any('Chat no encontrado' in label.text()
+                for label in wizard.stack.currentWidget().findChildren(QLabel))))
+        self.assertEqual(wizard.index, 0)
+        self.assertEqual(fields(wizard)[0].text(), '123:ABC')
 
     def test_cloud_prep_needs_dropbox(self):
         prep = self.view.connection("cloud_prep")

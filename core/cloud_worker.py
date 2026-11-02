@@ -16,7 +16,8 @@ _ORPHANS = set()  # hilos soltados al cerrar un panel: viven hasta terminar solo
 
 def _safe_errors():
     from scripts.kit_secrets_sync import SyncError
-    return (AutomationError, LoginError, GhError, YouTubeError, SyncError)
+    from core.kit_notify import KitNotifyError
+    return (AutomationError, LoginError, GhError, YouTubeError, SyncError, KitNotifyError)
 
 
 class CallWorker(QThread):

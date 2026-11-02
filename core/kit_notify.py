@@ -38,7 +38,8 @@ def _post(token, method, body, content_type):
             ok = json.loads(kit_http.read_response(resp, 65536).decode('utf-8')).get('ok')
     except Exception as e:
         # Solo el tipo: el texto del error puede traer la URL con el token.
-        raise KitNotifyError(f"Telegram no respondió ({type(e).__name__}).") from None
+        from core.telegram_errors import message
+        raise KitNotifyError(message(e)) from None
     if not ok:
         raise KitNotifyError("Telegram rechazó el mensaje.")
 

@@ -1,5 +1,15 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Corrección incremental — Motivo visible en la prueba de Telegram ✅ COMPLETADA (2026-11-01)
+- La pantalla de Conexiones ocultaba KitNotifyError bajo «La prueba falló», incluso con una respuesta
+  específica de Telegram. Ahora muestra mensajes propios para token rechazado, chat no encontrado,
+  bot bloqueado/sin permisos, límite temporal, errores de red y certificados; nunca el texto remoto ni tokens.
+- Cambio aislado en core/telegram_errors.py, kit_notify.py y cloud_worker.py. Sin cambios de secretos
+  ni del calendario. El test del asistente ya simula el envío y comprueba el secreto global en el repo.
+- Validación: 20 tests offline aprobados (incluida UI y ocultamiento de errores externos), diff limpio;
+  conexión HTTPS local a Telegram confirmada con credencial ficticia. La causa del fallo con los datos
+  nuevos del usuario sigue pendiente de reintentar la prueba en la app reiniciada.
+
 ## Ajuste WyreGuitars y Telegram compartido — EN CURSO (2026-11-01)
 - Solicitado: WyreGuitars solo martes/jueves 10:00 Argentina, incluyendo videos futuros ya programados.
 - Preparado: mantenimiento explícito con lectura previa, lock por canal, actualización de configuración,
