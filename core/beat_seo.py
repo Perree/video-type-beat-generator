@@ -5,6 +5,7 @@ import json
 import re
 import unicodedata
 from core.beat_names import clean_name
+from core import beat_latin_seo
 from core.beat_seo_report import fields, text, texts, moment, parse_report, validate_report
 
 
@@ -16,8 +17,8 @@ def digest(value):
 PLACEHOLDERS = ('{name}', '{url}')
 
 
-def _plain(value):
-    for token in PLACEHOLDERS:
+def _plain(value, latin=False):
+    for token in PLACEHOLDERS + (beat_latin_seo.TOKENS if latin else ()):
         value = value.replace(token, 'x')
     return value
 
@@ -27,18 +28,22 @@ def manual_profile(channel):
     profile = deepcopy(channel.get('seo', {
         'tags': channel.get('tags', []), 'description': ''}))
     # title_template is optional so snapshots created before it existed stay valid.
-    fields(profile, ('tags', 'description') + (('title_template',) if 'title_template' in profile else ()))
+    fields(profile, ('tags', 'description') + (('title_template',) if 'title_template' in profile else ())
+           + (('title_mode',) if 'title_mode' in profile else ()))
+    if 'title_mode' in profile and (profile['title_mode'] != beat_latin_seo.MODE
+            or not all(token in profile.get('title_template', '') for token in ('{artists}', '{style}'))):
+        raise ValueError('seo_title_mode_invalid')
     texts(profile['tags'])
     description = profile['description']
     if description != '':
         if type(description) is not str:
             raise ValueError('seo_text_invalid')
-        text(_plain(description).replace(chr(10), ' '), 4000)
+        text(_plain(description, profile.get('title_mode') == beat_latin_seo.MODE).replace(chr(10), ' '), 4000)
     if 'title_template' in profile:
         template = profile['title_template']
         if type(template) is not str or '{name}' not in template:
             raise ValueError('seo_text_invalid')
-        text(_plain(template), 90)
+        text(_plain(template, profile.get('title_mode') == beat_latin_seo.MODE), 90)
     return cid, profile
 
 
@@ -58,10 +63,12 @@ def track_input(track):
     tid = track.get('id')
     if type(tid) is not str or not re.fullmatch(r'TK[0-9]{1,20}', tid):
         raise ValueError('seo_track_invalid')
-    return {'id': tid, 'title': text(track.get('title'), 500), 'tags': texts(track.get('tags'))}
+    return {'id': tid, 'title': text(track.get('title').replace('\u200d', '') if isinstance(track.get('title'), str) else None, 500), 'tags': texts(track.get('tags'))}
 
 
 def candidates(track, profile, scores):
+    if profile.get('title_mode') == beat_latin_seo.MODE:
+        return beat_latin_seo.variants(track, profile)
     template = profile.get('title_template')
     if template:
         # Fixed title and tag list; only the beat name and link change. Repeats rotate the tag order.
@@ -85,6 +92,12 @@ def candidates(track, profile, scores):
             raise ValueError('seo_title_too_long')
         options.append({'title': title, 'tags': []})
     return options
+
+
+def description(profile, track, option, link=None):
+    value = (beat_latin_seo.description(profile, track, option)
+             if profile.get('title_mode') == beat_latin_seo.MODE else profile['description'])
+    return render(value, track, link)
 
 
 def build_snapshot(job, track, channel, now, payload=None, cached=None, *, previous_selected=None):
@@ -126,7 +139,7 @@ def build_snapshot(job, track, channel, now, payload=None, cached=None, *, previ
         'track': track, 'manual': profile, 'as_of': now, 'source': source,
         'report_hash': digest(report) if report else None,
         'scores': scores, 'candidates': options,
-        'selected': dict(eligible[0], description=render(profile['description'], track))}
+        'selected': dict(eligible[0], description=description(profile, track, eligible[0]))}
     snapshot['sha256'] = digest(snapshot)
     cache = {'manual_hash': fingerprint, 'report': deepcopy(report)} if source == 'report' else None
     return snapshot, cache
@@ -161,10 +174,10 @@ def validate_snapshot(snapshot, job):
     options = candidates(track, profile, scores)
     # Pre-review v1 snapshots repeated the manual description in every option.
     # Accept that equivalent encoding on replay; new snapshots store it once.
-    legacy = [dict(option, description=render(profile['description'], track)) for option in options]
+    legacy = [dict(option, description=description(profile, track, option)) for option in options]
     chosen = options if job['cycle'] > 1 else options[:1]
     # Early snapshots stored the page URL instead of the {url} placeholder.
-    selections = [dict(option, description=render(profile['description'], track, link))
+    selections = [dict(option, description=description(profile, track, option, link))
                   for option in chosen for link in (None, beat_url(track))]
     if (snapshot['candidates'] != options and snapshot['candidates'] != legacy
             or snapshot['selected'] not in selections):

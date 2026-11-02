@@ -96,3 +96,18 @@ py -3 scripts/migrate_to_cloud.py --kits-default WyreSounds --apply --force   # 
 ```
 
 `--apply` relee cada documento y confirma «verificado». El tipo y el slug quedan inmutables.
+
+## mattwyyre: títulos latinos por tags (2026-11-02)
+
+`seo.title_mode=latin_v1` habilita títulos deterministas por track: `(FREE) {artists} - "{name}" | {style} Type Beat 2026`.
+El estilo sale de tags explícitos (Latin Trap, Reggaeton, Trap/R&B, Reggaeton R&B); un tag genérico R&B o trap no habilita el canal.
+Se priorizan artistas presentes en los tags entre Mora, Omar Courtz, Bad Bunny y Feid; si faltan se usan parejas del nicho solicitado.
+Los tags son evidencia editorial, no análisis del audio. El ID del beat distribuye las variantes de forma estable; reintentos conservan título y descripción.
+Las republicaciones eligen otra variante compatible. El nombre se acorta si supera el límite de 100 caracteres.
+La descripción comparte artistas/estilo con el título; BPM y tono se extraen del nombre original y la línea se omite si falta alguno.
+El enlace del beat se resuelve con `{url}` como antes. No se incluyen enlaces ficticios de beats similares.
+El puente de plantillas permite `{artists}`, `{style}`, `{bpm}` y `{key}` solo con ese modo habilitado.
+
+Configuración: lunes, miércoles y viernes a las 10:00 de Buenos Aires; imagen fija sin texto, usando las imágenes existentes del canal.
+El snapshot de catálogo revisado contiene 1.142 tracks, 119 elegibles; 18 JFIF válidos se copiaron a la carpeta de fondos del worker.
+Los respaldos privados de la configuración y el catálogo quedan en `tokens/`, fuera de Git.

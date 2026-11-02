@@ -25,7 +25,10 @@ def apply_channel_templates(channel, saved):
                 if not isinstance(replacement, str):
                     raise ValueError('channel_template_value_invalid')
                 value = value.replace(token, replacement)
-        if set(re.findall(r'\{([^{}]+)\}', value)) - {'name', 'url'}:
+        allowed = {'name', 'url'}
+        if profile.get('title_mode') == 'latin_v1':
+            allowed.update(('artists', 'style', 'bpm', 'key'))
+        if set(re.findall(r'\{([^{}]+)\}', value)) - allowed:
             raise ValueError('channel_template_placeholder_unsupported')
         return value
     profile.update(title_template=compile_template(title), description=compile_template(description))
