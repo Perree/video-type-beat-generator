@@ -12,3 +12,10 @@ def _offline_credentials():
     yield
     gh_status.set_default(previous_gh)
     cloud_login.set_backend(previous_kr)
+
+
+@pytest.fixture(autouse=True)
+def _exact_schedule(monkeypatch):
+    """Los tests viejos esperan horarios exactos; la variación se prueba en test_human_schedule."""
+    from core import human_schedule
+    monkeypatch.setattr(human_schedule, 'DEFAULT', {'minutes': 0, 'days': 0})

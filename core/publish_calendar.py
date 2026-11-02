@@ -7,6 +7,7 @@ que ya están ocupados. Las fases siguientes saltan un día de cron si está en 
 """
 from datetime import datetime, date, timedelta
 
+from core import human_schedule
 from core.beat_schema import BA, instant
 
 _PRIVACIES = ('private', 'public', 'unlisted')
@@ -107,4 +108,7 @@ def next_free_slots(slots, now, occupied_days, count, horizon_days, *, tz=None):
             break
         if slot_day(cur, tz) not in taken:
             found.append(cur)
+            if any(human_schedule.varies(s) for s in slots):
+                # Con variación dos horarios pueden caer el mismo día: uno por día.
+                taken.add(slot_day(cur, tz))
     return found

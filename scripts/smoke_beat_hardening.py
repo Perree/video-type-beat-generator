@@ -26,6 +26,8 @@ def main():
     from core.cloud_fakes import FakeGhRun, MemoryKeyring
     gh_status.set_default(gh_status.GhStatus(run=FakeGhRun()))
     cloud_login.set_backend(MemoryKeyring())
+    from core import human_schedule
+    human_schedule.DEFAULT = {'minutes': 0, 'days': 0}  # horarios exactos, como en conftest
     suite = unittest.TestSuite()
     for path in test_paths(args.worker_only):
         suite.addTests(unittest.defaultTestLoader.discover(str(root / 'tests'), pattern=path.name))

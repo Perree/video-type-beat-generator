@@ -9,7 +9,7 @@ o programación no permitida), reintenta el mismo archivo en privado y deja
 import re
 from datetime import datetime, timedelta
 
-from core import channel_templates, description, kit_store, youtube
+from core import channel_templates, description, human_schedule, kit_store, youtube
 from core.publish_at import local_to_youtube_publish_at
 
 # weekday: lunes=0 … domingo=6 (datetime.weekday).
@@ -76,6 +76,13 @@ def next_slot(now, slots):
         days = (weekday - now.weekday()) % 7
         candidate = (now + timedelta(days=days)).replace(
             hour=hour, minute=minute, second=0, microsecond=0)
+        if human_schedule.varies(slot):
+            # Con variación, la hora final puede caer antes o después de la base:
+            # se miran las semanas vecinas y gana la primera hora final posterior a now.
+            finals = (human_schedule.vary(candidate + timedelta(days=7 * k), slot)
+                      for k in range(-1, 3))
+            found.append(min(v for v in finals if v > now))
+            continue
         # El slot de hoy ya pasó (o es este mismo instante): la próxima semana.
         if candidate <= now:
             candidate += timedelta(days=7)

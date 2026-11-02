@@ -11,7 +11,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from core import kit_store
+from core import human_schedule, kit_store
+
+human_schedule.DEFAULT = {'minutes': 0, 'days': 0}  # el smoke espera horarios exactos
 from core.kit_publish import DEFAULT_SLOTS, next_slot
 from core.publish_at import local_to_youtube_publish_at
 SCRIPTS = os.path.join(ROOT, 'scripts')

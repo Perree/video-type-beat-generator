@@ -2,6 +2,7 @@
 from copy import deepcopy
 from datetime import timedelta
 import hashlib
+from core import human_schedule
 from core.beat_schema import identity, instant, migrate
 from core.beat_rotation import repeat_ready, publication_time
 from core.beat_performance import performance, choose
@@ -11,16 +12,35 @@ from core.beat_selection import eligible_tracks
 def slots(channel, now):
     start = instant(now)
     end = start + timedelta(days=14)
+    specs = human_schedule.annotate(channel["slots"], channel.get("human_schedule"))
+    pad = max(int(s["vary_days"]) for s in specs) + 1
     result = []
-    for offset in range(15):
+    for offset in range(-pad, 15 + pad):
         day = start.date() + timedelta(days=offset)
-        for spec in channel["slots"]:
+        for spec in specs:
             if day.weekday() == spec["weekday"]:
-                value = start.replace(year=day.year, month=day.month, day=day.day,
-                                      hour=spec["hour"], minute=spec["minute"], second=0, microsecond=0)
+                base = start.replace(year=day.year, month=day.month, day=day.day,
+                                     hour=spec["hour"], minute=spec["minute"], second=0, microsecond=0)
+                # Variación estable por canal y fecha: replanificar da el mismo horario.
+                value = instant(human_schedule.vary(base, spec, channel["id"]))
                 if start < value <= end:
                     result.append(value)
     return sorted(set(result))
+
+
+def _one_per_day(channel, queue, jobs):
+    """Con variación, un video por día y canal (también frente a trabajos ya planificados)."""
+    cfg = human_schedule.settings(channel.get("human_schedule"))
+    if not cfg["minutes"] and not cfg["days"]:
+        return queue
+    days = {instant(j["slot"]).date() for j in jobs
+            if j["channel"] == channel["id"] and not j.get("lost") and j["status"] != "cancelled"}
+    kept = []
+    for value in queue:
+        if value.date() not in days:
+            days.add(value.date())
+            kept.append(value)
+    return kept
 
 
 def plan(config, state, tracks, now, *, seed=None, reports=None, occupied_days=()):
@@ -50,6 +70,7 @@ def plan(config, state, tracks, now, *, seed=None, reports=None, occupied_days=(
                          # Se compara la fecha porque cualquier hora ocupada bloquea todo el día local.
                          and instant(s).date() not in occupied_days]
               for ch in channels}
+    queues = {ch["id"]: _one_per_day(ch, queues[ch["id"]], state["jobs"].values()) for ch in channels}
     jobs = list(state["jobs"].values())
     attempted_ids = {entry['job_id'] for entries in state['attempts'].values()
                      for entry in entries.values()}

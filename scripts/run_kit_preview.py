@@ -21,6 +21,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from core import kit_art, kit_cover, kit_names, kit_source, kit_store
+from core import human_schedule
 from core.kit_publish import DEFAULT_SLOTS, next_slot, publish_preview
 from core.kit_render import render as kit_render
 from core.kit_select import KitSelectError, choose
@@ -154,7 +155,8 @@ def run_preview(
     store = store or kit_store
     when = now or datetime.now()
     kit_cfg = app_config.get('kit_preview') or {}
-    slots = kit_cfg.get('slots') or list(DEFAULT_SLOTS)
+    slots = human_schedule.annotate(kit_cfg.get('slots') or list(DEFAULT_SLOTS),
+                                    kit_cfg.get('human_schedule'))
     slot = next_slot(when, slots)
     publish_iso = local_to_youtube_publish_at(True, slot, tz=tz)
 

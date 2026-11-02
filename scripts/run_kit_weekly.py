@@ -29,6 +29,7 @@ if SCRIPTS not in sys.path:
 
 from core import (kit_art, kit_channel, kit_cloud, kit_notify, kit_settings, kit_spend,
                   kit_state, kit_trends)
+from core import human_schedule
 from core.kit_publish import DEFAULT_SLOTS, next_slot
 from core.publish_at import local_to_youtube_publish_at
 from core.publish_calendar import next_free_slots, occupied_days, slot_day
@@ -211,7 +212,8 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
     tz = local_tz()
     now_local = now or datetime.now(tz).replace(tzinfo=None)
     kit_cfg = app_config.get('kit_preview') or {}
-    slots_cfg = kit_cfg.get('slots') or list(DEFAULT_SLOTS)
+    slots_cfg = human_schedule.annotate(kit_cfg.get('slots') or list(DEFAULT_SLOTS),
+                                        kit_cfg.get('human_schedule'))
     # Un video por horario configurado, hasta SLOTS_PER_WEEK: con un solo horario sale uno.
     count = min(len(slots_cfg), SLOTS_PER_WEEK)
     slots, proposed = [], []

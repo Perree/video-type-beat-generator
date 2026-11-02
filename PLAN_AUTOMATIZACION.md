@@ -1,5 +1,17 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Horarios con variación humana ✅ COMPLETADA (2026-11-02)
+- `core/human_schedule.py`: cada horario se corre ±45 min y ~30% de las semanas ±1 día. Es estable
+  (hash de fecha + horario, en Beats también del canal): replanificar da el mismo horario, sin duplicados.
+- Activo por defecto en Type Beats (`beat_schedule.slots`) y Loop kits (`kit_publish.next_slot`, workers
+  semanal y preview). Con variación: un video por día y canal; un trabajo viejo a hora exacta bloquea su día.
+- Config por canal `human_schedule`: `{"minutes": 0..180, "days": 0..2}` o `false` para horario exacto.
+  En kits va dentro de `kit_preview`; el panel de la app la conserva al guardar.
+- Tests y smokes viejos usan horario exacto (conftest/smokes); 8 tests nuevos en `test_human_schedule.py`.
+  Suite: 705 ok; las 4 fallas previas son del entorno (llavero/CLI) y ya fallaban antes del cambio.
+- No se sabe que YouTube use la regularidad del horario para detectar spam; lo que pesa es contenido
+  repetitivo o metadata engañosa. La variación es cosmética y no reemplaza variar títulos/miniaturas.
+
 ## Configuración y activación de WyreAfro ✅ COMPLETADA
 - Canal @wyreafro, configuración y catálogo propios en datos/loop_kits/wyreafro, registro e índice.
   Solo kits de reguetón/house por nombre y catálogo: excluidas guitarras mal etiquetadas. Tres activos
@@ -1135,7 +1147,8 @@ estados de automatización. Una fase por sesión. Migración SQL: no.
   (del título). El .beatstars.txt guarda el link corto y el hash de recuperación usa ese texto; paquetes anteriores siguen válidos.
 - Generación: videos y miniaturas de la tanda juntos en <salida>/<fecha>/<canal>/ y un único info.txt por tanda
   (archivo, BPM, tono, link, TÍTULO/DESCRIPCIÓN/TAGS). Etiquetas del beat (≤500 caracteres); sin metadata, las del perfil.
-  ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de estilos). main.py sin cambios.
+  
+ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de estilos). main.py sin cambios.
 - Guía: docs/MANUAL_BEATSTARS.md. Pruebas nuevas en 	est_manual_beatstars_files.py y flujo/render actualizados.
 
 ## Loop kits — Portada sin IA cuando falla la API de imágenes ✅ COMPLETADA (2026-10-31)
