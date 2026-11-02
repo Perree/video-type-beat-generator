@@ -56,6 +56,11 @@ def main(argv=None):
             if notifier is not None and slug:
                 # Con varios canales en el mismo chat, el mensaje dice de cuál es.
                 notifier = _with_slug(notifier, slug)
+            if notifier is not None:
+                try:
+                    notifier({'event': 'started'})
+                except Exception:
+                    pass
             channel = os.environ['BEAT_CHANNEL_ID']
             transport = DropboxTransport.from_env()
             assets = DropboxAssets.from_env()

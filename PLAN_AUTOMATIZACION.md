@@ -1,5 +1,16 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Ajuste WyreGuitars y Telegram compartido — EN CURSO (2026-11-02)
+- Solicitado: WyreGuitars solo martes/jueves 10:00 Argentina, incluyendo videos futuros ya programados.
+- Preparado: mantenimiento explícito con lectura previa, lock por canal, actualización de configuración,
+  fechas de YouTube y recibos en Dropbox, con verificación posterior por video.
+- Telegram se guarda una vez a nivel repositorio; los canales nuevos lo heredan. La conexión se prueba
+  antes de guardarla. Avisos de inicio y resultado; un fallo de aviso no se cuenta como fallo de subida.
+- Validación: 17 pruebas de configuración/horarios y regresión que comprueba que el fallo de aviso
+  no repite seis subidas aprobadas; compilación y diff sin errores.
+- Pendiente: autorización explícita para publicar en master (push rechazado por revisión automática),
+  prueba real de Telegram, retirar las copias antiguas de Telegram en Environments y aplicar/revisar fechas.
+
 ## Context
 La app (PyQt, `main.py` 2055 líneas) genera videos con FFmpeg pero la publicación y la promoción son manuales.
 Objetivo: reducir tiempo de creación → subida. Dolor principal: subir a YouTube y armar la descripción

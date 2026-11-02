@@ -206,6 +206,8 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
     if label:
         notifier = kit_channel.Prefixed(notifier, label)
         hooks.setdefault('art_notify', notifier.send)
+    if not dry_run:
+        _notify(notifier, 'Automatización de Loop kits iniciada: revisando calendario y kits pendientes.')
     tz = local_tz()
     now_local = now or datetime.now(tz).replace(tzinfo=None)
     kit_cfg = app_config.get('kit_preview') or {}

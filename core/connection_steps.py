@@ -436,6 +436,7 @@ class Telegram(_SecretsConnection):
         return status.kit_telegram_status()
 
     def save(self, values):
+        self.test(values)
         return status.save_kit_keys(values)
 
     def test(self, values):

@@ -260,5 +260,6 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
             try:
                 notify(summary)
             except Exception:
-                summary['failed'] += 1
+                summary['notification_failed'] = 1
+                note(summary, 'telegram_failed')
     return summary

@@ -27,6 +27,7 @@ _YT_REASONS = {
 }
 
 TEXTS = {
+    'telegram_failed': 'No se pudo enviar el aviso a Telegram. Revisá el bot y el chat compartidos.',
     'youtube_token_expired': 'El permiso de YouTube venció o fue revocado. Reconectá el canal '
                              '(y revisá que la app de Google esté "En producción", no "Testing").',
     'youtube_token_invalid': 'El token de YouTube guardado en GitHub no es válido. Reconectá el canal.',

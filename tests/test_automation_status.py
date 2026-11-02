@@ -96,6 +96,7 @@ class AutomationStatusTests(unittest.TestCase):
 
     def test_new_channel_uses_the_shared_secrets_without_configuring_them_again(self):
         st.save_kit_keys({'KIT_TELEGRAM_TOKEN': TOKEN, 'KIT_TELEGRAM_CHAT_ID': '-1001'}, self.gh)
+        self.assertFalse(set(st.KIT_TELEGRAM_KEYS) & set(self.fake.envs.get('kit-weekly', {})))
         st.save_worker_dropbox({'app_key': 'key', 'refresh_token': TOKEN}, self.gh)
         self.fake.envs['kit-weekly-nuevo'] = {}  # canal creado después: su Environment está vacío
         self.put('kit-weekly-nuevo', *st.KIT_YT_KEYS)  # solo se conectó su YouTube

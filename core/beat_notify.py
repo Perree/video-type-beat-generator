@@ -18,6 +18,8 @@ def message(summary):
     # Solo un slug válido de canal (mismo formato que beat_actions.matrix).
     if isinstance(slug, str) and re.fullmatch('[a-z][a-z0-9-]{0,39}', slug):
         prefix = f'[{slug}] {prefix}'
+    if summary.get('event') == 'started':
+        return prefix + '\nAutomatización iniciada. Revisando calendario y publicaciones pendientes.'
     text = prefix + '\n' + '\n'.join(f'{key}: {summary.get(key, 0)}'
         for key in COUNTERS if type(summary.get(key, 0)) is int)
     reasons = lines(summary)

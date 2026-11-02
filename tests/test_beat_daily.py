@@ -815,7 +815,8 @@ class DailyTests(unittest.TestCase):
                             self.receipts, source=self.source, renderer=self.renderer,
                             clock=lambda: NOW, notify=fail)
         self.assertEqual(summary['uploaded'], 6)
-        self.assertEqual(summary['failed'], 1)
+        self.assertEqual(summary['failed'], 0)
+        self.assertEqual(summary['notification_failed'], 1)
         self.run_worker()
         self.assertEqual(len(self.calls), 6)
 

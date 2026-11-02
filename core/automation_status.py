@@ -310,12 +310,16 @@ def clean_kit_keys(updates):
 
 
 def save_kit_keys(updates, gh=None, environments=None):
-    """Sube claves SHARED al repo, a ``kit-weekly`` y a cada ``kit-weekly-<slug>`` existente.
+    """Telegram vive solo en el repo; las demás claves se sincronizan a los Environments.
 
     Devuelve los Environments escritos. Los valores nunca tocan el disco.
     """
     clean = clean_kit_keys(updates)
-    return _write(clean, environments or kit_environments(gh), gh)
+    telegram = {k: clean.pop(k) for k in KIT_TELEGRAM_KEYS if k in clean}
+    written = _write(telegram, [REPO], gh) if telegram else []
+    if clean:
+        written += _write(clean, environments or kit_environments(gh), gh)
+    return list(dict.fromkeys(written))
 
 
 def save_kit_notion(token, page_id, gh=None, environments=None):
