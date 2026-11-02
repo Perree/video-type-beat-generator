@@ -1236,3 +1236,16 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
 - CLI real `--dry-run` sobre Dropbox: planned=6; failed/expired/unknown/orphan/blocked=0.
   No se subieron videos en esta sesión; la autorización OAuth de subida se comprobará en la corrida real.
 - Código y configuración publicados. Respaldos privados en `tokens/` (fuera de Git).
+
+### mattwyyre — Primera programación real ✅ COMPLETADA (2026-11-02)
+
+- Solicitud explícita: programar respetando los videos ya agendados.
+- Corrida real `41546530152` verificada en verde: planned=1, uploaded=1;
+  failed/unknown/orphan/calendar_unavailable/expired/thumbnail_failed=0.
+- YouTube ya ocupaba los demás días del cronograma en la ventana de 14 días.
+  Nuevo video: `(FREE) Mora x Omar Courtz - "REAL ONE" | Latin Trap Type Beat 2026`,
+  `fhrwzRvXNaY`, programado para el lunes 16/11/2026 a las 10:00 Buenos Aires.
+- OAuth y destino verificados por la corrida real. Se canceló únicamente nuestra corrida
+  redundante pendiente `41546615491` al detectar la ejecución del mismo canal ya activa.
+- Subida de la tanda completa habilitada temporalmente y después restaurada al escalonado
+  normal; sin cambios en los videos previamente programados. Respaldos privados en tokens/.
