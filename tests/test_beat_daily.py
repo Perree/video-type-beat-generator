@@ -778,11 +778,12 @@ class DailyTests(unittest.TestCase):
              patch('core.beat_worker.DropboxAssets.from_env', return_value=DropboxAssets(self.assets_client)), \
              patch('sys.stdout', output):
             self.assertEqual(worker_main(['--receipts', str(self.receipts)]), 0)
-        self.assertEqual(len(alerts), 1)
-        self.assertEqual(alerts[0]['blocked'], 1)
-        self.assertEqual(alerts[0]['failed'], 0)
-        self.assertEqual(alerts[0]['reasons'], {'channel_missing_in_config': 1})
-        text = message(alerts[0])
+        self.assertEqual(len(alerts), 2)
+        self.assertEqual(alerts[0], {'event': 'started'})
+        self.assertEqual(alerts[1]['blocked'], 1)
+        self.assertEqual(alerts[1]['failed'], 0)
+        self.assertEqual(alerts[1]['reasons'], {'channel_missing_in_config': 1})
+        text = message(alerts[1])
         self.assertTrue(text.startswith('ACCIÓN NECESARIA:'))
         self.assertIn('Mis canales', text)
         self.assertEqual(self.calls, [])
@@ -804,7 +805,7 @@ class DailyTests(unittest.TestCase):
              patch('core.beat_worker.DropboxTransport.from_env', side_effect=RuntimeError('SECRET')), \
              patch('sys.stdout', output):
             self.assertEqual(worker_main([]), 1)
-        self.assertEqual(alerts, [{'failed': 1, 'dry_run': False,
+        self.assertEqual(alerts, [{'event': 'started'}, {'failed': 1, 'dry_run': False,
                                    'reasons': {'error_runtimeerror': 1}}])
         self.assertNotIn('SECRET', output.getvalue())
 
