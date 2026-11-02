@@ -1,5 +1,20 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Alta de WyreAfro — EN CURSO (2026-11-01)
+- Solicitado @wyreafro, base WyreSounds dedicada a reguetón house. Creados config y catálogo propios
+  en datos/loop_kits/wyreafro, registro e índice, sin modificar los otros canales.
+- Horario heredado por defecto: lunes/miércoles/viernes 18:00 Argentina. Tres kits activos (SOLA,
+  Vertigo, CYPRUS); MEMORIES y el bundle conservan el estado inactivo de origen. Autoalta por palabras
+  reggaeton/reggaetón/regueton para excluir guitarras mal etiquetadas. SEO filtrado y portadas base copiadas.
+- Verificado modelo de portada y 28 fondos; simulación real de solo lectura eligió tres kits distintos,
+  con tres previews ok y exit 0. No se renderizaron ni subieron videos.
+- OAuth autorizado por el usuario: ID comprobado contra forHandle=wyreafro, título WyreAfro,
+  UCvgYRm5VPy0-dOco30y5-GQ. YouTube guardado en kit-weekly-wyreafro, restringido a master.
+- Telegram y Dropbox compartidos comprobados como ok. Las claves de nombres/portadas IA siguen solo
+  en el Environment de origen y no se exportaron; falta configurarlas de forma compartida si se quiere IA.
+- Sigue pausado, fuera de KIT_CHANNELS. La revisión automática rechazó activarlo sin consentimiento
+  explícito; pendiente confirmar activación y horario, y prueba del worker en GitHub.
+
 ## Corrección incremental — Motivo visible en la prueba de Telegram ✅ COMPLETADA (2026-11-01)
 - La pantalla de Conexiones ocultaba KitNotifyError bajo «La prueba falló», incluso con una respuesta
   específica de Telegram. Ahora muestra mensajes propios para token rechazado, chat no encontrado,
