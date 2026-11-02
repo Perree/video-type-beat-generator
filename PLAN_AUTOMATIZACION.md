@@ -30,8 +30,12 @@
   kit-weekly-wyreguitars reciben 401 en getMe. La copia general del repo también recibió 401.
   No se exportaron, copiaron ni borraron secretos; no existe una copia válida confirmada para reutilizar.
   Revisados github-pages (sin secretos Telegram), entorno local y configuración archivada (sin Telegram).
-- Fase pendiente: conseguir una credencial vigente y verificar avisos reales; reprogramar los tres videos
-  existentes con permiso de edición de YouTube. El cron de nuevas publicaciones ya fue actualizado.
+- Telegram compartido ✅ COMPLETADO: el usuario guardó credenciales vigentes en
+  AUTOMATION_TELEGRAM_TOKEN/CHAT_ID; run 41379216848 aprobado con getMe, getChat y sendMessage
+  reales aceptados. Ambos workflows priorizan esas claves para todos los canales actuales y futuros.
+  Los avisos de inicio/resultado quedaron habilitados sin configurar Telegram de nuevo por canal.
+- Pendiente del ajuste de calendario: reprogramar los tres videos existentes con permiso de edición
+  de YouTube. El horario configurado de nuevas publicaciones ya fue actualizado.
 
 ## Context
 La app (PyQt, `main.py` 2055 líneas) genera videos con FFmpeg pero la publicación y la promoción son manuales.
