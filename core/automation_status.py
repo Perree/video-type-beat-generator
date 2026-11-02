@@ -22,6 +22,7 @@ REPO = gh_status.REPO  # secretos del repo: los ve el Environment de cada canal 
 NOTION_KEYS = ('BEAT_NOTION_TOKEN', 'BEAT_NOTION_PAGE_ID')
 KIT_NOTION_KEYS = ('KIT_NOTION_TOKEN', 'KIT_NOTION_PAGE_ID')
 KIT_TELEGRAM_KEYS = ('KIT_TELEGRAM_TOKEN', 'KIT_TELEGRAM_CHAT_ID')
+GLOBAL_TELEGRAM_KEYS = ('AUTOMATION_TELEGRAM_TOKEN', 'AUTOMATION_TELEGRAM_CHAT_ID')
 KIT_DROPBOX_KEYS = ('KIT_DROPBOX_REFRESH_TOKEN', 'KIT_DROPBOX_APP_KEY')
 KIT_YT_KEYS = ('KIT_YT_CHANNEL', 'KIT_YT_TOKEN_JSON')
 KIT_LLM_KEY = 'KIT_LLM_API_KEY'
@@ -81,6 +82,10 @@ def _listed(names, environment, gh, shared):
     ``shared``: también cuentan los del repo (GitHub los hereda a cada Environment; uno del
     Environment con el mismo nombre tiene prioridad).
     """
+    if set(names) == set(KIT_TELEGRAM_KEYS):
+        repo = _list(REPO, gh)
+        if repo and all(k in repo for k in GLOBAL_TELEGRAM_KEYS):
+            return {old: repo[new] for old, new in zip(KIT_TELEGRAM_KEYS, GLOBAL_TELEGRAM_KEYS)}
     own = _list(environment, gh)
     if not shared or environment is REPO:
         return own
@@ -316,7 +321,8 @@ def save_kit_keys(updates, gh=None, environments=None):
     """
     clean = clean_kit_keys(updates)
     telegram = {k: clean.pop(k) for k in KIT_TELEGRAM_KEYS if k in clean}
-    written = _write(telegram, [REPO], gh) if telegram else []
+    written = _write({GLOBAL_TELEGRAM_KEYS[KIT_TELEGRAM_KEYS.index(k)]: v
+                      for k, v in telegram.items()}, [REPO], gh) if telegram else []
     if clean:
         written += _write(clean, environments or kit_environments(gh), gh)
     return list(dict.fromkeys(written))

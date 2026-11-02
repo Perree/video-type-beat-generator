@@ -1,6 +1,6 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
-## Ajuste WyreGuitars y Telegram compartido — EN CURSO (2026-11-02)
+## Ajuste WyreGuitars y Telegram compartido — EN CURSO (2026-11-01)
 - Solicitado: WyreGuitars solo martes/jueves 10:00 Argentina, incluyendo videos futuros ya programados.
 - Preparado: mantenimiento explícito con lectura previa, lock por canal, actualización de configuración,
   fechas de YouTube y recibos en Dropbox, con verificación posterior por video.
@@ -8,8 +8,15 @@
   antes de guardarla. Avisos de inicio y resultado; un fallo de aviso no se cuenta como fallo de subida.
 - Validación: 17 pruebas de configuración/horarios y regresión que comprueba que el fallo de aviso
   no repite seis subidas aprobadas; compilación y diff sin errores.
-- Pendiente: autorización explícita para publicar en master (push rechazado por revisión automática),
-  prueba real de Telegram, retirar las copias antiguas de Telegram en Environments y aplicar/revisar fechas.
+- Publicado con autorización explícita: commit 300e058. Configuración real de WyreGuitars guardada
+  con martes/jueves 10:00 Argentina. Encontrados tres videos futuros (2, 4 y 6 de noviembre a las 18:00).
+- La API rechazó el primer intento de reprogramar videos (HttpError); no se confirmó cambio en YouTube.
+  El token actual solo solicita youtube.upload + youtube.readonly; videos.update exige un scope de edición.
+- Prueba real de Telegram: getMe devuelve 401. Se indicó regenerar el token mediante BotFather.
+- La revisión automática rechazó eliminar copias antiguas de secretos; se conservaron todas. Preparada
+  alternativa con AUTOMATION_TELEGRAM_TOKEN/CHAT_ID en el repo y prioridad en ambos workflows,
+  sin eliminar credenciales. Diecisiete pruebas pasan. Publicar esta revisión requiere otra aprobación
+  explícita según el rechazo automático del segundo push. Fase pendiente de validación productiva final.
 
 ## Context
 La app (PyQt, `main.py` 2055 líneas) genera videos con FFmpeg pero la publicación y la promoción son manuales.

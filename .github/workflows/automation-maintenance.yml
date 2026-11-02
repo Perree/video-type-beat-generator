@@ -20,8 +20,8 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - run: python3 -m core.automation_maintenance telegram
         env:
-          KIT_TELEGRAM_TOKEN: ${{ secrets.KIT_TELEGRAM_TOKEN }}
-          KIT_TELEGRAM_CHAT_ID: ${{ secrets.KIT_TELEGRAM_CHAT_ID }}
+          KIT_TELEGRAM_TOKEN: ${{ secrets.AUTOMATION_TELEGRAM_TOKEN || secrets.KIT_TELEGRAM_TOKEN }}
+          KIT_TELEGRAM_CHAT_ID: ${{ secrets.AUTOMATION_TELEGRAM_CHAT_ID || secrets.KIT_TELEGRAM_CHAT_ID }}
   guitars:
     if: inputs.operation == 'guitars' && github.ref == 'refs/heads/master'
     environment: kit-weekly-wyreguitars

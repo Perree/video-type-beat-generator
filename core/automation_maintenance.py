@@ -109,7 +109,18 @@ def main():
     try:
         return telegram_probe() if args.operation == 'telegram' else guitars(args.apply)
     except Exception as exc:
-        print(json.dumps({'failed': type(exc).__name__}), flush=True)
+        detail = {'failed': type(exc).__name__}
+        if hasattr(exc, 'resp'):
+            detail['http_status'] = getattr(exc.resp, 'status', None)
+            try:
+                error = json.loads(exc.content).get('error', {})
+                allowed = {'insufficientPermissions', 'forbidden', 'quotaExceeded',
+                           'invalidPublishAt', 'videoNotFound', 'invalidVideoMetadata'}
+                detail['api_reasons'] = [e['reason'] for e in error.get('errors', [])
+                                         if e.get('reason') in allowed]
+            except (ValueError, TypeError):
+                pass
+        print(json.dumps(detail), flush=True)
         return 1
 
 

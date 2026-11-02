@@ -83,7 +83,7 @@ class AutomationStatusTests(unittest.TestCase):
         st.save_kit_notion(TOKEN, PAGE, self.gh)
         self.assertEqual(envs, [st.REPO, 'kit-weekly', 'kit-weekly-mi-canal'])
         for env in envs:
-            self.assertTrue(set(self.fake.envs[env or '(repo)']) <= set(st.KIT_SHARED_KEYS))
+            self.assertTrue(set(self.fake.envs[env or '(repo)']) <= set(st.KIT_SHARED_KEYS + st.GLOBAL_TELEGRAM_KEYS))
             self.assertEqual(st.kit_telegram_status(env, self.gh), st.OK)
             self.assertEqual(st.kit_llm_status(env, self.gh), st.OK)
             self.assertEqual(st.kit_image_status(env, self.gh), st.OK)

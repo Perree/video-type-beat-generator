@@ -88,8 +88,8 @@ jobs:
           BEAT_DROPBOX_REFRESH_TOKEN: ${{ secrets.KIT_DROPBOX_REFRESH_TOKEN }}
           BEAT_NOTION_TOKEN: ${{ secrets.BEAT_NOTION_TOKEN }}
           BEAT_NOTION_PAGE_ID: ${{ secrets.BEAT_NOTION_PAGE_ID }}
-          BEAT_TELEGRAM_TOKEN: ${{ secrets.KIT_TELEGRAM_TOKEN }}
-          BEAT_TELEGRAM_CHAT_ID: ${{ secrets.KIT_TELEGRAM_CHAT_ID }}
+          BEAT_TELEGRAM_TOKEN: ${{ secrets.AUTOMATION_TELEGRAM_TOKEN || secrets.KIT_TELEGRAM_TOKEN }}
+          BEAT_TELEGRAM_CHAT_ID: ${{ secrets.AUTOMATION_TELEGRAM_CHAT_ID || secrets.KIT_TELEGRAM_CHAT_ID }}
           DRY_RUN: ${{ (inputs.dry_run || (vars.BEAT_LIVE_ENABLED != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.private_pilot))) && 'true' || 'false' }}
           PRIVATE_PILOT: ${{ github.event_name == 'workflow_dispatch' && inputs.private_pilot && 'true' || 'false' }}
         run: |
