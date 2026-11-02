@@ -1,6 +1,6 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
-## Configuración de WyreAfro ✅ COMPLETADA — activación pendiente
+## Configuración y activación de WyreAfro ✅ COMPLETADA
 - Canal @wyreafro, configuración y catálogo propios en datos/loop_kits/wyreafro, registro e índice.
   Solo kits de reguetón/house por nombre y catálogo: excluidas guitarras mal etiquetadas. Tres activos
   (SOLA, VERTIGO, CYPRUS); MEMORIES, SAHARA NIGHTS y el bundle conservan su estado inactivo.
@@ -20,8 +20,14 @@
 - OAuth autorizado por el usuario: ID comprobado contra forHandle=wyreafro, título WyreAfro,
   UCvgYRm5VPy0-dOco30y5-GQ. YouTube guardado en kit-weekly-wyreafro, restringido a master.
 - Telegram y Dropbox compartidos comprobados como ok. No hacen falta claves de IA para este canal.
-- Sigue pausado, fuera de KIT_CHANNELS. La revisión automática rechazó activarlo sin consentimiento
-  explícito; pendiente confirmar activación y horario, y prueba del worker en GitHub.
+- Activado con autorización explícita del usuario: KIT_CHANNELS=default=6,wyreafro=6,wyreguitars=3
+  y activo=true en el registro, verificados por lectura. Preparación semanal domingo 20:00 Argentina;
+  publicación martes 12:17 y viernes 16:43. Dry-run real 41381488657 exitoso con preview 1/2 y 2/2 ok.
+- Primera tanda manual no ejecutada: la revisión automática rechazó workflow_dispatch dry_run=false
+  sin una aprobación adicional para subir y programar ahora los dos videos. La corrida semanal queda activa.
+- Consulta sobre kits nuevos: detección existente por carpeta/palabras y contenido en loops, en cada
+  corrida (no escucha inmediata ni clasificación del audio). Sin enlace específico se avisa por Telegram
+  y no se agrega/publica automáticamente. Verificado código y 19 pruebas de test_kit_autoadd aprobadas.
 
 ## Corrección incremental — Motivo visible en la prueba de Telegram ✅ COMPLETADA (2026-11-01)
 - La pantalla de Conexiones ocultaba KitNotifyError bajo «La prueba falló», incluso con una respuesta
