@@ -1216,3 +1216,23 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
   `kits.json` del canal por CAS (relee, agrega solo lo que falta, reintenta). Si falla, salen igual y se reintenta
   la próxima corrida. `--dry-run` no escribe.
 - Pruebas: `tests/test_kit_autoadd.py`. Doc: `docs/KIT_WEEKLY.md`.
+
+## Beats — Reconfigurar y activar mattwyyre ✅ COMPLETADA (2026-11-02)
+
+- Canal verificado por el handle público y su ID de YouTube; configuración remota reconstruida.
+- Activación explícita del usuario: lunes, miércoles y viernes a las 10:00 Buenos Aires.
+  Registro, config del worker y `BEAT_CHANNELS` habilitados; secretos existentes por slug conservados.
+- `core/beat_latin_seo.py`: variación determinista por tags de Latin Trap, Reggaeton y Trap/R&B,
+  con artistas del nicho solicitado y soporte Reggaeton R&B cuando el tag corresponda.
+  Descripción aportada por el usuario, enlace del track, BPM/tono cuando estén en el nombre;
+  sin enlaces ficticios de similares. Plantillas recompilables desde el panel.
+- Catálogo público: 1.142 beats, 119 coincidencias; todos los snapshots generados y revalidados.
+  18 imágenes JFIF del canal verificadas y copiadas a Dropbox para el worker, imagen fija sin texto.
+- Cuatro reservas de octubre vencidas y sin intentos canceladas con respaldo previo; historial de
+  las dos subidas anteriores, cuotas y demás canales preservados.
+- Pruebas del worker: 315, OK local (2 omitidas); controles remotos pasaron en la segunda corrida.
+  Se actualizaron dos expectativas antiguas para el aviso de inicio y las pruebas nuevas usan
+  unittest, disponible en el worker. Normalización de ZWJ en títulos con emojis del catálogo real.
+- CLI real `--dry-run` sobre Dropbox: planned=6; failed/expired/unknown/orphan/blocked=0.
+  No se subieron videos en esta sesión; la autorización OAuth de subida se comprobará en la corrida real.
+- Código y configuración publicados. Respaldos privados en `tokens/` (fuera de Git).
