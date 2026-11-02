@@ -9,8 +9,8 @@
 - Carpeta de imágenes propia: contenido/loop_kits/referencias/wyreafro. Copiados 28 fondos desde
   reggaeton_house/fondos, sin modificar los originales. cover_mode=dropbox, sin IA ni texto superpuesto;
   render existente encaja imagen completa en 16:9 con bandas negras. Generación de nombres desactivada.
-- Descripción proporcionada por el usuario guardada con {link} por kit y track_links=false. Veintiséis tags
-  relevantes (460 caracteres con separadores). Título: [FREE] "{name}" - REGGAETON HOUSE LOOP KIT
+- Descripción proporcionada por el usuario guardada con {link} por kit y track_links=false. Veintitrés tags
+  relevantes (448 caracteres según el cálculo de YouTube, incluidas comillas por espacios). Título: [FREE] "{name}" - REGGAETON HOUSE LOOP KIT
   (Melodic, Reggaeton, House). Nombres cortos reales del catálogo, sin nombres inventados ni IA.
 - Los kits desconocidos sin enlace específico no se autoactivan con un enlace genérico: quedan pendientes
   de completar en el catálogo. Se conserva el filtro de palabras reggaeton/reggaetón/regueton/house.
@@ -23,8 +23,11 @@
 - Activado con autorización explícita del usuario: KIT_CHANNELS=default=6,wyreafro=6,wyreguitars=3
   y activo=true en el registro, verificados por lectura. Preparación semanal domingo 20:00 Argentina;
   publicación martes 12:17 y viernes 16:43. Dry-run real 41381488657 exitoso con preview 1/2 y 2/2 ok.
-- Primera tanda manual no ejecutada: la revisión automática rechazó workflow_dispatch dry_run=false
-  sin una aprobación adicional para subir y programar ahora los dos videos. La corrida semanal queda activa.
+- Primera tanda manual autorizada explícitamente. Run 41381815208 rechazado antes de subir por invalidTags:
+  YouTube cuenta también las comillas implícitas en tags con espacios. Eliminadas tres etiquetas genéricas
+  y verificada configuración con 448 caracteres. Reintento 41382205295 ✅ COMPLETADO exitosamente:
+  yJ4yPmnkgBk programado 2026-11-03 12:17 Argentina, nsmqNaBEkl0 programado 2026-11-06 16:43 Argentina.
+  Ambos recibos confirmados como scheduled en el estado de Dropbox, sin duplicados. Automatización activa.
 - Consulta sobre kits nuevos: detección existente por carpeta/palabras y contenido en loops, en cada
   corrida (no escucha inmediata ni clasificación del audio). Sin enlace específico se avisa por Telegram
   y no se agrega/publica automáticamente. Verificado código y 19 pruebas de test_kit_autoadd aprobadas.
