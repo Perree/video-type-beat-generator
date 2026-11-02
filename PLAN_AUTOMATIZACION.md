@@ -1,17 +1,25 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
-## Alta de WyreAfro — EN CURSO (2026-11-01)
-- Solicitado @wyreafro, base WyreSounds dedicada a reguetón house. Creados config y catálogo propios
-  en datos/loop_kits/wyreafro, registro e índice, sin modificar los otros canales.
-- Horario heredado por defecto: lunes/miércoles/viernes 18:00 Argentina. Tres kits activos (SOLA,
-  Vertigo, CYPRUS); MEMORIES y el bundle conservan el estado inactivo de origen. Autoalta por palabras
-  reggaeton/reggaetón/regueton para excluir guitarras mal etiquetadas. SEO filtrado y portadas base copiadas.
-- Verificado modelo de portada y 28 fondos; simulación real de solo lectura eligió tres kits distintos,
-  con tres previews ok y exit 0. No se renderizaron ni subieron videos.
+## Configuración de WyreAfro ✅ COMPLETADA — activación pendiente
+- Canal @wyreafro, configuración y catálogo propios en datos/loop_kits/wyreafro, registro e índice.
+  Solo kits de reguetón/house por nombre y catálogo: excluidas guitarras mal etiquetadas. Tres activos
+  (SOLA, VERTIGO, CYPRUS); MEMORIES, SAHARA NIGHTS y el bundle conservan su estado inactivo.
+- Horario final recomendado: martes 12:17 y viernes 16:43 Argentina, dos publicaciones semanales.
+  Se reemplazó el horario heredado; no se cambiaron otros canales. No se atribuye efecto antispam al horario.
+- Carpeta de imágenes propia: contenido/loop_kits/referencias/wyreafro. Copiados 28 fondos desde
+  reggaeton_house/fondos, sin modificar los originales. cover_mode=dropbox, sin IA ni texto superpuesto;
+  render existente encaja imagen completa en 16:9 con bandas negras. Generación de nombres desactivada.
+- Descripción proporcionada por el usuario guardada con {link} por kit y track_links=false. Veintiséis tags
+  relevantes (460 caracteres con separadores). Título: [FREE] "{name}" - REGGAETON HOUSE LOOP KIT
+  (Melodic, Reggaeton, House). Nombres cortos reales del catálogo, sin nombres inventados ni IA.
+- Los kits desconocidos sin enlace específico no se autoactivan con un enlace genérico: quedan pendientes
+  de completar en el catálogo. Se conserva el filtro de palabras reggaeton/reggaetón/regueton/house.
+- Verificación real: descarga y lectura de imagen de Dropbox sin IA; simulación semanal exit 0 con
+  dos kits distintos para dos slots. Títulos <=100, descripción <=5000, enlaces específicos y tags validados.
+  Leídos de vuelta config y catálogo guardados. No se renderizaron ni subieron videos.
 - OAuth autorizado por el usuario: ID comprobado contra forHandle=wyreafro, título WyreAfro,
   UCvgYRm5VPy0-dOco30y5-GQ. YouTube guardado en kit-weekly-wyreafro, restringido a master.
-- Telegram y Dropbox compartidos comprobados como ok. Las claves de nombres/portadas IA siguen solo
-  en el Environment de origen y no se exportaron; falta configurarlas de forma compartida si se quiere IA.
+- Telegram y Dropbox compartidos comprobados como ok. No hacen falta claves de IA para este canal.
 - Sigue pausado, fuera de KIT_CHANNELS. La revisión automática rechazó activarlo sin consentimiento
   explícito; pendiente confirmar activación y horario, y prueba del worker en GitHub.
 
