@@ -5,13 +5,13 @@ La variación es determinística (sale de un hash de la fecha base y del horario
 volver a planificar la misma semana da exactamente el mismo resultado: no se duplican
 trabajos ni cambia un horario ya agendado.
 
-Config por canal: ``human_schedule`` = ``{"minutes": 45, "days": 1}``, ``false`` para
-apagarla, o ausente para usar ``DEFAULT``.
+Config por canal (opcional): ``human_schedule`` = ``{"minutes": 45, "days": 1}``. Ausente o
+``false``: horario exacto.
 """
 import hashlib
 from datetime import timedelta
 
-DEFAULT = {'minutes': 45, 'days': 1}
+DEFAULT = {'minutes': 0, 'days': 0}  # apagada: horario exacto salvo que el canal la pida
 # Probabilidad de mover el día cuando ``days`` > 0: la mayoría de las semanas queda igual.
 DAY_SHIFT_PCT = 30
 _KEYS = ('vary_minutes', 'vary_days')

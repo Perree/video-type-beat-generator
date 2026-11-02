@@ -15,7 +15,7 @@ def _offline_credentials():
 
 
 @pytest.fixture(autouse=True)
-def _exact_schedule(monkeypatch):
-    """Los tests viejos esperan horarios exactos; la variación se prueba en test_human_schedule."""
-    from core import human_schedule
-    monkeypatch.setattr(human_schedule, 'DEFAULT', {'minutes': 0, 'days': 0})
+def _upload_whole_buffer(monkeypatch):
+    """Los tests viejos suben todo el búfer; el escalonado se prueba en test_upload_spread."""
+    from core import upload_spread
+    monkeypatch.setattr(upload_spread, 'settings', lambda value: None)

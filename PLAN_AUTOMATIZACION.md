@@ -1,16 +1,17 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
-## Horarios con variación humana ✅ COMPLETADA (2026-11-02)
-- `core/human_schedule.py`: cada horario se corre ±45 min y ~30% de las semanas ±1 día. Es estable
-  (hash de fecha + horario, en Beats también del canal): replanificar da el mismo horario, sin duplicados.
-- Activo por defecto en Type Beats (`beat_schedule.slots`) y Loop kits (`kit_publish.next_slot`, workers
-  semanal y preview). Con variación: un video por día y canal; un trabajo viejo a hora exacta bloquea su día.
-- Config por canal `human_schedule`: `{"minutes": 0..180, "days": 0..2}` o `false` para horario exacto.
-  En kits va dentro de `kit_preview`; el panel de la app la conserva al guardar.
-- Tests y smokes viejos usan horario exacto (conftest/smokes); 8 tests nuevos en `test_human_schedule.py`.
-  Suite: 705 ok; las 4 fallas previas son del entorno (llavero/CLI) y ya fallaban antes del cambio.
-- No se sabe que YouTube use la regularidad del horario para detectar spam; lo que pesa es contenido
-  repetitivo o metadata engañosa. La variación es cosmética y no reemplaza variar títulos/miniaturas.
+## Subidas escalonadas de Type Beats ✅ COMPLETADA (2026-11-02)
+- Pedido del usuario: mismo cronograma (días y horas), pero que el worker no suba todos los beats el
+  mismo día. Antes la corrida diaria subía de golpe el búfer de 14 días (hasta 6 por corrida).
+- `core/upload_spread.py`: cada trabajo se sube recién a 2–4 días de su horario (estable por id del
+  trabajo), así cada corrida diaria sube 1 o 2. `beat_daily` saltea los que todavía no tocan; siguen
+  planificados. Mínimo 2 días: si falla una corrida queda otra antes de que venza el horario.
+- Config por canal `upload_spread`: `{"min_days": 1..14, "max_days": ..14}` o `false` (todo el búfer).
+- `core/human_schedule.py` (variación de minutos/día) queda disponible pero APAGADA por defecto: el usuario
+  prefiere horarios fijos. Se activa por canal con `human_schedule`.
+- Loop kits sin cambios: el worker semanal ya corre en el día propio de cada canal (KIT_CHANNELS).
+- Tests viejos suben todo el búfer (conftest y smoke_beat_hardening); nuevos: test_upload_spread y
+  test_human_schedule. Suite 709 ok; las 4 fallas previas son del entorno (llavero/CLI).
 
 ## Configuración y activación de WyreAfro ✅ COMPLETADA
 - Canal @wyreafro, configuración y catálogo propios en datos/loop_kits/wyreafro, registro e índice.

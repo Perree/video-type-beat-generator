@@ -21,6 +21,7 @@ from core.beat_guard import ChannelPaused, PublicationExpired
 from core.beat_selection import (eligible_tracks, selection_tags, ensure_selection,
                                  selection_fence, SelectionChanged, TrackNotMatching)
 from core.publish_calendar import occupied_days
+from core import upload_spread
 
 
 def calendar_days(calendar, channel_id, clock):
@@ -181,6 +182,9 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
                 note(summary, 'slot_expired')
                 continue
             if instant(job['slot']) > now + timedelta(days=14):
+                continue
+            if upload_spread.too_early(job, instant(job['slot']), now, channel.get('upload_spread')):
+                # Escalonado: se sube unos días antes de su fecha, no todo el búfer de golpe.
                 continue
             if calendar is not None and remaining > 0:
                 # Segunda lectura: el trabajo pudo quedar hasta 14 días en el búfer y alguien
