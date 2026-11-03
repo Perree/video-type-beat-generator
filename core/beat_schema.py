@@ -48,8 +48,10 @@ def migrate(document, kind):
     if kind == "config":
         result.setdefault("channels", [])
         result.setdefault("buffer_days", 14)
-        result.setdefault("daily_upload_attempts", 6)
-        if result["buffer_days"] != 14 or result["daily_upload_attempts"] != 6:
+        result.setdefault("daily_upload_attempts", 10)
+        if result["daily_upload_attempts"] == 6:
+            result["daily_upload_attempts"] = 10  # Legacy fixed limit; preserve all history.
+        if result["buffer_days"] != 14 or result["daily_upload_attempts"] != 10:
             raise ValueError("invalid_fixed_limits")
         channels = result["channels"]
         if not isinstance(channels, list) or len(channels) > 100:
@@ -128,7 +130,7 @@ def migrate(document, kind):
         tokens = set()
         for day, attempts in result["attempts"].items():
             datetime.strptime(day, "%Y-%m-%d")
-            if not isinstance(attempts, dict) or len(attempts) > 6:
+            if not isinstance(attempts, dict) or len(attempts) > 10:
                 raise ValueError("invalid_attempts")
             for token, entry in attempts.items():
                 if not isinstance(token, str) or not token or not isinstance(entry, dict) or entry.get("job_id") not in result["jobs"]:

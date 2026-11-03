@@ -27,6 +27,9 @@ _YT_REASONS = {
 }
 
 TEXTS = {
+    'upload_budget_unavailable': 'No se pudo guardar la pausa del canal: se detuvo esta corrida por seguridad.',
+    'shared_upload_budget_exhausted': 'Se alcanzaron los 10 intentos diarios compartidos entre Beats y Loops. Pendientes para otra corrida.',
+    'invalid_upload_budget': 'El contador compartido de subidas no es válido: subidas detenidas.',
     'telegram_failed': 'No se pudo enviar el aviso a Telegram. Revisá el bot y el chat compartidos.',
     'youtube_token_expired': 'El permiso de YouTube venció o fue revocado. Reconectá el canal '
                              '(y revisá que la app de Google esté "En producción", no "Testing").',

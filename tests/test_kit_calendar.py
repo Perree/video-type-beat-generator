@@ -31,6 +31,24 @@ NEXT_MON = '2026-10-19T21:00:00Z'
 
 
 class WeeklyCalendarTests(unittest.TestCase):
+    def test_shared_budget_defers_remaining_kits_without_marking_them_used(self):
+        from datetime import timedelta
+        from core.beat_fakes import MemoryDropbox
+        from core.upload_budget import UploadBudget, initialize
+        memory = MemoryDropbox()
+        now = SUNDAY.replace(tzinfo=BA)
+        initialize(memory, now - timedelta(days=1))
+        budget = UploadBudget(memory, lambda: now)
+        for _ in range(9):
+            budget.reserve('beats')
+        code, _, dbx, tg = self.run_week(extra_hooks={'upload_budget': budget})
+        self.assertEqual(code, 0)
+        self.assertEqual(Counters.uploads, 1)
+        self.assertTrue(any('10 intentos' in message for message in tg.sent))
+        code, _, _, _ = self.run_week(dbx, extra_hooks={'upload_budget': budget})
+        self.assertEqual(code, 0)
+        self.assertEqual(Counters.uploads, 1)
+
     def setUp(self):
         self.out = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         self.addCleanup(self.out.cleanup)

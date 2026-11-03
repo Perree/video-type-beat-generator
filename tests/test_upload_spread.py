@@ -44,6 +44,8 @@ class SpreadWorkerTests(daily.DailyTests):
     """Reusa el entorno de test_beat_daily con un video por día de cronograma."""
 
     def test_daily_runs_upload_a_few_each_day_not_the_whole_buffer(self):
+        self.cloud.update('config', lambda config:
+                          config['channels'][0].update(upload_spread=True))
         with patch.object(upload_spread, 'settings', REAL_SETTINGS):
             summary = self.run_worker()
             self.assertGreater(summary['uploaded'], 0)

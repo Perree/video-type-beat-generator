@@ -22,6 +22,7 @@ from core.beat_selection import (eligible_tracks, selection_tags, ensure_selecti
                                  selection_fence, SelectionChanged, TrackNotMatching)
 from core.publish_calendar import occupied_days
 from core import upload_spread
+from core.upload_budget import UploadDeferred
 
 
 def calendar_days(calendar, channel_id, clock):
@@ -61,7 +62,7 @@ def visual_genre(channel, track):
 def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
               source=None, renderer=render_reserved, report_loader=None,
               notify=None, thumbnailer=None, seed=None, private_pilot=False,
-              expected_owner=None, share_links=None, calendar=None,
+              expected_owner=None, share_links=None, calendar=None, upload_budget=None,
               clock=lambda: datetime.now(timezone.utc)):
     """Planifica el búfer del canal y sube los trabajos que tocan hoy.
 
@@ -155,7 +156,7 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
         summary['planned'] = len(additions)
         attempted = {entry['job_id'] for entries in state['attempts'].values()
                      for entry in entries.values()}
-        remaining = 6 - len(state['attempts'].get(instant(clock()).date().isoformat(), {}))
+        remaining = 10 - len(state['attempts'].get(instant(clock()).date().isoformat(), {}))
         budget_day = instant(clock()).date()
         jobs = sorted((deepcopy(job) for job in state['jobs'].values()
                        if job['channel'] == channel_id and job['status'] in ('planned', 'failed')),
@@ -176,7 +177,7 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
             if now.date() != budget_day:
                 latest, _ = cloud.read('state')
                 budget_day = now.date()
-                remaining = 6 - len(latest['attempts'].get(budget_day.isoformat(), {}))
+                remaining = 10 - len(latest['attempts'].get(budget_day.isoformat(), {}))
             if instant(job['slot']) <= now:
                 summary['expired'] += 1
                 note(summary, 'slot_expired')
@@ -233,11 +234,15 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
                                       thumbnailer=channel_thumbnailer(channel, thumbnailer),
                                       private_pilot=private_pilot,
                                       expected_owner=channel.get('youtube_channel_id'), selection_track=track,
-                                      on_error=lambda exc: note(summary, exc))
+                                      on_error=lambda exc: note(summary, exc), upload_budget=upload_budget)
                     summary[outcome] += 1
                     if outcome == 'thumbnail_failed':
                         summary['uploaded'] += 1
                     remaining -= 1
+            except UploadDeferred as exc:
+                summary['budget'] += 1
+                note(summary, exc)
+                break
             except BudgetExhausted:
                 summary['budget'] += 1
                 remaining = 0

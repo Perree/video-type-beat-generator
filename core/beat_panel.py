@@ -372,7 +372,7 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
             counts[job["status"]] = counts.get(job["status"], 0) + 1
         day = datetime.now(BA).date().isoformat()
         used = len(state["attempts"].get(day, {}))
-        self.quota.setText(f"Límite local de Beats del {day}: {used}/6 intentos consumidos; {6 - used} disponibles. "
+        self.quota.setText(f"Límite local de Beats del {day}: {used}/10 intentos consumidos. El contador global incluye también Loops. "
                            "La cuota real de YouTube se verifica en Google Cloud.")
         self.output.setPlainText(f"Estado remoto consultado (sin escrituras).\nJobs: {counts}\n"
                                  f'Lock: {"presente" if state["lock"] else "libre"}')
@@ -398,7 +398,7 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
         self.job_model.set_jobs(jobs)
         self.output.setPlainText(f'Simulación desde {result["as_of"]}, próximos 14 días.\n'
                                  f'Estado: {"instantánea de Dropbox" if remote else "vacío, escenario local"}.\n'
-                                 f'Jobs nuevos: {len(jobs)}. Intentos disponibles hoy: {result["remaining"]}/6.\n'
+                                 f'Jobs nuevos: {len(jobs)}. Intentos disponibles hoy: {result["remaining"]}/10 (estimación de Beats; no descuenta Loops).\n'
                                  "La cuota se consume al intentar subir, no al planificar slots.\n"
                                  "Tags de selección filtran por coincidencia exacta, sin mayúsculas ni espacios exteriores.\n"
                                  "Sin tags de selección se conserva el catálogo activo completo; tags SEO y géneros no filtran.")

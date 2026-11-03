@@ -28,7 +28,8 @@ def journal(folder, job_id, outcome, youtube_id=None):
 
 
 def publish(cloud, job, media, seo, uploader, receipts, clock, *, thumbnailer=None,
-            private_pilot=False, expected_owner=None, selection_track=None, on_error=None):
+            private_pilot=False, expected_owner=None, selection_track=None, on_error=None,
+            upload_budget=None):
     """Sube un trabajo una sola vez. ``on_error(exc)`` recibe los errores que se tragan
     (subida ambigua, recibo en la nube, miniatura) para contar el motivo; nunca cambia el
     resultado."""
@@ -55,6 +56,7 @@ def publish(cloud, job, media, seo, uploader, receipts, clock, *, thumbnailer=No
         if guard is not None:
             guard()
         require_track(active_channel(cloud, job['channel'], expected_owner), track, job['track_id'])
+    budget_day = upload_budget.reserve(job['channel']) if upload_budget else None
     attempt = store.reserve_attempt(job['id'], uuid4().hex, exclusive=True,
                                     before_commit=selection_guard)
     journal(receipts, job['id'], 'unknown')
@@ -65,11 +67,16 @@ def publish(cloud, job, media, seo, uploader, receipts, clock, *, thumbnailer=No
     # The fresh config read can itself cross midnight. Check AFTER that I/O.
     if instant(attempt['reserved_at']).date() != instant(clock()).date():
         raise ValueError('upload_reservation_day_changed')
+    if upload_budget:
+        upload_budget.check_day(budget_day)
     try:
         result = uploader(channel=job['channel'], video_path=str(media['video']),
                           thumbnail=str(media['thumbnail']), **seo['selected'],
                           privacy='private', publish_at=None if private_pilot else job['slot'])
     except Exception as exc:
+        if upload_budget and upload_budget.rejected(job['channel'], exc):
+            from core.upload_budget import UploadDeferred
+            raise UploadDeferred('youtube_upload_limit') from exc
         # Even a timeout could hide a successful insert. Never retry this job.
         report(exc)
         return 'unknown'

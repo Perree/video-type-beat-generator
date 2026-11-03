@@ -40,7 +40,7 @@ from test_beat_video import AssetsClient, HLS, Resolver, Processes
 
 NOW = instant('2026-10-12T12:00:00-03:00')
 CONFIG = migrate({'beatstars_profile_url': 'https://www.beatstars.com/fixtureproducer',
-    'channels': [{'id': 'channel', 'genres': ['trap'], 'tags': ['trap'],
+    'channels': [{'id': 'channel', 'genres': ['trap'], 'tags': ['trap'], 'upload_spread': False,
                   'dropbox_images': {'trap': '/images/trap'},
                   'slots': [{'weekday': day, 'hour': 18, 'minute': 0} for day in range(7)]}]}, 'config')
 
@@ -97,11 +97,11 @@ class DailyTests(unittest.TestCase):
 
     def test_end_to_end_quota_schedule_seo_cleanup_and_rerun(self):
         summary = self.run_worker()
-        self.assertEqual(summary['uploaded'], 6)
+        self.assertEqual(summary['uploaded'], 10)
         self.assertEqual(summary['failed'], 0)
-        self.assertEqual(len(self.calls), 6)
+        self.assertEqual(len(self.calls), 10)
         state, _ = self.cloud.read('state')
-        self.assertEqual(len(state['attempts'][NOW.date().isoformat()]), 6)
+        self.assertEqual(len(state['attempts'][NOW.date().isoformat()]), 10)
         self.assertTrue(all(j.get('seo_snapshot') for j in state['jobs'].values()
                             if j['status'] == 'uploaded'))
         self.assertTrue(all(not Path(call['video_path']).exists() for call in self.calls))
@@ -110,7 +110,41 @@ class DailyTests(unittest.TestCase):
         self.assertEqual(len(self.notifications), 1)
         again = self.run_worker()
         self.assertEqual(again['uploaded'], 0)
-        self.assertEqual(len(self.calls), 6)
+        self.assertEqual(len(self.calls), 10)
+
+    def test_loops_spend_shared_budget_before_beats_and_pending_jobs_survive(self):
+        from core.upload_budget import UploadBudget, initialize
+        initialize(self.memory, NOW - timedelta(days=1))
+        budget = UploadBudget(self.memory, lambda: NOW)
+        for _ in range(7):
+            budget.reserve('loops')
+        summary = self.run_worker(upload_budget=budget)
+        self.assertEqual(summary['uploaded'], 3)
+        self.assertEqual(summary['budget'], 1)
+        self.assertEqual(len(self.calls), 3)
+        state = self.cloud.read('state')[0]
+        self.assertEqual(len(state['attempts'][NOW.date().isoformat()]), 3)
+        self.assertTrue(any(j['status'] == 'planned' for j in state['jobs'].values()))
+        self.run_worker(upload_budget=budget)
+        self.assertEqual(len(self.calls), 3)
+
+    def test_channel_upload_rejection_stops_daily_run_and_persists_cooldown(self):
+        from googleapiclient.errors import HttpError
+        from core.upload_budget import UploadBudget, initialize, UploadDeferred
+        initialize(self.memory, NOW - timedelta(days=1))
+        budget = UploadBudget(self.memory, lambda: NOW)
+        calls = []
+        def rejected(**kwargs):
+            calls.append(kwargs)
+            raise HttpError(SimpleNamespace(status=400, reason='Bad Request'),
+                b'{"error":{"errors":[{"reason":"uploadLimitExceeded"}]}}')
+        summary = self.run_worker(uploader=rejected, upload_budget=budget)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(summary['budget'], 1)
+        self.assertEqual(summary['reasons'], {'youtube_upload_limit': 1})
+        with self.assertRaises(UploadDeferred):
+            UploadBudget(self.memory, lambda: NOW).reserve('channel')
+        budget.reserve('another-channel')
 
     def test_no_selection_matches_blocks_before_any_reservation_or_render(self):
         self.cloud.update('config', lambda config: config['channels'][0].update(
@@ -183,17 +217,17 @@ class DailyTests(unittest.TestCase):
         self.assertEqual(self.cloud.read('state')[0]['jobs'], {})
         other = run_daily(self.cloud, 'second', DropboxAssets(self.assets_client), self.upload,
                           self.receipts, source=self.source, renderer=self.renderer, clock=lambda: NOW)
-        self.assertEqual(other['uploaded'], 6)
+        self.assertEqual(other['uploaded'], 10)
         self.assertEqual(other['no_matching_tracks'], 0)
         self.assertEqual(other['failed'], 0)
         state, _ = self.cloud.read('state')
         self.assertEqual({job['channel'] for job in state['jobs'].values()}, {'second'})
-        self.assertEqual(len(state['attempts'][NOW.date().isoformat()]), 6)
+        self.assertEqual(len(state['attempts'][NOW.date().isoformat()]), 10)
 
     def test_empty_selection_tags_preserves_legacy_worker_behavior(self):
         self.cloud.update('config', lambda config: config['channels'][0].update(selection_tags=[]))
         summary = self.run_worker()
-        self.assertEqual(summary['uploaded'], 6)
+        self.assertEqual(summary['uploaded'], 10)
         self.assertEqual(summary['failed'], 0)
         self.assertEqual(summary['no_matching_tracks'], 0)
 
@@ -333,7 +367,7 @@ class DailyTests(unittest.TestCase):
             return snapshot
         with patch.object(self.source, 'scan', side_effect=change):
             summary = self.run_worker()
-        self.assertEqual(summary['uploaded'], 6)
+        self.assertEqual(summary['uploaded'], 10)
         self.assertEqual(summary['blocked'], 0)
         self.assertEqual(summary['failed'], 0)
 
@@ -423,7 +457,7 @@ class DailyTests(unittest.TestCase):
         with patch.object(youtube, '_service', return_value=Google()), \
              patch.object(youtube, '_load_credentials', return_value=object()):
             summary = self.run_worker(uploader=youtube.upload)
-        self.assertEqual(summary['uploaded'], 6)
+        self.assertEqual(summary['uploaded'], 10)
         self.assertEqual(summary['failed'], 0)
         self.assertTrue(all(call['media_body'].stream().closed for call in calls))
         self.assertEqual(calls[0]['body']['status']['privacyStatus'], 'private')
@@ -452,13 +486,13 @@ class DailyTests(unittest.TestCase):
             summary = run_daily(self.cloud, 'channel', DropboxAssets(self.assets_client), client.upload,
                 self.receipts, source=self.source, renderer=self.renderer, clock=lambda: NOW,
                 thumbnailer=client.thumbnail)
-        self.assertEqual(summary['uploaded'], 6)
-        self.assertEqual(summary['thumbnail_failed'], 6)
+        self.assertEqual(summary['uploaded'], 10)
+        self.assertEqual(summary['thumbnail_failed'], 10)
         self.assertEqual(summary['unknown'], 0)
         self.assertEqual(summary['failed'], 0)
         self.assertTrue(all(call['media_body'].stream().closed for call in inserts + thumbnails))
-        self.assertEqual(len(inserts), 6)
-        self.assertEqual(len(thumbnails), 6)
+        self.assertEqual(len(inserts), 10)
+        self.assertEqual(len(thumbnails), 10)
         rows = [json.loads(p.read_text()) for p in self.receipts.glob('*.json')]
         self.assertTrue(all(row['youtube_id'] and row['outcome'] == 'uploaded' for row in rows))
         self.assertNotIn('SECRET', message(summary))
@@ -474,7 +508,7 @@ class DailyTests(unittest.TestCase):
         summary = run_daily(self.cloud, 'channel', DropboxAssets(self.assets_client), uploader,
             self.receipts, source=self.source, renderer=self.renderer, clock=lambda: NOW,
             thumbnailer=lambda *args: thumbnails.append(args))
-        self.assertEqual(summary['orphan'], 6)
+        self.assertEqual(summary['orphan'], 10)
         self.assertEqual(summary['unknown'], 0)
         self.assertEqual(thumbnails, [])
 
@@ -483,7 +517,7 @@ class DailyTests(unittest.TestCase):
             for track in page['profileTracks']['content']:
                 track['metadata']['tags'] = ['Drake']
         summary = self.run_worker()
-        self.assertEqual(summary['uploaded'], 6)
+        self.assertEqual(summary['uploaded'], 10)
         self.assertEqual(summary['failed'], 0)
         self.assertTrue(self.assets_client.downloads)
 
@@ -507,7 +541,7 @@ class DailyTests(unittest.TestCase):
         config['channels'][0].update(genres=[], dropbox_images={}, images_folder=self.temp.name)
         self.cloud.write('config', config, rev)
         summary = self.run_worker()
-        self.assertEqual(summary['uploaded'], 6)
+        self.assertEqual(summary['uploaded'], 10)
         self.assertEqual(summary['failed'], 0)
 
     def prepare_job(self):
@@ -564,9 +598,9 @@ class DailyTests(unittest.TestCase):
             self.memory.faults.append(('write', CloudError('SECRET https://private.invalid')))
             return result
         summary = self.run_worker(uploader=uploader)
-        self.assertEqual(summary['orphan'], 6)
+        self.assertEqual(summary['orphan'], 10)
         rows = [json.loads(p.read_text()) for p in self.receipts.glob('*.json')]
-        self.assertEqual(len(rows), 6)
+        self.assertEqual(len(rows), 10)
         self.assertTrue(all(row['outcome'] == 'orphan' and row['youtube_id'] for row in rows))
         state, _ = self.cloud.read('state')
         attempted = {e['job_id'] for entries in state['attempts'].values() for e in entries.values()}
@@ -576,18 +610,18 @@ class DailyTests(unittest.TestCase):
             run_daily(self.cloud, 'channel', DropboxAssets(self.assets_client), self.upload,
                 self.receipts, source=self.source, renderer=self.renderer,
                 clock=lambda: NOW + timedelta(hours=1))
-        self.assertEqual(len(self.calls), 6)
+        self.assertEqual(len(self.calls), 10)
         self.assertEqual(old, {p.name: p.read_bytes() for p in self.receipts.glob('*.json')})
-        self.assertEqual(len(attempted), 6)
+        self.assertEqual(len(attempted), 10)
 
     def test_unknown_response_permanently_blocks(self):
         def timeout(**kwargs):
             self.upload(**kwargs)
             raise RuntimeError('SECRET token URL')
         summary = self.run_worker(uploader=timeout)
-        self.assertEqual(summary['unknown'], 6)
+        self.assertEqual(summary['unknown'], 10)
         self.run_worker()
-        self.assertEqual(len(self.calls), 6)
+        self.assertEqual(len(self.calls), 10)
         self.assertTrue(all(json.loads(p.read_text())['outcome'] == 'unknown'
                             for p in self.receipts.glob('*.json')))
 
@@ -600,8 +634,8 @@ class DailyTests(unittest.TestCase):
             self.upload(**kwargs)
             raise HttpError(NS(status=403, reason='x'), body)
         summary = self.run_worker(uploader=quota)
-        self.assertEqual(summary['unknown'], 6)
-        self.assertEqual(summary['reasons'], {'youtube_quota': 6})
+        self.assertEqual(summary['unknown'], 10)
+        self.assertEqual(summary['reasons'], {'youtube_quota': 10})
         text = message(self.notifications[0])
         self.assertIn('cuota diaria', text)
         self.assertNotIn('SECRET', text)
@@ -633,8 +667,8 @@ class DailyTests(unittest.TestCase):
             return original(store, *args, **kwargs)
         with patch.object(BeatState, 'reserve_attempt', reserve):
             summary = self.run_worker()
-        self.assertEqual(summary['uploaded'], 6)
-        self.assertEqual(len(self.calls), 6)
+        self.assertEqual(summary['uploaded'], 10)
+        self.assertEqual(len(self.calls), 10)
 
     def test_cloud_receipt_lost_response_remains_idempotent(self):
         def uploader(**kwargs):
@@ -642,9 +676,9 @@ class DailyTests(unittest.TestCase):
             self.memory.faults.append(('after_write', Transient()))
             return result
         summary = self.run_worker(uploader=uploader)
-        self.assertEqual(summary['uploaded'], 6)
+        self.assertEqual(summary['uploaded'], 10)
         self.run_worker()
-        self.assertEqual(len(self.calls), 6)
+        self.assertEqual(len(self.calls), 10)
 
     def test_pause_is_read_only(self):
         config, rev = self.cloud.read('config')
@@ -668,7 +702,7 @@ class DailyTests(unittest.TestCase):
                             self.receipts, source=self.source, renderer=self.renderer, clock=lambda: NOW)
         self.assertEqual(summary['uploaded'], 0)
         self.assertGreater(summary['budget'], 0)
-        self.assertEqual(len(self.calls), 6)
+        self.assertEqual(len(self.calls), 10)
 
     def test_exclusive_reservation_race_only_one_winner(self):
         state, rev = self.cloud.read('state')
@@ -731,11 +765,11 @@ class DailyTests(unittest.TestCase):
         def uploader(**kwargs):
             return dict(self.upload(**kwargs), thumbnail_error='SECRET https://private.invalid')
         summary = self.run_worker(uploader=uploader)
-        self.assertEqual(summary['uploaded'], 6)
-        self.assertEqual(summary['thumbnail_failed'], 6)
+        self.assertEqual(summary['uploaded'], 10)
+        self.assertEqual(summary['thumbnail_failed'], 10)
         self.assertNotIn('SECRET', message(summary))
         self.run_worker()
-        self.assertEqual(len(self.calls), 6)
+        self.assertEqual(len(self.calls), 10)
 
     def test_cli_dry_run_bootstrap_and_no_token_or_telegram_required(self):
         output = io.StringIO()
@@ -815,11 +849,11 @@ class DailyTests(unittest.TestCase):
         summary = run_daily(self.cloud, 'channel', DropboxAssets(self.assets_client), self.upload,
                             self.receipts, source=self.source, renderer=self.renderer,
                             clock=lambda: NOW, notify=fail)
-        self.assertEqual(summary['uploaded'], 6)
+        self.assertEqual(summary['uploaded'], 10)
         self.assertEqual(summary['failed'], 0)
         self.assertEqual(summary['notification_failed'], 1)
         self.run_worker()
-        self.assertEqual(len(self.calls), 6)
+        self.assertEqual(len(self.calls), 10)
 
     def test_telegram_never_includes_external_strings(self):
         text = message({'failed': 3, 'error': 'SECRET', 'channel': 'private',

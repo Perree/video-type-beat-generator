@@ -99,5 +99,5 @@ def simulate(config, tracks, state=None, now=None):
     state = migrate({} if state is None else state, "state")
     now = instant(now if now is not None else datetime.now(BA))
     return {"as_of": now.isoformat(), "jobs": plan(config, state, tracks, now),
-            "remaining": 6 - len(state["attempts"].get(now.date().isoformat(), {})),
+            "remaining": 10 - len(state["attempts"].get(now.date().isoformat(), {})),
             "state": deepcopy(state)}

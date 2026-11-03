@@ -157,7 +157,7 @@ class BeatPanelForm(BeatVisualForm, BeatConnectionsForm, AutomationSaveBar):
         advanced = QWidget()
         advanced_layout = QVBoxLayout(advanced)
         box, lay = theme.section("Estado del robot")
-        self.quota = theme.muted(QLabel("Límite local: 6 intentos por día (incluye fallos); no es la cuota "
+        self.quota = theme.muted(QLabel("Automatización: 10 intentos diarios compartidos entre Beats y Loops; no es la cuota "
                                         "real de YouTube. Reserva: 14 días."))
         lay.addWidget(self.quota)
         self.state_button = QPushButton("Consultar estado en Dropbox")

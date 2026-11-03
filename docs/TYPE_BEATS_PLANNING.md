@@ -1,5 +1,10 @@
 # Type Beats — Fase 2 completada, revisión aplicada
 
+> Actualización 2026-11-03: el límite operativo es de 10 intentos diarios
+> compartidos entre Beats y Loops. Las referencias históricas a seis quedan
+> reemplazadas por [el presupuesto compartido](UPLOAD_BUDGET.md). El asistente
+> de distribución conserva su propuesta de horarios; no cambia los calendarios.
+
 La implementación prepara configuración, estado y planificación. No está conectada a
 la UI, FFmpeg, YouTube ni workers de Loopkits. Ningún comando de esta fase renderiza
 o sube videos. No se escribieron datos en Dropbox durante la implementación.

@@ -161,7 +161,7 @@ class BeatState:
             now = instant(self.clock())
             reserved_day = now.date()
             entries = state["attempts"].setdefault(now.date().isoformat(), {})
-            if len(entries) >= 6:
+            if len(entries) >= 10:
                 raise BudgetExhausted("daily_upload_budget_exhausted")
             entry = {"job_id": job_id, "reserved_at": now.isoformat()}
             entries[attempt_id] = entry
@@ -182,6 +182,6 @@ class BeatState:
         state, _ = self.cloud.read("state")
         now = instant(self.clock() if now is None else now)
         return {"as_of": now.isoformat(), "timezone": "America/Argentina/Buenos_Aires",
-                "buffer_days": 14, "upload_attempts_remaining": 6 - len(state["attempts"].get(now.date().isoformat(), {})),
+                "buffer_days": 14, "upload_attempts_remaining": 10 - len(state["attempts"].get(now.date().isoformat(), {})),
                 "jobs": plan(config, state, tracks, now, seed=seed, reports=reports,
                              occupied_days=occupied_days)}

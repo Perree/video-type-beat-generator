@@ -1,5 +1,10 @@
 # Type Beats — operación y hardening (Fase 8)
 
+> Actualización 2026-11-03: el límite operativo es de 10 intentos diarios
+> compartidos entre Beats y Loops. Las referencias históricas a seis quedan
+> reemplazadas por [el presupuesto compartido](UPLOAD_BUDGET.md). El asistente
+> de distribución conserva su propuesta de horarios; no cambia los calendarios.
+
 Guía para configurar, verificar y recuperar las Fases 1–7. El código operativo es
 `core/beat_*`; `python main.py` / `run_app.bat` conserva el flujo manual. Esta fase
 no habilita un workflow remoto ni realiza uploads reales. Las pruebas con servicios

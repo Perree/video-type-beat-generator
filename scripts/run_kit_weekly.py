@@ -260,6 +260,8 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
             return 1
 
     videos, warnings, used, failure = [], [], set(), None
+    deferred = False
+    from core.upload_budget import UploadDeferred
     skipped = unfilled = collided = 0
     try:
         try:
@@ -336,6 +338,10 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
                     queue.insert(0, selection)
                     slot_taken = True
                     break
+                except UploadDeferred as exc:
+                    warnings.append(kit_notify.alert(exc, step=step))
+                    deferred = True
+                    break
                 except (Exception, SystemExit) as exc:
                     failure = (exc, step)
                     if store.orphan:
@@ -349,7 +355,7 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
                     videos.append({'youtube_id': video['youtube_id'], 'slot': slot,
                                    'title': video.get('title')})
                 done = True
-            if failure:
+            if failure or deferred:
                 break
             if done:
                 print(f"{step}: ok.")
@@ -378,7 +384,7 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
     if collided:
         warnings.append(f"{collided} horario(s) se omitieron: el día ya tenía un video en "
                         "YouTube.")
-    if failure is None and skipped and not videos and not dry_run:
+    if failure is None and not deferred and skipped and not videos and not dry_run:
         failure = ('ningún kit dio un video', 'previews')
 
     if dry_run and failure is None:
@@ -469,11 +475,15 @@ def main(argv=None):
                 youtube.channel_title(channel)
                 # Mismo token del canal que sube (KIT_YT_TOKEN_JSON de este Environment).
                 calendar_fn = youtube.list_channel_calendar
+            from core.upload_budget import UploadBudget
+            from core.beat_cloud import DropboxTransport
             with tempfile.TemporaryDirectory(prefix='kit_weekly_') as out:
                 return run_weekly(app_config=app_config, channel=channel,
                                   channel_templates=templates, dbx=dbx,
                                   dry_run=args.dry_run, seed=args.seed, output_dir=out,
-                                  paths=paths, label=label, calendar_fn=calendar_fn)
+                                  paths=paths, label=label, calendar_fn=calendar_fn,
+                                  hooks={} if args.dry_run else {
+                                      'upload_budget': UploadBudget(DropboxTransport(dbx))})
     except (Exception, SystemExit) as exc:
         # Sin traceback ni mensaje: el log de Actions es público. Los nombres de las
         # variables que faltan no son secretos.

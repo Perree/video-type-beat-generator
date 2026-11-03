@@ -1,5 +1,10 @@
 # Fase 6: worker diario Type Beats (completada, revisión aplicada)
 
+> Actualización 2026-11-03: el límite operativo es de 10 intentos diarios
+> compartidos entre Beats y Loops. Las referencias históricas a seis quedan
+> reemplazadas por [el presupuesto compartido](UPLOAD_BUDGET.md). El asistente
+> de distribución conserva su propuesta de horarios; no cambia los calendarios.
+
 `scripts/run_beat_daily.py` conecta las Fases 1–5 con `core.youtube.upload`.
 No usa `main.py`, los módulos `kit_*`, credenciales `KIT_*` ni el estado de Loopkits.
 El workflow independiente es `.github/workflows/type-beats-daily.yml`.

@@ -139,7 +139,7 @@ class PlanningTests(unittest.TestCase):
         second = self.store.dry_run(config, reversed(TRACKS))
         self.assertEqual(first, second)
         self.assertEqual(self.fake.counter, 0)
-        self.assertEqual(first["upload_attempts_remaining"], 6)
+        self.assertEqual(first["upload_attempts_remaining"], 10)
 
     def test_cancelled_and_failed_slots_not_duplicated(self):
         state = migrate({}, "state")
@@ -148,12 +148,12 @@ class PlanningTests(unittest.TestCase):
         apply_plan(state, jobs)
         self.assertEqual(plan(CONFIG, state, TRACKS, NOW), [])
 
-    def test_global_six_attempts_retries_count_and_midnight(self):
+    def test_global_ten_attempts_retries_count_and_midnight(self):
         jobs = self.prepare()
-        for i in range(6):
+        for i in range(10):
             self.store.reserve_attempt(jobs[i % 4]["id"], str(i))
         with self.assertRaises(BudgetExhausted):
-            self.store.reserve_attempt(jobs[0]["id"], "seventh")
+            self.store.reserve_attempt(jobs[0]["id"], "eleventh")
         self.assertTrue(self.store.reserve_attempt(jobs[0]["id"], "0")["replayed"])
         with self.assertRaises(ValueError):
             self.store.reserve_attempt(jobs[1]["id"], "0")
@@ -172,7 +172,7 @@ class PlanningTests(unittest.TestCase):
 
     def test_concurrent_cas_global_budget(self):
         jobs = self.prepare()
-        barrier = Barrier(8)
+        barrier = Barrier(12)
         fake = self.fake
         class RacingDropbox:
             def __init__(self):
@@ -192,10 +192,10 @@ class PlanningTests(unittest.TestCase):
                 return True
             except BudgetExhausted:
                 return False
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            results = list(pool.map(reserve, range(8)))
-        self.assertEqual(sum(results), 6)
-        self.assertEqual(len(self.cloud.read("state")[0]["attempts"]["2026-10-12"]), 6)
+        with ThreadPoolExecutor(max_workers=12) as pool:
+            results = list(pool.map(reserve, range(12)))
+        self.assertEqual(sum(results), 10)
+        self.assertEqual(len(self.cloud.read("state")[0]["attempts"]["2026-10-12"]), 10)
 
     def test_incomplete_v1_never_resets_budget_or_jobs(self):
         self.prepare()

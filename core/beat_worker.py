@@ -15,6 +15,7 @@ from core.beat_reasons import note
 from core.beat_youtube import BeatYouTube
 from core.beat_logs import quiet_dependencies
 from core.beat_actions import check_context, bind_channel
+from core.upload_budget import UploadBudget
 
 
 class ChannelNotConfigured(Exception):
@@ -101,7 +102,8 @@ def main(argv=None):
                     private_pilot=args.private_pilot, expected_owner=expected_owner,
                     share_links=ShareLinks(),
                     # El token solo existe fuera del dry-run; el dry-run no lee YouTube.
-                    calendar=None if args.dry_run else client.calendar)
+                    calendar=None if args.dry_run else client.calendar,
+                    upload_budget=None if args.dry_run else UploadBudget(transport))
         except ChannelNotConfigured:
             # Canal sin config: queda en pausa (no pone en rojo la corrida) y avisa qué falta.
             summary = _paused_summary(args)

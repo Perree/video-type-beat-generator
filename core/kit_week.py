@@ -311,7 +311,8 @@ def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_c
             pack_id=pack_id, audio_mode=plan['mode'], now=slot - timedelta(minutes=1),
             image_path=image.get('path') if image else None, loops_json=plan['segments'], store=store, tz=tz,
             video_name=video_name, tracking_id=tracking_id, ref_images=ref_images,
-            title=title, desc_vars=desc_vars, seo=variant)
+            title=title, desc_vars=desc_vars, seo=variant,
+            upload_budget=hooks.get('upload_budget'))
 
     if pub.get('thumbnail_error'):
         warnings.append("YouTube no aceptó la miniatura de un video.")

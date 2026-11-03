@@ -1249,3 +1249,26 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
   redundante pendiente `41546615491` al detectar la ejecución del mismo canal ya activa.
 - Subida de la tanda completa habilitada temporalmente y después restaurada al escalonado
   normal; sin cambios en los videos previamente programados. Respaldos privados en tokens/.
+
+
+## Beats y Loops — Diez intentos diarios compartidos ✅ COMPLETADA (2026-11-03)
+
+- Autorizado por el usuario: subir el tope de seis a diez, compartido entre todas
+  las automatizaciones de Beats y Loops; mantener calendarios y anticipación de subidas.
+- `core/upload_budget.py`: contador en `datos/automatizacion/upload_budget.json`,
+  reservas CAS antes de insertar, día del Pacífico, sin devolución ante fallos y sin
+  reinicialización automática si falta o se corrompe. Reintentos de reserva idempotentes.
+- Workers diario y semanal conectados al contador; fallback privado de kits consume
+  otro intento. Límite del canal: pausa persistente de 24 horas y fin de su corrida;
+  los demás canales pueden seguir. Pendientes y recibos anteriores se conservan.
+- Esquema y UI de Beats pasan a diez conservando el historial. El contador histórico
+  de Beats sigue usando Buenos Aires; su saldo visible no incluye los intentos de Loops.
+- Integrados los cambios recientes de master, incluidos títulos y subidas escalonadas;
+  sin cambios en main.py, horarios de canales, tokens ni cuota del proyecto Google.
+- Contador remoto creado y leído de vuelta: límite diez. Por transición conservadora,
+  el día de activación queda reservado; diez intentos nuevos desde 2026-11-04 05:00 Argentina.
+- Validación específica: 25 pruebas offline aprobadas (contador y calendario de kits).
+  Regresión de 166 pruebas: 165 aprobadas inicialmente; corregido el fixture del
+  caso de subidas escalonadas y repetido su grupo (4 aprobadas). Sin fallos pendientes.
+  Compilación y revisión de whitespace aprobadas. Guía: `docs/UPLOAD_BUDGET.md`.
+- Sin videos subidos ni corridas de publicación iniciadas durante esta fase.

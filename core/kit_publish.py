@@ -174,7 +174,7 @@ def publish_preview(channel, video, thumbnail, pack_name, slots, templates, *,
                     pack_id, audio_mode, db_path=None, now=None,
                     image_path=None, loops_json=None, tz=None, store=None,
                     video_name=None, tracking_id=None, ref_images=None,
-                    title=None, desc_vars=None, seo=None):
+                    title=None, desc_vars=None, seo=None, upload_budget=None):
     """Sube el preview al próximo slot y registra la corrida.
 
     Args:
@@ -212,14 +212,18 @@ def publish_preview(channel, video, thumbnail, pack_name, slots, templates, *,
     publish_iso = local_to_youtube_publish_at(True, slot, tz=tz)
     title, body, tags = _metadata(channel, pack_name, templates, title, desc_vars)
 
+    def insert(publish_at):
+        call = lambda: _insert(channel, video, title, body, tags, thumbnail, publish_at)
+        return upload_budget.call(channel, call) if upload_budget else call()
+
     estado = 'scheduled'
     try:
-        uploaded = _insert(channel, video, title, body, tags, thumbnail, publish_iso)
+        uploaded = insert(publish_iso)
     except youtube.YouTubeError as exc:
         if not _schedule_rejected(exc):
             raise
         # publishAt rechazado: mismo archivo, privado, sin fecha.
-        uploaded = _insert(channel, video, title, body, tags, thumbnail, None)
+        uploaded = insert(None)
         estado = 'private_pending'
         publish_iso = None
 

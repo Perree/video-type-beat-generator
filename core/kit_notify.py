@@ -145,6 +145,10 @@ def alert(error, step=None):
 
     Si el error pide reconectar YouTube, el aviso empieza con los pasos para hacerlo.
     """
+    from core.upload_budget import UploadDeferred
+    if isinstance(error, UploadDeferred):
+        from core.beat_reasons import TEXTS, classify
+        return 'Loop kits: ' + TEXTS.get(classify(error), 'Subida aplazada; pendientes conservados.')
     kind = error_kind(error)
     where = f" en el paso '{step}'" if step else ''
     text = f"Loop kits: fallo el worker semanal{where} ({kind}). Revisar el log de Actions."

@@ -306,7 +306,7 @@ class PanelTests(unittest.TestCase):
         result = beat_settings.simulate(config, tracks, state, now)
         self.assertEqual(result["jobs"], plan(config, state, tracks, now))
         self.assertEqual(json.dumps(state), before)
-        self.assertEqual(result["remaining"], 6)
+        self.assertEqual(result["remaining"], 10)
 
     def test_qthread_responsive_cancel_and_no_result(self):
         entered, release = Event(), Event()
@@ -366,7 +366,7 @@ class PanelTests(unittest.TestCase):
         self.panel.read_state()
         pump(lambda: self.panel.task is None)
         self.assertEqual(self.panel.state, migrate({}, "state"))
-        self.assertIn("0/6", self.panel.quota.text())
+        self.assertIn("0/10", self.panel.quota.text())
         previous = self.panel.state
         def fail():
             raise CloudError("synthetic_failure")

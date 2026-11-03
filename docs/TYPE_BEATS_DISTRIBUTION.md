@@ -1,5 +1,10 @@
 # Distribuir publicaciones desde la aplicación
 
+> Actualización 2026-11-03: el límite operativo es de 10 intentos diarios
+> compartidos entre Beats y Loops. Las referencias históricas a seis quedan
+> reemplazadas por [el presupuesto compartido](UPLOAD_BUDGET.md). El asistente
+> de distribución conserva su propuesta de horarios; no cambia los calendarios.
+
 En **Mis canales automatizados → Distribuir publicaciones de Beats…**, o en
 **Modo avanzado → Beats → Canal → Distribuir publicaciones…**, se abre una guía
 de dos pasos. Usa la configuración cargada desde Dropbox y no necesita consultar
