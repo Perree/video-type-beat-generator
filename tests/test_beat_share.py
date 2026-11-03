@@ -61,7 +61,7 @@ class ShareInDescription(daily.DailyTests):
             def get(self, track_id, profile_url):
                 return 'https://bsta.rs/' + track_id[2:]
         summary = self.run_worker(share_links=Stub())
-        self.assertEqual(summary['uploaded'], 6)
+        self.assertEqual(summary['uploaded'], 10)
         for call in self.calls:
             self.assertNotIn('{url}', call['description'])
             self.assertRegex(call['description'], r'^Get it: https://bsta\.rs/\d+ / https://bsta\.rs/\d+$')
@@ -69,7 +69,7 @@ class ShareInDescription(daily.DailyTests):
 
     def test_falls_back_to_page_url_without_short_link(self):
         summary = self.run_worker(share_links=ShareLinks(FakeShare({}, fail=True)))
-        self.assertEqual(summary['uploaded'], 6)
+        self.assertEqual(summary['uploaded'], 10)
         for call in self.calls:
             self.assertIn('https://www.beatstars.com/beat/', call['description'])
             self.assertNotIn('{url}', call['description'])

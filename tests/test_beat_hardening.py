@@ -157,7 +157,7 @@ class HardeningTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertIsNone(calls[0]['publish_at'])
 
-    def test_distinct_jobs_racing_cannot_exceed_global_six_attempts(self):
+    def test_distinct_jobs_racing_cannot_exceed_global_ten_attempts(self):
         self.case.run_worker(dry_run=True)
         owner = BeatState(self.case.cloud, lambda: daily_fixtures.NOW).acquire()
         store = BeatState(self.case.cloud, lambda: daily_fixtures.NOW)
@@ -169,8 +169,8 @@ class HardeningTests(unittest.TestCase):
                 return True
             except BudgetExhausted:
                 return False
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            self.assertEqual(sum(pool.map(reserve, range(8))), 6)
+        with ThreadPoolExecutor(max_workers=12) as pool:
+            self.assertEqual(sum(pool.map(reserve, range(12))), 10)
 
     def test_wrong_youtube_account_rejected(self):
         expected = 'UC' + 'a' * 22
