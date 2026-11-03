@@ -1,5 +1,17 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## RaveWaveBeatz — investigación y ficha inicial ✅ COMPLETADA (2026-11-03)
+- Revisadas diez capturas del usuario: canal propio, Olbeats y Avram. Propuesta en
+  `docs/RAVEWAVEBEATZ.md`, sin gastos de vidIQ ni métricas privadas inventadas.
+- Preparado `docs/ravewavebeatz.channel.draft.json`: canal pausado, martes/viernes 15:00
+  Argentina, selección Makar/House/Deep House/Afro House, título base House, descripción
+  basada en la licencia visible y enlace individual por beat. Miniaturas sin texto añadido.
+- Localizados 14 JPG y un video en la carpeta antigua de Dropbox RAVEBEATZ. Inspeccionados
+  tres JPG. El video pesa 310.149.077 bytes y supera el límite de 256 MiB del worker.
+- Activación PENDIENTE: comprobar identidad OAuth de @RaveWaveBeatz, preparar video más chico,
+  copiar material a las carpetas propuestas, verificar catálogo, integrar registro/config y
+  probar render/calendario. El borrador no está cargado en producción y no programa videos.
+
 ## Subidas escalonadas de Type Beats ✅ COMPLETADA (2026-11-02)
 - Pedido del usuario: mismo cronograma (días y horas), pero que el worker no suba todos los beats el
   mismo día. Antes la corrida diaria subía de golpe el búfer de 14 días (hasta 6 por corrida).
