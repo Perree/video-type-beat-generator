@@ -5,7 +5,7 @@ import json
 import re
 import unicodedata
 from core.beat_names import clean_name
-from core import beat_latin_seo
+from core import beat_latin_seo, beat_house_seo
 from core.beat_seo_report import fields, text, texts, moment, parse_report, validate_report
 
 
@@ -15,10 +15,18 @@ def digest(value):
 
 
 PLACEHOLDERS = ('{name}', '{url}')
+# Opt-in title modes: module and the placeholders its title template must contain.
+MODES = {beat_latin_seo.MODE: (beat_latin_seo, ('{artists}', '{style}')),
+         beat_house_seo.MODE: (beat_house_seo, ('{style}',))}
 
 
-def _plain(value, latin=False):
-    for token in PLACEHOLDERS + (beat_latin_seo.TOKENS if latin else ()):
+def _mode(profile):
+    entry = MODES.get(profile.get('title_mode'))
+    return entry[0] if entry else None
+
+
+def _plain(value, mode=None):
+    for token in PLACEHOLDERS + (mode.TOKENS if mode else ()):
         value = value.replace(token, 'x')
     return value
 
@@ -30,20 +38,21 @@ def manual_profile(channel):
     # title_template is optional so snapshots created before it existed stay valid.
     fields(profile, ('tags', 'description') + (('title_template',) if 'title_template' in profile else ())
            + (('title_mode',) if 'title_mode' in profile else ()))
-    if 'title_mode' in profile and (profile['title_mode'] != beat_latin_seo.MODE
-            or not all(token in profile.get('title_template', '') for token in ('{artists}', '{style}'))):
+    if 'title_mode' in profile and (profile['title_mode'] not in MODES
+            or not all(token in profile.get('title_template', '')
+                       for token in MODES[profile['title_mode']][1])):
         raise ValueError('seo_title_mode_invalid')
     texts(profile['tags'])
     description = profile['description']
     if description != '':
         if type(description) is not str:
             raise ValueError('seo_text_invalid')
-        text(_plain(description, profile.get('title_mode') == beat_latin_seo.MODE).replace(chr(10), ' '), 4000)
+        text(_plain(description, _mode(profile)).replace(chr(10), ' '), 4000)
     if 'title_template' in profile:
         template = profile['title_template']
         if type(template) is not str or '{name}' not in template:
             raise ValueError('seo_text_invalid')
-        text(_plain(template, profile.get('title_mode') == beat_latin_seo.MODE), 90)
+        text(_plain(template, _mode(profile)), 90)
     return cid, profile
 
 
@@ -67,8 +76,8 @@ def track_input(track):
 
 
 def candidates(track, profile, scores):
-    if profile.get('title_mode') == beat_latin_seo.MODE:
-        return beat_latin_seo.variants(track, profile)
+    if _mode(profile):
+        return _mode(profile).variants(track, profile)
     template = profile.get('title_template')
     if template:
         # Fixed title and tag list; only the beat name and link change. Repeats rotate the tag order.
@@ -95,8 +104,8 @@ def candidates(track, profile, scores):
 
 
 def description(profile, track, option, link=None):
-    value = (beat_latin_seo.description(profile, track, option)
-             if profile.get('title_mode') == beat_latin_seo.MODE else profile['description'])
+    mode = _mode(profile)
+    value = mode.description(profile, track, option) if mode else profile['description']
     return render(value, track, link)
 
 

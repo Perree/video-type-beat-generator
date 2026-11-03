@@ -28,6 +28,8 @@ def apply_channel_templates(channel, saved):
         allowed = {'name', 'url'}
         if profile.get('title_mode') == 'latin_v1':
             allowed.update(('artists', 'style', 'bpm', 'key'))
+        elif profile.get('title_mode') == 'house_v1':
+            allowed.add('style')
         if set(re.findall(r'\{([^{}]+)\}', value)) - allowed:
             raise ValueError('channel_template_placeholder_unsupported')
         return value
