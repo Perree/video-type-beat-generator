@@ -1,6 +1,6 @@
 # RaveWaveBeatz — preparación del canal
 
-Fecha: 2026-11-03. Investigación y propuesta preparadas; automatización pendiente de activación.
+Fecha: 2026-11-03. Canal activo en la automatización de Beats (ver «Estado operativo»).
 
 ## Evidencia y límites
 
@@ -60,8 +60,8 @@ uso gratuito no comercial, no «free for profit».
 
 ## Descripción propuesta
 
-La plantilla operativa está en `ravewavebeatz.channel.draft.json`. Usa únicamente `{name}`
-y `{url}`, que el motor SEO actual sustituye. El enlace debe ser el del beat de cada publicación:
+La ficha publicada está en `ravewavebeatz.channel.json`. Usa `{name}`, `{url}` y `{style}`
+(modo `house_v1`). La versión publicada quita los dos enlaces de wyrebeats.vercel.app (404). El enlace debe ser el del beat de cada publicación:
 el enlace corto cpDTrW de HIGH IN AMSTERDAM no se reutiliza para todo el catálogo.
 
 ```text
@@ -106,36 +106,46 @@ una selección musical comprobada.
 
 ## Horario y evaluación
 
-Dos publicaciones por semana: **martes y viernes, 15:00 Argentina (UTC−3)**.
-Es una hipótesis operativa para mantener una cadencia sostenible, no un mejor horario
-demostrado por Analytics. Distribuir las subidas con el mecanismo existente de 2–4 días.
-Primera revisión tras ocho publicaciones / cuatro semanas desde el inicio real:
-comparar vistas a igual edad (7 días), impresiones, CTR y duración media cuando haya
-acceso a Studio. Cambiar una variable por vez; la muestra inicial seguirá siendo pequeña.
+Cuatro publicaciones por semana, pedido del usuario: **martes, jueves, viernes y domingo,
+15:00 Argentina (UTC−3)** (slots weekday 1, 3, 4 y 6; 0 = lunes). Cadencia operativa, no un
+mejor horario demostrado por Analytics. El worker sube con anticipación (margen de 14 días).
+Primera revisión tras ocho publicaciones (dos semanas): comparar vistas a igual edad (7 días),
+impresiones, CTR y duración media cuando haya acceso a Studio. Cambiar una variable por vez.
 
-## Material encontrado y preparación pendiente
+## Estado operativo (2026-11-03)
 
-- Dropbox, ubicación actual: `/AudioVisual Stuff/Type Beats - STUFF/RAVEBEATZ`.
-  Contiene 14 JPG `Beat-Miiniaturas*.jpg` y `VIDEOS/video stock - RAVE BEATZ.mp4`.
-  Se inspeccionaron visualmente tres JPG: base, número 7 y número 14; no todos los archivos.
-- El video mide 310.149.077 bytes (295,8 MiB). Supera `MAX_VIDEO_BYTES`, 256 MiB:
-  no sirve directamente para el worker; necesita una copia comprimida o fragmentos más chicos.
-  No se verificaron duración ni contenido completo del video.
-- El proyecto conserva otra copia del video y una imagen tropical local. Las miniaturas de
-  Dropbox son una referencia más directa para el estilo de las capturas.
-- El perfil Manual local de RaveBeatz aún tiene valores genéricos, incluido «Free for Profit»;
-  no debe usarse como plantilla final de este canal.
-- El registro y la configuración sincronizada de automatización todavía no contienen RaveWaveBeatz.
+Ficha publicada: `docs/ravewavebeatz.channel.json` es copia de lo que quedó en la config remota.
 
-El JSON adjunto es **un canal pausado para revisar**, no la configuración remota completa.
-Apunta a carpetas nuevas propuestas bajo `contenido/canales/ravewavebeatz`; esas carpetas
-todavía no fueron creadas ni llenadas. Antes de incorporarlo al worker:
+- **Identidad:** página pública @RaveWaveBeatz → `UC9_V3H6Mv2BXbgVIT9O7yDw`; el OAuth del usuario
+  devolvió el mismo canal (título RaveWaveBeatz). Secretos `BEAT_CHANNEL_ID_RAVEWAVEBEATZ` y
+  `BEAT_YT_TOKEN_JSON_RAVEWAVEBEATZ` cargados en `kit-weekly`; slug agregado a `BEAT_CHANNELS`
+  conservando ey-mat, lovesickk, matwyresoul y mattwyyre.
+- **Catálogo:** no existe tienda RaveWaveBeatz en BeatStars; los videos del canal enlazan a la
+  tienda de matwyre (`bsta.rs/FspSKH` → matwyre). Se usa el catálogo compartido (1.147 tracks).
+  Filtro: las 8 etiquetas del borrador + `melodic house`, `melodic deep house`, `club house`
+  → 68 elegibles. No se agregan `afro` / `afrobeat` (Afrobeats) ni `reggaeton house`.
+- **Título:** `seo.title_mode=house_v1` (`core/beat_house_seo.py`): `(FREE) Makar x {style} Type
+  Beat - "{name}"`. `{style}` = Afro House con etiqueta afro house; si no, Deep House con
+  etiqueta deep house / melodic deep house; si no, House. Son etiquetas del productor, no
+  análisis del audio. En el catálogo: 41 Deep House, 21 House, 6 Afro House; 39–55 caracteres.
+  Las etiquetas SEO suman las de la variante; máximo 220 caracteres.
+- **Descripción:** borrador sin los enlaces `wyrebeats.vercel.app` (`/free` y `/` devolvían 404 el
+  2026-11-03); Instagram responde. `{url}` = enlace corto propio de cada beat; comprobados tres
+  (`bsta.rs/...` → mismo ID). Licencia no comercial y créditos sin cambios.
+- **Fondos:** el original (4K HEVC, 154,6 s, 30 fps, 295,8 MiB) es un lyric video que repite su
+  primera mitad, con subtítulos y palabras superpuestas. Se conserva intacto. En
+  `contenido/canales/ravewavebeatz/fondos`: 6 fragmentos únicos 1080p H.264 sin audio
+  (6,1–10,8 s, 23 MB en total), zoom 88 % alineado arriba para dejar fuera los subtítulos inferiores,
+  cortados en cambios de escena y revisados cuadro a cuadro (0,25–0,5 s) sin texto superpuesto.
+- **Miniaturas:** 9 de las 14 JPG sin texto incrustado + la escena de calle al sol con el
+  subtítulo recortado = 10, ordenadas para alternar escenas (rotación LRU por nombre).
+  Excluidas por texto: números 2 («AND»), 5 y 14 (subtítulos) y 12 («I JUST»).
+- **Muestra local:** VELVET, 2:17, 6 fondos en loop sin descartes, única pista de audio = beat,
+  miniatura sin texto. El FFmpeg 7.1 local informa `avg_frame_rate 6300/209` también con los
+  fondos de ey mat, así que solo para esta muestra se relajó el chequeo; el worker usa el FFmpeg de Ubuntu.
+- **Actions:** dry-run del canal en verde: planned=8, eligible=2,
+  failed/blocked/orphan/unknown/calendar_unavailable=0.
 
-1. Confirmar el ID canónico de @RaveWaveBeatz mediante la autorización de su cuenta de YouTube;
-   no asignar el ID del enlace sin identificarlo. Guardar credenciales en el entorno propio.
-2. Preparar el video dentro del límite y seleccionar miniaturas distintas en las carpetas propuestas.
-3. Comprobar el catálogo de BeatStars: el filtro actual compara etiquetas exactas sin distinguir
-   mayúsculas, con OR. No busca por título, no clasifica audio y no exige todas las etiquetas.
-4. Incorporar la ficha al registro y a la configuración de Beats, conservando los demás canales.
-5. Simular calendario/selección, renderizar una muestra y revisar título, enlace, audio y miniatura.
-6. Activar solo al resolver identidad, credenciales y material. Aún no hay videos programados.
+Pendiente de observar: el nombre «GYATT house» (título de catálogo «GYATT house type beat»)
+y beats con el mismo nombre que subidas manuales previas del canal (MOOD, NOCHE); el worker
+solo conoce su propio historial. No se eligen en las primeras ocho fechas simuladas.

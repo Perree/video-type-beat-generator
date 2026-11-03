@@ -1,0 +1,83 @@
+{
+  "actions_slug": "ravewavebeatz",
+  "active": true,
+  "dropbox_images": {
+    "house": "/Soft Projects/Type Beat Generator/contenido/canales/ravewavebeatz/miniaturas"
+  },
+  "genres": [
+    "house"
+  ],
+  "id": "ravewavebeatz",
+  "images_folder": "",
+  "priority": 10,
+  "selection_tags": [
+    "makar",
+    "makar type beat",
+    "house",
+    "house type beat",
+    "deep house",
+    "deep house type beat",
+    "afro house",
+    "afro house type beat",
+    "melodic house",
+    "melodic deep house",
+    "club house"
+  ],
+  "seo": {
+    "description": "Makar x {style} Type Beat - \"{name}\"\n💰 Purchase / Download this beat: {url}\n\nMelodic house instrumental produced by RaveWaveBeatz.\n\n📸 Instagram: https://instagram.com/wyrebeats\n\nFREE FOR NON-PROFIT USE ONLY.\nYou may use this beat for non-profit releases on YouTube or SoundCloud.\nRequired credit: \"Prod. RaveWaveBeatz\".\nIf another producer is listed on the beat, credit them too.\nA license is required for Spotify, Apple Music and other commercial releases.\nDo not register this beat or a song using it with Content ID.\n\nAll rights reserved © RaveWaveBeatz.\n\n#MakarTypeBeat #HouseTypeBeat #RaveWaveBeatz",
+    "tags": [
+      "makar type beat",
+      "makar beat",
+      "makar instrumental",
+      "house type beat",
+      "house instrumental",
+      "melodic house type beat",
+      "club type beat",
+      "free makar type beat",
+      "free house type beat",
+      "ravewavebeatz"
+    ],
+    "title_mode": "house_v1",
+    "title_template": "(FREE) Makar x {style} Type Beat - \"{name}\""
+  },
+  "slots": [
+    {
+      "hour": 15,
+      "minute": 0,
+      "weekday": 1
+    },
+    {
+      "hour": 15,
+      "minute": 0,
+      "weekday": 3
+    },
+    {
+      "hour": 15,
+      "minute": 0,
+      "weekday": 4
+    },
+    {
+      "hour": 15,
+      "minute": 0,
+      "weekday": 6
+    }
+  ],
+  "tags": [],
+  "upload_spread": {
+    "max_days": 4,
+    "min_days": 2
+  },
+  "visual": {
+    "clip_max_seconds": 10,
+    "clip_min_seconds": 6,
+    "custom_thumbnail": true,
+    "image_fit": "contain",
+    "mode": "video",
+    "plain_image": true,
+    "thumbnail_path": "",
+    "thumbnail_source": "auto",
+    "video_source": "dropbox",
+    "videos_folder": "/Soft Projects/Type Beat Generator/contenido/canales/ravewavebeatz/fondos"
+  },
+  "youtube_channel_id": "UC9_V3H6Mv2BXbgVIT9O7yDw"
+}

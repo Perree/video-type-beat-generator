@@ -1,9 +1,32 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## RaveWaveBeatz — configuración y activación ✅ COMPLETADA (2026-11-03)
+- Identidad: el handle público y el OAuth del usuario coinciden en RaveWaveBeatz
+  `UC9_V3H6Mv2BXbgVIT9O7yDw`. Secretos por slug cargados en `kit-weekly`; `BEAT_CHANNELS`
+  suma `ravewavebeatz` conservando los cuatro canales anteriores.
+- Fondos: el original 4K HEVC (154,6 s, 295,8 MiB) queda intacto. Seis fragmentos 1080p sin
+  audio (6,1–10,8 s, 23 MB), sin letras superpuestas, en `contenido/canales/ravewavebeatz/fondos`.
+  Miniaturas: 10 sin texto (9 originales + 1 con el subtítulo recortado), en `miniaturas`.
+- Catálogo compartido de matwyre (los videos del canal ya enlazan ahí; no hay tienda propia):
+  filtro del borrador + melodic house / melodic deep house / club house → 68 elegibles.
+- `core/beat_house_seo.py` (`title_mode=house_v1`): Afro House / Deep House / House por las
+  etiquetas reales de cada beat. `beat_seo` despacha los modos por una tabla, sin cambiar latin_v1.
+  Descripción sin los enlaces caídos de wyrebeats.vercel.app; `{url}` corto e individual verificado.
+- Cronograma pedido por el usuario: martes, jueves, viernes y domingo a las 15:00 Argentina.
+- Corrección necesaria para todos los canales: cinco tests del worker seguían esperando el tope
+  de 6 intentos tras `5eec311` y frenaban el control previo de cada corrida. Actualizados a 10.
+  Control del worker: 323 pruebas OK (2 omitidas), local y en Actions.
+- Registro y config remota publicados por CAS (primero pausado, luego activo), releídos.
+  Dry-run en Actions `41715221839`: planned=8, eligible=2, failed/blocked/orphan/unknown=0.
+  Simulación local: 5, 6, 8, 10, 12, 13, 15 y 17/11 a las 15:00 (Ready, I'm free, Freedom…).
+- No se subió ni programó ningún video en esta sesión: el cupo de hoy está reservado por la
+  transición del contador. La primera subida real queda para el cron del 2026-11-04 (19:00).
+  Detalle y pendientes: `docs/RAVEWAVEBEATZ.md` § Estado operativo.
+
 ## RaveWaveBeatz — investigación y ficha inicial ✅ COMPLETADA (2026-11-03)
 - Revisadas diez capturas del usuario: canal propio, Olbeats y Avram. Propuesta en
   `docs/RAVEWAVEBEATZ.md`, sin gastos de vidIQ ni métricas privadas inventadas.
-- Preparado `docs/ravewavebeatz.channel.draft.json`: canal pausado, martes/viernes 15:00
+- Preparado el borrador (hoy `docs/ravewavebeatz.channel.json`): canal pausado, martes/viernes 15:00
   Argentina, selección Makar/House/Deep House/Afro House, título base House, descripción
   basada en la licencia visible y enlace individual por beat. Miniaturas sin texto añadido.
 - Localizados 14 JPG y un video en la carpeta antigua de Dropbox RAVEBEATZ. Inspeccionados
