@@ -1,14 +1,20 @@
 # kiezsa loops — preparación (2026-11-03)
 
-Configuración y catálogo propios guardados en Dropbox y releídos. Canal registrado en
-la app con `activo: false`; no agregado a `KIT_CHANNELS`. No se subieron videos.
+Configuración y catálogo propios guardados en Dropbox y releídos. Canal **activo** en
+la app, con `activo: true` y `kiezsa-loops=6` en `KIT_CHANNELS`. No se subieron videos
+durante la activación.
 Enlaces de Rekonise de los cuatro kits elegidos cargados y releídos.
 YouTube conectado por OAuth y verificado por nombre y handle `@kiezsa-loops`:
 `UCabIT1klRK7dWEobaW4lHhQ`. Token obtenido en memoria y guardado directamente en
 GitHub Secrets (`kit-weekly-kiezsa-loops`), sin archivo local de credenciales.
 Environment creado y restringido a `master`; secretos de canal y token cargados.
-Pendientes para activar: publicar el soporte de `{loop_count}` en el worker y
-habilitar el canal en el registro y `KIT_CHANNELS`. No se inició ninguna subida.
+Soporte de `{loop_count}` publicado en `master`. Prueba remota sin subidas
+`41755326855` completada correctamente (`preview 1/1: ok`). Registro actualizado por
+CAS y releído; cronogramas y registro de los demás canales conservados.
+Primera ejecución automática prevista: domingo 8/11/2026 a las 20:00 Argentina;
+primera publicación prevista: lunes 9/11/2026 a las 18:00, sujeto al calendario de
+YouTube, material, cuota y éxito de la corrida real. El dry-run no prueba el render
+ni una subida real.
 
 ## Base y cronograma
 
@@ -52,7 +58,7 @@ aportados por el usuario son:
 - MIDNIGHT: https://rkns.link/zioit
 - Lucid Dreams: https://rkns.link/1sywk
 
-Los cuatro kits quedan elegibles, sin activar el canal. Inventario verificado con el
+Los cuatro kits quedan elegibles en el canal activo. Inventario verificado con el
 lector real de Dropbox. Config y catálogo reproducibles en
 `kiezsa-loops.channel.json` y `kiezsa-loops.kits.json`.
 

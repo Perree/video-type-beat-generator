@@ -1,5 +1,17 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## kiezsa loops — activación semanal ✅ COMPLETADA (2026-11-03)
+- Autorizado por el usuario: código publicado en `master` y `kiezsa-loops=6` agregado
+  a `KIT_CHANNELS`, conservando los tres canales anteriores y sus días.
+- Corrida remota `41755326855` con `dry_run=true` completada en verde:
+  `preview 1/1: ok`. No renderiza ni sube; no acredita una subida real.
+- Registro de Dropbox cambiado por CAS a `activo: true` y releído; otros canales
+  intactos. Cuatro kits y enlaces individuales, lunes 18:00 Argentina, sin cambios.
+- Primera corrida automática prevista: domingo 8/11 a las 20:00 Argentina, para
+  publicar el lunes 9/11 a las 18:00, sujeto a calendario, cuota y corrida real.
+- Validación local: 36 pruebas de conteo de loops, catálogo y calendario aprobadas.
+  Sin subidas ni programaciones reales durante esta activación.
+
 ## kiezsa loops — conexión de YouTube ✅ COMPLETADA (2026-11-03)
 - OAuth autorizado por el usuario en su navegador. Identidad verificada por API:
   kiezsa loops, `@kiezsa-loops`, `UCabIT1klRK7dWEobaW4lHhQ`.
