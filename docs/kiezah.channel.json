@@ -54,12 +54,11 @@
   },
   "use_channel_templates": true,
   "seo": {
-    "title_mode": "club_v1",
-    "title_template": "[FREE] {style} Type Beat - \"{name}\"",
+    "title_mode": "club_v2",
+    "title_template": "[FREE] {style} Type Beat - \"{name}\" | {detail}",
     "tags": [
       "free type beat",
       "instrumental",
-      "club instrumental",
       "matwyre",
       "wyresounds",
       "kiezah"

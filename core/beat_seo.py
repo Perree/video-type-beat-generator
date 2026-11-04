@@ -5,7 +5,7 @@ import json
 import re
 import unicodedata
 from core.beat_names import clean_name
-from core import beat_latin_seo, beat_house_seo, beat_indie_seo, beat_club_seo
+from core import beat_latin_seo, beat_house_seo, beat_indie_seo, beat_club_seo, beat_club_seo_v2
 from core.beat_seo_report import fields, text, texts, moment, parse_report, validate_report
 
 
@@ -19,6 +19,7 @@ PLACEHOLDERS = ('{name}', '{url}')
 MODES = {beat_latin_seo.MODE: (beat_latin_seo, ('{artists}', '{style}')),
          beat_house_seo.MODE: (beat_house_seo, ('{style}',)),
          beat_club_seo.MODE: (beat_club_seo, ('{style}',)),
+         beat_club_seo_v2.MODE: (beat_club_seo_v2, ('{style}', '{detail}')),
          beat_indie_seo.MODE: (beat_indie_seo, ('{style}',))}
 
 
