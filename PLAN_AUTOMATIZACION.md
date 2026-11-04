@@ -1,5 +1,18 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Kiezah — piloto privado con excepción única de cupo ✅ COMPLETADA (2026-11-03)
+- Usuario autorizó una subida extra solo para esta prueba, ante diez reservas internas.
+- Permiso separado de un uso para Kiezah, día y corrida; sin alterar el tope diario,
+  las reservas anteriores ni los bloqueos reales de YouTube. Pruebas de concurrencia,
+  respuestas perdidas y límites aprobadas. Worker: 340 pruebas OK (dos omitidas).
+- Run `41762124991` exitoso: uploaded=1, failed/orphan/unknown/blocked=0.
+  Freedom `TK18104778`, título `[FREE] Deep House Type Beat - "Freedom"`, imagen propia 01.
+- Video privado `MhnAtBKyNM0`, sin publishAt; recibo de Dropbox confirmado y permiso
+  consumido. Límite y reservas normales conservados en 10. Sin subidas adicionales.
+- El piloto consume el slot 5/11; no se publicará automáticamente. Seis pendientes
+  restantes desde 7/11 a las 15:00 Argentina, cada dos días. Detalle: `docs/KIEZAH.md`.
+
+
 ## Kiezah — automatización House / Club y cadencia cada dos días ✅ COMPLETADA (2026-11-03)
 - OAuth e identidad pública verificados: Kiezah, `@Kiezahhouse`,
   `UCcgj7ZzsuADHGg4qcyYe2Kw`. Secretos propios por slug en `kit-weekly`.

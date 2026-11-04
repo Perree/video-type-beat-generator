@@ -78,3 +78,29 @@ No se hizo una subida real ni se verificó `videos.insert` en esta fase. Automat
 activa para el cron normal del 4/11 a las 19:00 Argentina; primera publicación prevista
 5/11 a las 15:00, sujeta a calendario de YouTube, cupo compartido y subida exitosa.
 No se alteró el historial ni el calendario de otros canales.
+
+
+## Prueba privada real autorizada (2026-11-03)
+
+Usuario pidió subir una prueba y autorizó explícitamente una única subida adicional
+al agotarse el contador interno (10 reservas heredadas). No se borraron reservas ni
+se cambió el límite diario. `PrivatePilotBudget` admite un permiso separado, de un
+solo uso, ligado al canal, día Pacific y corrida de GitHub; solo en piloto privado.
+Permiso de `41762124991` consumido y releído. Contador normal: límite 10, reservas 10.
+Sin permiso, el resto de los canales y pilotos conserva el bloqueo habitual. Un
+bloqueo real de YouTube nunca se salta. Tests cubren consumo único, carrera entre
+workers, respuesta perdida, canal/día/corrida incorrectos y cooldown de YouTube.
+
+Corrida real `41762124991`: success, private_pilot=true, planned=7, eligible=1,
+uploaded=1, failed/orphan/unknown/blocked/calendar_unavailable=0. 340 tests del worker
+aprobados (dos omitidos). Beat `TK18104778`, Freedom:
+`[FREE] Deep House Type Beat - "Freedom"`. Imagen `kiezah/fondos/image_01.jfif`.
+Video: https://www.youtube.com/watch?v=MhnAtBKyNM0
+Recibo remoto confirmado como uploaded / private_pilot. La inserción se hizo con
+privacyStatus=private y sin publishAt; no se afirma una lectura autenticada posterior
+de videos.list. No se reintentó una inserción ni se hicieron otras subidas.
+
+El piloto usa el trabajo del primer slot (5/11 15:00), que queda consumido como prueba
+privada; no se publicará automáticamente. Los seis trabajos restantes conservan
+7, 9, 11, 13, 15 y 17/11 a las 15:00 Argentina. La próxima publicación automática
+prevista pasa al 7/11, sujeta a la subida y al cupo compartido.
