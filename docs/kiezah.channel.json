@@ -1,0 +1,70 @@
+{
+  "id": "kiezah",
+  "actions_slug": "kiezah",
+  "active": false,
+  "priority": 10,
+  "slots": [],
+  "interval_schedule": {
+    "days": 2,
+    "anchor": "2026-11-05T15:00:00-03:00"
+  },
+  "upload_spread": {
+    "min_days": 2,
+    "max_days": 4
+  },
+  "genres": [
+    "house"
+  ],
+  "images_folder": "",
+  "dropbox_images": {
+    "house": "/Soft Projects/Type Beat Generator/contenido/canales/kiezah/fondos"
+  },
+  "selection_tags": [
+    "afro house",
+    "afro house type beat",
+    "afrohouse",
+    "club",
+    "club banger",
+    "club banger type beat",
+    "club house",
+    "club type beat",
+    "deep house",
+    "deep house type beat",
+    "deephouse",
+    "edm",
+    "edm type beat",
+    "emotional house",
+    "house",
+    "house type beat",
+    "latin house",
+    "melodic deep house",
+    "melodic house",
+    "melodic house type beat",
+    "reggaeton house",
+    "sad deep house",
+    "sad house"
+  ],
+  "tags": [],
+  "visual": {
+    "mode": "image",
+    "plain_image": true,
+    "image_fit": "contain",
+    "custom_thumbnail": false,
+    "thumbnail_source": "auto"
+  },
+  "use_channel_templates": true,
+  "seo": {
+    "title_mode": "club_v1",
+    "title_template": "[FREE] {style} Type Beat - \"{name}\"",
+    "tags": [
+      "free type beat",
+      "instrumental",
+      "club instrumental",
+      "matwyre",
+      "wyresounds",
+      "kiezah"
+    ],
+    "description": "{style} Type Beat - \"{name}\"\n\n🚀 License / Download High Quality Audio (Untagged):\n➔ {url}\n\n⬇️ Free Demo / Beat Preview:\n➔ {url}\n\n💻 Beat Store:\n➔ https://www.beatstars.com/matwyre\n\n📲 CONNECT WITH ME:\n● Instagram: https://instagram.com/wyrebeats\n\n---\n📜 TERMS & CONDITIONS:\n- NON-PROFIT: You may use this beat for free on social platforms. Please credit: \"Prod. MatWyre\".\n- COLLABORATIONS: Include any co-producers listed in the original beat title in your credits.\n- COMMERCIAL: A lease is required for all paid distribution (Spotify, iTunes, etc).\n- NO CONTENT ID: Do not register this instrumental or a song using it with Content ID.\n\nAll Rights Reserved © - MatWyre / WyreSounds\n\n#TypeBeat #Instrumental #MatWyre"
+  },
+  "youtube_channel_id": "UCcgj7ZzsuADHGg4qcyYe2Kw"
+}

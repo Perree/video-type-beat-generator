@@ -5,6 +5,7 @@ import json
 import re
 import math
 from core.beat_selection import selection_tags
+from core import beat_interval
 
 BA = timezone(timedelta(hours=-3), "America/Argentina/Buenos_Aires")
 VERSION = 1
@@ -77,8 +78,9 @@ def migrate(document, kind):
             if type(ch["active"]) is not bool or type(ch["priority"]) is not int:
                 raise ValueError("invalid_channel_options")
             selection_tags(ch)
+            interval = beat_interval.settings(ch)
             slots = ch.get("slots")
-            if not isinstance(slots, list) or not slots or len(slots) > 168:
+            if not isinstance(slots, list) or (not slots and interval is None) or len(slots) > 168:
                 raise ValueError("invalid_slots")
             keys = set()
             for s in slots:

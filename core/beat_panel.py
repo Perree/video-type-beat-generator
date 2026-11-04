@@ -177,7 +177,7 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
                   selection_tags=[s.strip() for s in self.selection_tags.text().split(",") if s.strip()],
                   genres=[s.strip() for s in self.genres.text().split(",") if s.strip()],
                   images_folder=self.images.text().strip(),
-                  slots=[{"weekday": self.slots.cellWidget(i, 0).currentIndex(),
+                  slots=[] if 'interval_schedule' in ch else [{"weekday": self.slots.cellWidget(i, 0).currentIndex(),
                           "hour": self.slots.cellWidget(i, 1).time().hour(),
                           "minute": self.slots.cellWidget(i, 1).time().minute()}
                          for i in range(self.slots.rowCount())])
@@ -208,6 +208,15 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
         row = channel_kind.find(self.registry, ch["id"])
         self._load_templates(ch, row.get("plantillas") if row else None, ch["id"])
         self.slots.setRowCount(0)
+        interval = 'interval_schedule' in ch
+        self.slots.setEnabled(not interval)
+        for button in self.slot_buttons:
+            button.setEnabled(not interval)
+        if interval:
+            from core.beat_interval_dialog import schedule_text
+            self.interval_label.setText(schedule_text(ch) + '. Cambiar desde Mis canales → Cambiar.')
+        else:
+            self.interval_label.clear()
         for slot in ch["slots"]:
             self._add_slot(slot)
         self.refresh_publish_readiness()

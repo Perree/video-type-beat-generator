@@ -53,6 +53,17 @@ class FakeKits:
 
 
 class ScheduleTextTests(unittest.TestCase):
+    def test_interval_dialog_keeps_anchor_and_edits_cadence(self):
+        from core.beat_interval_dialog import IntervalDialog, schedule_text as interval_text
+        channel = {'id': 'kiezah', 'slots': [], 'interval_schedule': {
+            'days': 2, 'anchor': '2026-11-05T15:00:00-03:00'}}
+        dialog = IntervalDialog(channel)
+        self.assertEqual(dialog.value(), channel['interval_schedule'])
+        self.assertIn('Cada 2 días', interval_text(channel))
+        dialog.days.setValue(3)
+        self.assertEqual(dialog.value()['days'], 3)
+        dialog.deleteLater()
+
     def test_groups_by_time(self):
         self.assertEqual(schedule_text([{"weekday": 0, "hour": 18, "minute": 0},
                                         {"weekday": 3, "hour": 18, "minute": 0}]), "Lun, Jue · 18:00")
@@ -69,6 +80,17 @@ class ScheduleTextTests(unittest.TestCase):
 
 
 class MyChannelsTests(unittest.TestCase):
+    def test_advanced_editor_preserves_interval_and_disables_weekdays(self):
+        channel = self.panel.config['channels'][0]
+        channel.update(slots=[], interval_schedule={'days': 2, 'anchor': '2026-11-05T15:00:00-03:00'})
+        self.panel._select(1)
+        self.panel._select(0)
+        self.assertFalse(self.panel.slots.isEnabled())
+        self.assertTrue(all(not button.isEnabled() for button in self.panel.slot_buttons))
+        self.panel._store_editor()
+        self.assertEqual(channel['slots'], [])
+        self.assertEqual(channel['interval_schedule']['days'], 2)
+
     def setUp(self):
         self.memory = seed(MemoryDropbox())
         self.panel = BeatPanel(cloud_provider=lambda: self.memory)

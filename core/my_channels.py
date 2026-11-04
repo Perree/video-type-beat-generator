@@ -173,7 +173,9 @@ class BeatCard(QFrame):
         top.addWidget(self.active)
         layout.addLayout(top)
         row = QHBoxLayout()
-        row.addWidget(QLabel(f'🕒  {schedule_text(channel.get("slots", []))}'))
+        from core.beat_interval_dialog import schedule_text as interval_text
+        label = interval_text(channel) if 'interval_schedule' in channel else schedule_text(channel.get('slots', []))
+        row.addWidget(QLabel(f'🕒  {label}'))
         self.btn_schedule = theme.flat(QPushButton('Cambiar'))
         self.btn_schedule.setToolTip('Cambiar los días y la hora de publicación.')
         self.btn_schedule.clicked.connect(lambda: view.edit_schedule(index))
@@ -451,6 +453,12 @@ class MyChannelsView(QWidget):
 
     def edit_schedule(self, index):
         channel = self.channels()[index]
+        if 'interval_schedule' in channel:
+            from core.beat_interval_dialog import IntervalDialog
+            dialog = IntervalDialog(channel, self)
+            if dialog.exec_():
+                self._edit(lambda channels: channels[index].update(interval_schedule=dialog.value()))
+            return
         dialog = ScheduleDialog(channel['id'], channel.get('slots', []), self)
         if dialog.exec_():
             slots = dialog.slots()

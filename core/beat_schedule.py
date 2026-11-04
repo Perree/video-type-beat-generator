@@ -2,7 +2,7 @@
 from copy import deepcopy
 from datetime import timedelta
 import hashlib
-from core import human_schedule
+from core import human_schedule, beat_interval
 from core.beat_schema import identity, instant, migrate
 from core.beat_rotation import repeat_ready, publication_time
 from core.beat_performance import performance, choose
@@ -10,6 +10,8 @@ from core.beat_selection import eligible_tracks
 
 
 def slots(channel, now):
+    if beat_interval.settings(channel) is not None:
+        return beat_interval.slots(channel, now)
     start = instant(now)
     end = start + timedelta(days=14)
     specs = human_schedule.annotate(channel["slots"], channel.get("human_schedule"))
