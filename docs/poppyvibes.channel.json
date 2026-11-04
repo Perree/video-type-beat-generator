@@ -1,25 +1,15 @@
 {
-  "id": "poppyvibes",
   "actions_slug": "poppyvibes",
-  "active": false,
-  "priority": 10,
-  "slots": [
-    {
-      "weekday": 0,
-      "hour": 18,
-      "minute": 0
-    },
-    {
-      "weekday": 3,
-      "hour": 18,
-      "minute": 0
-    },
-    {
-      "weekday": 5,
-      "hour": 18,
-      "minute": 0
-    }
+  "active": true,
+  "dropbox_images": {
+    "indie-pop": "/Soft Projects/Type Beat Generator/contenido/canales/poppyvibes/fondos"
+  },
+  "genres": [
+    "indie-pop"
   ],
+  "id": "poppyvibes",
+  "images_folder": "",
+  "priority": 10,
   "selection_tags": [
     "indie",
     "indie pop",
@@ -39,24 +29,7 @@
     "sad pop",
     "sad pop beat"
   ],
-  "tags": [],
-  "genres": [
-    "indie-pop"
-  ],
-  "images_folder": "",
-  "dropbox_images": {
-    "indie-pop": "/Soft Projects/Type Beat Generator/contenido/canales/poppyvibes/fondos"
-  },
-  "visual": {
-    "mode": "image",
-    "plain_image": true,
-    "image_fit": "contain",
-    "thumbnail_source": "auto",
-    "custom_thumbnail": false
-  },
   "seo": {
-    "title_mode": "indie_v1",
-    "title_template": "[FREE] {style} Type Beat - \"{name}\"",
     "description": "🎸 License This Beat (Untagged High Quality):\n➔ {url}\n\n⬇️ Free Demo Download:\n➔ {url}\n\n💻 Website:\n➔ https://www.beatstars.com/matwyre\n\n🔥 BULK DEALS (Add to cart):\n⚡ BUY 2 TRACKS, GET 2 FREE\n⚡ BUY 3 TRACKS, GET 3 FREE\n\n📸 Instagram: https://instagram.com/wyrebeats\n\n---\n\n📜 LICENSE AGREEMENT SUMMARY:\n\n1. Free Use: Allowed on YouTube/SoundCloud (Non-monetized). Credit \"Prod. MatWyre\" is mandatory.\n2. Co-Production: If the title lists another producer, you MUST credit them too.\n3. Streaming: To release on Spotify/Apple Music, purchase a lease.\n4. Content ID: ⛔ STRICTLY PROHIBITED. Do not register this song. It will cause a copyright strike.\n\nAll Rights Reserved © - MatWyre / WyreSounds\n\n---\n\n#IndieRockTypeBeat #BedroomPop #MatWyre\n\nIgnore Tags:\nTame Impala Type Beat, Mac DeMarco Type Beat, Bedroom Pop Instrumental, Indie Rock Type Beat 2026, Boy Pablo Type Beat, Clairo Type Beat, Dream Pop Instrumental, Shoegaze Type Beat, The Strokes Type Beat, Wallows Type Beat, WyreSounds, MatWyre, Alternative Rock Beat.",
     "tags": [
       "free type beat",
@@ -64,12 +37,39 @@
       "type beat 2026",
       "matwyre",
       "poppyvibes"
-    ]
+    ],
+    "title_mode": "indie_v1",
+    "title_template": "[FREE] {style} Type Beat - \"{name}\""
   },
+  "slots": [
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 0
+    },
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 3
+    },
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 5
+    }
+  ],
+  "tags": [],
   "upload_spread": {
-    "min_days": 2,
-    "max_days": 4
+    "max_days": 4,
+    "min_days": 2
   },
-  "youtube_channel_id": "UCrYqzwzKeGieAUTcRSX_A-Q",
-  "use_channel_templates": true
+  "use_channel_templates": true,
+  "visual": {
+    "custom_thumbnail": false,
+    "image_fit": "contain",
+    "mode": "image",
+    "plain_image": true,
+    "thumbnail_source": "auto"
+  },
+  "youtube_channel_id": "UCrYqzwzKeGieAUTcRSX_A-Q"
 }

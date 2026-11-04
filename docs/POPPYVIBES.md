@@ -62,4 +62,24 @@ Los 21 snapshots de SEO pasaron validación completa. Pruebas de modos y plantil
 51 aprobadas, 39 subtests. Control del worker: 326 pruebas aprobadas (2 omitidas).
 Regresión unittest de Beats: 388 pruebas aprobadas (2 omitidas).
 
-Activación y corridas remotas: pendiente de completar en esta fase.
+## Estado operativo
+
+Activado en la configuración del worker y en el registro de la app. `poppyvibes`
+agregado a `BEAT_CHANNELS` conservando los otros cinco slugs. Config, registro y
+variable releídos; cambios realizados por CAS. Código publicado en `master`.
+
+- Prueba remota `41757514367`: success, dry-run, planned=6, eligible=1; failed,
+  blocked, orphan, unknown, expired y calendar_unavailable=0.
+- Corrida real `41757764440`: success, planned=6, eligible=1, uploaded=0, budget=1;
+  motivo único `shared_upload_budget_exhausted`. El input de piloto privado estaba
+  habilitado por defecto en el workflow manual: no hubo ninguna subida de piloto.
+  La ejecución llegó al límite de presupuesto después de descargar/renderizar y
+  resolver el enlace individual. No prueba una inserción ni programación en YouTube.
+- Seis reservas reales persistidas en Dropbox: 5, 7, 9, 12, 14 y 16/11 a las 18:00
+  Argentina. Primera: Bleeding, con snapshot SEO persistido y validado. Permanecen
+  `planned`; no hay IDs de YouTube ni intentos nuevos de este canal.
+- Cupo de 3/11 reservado por la transición conservadora previa: se renueva el
+  4/11 a las 05:00 Argentina. Próxima corrida diaria normal: 4/11 a las 19:00;
+  sin piloto privado, intentará las subidas que correspondan con cupo disponible.
+- La primera publicación prevista es 5/11 a las 18:00; requiere que la subida real
+  futura finalice correctamente. Calendario existente preservado.

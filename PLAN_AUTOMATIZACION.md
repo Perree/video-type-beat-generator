@@ -1,5 +1,27 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## poppyvibes — configuración, conexión y activación ✅ COMPLETADA (2026-11-03)
+- Identidad verificada por ID de la captura y OAuth: poppyvibes,
+  `UCrYqzwzKeGieAUTcRSX_A-Q`, handle actual `@poppyvibes-u7t` (antes `@prodmatwyre`).
+  Secretos propios cargados en `kit-weekly`, token solo en memoria y GitHub Secrets.
+- Catálogo matwyre: 1.147 beats, 21 elegibles por indie/pop/bedroom y tags relacionados,
+  ampliados por indicación del usuario. Nuevo modo `indie_v1`: títulos por tags reales,
+  tres estructuras estables, sin artistas inventados. Descripción del usuario;
+  enlaces web 404 sustituidos por enlace individual y tienda real de BeatStars.
+- 31 imágenes verificadas y copiadas desde Trap Indie Type Beats a la carpeta del
+  canal. Imagen fija completa sin texto; originales intactos. Lunes/jueves/sábado
+  18:00 Argentina; buffer, escalonado y cupo compartido existentes conservados.
+- Worker y registro activos por CAS; `BEAT_CHANNELS` ampliado sin tocar otros canales.
+  Código publicado. Dry-run remoto `41757514367`: planned=6, eligible=1, sin errores.
+- Corrida real `41757764440` (piloto privado por defecto del dispatch): verde,
+  planned=6, uploaded=0, budget=1 por cupo compartido agotado. Llegó a render/enlace;
+  no se comprobó una subida real. Seis reservas en Dropbox: 5, 7, 9, 12, 14 y 16/11.
+- Primera publicación prevista 5/11 a las 18:00, sujeta a subida tras renovar cupo.
+  Próximo cron normal 4/11 19:00. No se subió ni programó en YouTube durante esta fase.
+- Validación: 21 snapshots, simulación con calendario de YouTube, 51 pruebas SEO,
+  326 del control worker (2 omitidas) y 388 de regresión Beats (2 omitidas), aprobadas.
+  Evidencia y límites: `docs/POPPYVIBES.md`.
+
 ## kiezsa loops — aviso de autoaltas en catálogo cerrado ✅ COMPLETADA (2026-11-03)
 - El dry-run exitoso avisaba de seis carpetas fuera del catálogo: tres kits excluidos,
   un bundle y dos versiones gratuitas. Los cuatro kits aprobados tenían sus links.
