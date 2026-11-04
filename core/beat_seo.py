@@ -5,7 +5,7 @@ import json
 import re
 import unicodedata
 from core.beat_names import clean_name
-from core import beat_latin_seo, beat_house_seo
+from core import beat_latin_seo, beat_house_seo, beat_indie_seo
 from core.beat_seo_report import fields, text, texts, moment, parse_report, validate_report
 
 
@@ -17,7 +17,8 @@ def digest(value):
 PLACEHOLDERS = ('{name}', '{url}')
 # Opt-in title modes: module and the placeholders its title template must contain.
 MODES = {beat_latin_seo.MODE: (beat_latin_seo, ('{artists}', '{style}')),
-         beat_house_seo.MODE: (beat_house_seo, ('{style}',))}
+         beat_house_seo.MODE: (beat_house_seo, ('{style}',)),
+         beat_indie_seo.MODE: (beat_indie_seo, ('{style}',))}
 
 
 def _mode(profile):
