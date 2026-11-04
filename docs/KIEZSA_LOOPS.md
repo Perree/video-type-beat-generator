@@ -3,8 +3,12 @@
 Configuración y catálogo propios guardados en Dropbox y releídos. Canal registrado en
 la app con `activo: false`; no agregado a `KIT_CHANNELS`. No se subieron videos.
 Enlaces de Rekonise de los cuatro kits elegidos cargados y releídos.
-Pendientes para activar: OAuth del canal y publicación
-del soporte de `{loop_count}` en el worker. El ID de YouTube aún no está verificado.
+YouTube conectado por OAuth y verificado por nombre y handle `@kiezsa-loops`:
+`UCabIT1klRK7dWEobaW4lHhQ`. Token obtenido en memoria y guardado directamente en
+GitHub Secrets (`kit-weekly-kiezsa-loops`), sin archivo local de credenciales.
+Environment creado y restringido a `master`; secretos de canal y token cargados.
+Pendientes para activar: publicar el soporte de `{loop_count}` en el worker y
+habilitar el canal en el registro y `KIT_CHANNELS`. No se inició ninguna subida.
 
 ## Base y cronograma
 

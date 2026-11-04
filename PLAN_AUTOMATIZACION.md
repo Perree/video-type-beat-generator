@@ -1,5 +1,14 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## kiezsa loops — conexión de YouTube ✅ COMPLETADA (2026-11-03)
+- OAuth autorizado por el usuario en su navegador. Identidad verificada por API:
+  kiezsa loops, `@kiezsa-loops`, `UCabIT1klRK7dWEobaW4lHhQ`.
+- Token únicamente en memoria durante la autorización y guardado directamente en
+  GitHub Secrets del Environment `kit-weekly-kiezsa-loops`, restringido a `master`.
+  Cargados `KIT_YT_CHANNEL` y `KIT_YT_TOKEN_JSON`; nombres releídos sin revelar valores.
+- Canal conservado en pausa; sin cambios en `KIT_CHANNELS`, sin subidas. Pendiente
+  publicar el código del worker y activar la automatización.
+
 ## kiezsa loops — catálogo y enlaces definitivos ✅ COMPLETADA (2026-11-03)
 - Cargados los enlaces exactos de Rekonise aportados por el usuario para 999,
   Take Me Back, MIDNIGHT y Lucid Dreams, en Dropbox y la copia versionada.
