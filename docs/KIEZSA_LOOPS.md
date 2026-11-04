@@ -2,7 +2,8 @@
 
 Configuración y catálogo propios guardados en Dropbox y releídos. Canal registrado en
 la app con `activo: false`; no agregado a `KIT_CHANNELS`. No se subieron videos.
-Pendientes para activar: enlaces de Rekonise por kit, OAuth del canal y publicación
+Enlaces de Rekonise de los cuatro kits elegidos cargados y releídos.
+Pendientes para activar: OAuth del canal y publicación
 del soporte de `{loop_count}` en el worker. El ID de YouTube aún no está verificado.
 
 ## Base y cronograma
@@ -26,12 +27,9 @@ sin enlace general para evitar que kits nuevos hereden una descarga equivocada.
 
 | Kit | Loops disponibles en Dropbox |
 |---|---:|
-| Cold Summer | 8 |
 | Lucid Dreams | 7 |
 | MIDNIGHT | 8 |
-| SAUCO | 10 |
 | Take Me Back | 6 |
-| Yourself | 6 |
 | 999 | 34 |
 
 Incluye los productos de guitarras aunque estuvieran apagados o mal etiquetados en
@@ -39,8 +37,18 @@ WyreSounds. Se excluyen House/Reggaeton, copia `(1)`, bundles y demos que repite
 productos. La elección identifica productos de guitarra por la carpeta; no supone
 que todos los audios sean pistas de guitarra aislada (algunos incluyen voces).
 
-`payhip_url` es el nombre histórico del campo: admite Rekonise. En los siete kits
-está vacío, por lo que ninguno es elegible todavía. Inventario verificado con el
+Por pedido del usuario, Cold Summer, SAUCO y Yourself se quitaron del catálogo de
+este canal; sus carpetas y los demás canales no se modificaron.
+
+`payhip_url` es el nombre histórico del campo: admite Rekonise. Los cuatro enlaces
+aportados por el usuario son:
+
+- 999: https://rekonise.com/999-w8w7e
+- Take Me Back: https://rkns.link/posur
+- MIDNIGHT: https://rkns.link/zioit
+- Lucid Dreams: https://rkns.link/1sywk
+
+Los cuatro kits quedan elegibles, sin activar el canal. Inventario verificado con el
 lector real de Dropbox. Config y catálogo reproducibles en
 `kiezsa-loops.channel.json` y `kiezsa-loops.kits.json`.
 
@@ -48,7 +56,9 @@ lector real de Dropbox. Config y catálogo reproducibles en
 
 - Config validada con el formulario del panel y catálogo con `kit_catalog`.
 - Escrituras remotas con CAS, lectura posterior y registro anterior preservado.
-- Selección real sin links: cola vacía, sin autoaltas ni subidas.
+- Selección inicial sin links: cola vacía. Tras cargar los enlaces: cuatro kits
+  elegibles y ninguna autoalta, sin subidas. URLs guardadas literalmente; no se
+  verificó el contenido de las páginas ni los archivos que entregan.
 - Prueba de integración del título: 4 loops renderizados de una carpeta de 8,
   enlace de Rekonise intacto y plantilla original preservada.
 - Smokes de SEO y multicanal aprobados. El smoke semanal general falla por una

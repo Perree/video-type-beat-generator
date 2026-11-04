@@ -1,5 +1,15 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## kiezsa loops — catálogo y enlaces definitivos ✅ COMPLETADA (2026-11-03)
+- Cargados los enlaces exactos de Rekonise aportados por el usuario para 999,
+  Take Me Back, MIDNIGHT y Lucid Dreams, en Dropbox y la copia versionada.
+- Cold Summer, SAUCO y Yourself quitados del catálogo de este canal por pedido
+  explícito. Sin cambios en las carpetas de audio ni en los demás canales.
+- Catálogo validado, actualización por CAS y lectura posterior. Inventario real:
+  cuatro kits elegibles, sin autoaltas; enlaces individuales sin tracking.
+- Conservados lunes 18:00 Argentina y canal pausado. Pendientes de activación:
+  OAuth/identidad YouTube y publicación del código del worker. Sin subidas.
+
 ## kiezsa loops — preparación de canal de guitarras ✅ COMPLETADA (2026-11-03)
 - Base real de WyreSounds, siete productos de guitarras verificados en Dropbox:
   Cold Summer, Lucid Dreams, MIDNIGHT, SAUCO, Take Me Back, Yourself y 999.
