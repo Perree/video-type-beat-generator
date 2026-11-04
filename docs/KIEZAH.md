@@ -104,3 +104,39 @@ El piloto usa el trabajo del primer slot (5/11 15:00), que queda consumido como 
 privada; no se publicará automáticamente. Los seis trabajos restantes conservan
 7, 9, 11, 13, 15 y 17/11 a las 15:00 Argentina. La próxima publicación automática
 prevista pasa al 7/11, sujeta a la subida y al cupo compartido.
+
+
+## Títulos con estructura habitual y tags por beat (2026-11-03)
+
+Preferencia aclarada por el usuario: conservar la forma de los títulos anteriores,
+pero variar los géneros y las etiquetas de YouTube según los tags reales de cada
+beat descargado de BeatStars. Esta sección reemplaza el formato `club_v1` para
+las publicaciones futuras. `club_v1` permanece intacto para validar el piloto guardado.
+
+Modo actual `club_v2`: `[FREE] {style} Type Beat - "{name}" | {detail}`.
+Nombre en mayúsculas como en las capturas. Club Banger o Club abre la combinación
+solo si aparece en los tags; Afro/Deep/Melodic/Latin House/EDM dependen del beat.
+Con tres géneros, el tercero va después de la barra. Si solo hay uno o dos,
+el cierre es el género real + Instrumental. No se alterna a título con nombre primero.
+Repeticiones mantienen el marco y pueden rotar el orden de tags.
+
+Ejemplo con tags club banger + afro house + deep house:
+`[FREE] Club Banger x Afro House Type Beat - "FREEDOM" | Deep House Type Beat`
+Es una demostración de la regla, no los tags atribuidos al beat real Freedom.
+Ejemplos reales de la cola:
+- `[FREE] Deep House x Latin House Type Beat - "DIVINE" | Latin House Instrumental`
+- `[FREE] Club Banger x Melodic Deep House Type Beat - "OASIS" | Melodic Deep House Instrumental`
+
+Tags de YouTube: variantes type beat/instrumental de los géneros presentes, tags
+originales relacionados y etiquetas genéricas/marca. No se copia Makar ni artistas
+ajenos. Quitado `club instrumental` fijo, para no asignarlo a todos los beats.
+Títulos <=100 caracteres, tags <=500 contando comillas implícitas por espacios.
+
+Config y plantillas de registro remotas actualizadas por CAS y releídas. Seis
+pendientes todavía sin snapshot SEO: usarán el modo nuevo al prepararse. Estado y
+revisión de estado idénticos antes/después: sin alterar historial, reservas, piloto
+privado, horarios o los otros canales. No se editó el video ya subido en YouTube.
+
+Verificación: 70 snapshots completos del catálogo real, 44 pruebas SEO específicas
+y 343 pruebas del worker aprobadas (dos omitidas). Código publicado, sin corridas
+reales ni subidas adicionales en este ajuste.

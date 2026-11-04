@@ -1,5 +1,19 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Kiezah — forma habitual de títulos y etiquetas por beat ✅ COMPLETADA (2026-11-03)
+- Pedido: misma forma de las capturas, con géneros y tags variables según BeatStars.
+- Modo `club_v2`: `[FREE] {style} Type Beat - "{name}" | {detail}`, nombre en mayúsculas;
+  géneros y combinaciones solo por tags reales. Ya no alterna estructuras distintas.
+- Tags YouTube generados de cada género/tag relacionado del beat; marca/genéricos
+  conservados. Sin Makar ni `club instrumental` asignado fijo a todos los beats.
+- `club_v1` intacto para el snapshot del piloto privado. Config/registro activos
+  actualizados por CAS y releídos; los seis pendientes todavía sin snapshot usarán v2.
+- Estado y su revisión conservados: piloto, reservas, horarios y otros canales intactos.
+  Sin edición del video privado ni subidas nuevas durante esta fase.
+- 70 snapshots del catálogo real validados; 44 pruebas específicas y control del
+  worker de 343 pruebas OK (dos omitidas). Detalle y ejemplos: `docs/KIEZAH.md`.
+
+
 ## Kiezah — piloto privado con excepción única de cupo ✅ COMPLETADA (2026-11-03)
 - Usuario autorizó una subida extra solo para esta prueba, ante diez reservas internas.
 - Permiso separado de un uso para Kiezah, día y corrida; sin alterar el tope diario,
