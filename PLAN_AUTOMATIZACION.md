@@ -1,5 +1,15 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## kiezsa loops — aviso de autoaltas en catálogo cerrado ✅ COMPLETADA (2026-11-03)
+- El dry-run exitoso avisaba de seis carpetas fuera del catálogo: tres kits excluidos,
+  un bundle y dos versiones gratuitas. Los cuatro kits aprobados tenían sus links.
+- `kit_preview.autoadd_enabled: false` permite respetar el catálogo cerrado sin pedir
+  un enlace general. Por defecto, los otros canales conservan las autoaltas.
+- Config propia actualizada en Dropbox por CAS y releída; catálogo de cuatro kits,
+  enlaces individuales y horarios conservados. Sin subidas ni programaciones reales.
+- 39 pruebas de autoaltas/conteo/calendario y smoke multicanal aprobados. Incluyen
+  catálogo vacío o ausente: nunca se habilitan todas las carpetas como alternativa.
+
 ## kiezsa loops — activación semanal ✅ COMPLETADA (2026-11-03)
 - Autorizado por el usuario: código publicado en `master` y `kiezsa-loops=6` agregado
   a `KIT_CHANNELS`, conservando los tres canales anteriores y sus días.

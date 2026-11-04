@@ -78,6 +78,7 @@
       "monthly_cap_usd": 10.0
     },
     "kits_per_week": 1,
+    "autoadd_enabled": false,
     "autoadd_keywords": [
       "guitar",
       "guitarra"

@@ -135,11 +135,12 @@ class SaveNewKitsTests(unittest.TestCase):
 class OpenWeekTests(unittest.TestCase):
     """Dos canales leen la misma tienda; cada uno solo ve sus categorías."""
 
-    def week(self, genres, scan, catalog, link=LINK):
+    def week(self, genres, scan, catalog, link=LINK, autoadd=True):
         store = {'guitarras': [pack('G1'), pack('G-nuevo')],
                  'reggaeton house': [pack('R1', 'reggaeton house'),
                                      pack('R-nuevo', 'reggaeton house')]}
-        config = {'kit_preview': {'dropbox_root': ROOT, 'genres': genres, 'scan_folders': scan}}
+        config = {'kit_preview': {'dropbox_root': ROOT, 'genres': genres, 'scan_folders': scan,
+                                  'autoadd_enabled': autoadd}}
 
         def list_packs(root, local_images_root=None, dbx=None, scan=None):
             return [p for cat in scan['scan_folders'] for p in store.get(cat, [])]
@@ -164,6 +165,23 @@ class OpenWeekTests(unittest.TestCase):
     def test_without_catalog_nothing_is_added(self):
         week = self.week(['guitarras'], ['guitarras'], None)
         self.assertEqual(week['added'], [])
+
+    def test_closed_catalog_uses_individual_links_without_new_folder_warnings(self):
+        catalog = [entry('G1', link='https://rkns.link/individual')]
+        week = self.week(['guitarras'], ['guitarras'], catalog, link='', autoadd=False)
+        self.assertEqual(week['added'], [])
+        self.assertEqual(week['warnings'], [])
+        self.assertEqual([s['pack']['name'] for s in week['queue']], ['G1'])
+        self.assertEqual(week['entries'][f'{ROOT}/guitarras/G1'], catalog[0])
+
+    def test_closed_empty_catalog_does_not_fall_back_to_all_folders(self):
+        week = self.week(['guitarras'], ['guitarras'], [], autoadd=False)
+        self.assertEqual(week['queue'], [])
+        self.assertEqual(week['warnings'], [])
+
+    def test_closed_missing_catalog_stops_instead_of_using_all_folders(self):
+        with self.assertRaisesRegex(ValueError, 'catálogo cerrado'):
+            self.week(['guitarras'], ['guitarras'], None, autoadd=False)
 
 
 if __name__ == '__main__':

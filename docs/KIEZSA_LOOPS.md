@@ -33,6 +33,20 @@ Descripción del usuario conservada, incluidos términos 50/50 e hashtags 2025.
 Etiquetas tomadas de la captura. Link individual sin parámetros de seguimiento;
 sin enlace general para evitar que kits nuevos hereden una descarga equivocada.
 
+### Catálogo cerrado y aviso de kits nuevos (2026-11-03)
+
+`kit_preview.autoadd_enabled: false` limita este canal al catálogo explícito. Para
+incorporar otro kit hay que cargar su entrada con su enlace individual. Los demás
+canales mantienen la detección automática por defecto. Si falta el catálogo de un
+canal cerrado, el worker se detiene en lugar de usar todas las carpetas.
+
+El aviso de seis kits sin enlace general en el dry-run `41755326855` era del detector
+de autoaltas: Cold Summer, SAUCO, Yourself, R&B AFRO Guitars Bundle Pack y las versiones
+FREE LOOP KIT de Take Me Back y MIDNIGHT. Están fuera del catálogo por elección; no
+faltaban los enlaces de los cuatro kits aprobados. No se agrega un enlace general.
+Configuración remota actualizada por CAS y releída, conservando catálogo y horario.
+Validación: 39 pruebas de autoaltas, conteo y calendario; smoke multicanal aprobado.
+
 ## Catálogo preparado
 
 | Kit | Loops disponibles en Dropbox |

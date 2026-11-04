@@ -81,7 +81,8 @@ def open_week(app_config, state, history, now, rng, *, dbx=None, exclude=(), lis
     Entre kits con la misma prioridad manda el orden del recorrido: las categorías de
     ``kit_preview.scan_folders`` y, dentro de cada una, el orden de las carpetas.
     Los kits de Dropbox que el catálogo no tiene entran solos con ``channel_link``
-    (``kit_autoadd``); guardarlos en ``kits.json`` le toca al worker.
+    (``kit_autoadd``); guardarlos en ``kits.json`` le toca al worker. Con
+    ``kit_preview.autoadd_enabled: false`` solo se usa el catálogo explícito.
 
     Returns:
         dict ``{queue, entries, warnings, added}``; ``queue`` son selecciones de
@@ -97,8 +98,11 @@ def open_week(app_config, state, history, now, rng, *, dbx=None, exclude=(), lis
     # Con portada generada (auto o plantilla) el kit no necesita imágenes propias.
     require_images = not kit_art.generates(kit_cfg)
     catalog = load_catalog(app_config, dbx=dbx, path=kits_path)
+    autoadd = kit_cfg.get('autoadd_enabled', True) is not False
+    if not autoadd and catalog is None:
+        raise ValueError("Falta kits.json para el canal con catálogo cerrado.")
     added, warnings = [], []
-    if catalog is not None:
+    if catalog is not None and autoadd:
         added, warnings = kit_autoadd.new_entries(
             packs, catalog, kit_catalog.configured_genres(app_config), channel_link,
             keywords=kit_cfg.get('autoadd_keywords'))
