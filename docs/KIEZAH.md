@@ -58,4 +58,23 @@ Simulación: siete fechas cada dos días, sin mutar el estado de producción.
 Regresión Beats: 397 pruebas OK, dos omitidas. Control del worker: 335 OK, dos omitidas.
 Incluye intervalos, reinicios, meses/años, zona horaria, fechas ocupadas, replanificación,
 historial por canal y compatibilidad de los modos SEO anteriores.
-Conexión OAuth completada. Activación remota y dry-run pendientes al escribir esta ficha.
+Pruebas del editor: 43 OK, y 24 de guardado en nube OK; 16 repetidas tras ajustar
+el test a la ficha activa. Sin errores pendientes.
+
+Registro y config remotos activados por CAS y releídos; otros seis canales
+conservados. `kiezah` agregado a `BEAT_CHANNELS`, secretos por slug comprobados.
+Se esperó el cierre de las corridas anteriores antes de cargar el calendario nuevo:
+el worker anterior no admite una lista semanal vacía.
+
+Prueba remota `41760970327`, intento 2: success, dry-run, planned=7, eligible=1,
+failed/blocked/orphan/unknown/expired/calendar_unavailable=0, uploaded=0.
+335 pruebas del worker aprobadas (dos omitidas). El intento 1 y una lectura local
+previa fallaron por `remote_schema_error` de BeatStars; otro sondeo dio
+`request_failed`. El reintento completo leyó el catálogo en vivo correctamente.
+Simulación local con catálogo de la primera lectura y Dropbox real: planned=7,
+eligible=1, failed=0. Las simulaciones no crean reservas ni suben videos.
+
+No se hizo una subida real ni se verificó `videos.insert` en esta fase. Automatización
+activa para el cron normal del 4/11 a las 19:00 Argentina; primera publicación prevista
+5/11 a las 15:00, sujeta a calendario de YouTube, cupo compartido y subida exitosa.
+No se alteró el historial ni el calendario de otros canales.

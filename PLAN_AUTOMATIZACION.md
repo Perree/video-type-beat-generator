@@ -1,5 +1,29 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Kiezah — automatización House / Club y cadencia cada dos días ✅ COMPLETADA (2026-11-03)
+- OAuth e identidad pública verificados: Kiezah, `@Kiezahhouse`,
+  `UCcgj7ZzsuADHGg4qcyYe2Kw`. Secretos propios por slug en `kit-weekly`.
+- Catálogo matwyre: 1.147 beats, 70 elegibles por House/Afro House/Deep House/
+  Melodic House/Club Banger/EDM y variantes reales. Historial por canal existente:
+  puede compartir beats con RaveWaveBeatz, sin apuntar a Makar en títulos ni tags SEO.
+- 27 imágenes verificadas y copiadas desde house beats by matwyre a carpeta propia;
+  originales intactos. Imagen completa, bandas negras, sin texto, miniatura automática.
+- Nuevo modo `club_v1`: género real, nombre del beat y tres estructuras estables.
+  Descripción del usuario adaptada a enlaces individuales y tienda BeatStars;
+  enlaces de wyrebeats.vercel.app sustituidos al comprobar HTTP 404.
+- `interval_schedule`: cada dos días desde 5/11 a las 15:00 Argentina (hora asumida).
+  Ancla persistente entre corridas, sin días semanales; editor propio en Mis canales.
+  Conserva buffer de 14 días, subidas escalonadas y cupo compartido. Otros canales sin cambios.
+- Código publicado; registro y config activos por CAS, releídos. `BEAT_CHANNELS`
+  incluye kiezah conservando los seis anteriores. Corridas antiguas finalizadas antes del cambio.
+- Dry-run remoto `41760970327` intento 2 aprobado: planned=7, eligible=1, failed=0,
+  uploaded=0. Intento inicial falló por respuesta transitoria de BeatStars; reintento en vivo OK.
+- 70 snapshots validados, 397 pruebas Beats (2 omitidas), control worker de 335
+  (2 omitidas), y comprobaciones del editor/guardado en nube aprobadas.
+- Sin subidas ni reservas reales durante esta fase. Cron normal 4/11 19:00 Argentina;
+  primera publicación prevista 5/11 15:00, sujeta a subida exitosa y cupo. Detalle: `docs/KIEZAH.md`.
+
+
 ## poppyvibes — configuración, conexión y activación ✅ COMPLETADA (2026-11-03)
 - Identidad verificada por ID de la captura y OAuth: poppyvibes,
   `UCrYqzwzKeGieAUTcRSX_A-Q`, handle actual `@poppyvibes-u7t` (antes `@prodmatwyre`).

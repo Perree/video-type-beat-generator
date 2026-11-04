@@ -19,7 +19,7 @@ class ClubSeoTests(unittest.TestCase):
 
     def test_channel_snapshot_and_repeat(self):
         ch = json.loads((Path(__file__).resolve().parents[1] / 'docs/kiezah.channel.json').read_text(encoding='utf-8'))
-        self.assertFalse(ch['active'])
+        self.assertEqual(ch['interval_schedule']['days'], 2)
         apply_channel_templates(ch, {'title_template': ch['seo']['title_template'], 'description_template': ch['seo']['description']})
         self.assertEqual(eligible_tracks(ch, [{'id':'TK2','tags':['makar']}]), [])
         for name in ('Makar Type Beat - MOËT', 'N' * 400):

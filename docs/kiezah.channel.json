@@ -1,7 +1,7 @@
 {
   "id": "kiezah",
   "actions_slug": "kiezah",
-  "active": false,
+  "active": true,
   "priority": 10,
   "slots": [],
   "interval_schedule": {
