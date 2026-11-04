@@ -111,3 +111,16 @@ El puente de plantillas permite `{artists}`, `{style}`, `{bpm}` y `{key}` solo c
 Configuración: lunes, miércoles y viernes a las 10:00 de Buenos Aires; imagen fija sin texto, usando las imágenes existentes del canal.
 El snapshot de catálogo revisado contiene 1.142 tracks, 119 elegibles; 18 JFIF válidos se copiaron a la carpeta de fondos del worker.
 Los respaldos privados de la configuración y el catálogo quedan en `tokens/`, fuera de Git.
+
+## mattwyyre: encuadre uniforme (2026-11-04)
+
+`visual.image_fit=fixed_bars` ajusta todas las fotos a un rectángulo central de
+1232 × 1080 en el video de 1920 × 1080, con franjas negras de 344 píxeles a cada lado,
+siguiendo las proporciones de la referencia del usuario. Escala sin deformar y recorta
+simétricamente el sobrante; las fotos verticales pierden parte de arriba y abajo.
+La miniatura automática conserva el mismo encuadre a 1280 × 720.
+
+Reemplaza `contain` solo en la configuración de mattwyyre. Los modos `cover` y
+`contain` conservan su comportamiento para los demás canales. Se aplica a futuros
+renders, incluidos trabajos reservados que todavía no se renderizaron; los videos
+ya subidos o programados en YouTube conservan su imagen. No cambia los archivos originales.

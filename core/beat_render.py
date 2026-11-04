@@ -74,7 +74,8 @@ def compose(image, title, frame, thumbnail, plain=False, fit='cover'):
     """plain=True keeps finished artwork untouched: no caption banner, only resized.
 
     fit='cover' recorta la imagen para llenar 16:9; 'contain' la deja entera, centrada y
-    con barras negras (fotos verticales).
+    con barras negras (fotos verticales). 'fixed_bars' recorta al centro a
+    1232x1080, con franjas negras constantes de 344 px por lado.
     """
     from PIL import Image, ImageOps, ImageDraw, ImageFont
     if not isinstance(title, str) or not title.strip() or len(title) > 500:
@@ -88,8 +89,12 @@ def compose(image, title, frame, thumbnail, plain=False, fit='cover'):
                     raise BeatError('image_rejected')
                 source.load()
                 upright = ImageOps.exif_transpose(source).convert('RGB')
-                picture = (ImageOps.pad(upright, (1920, 1080), color=(0, 0, 0)) if fit == 'contain'
-                           else ImageOps.fit(upright, (1920, 1080)))
+                if fit == 'fixed_bars':
+                    picture = Image.new('RGB', (1920, 1080), 'black')
+                    picture.paste(ImageOps.fit(upright, (1232, 1080)), (344, 0))
+                else:
+                    picture = (ImageOps.pad(upright, (1920, 1080), color=(0, 0, 0)) if fit == 'contain'
+                               else ImageOps.fit(upright, (1920, 1080)))
                 picture.info.clear()
         if plain:
             picture.save(frame, 'PNG')
