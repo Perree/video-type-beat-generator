@@ -73,7 +73,13 @@ def track_input(track):
     tid = track.get('id')
     if type(tid) is not str or not re.fullmatch(r'TK[0-9]{1,20}', tid):
         raise ValueError('seo_track_invalid')
-    return {'id': tid, 'title': text(track.get('title').replace('\u200d', '') if isinstance(track.get('title'), str) else None, 500), 'tags': texts(track.get('tags'))}
+    title = track.get('title')
+    if isinstance(title, str):
+        # Catalog names may contain hearts or markup. Normalize only this input;
+        # reports, manual templates and tags keep their strict text boundary.
+        title = title.replace('<3', '♥').replace('\u200d', '')
+        title = re.sub(r'[<>{}]', '', title).strip()
+    return {'id': tid, 'title': text(title, 500), 'tags': texts(track.get('tags'))}
 
 
 def candidates(track, profile, scores):

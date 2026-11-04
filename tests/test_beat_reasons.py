@@ -58,6 +58,12 @@ class ClassifyTests(unittest.TestCase):
 
 
 class MessageTests(unittest.TestCase):
+    def test_invalid_seo_text_has_readable_reason(self):
+        summary = {}
+        note(summary, ValueError('seo_text_invalid'))
+        self.assertIn('textos SEO', message(summary))
+        self.assertNotIn('Error sin descripción', message(summary))
+
     def test_message_lists_readable_reasons(self):
         summary = {'failed': 2}
         note(summary, RefreshError('SECRET'))

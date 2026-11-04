@@ -1384,3 +1384,20 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
   caso de subidas escalonadas y repetido su grupo (4 aprobadas). Sin fallos pendientes.
   Compilación y revisión de whitespace aprobadas. Guía: `docs/UPLOAD_BUDGET.md`.
 - Sin videos subidos ni corridas de publicación iniciadas durante esta fase.
+
+
+## Lovesickk — Corregir bloqueo por corazón en nombre del beat ✅ COMPLETADA (2026-11-03)
+
+- Causa reproducida con el pendiente TK17125660: `Nevermind <3` fallaba con
+  `seo_text_invalid` antes de renderizar o reservar un intento de subida.
+- Normalización exclusiva del título del catálogo: `<3` → `♥`, limpieza de
+  `<>{}` y ZWJ. Informes externos, tags y plantillas conservan su validación estricta.
+- El pendiente se prepara como `(FREE) MELODIC R&B TYPE BEAT - "Nevermind ♥"`.
+  Sin cambios de horarios, configuración remota, reservas ni historial.
+- Telegram ahora explica los textos SEO inválidos. Pruebas de regresión cubren
+  corazón, caracteres de marcado, replay del snapshot y rechazo de controles/vacíos.
+- Validados los 90 beats elegibles del catálogo disponible (1.147 beats).
+  Simulación con config/estado/imagenes reales: eligible=1, failed=0, uploaded=0;
+  revisiones de config y estado remoto sin cambios. No se subieron videos.
+- Control del worker sobre copia aislada de los cambios de esta fase: 329 pruebas,
+  OK (2 omitidas). Los cambios en curso de otros canales no forman parte del arreglo.

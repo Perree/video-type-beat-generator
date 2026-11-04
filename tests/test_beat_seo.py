@@ -41,6 +41,22 @@ class TemplateTests(unittest.TestCase):
         'title_template': '[FREE] Style Type Beat "{name}"',
         'description': 'Link: {url}\nTitle: {name}'}}
 
+    def test_catalog_heart_and_markup_build_replayable_snapshots(self):
+        for title, expected in [('Nevermind <3', 'Nevermind ♥'),
+                                ('<Night> {demo}', 'Night demo')]:
+            for channel in (self.CHANNEL, CHANNEL):
+                with self.subTest(title=title, template='title_template' in channel['seo']):
+                    track = dict(TRACK, title=title)
+                    snapshot, _ = build_snapshot(JOB, track, channel, NOW)
+                    self.assertEqual(snapshot['track']['title'], expected)
+                    self.assertIn(expected, snapshot['selected']['title'])
+                    self.assertEqual(validate_snapshot(snapshot, JOB), snapshot)
+
+    def test_catalog_cleanup_does_not_accept_empty_or_control_text(self):
+        for title in ('<>{}', 'Night\x00', 'Night\u202e'):
+            with self.subTest(title=title), self.assertRaisesRegex(ValueError, 'seo_text_invalid'):
+                build_snapshot(JOB, dict(TRACK, title=title), self.CHANNEL, NOW)
+
     def test_fixed_title_tags_and_beat_link(self):
         track = {'id': 'TK18425328', 'title': 'New York', 'tags': ['unrelated']}
         job = dict(JOB, track_id='TK18425328')
