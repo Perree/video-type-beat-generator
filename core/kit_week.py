@@ -264,6 +264,10 @@ def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_c
             display_name = video_name or base_name
             link = (entry or {}).get('payhip_url') or channel_templates.get('link') or ''
             tracking_id, templates = video_link(link, channel_templates)
+            # La cantidad corresponde a los loops del preview, no al kit completo.
+            if '{loop_count}' in str(templates.get('title_template') or ''):
+                templates = {**templates, 'title_template': templates['title_template'].replace(
+                    '{loop_count}', str(len(plan['segments'])))}
 
             art_cfg = kit_cfg
             if genre:

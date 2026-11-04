@@ -1,5 +1,19 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## kiezsa loops — preparación de canal de guitarras ✅ COMPLETADA (2026-11-03)
+- Base real de WyreSounds, siete productos de guitarras verificados en Dropbox:
+  Cold Summer, Lucid Dreams, MIDNIGHT, SAUCO, Take Me Back, Yourself y 999.
+  Excluidos House/Reggaeton, copia, bundles y demos repetidas.
+- Config y catálogo propios guardados por CAS y releídos; canal registrado en pausa,
+  conservando los demás. Un video semanal, lunes 18:00 Argentina, primer horario de la base.
+- Descripción y etiquetas aportadas; título Guitar Sample Pack con `{loop_count}` del
+  preview real. Sin SEO de artistas, nombres generados ni tracking en Rekonise.
+- Config y catálogo validados; selección real sin links devuelve cola vacía. Prueba de
+  integración del conteo y smokes SEO/multicanal aprobados. Smoke semanal general con
+  expectativa vieja de mensajes Telegram; detalle en `docs/KIEZSA_LOOPS.md`.
+- Activación pendiente: enlaces de Rekonise por kit, OAuth/identidad YouTube y publicación
+  del código del worker. Sin cambios en `KIT_CHANNELS`, sin subidas ni programaciones.
+
 ## RaveWaveBeatz — configuración y activación ✅ COMPLETADA (2026-11-03)
 - Identidad: el handle público y el OAuth del usuario coinciden en RaveWaveBeatz
   `UC9_V3H6Mv2BXbgVIT9O7yDw`. Secretos por slug cargados en `kit-weekly`; `BEAT_CHANNELS`

@@ -1,0 +1,86 @@
+{
+  "channels": {
+    "kiezsa loops": {
+      "section": "loop_kits",
+      "title_template": "(FREE) Guitar Sample Pack \"{name}\" ({loop_count} loops)",
+      "description_template": "🆓 Download for free: {link}\n\nIG: @matwyreoff\n\n❗If you use this loops❗\n\n-You have to add me as a collaborator on beatstars (50/50). @matwyre\n\n-The terms are 50/50 co producer split on everything including Publishing, Credit, Royalties ect. (Major\nLabel or not, this still applies).\n\nIgnore tags: free guitar loop kit, free guitar sample pack, guitar loop kit, guitar sample pack, guitar loop kit sample pack #guitarloopkit #freeloopkit #guitarloops #sunsetguitar #loopkit #freeloops #loopkits #guitar #guitarmelody #freeguitarsamples #freeguitarloopkit #emotionalguitar #guitarloopkit2025 #loopkit2025",
+      "tags": [
+        "guitar loop kit free",
+        "guitar loop kit free download",
+        "guitar loop kit trap",
+        "guitar samples",
+        "guitar sample pack",
+        "guitar samples for hip hop",
+        "guitar samples no drums",
+        "guitar sample pack free",
+        "guitar sample loops",
+        "guitar sample kit",
+        "guitar sample free",
+        "free jkei loops",
+        "jkei",
+        "free jkei loop kit",
+        "free jkei guitar loops",
+        "free jkei",
+        "free guitar loop",
+        "free guitar loops",
+        "guitar loops",
+        "free guitar melody",
+        "free guitar melodies",
+        "free guitar samples"
+      ],
+      "link": "",
+      "track_links": false
+    }
+  },
+  "kit_preview": {
+    "art": {
+      "model": "gpt-image-1",
+      "refs_root": "/soft projects/type beat generator/contenido/loop_kits/referencias",
+      "size": "1024x1024"
+    },
+    "channel": "kiezsa loops",
+    "cover_mode": "template",
+    "dropbox_root": "/Music Production Stuff/SAMPLES, LOOPS, BEATS MANAGEMENT/🚀 03_DISTRIBUCION/📂 B_PRODUCTOS_TIENDA (WYRESOUNDS)",
+    "genres": [
+      "guitarras"
+    ],
+    "ignore_names": [
+      "tag",
+      "preview"
+    ],
+    "loops_dirs": [
+      "loops"
+    ],
+    "min_loops_per_video": 4,
+    "names": {
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-4.1-mini",
+      "vary_name": false,
+      "enabled": false
+    },
+    "scan_folders": [
+      "Individual Kits",
+      "Production Suites",
+      "Genre Bundles",
+      "free kits"
+    ],
+    "scan_max_depth": 1,
+    "seo": {},
+    "slots": [
+      {
+        "weekday": 0,
+        "hour": 18,
+        "minute": 0
+      }
+    ],
+    "spend": {
+      "max_images_per_run": 8,
+      "monthly_cap_usd": 10.0
+    },
+    "kits_per_week": 1,
+    "autoadd_keywords": [
+      "guitar",
+      "guitarra"
+    ]
+  }
+}

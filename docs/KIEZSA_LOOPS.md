@@ -1,0 +1,56 @@
+# kiezsa loops — preparación (2026-11-03)
+
+Configuración y catálogo propios guardados en Dropbox y releídos. Canal registrado en
+la app con `activo: false`; no agregado a `KIT_CHANNELS`. No se subieron videos.
+Pendientes para activar: enlaces de Rekonise por kit, OAuth del canal y publicación
+del soporte de `{loop_count}` en el worker. El ID de YouTube aún no está verificado.
+
+## Base y cronograma
+
+Base: configuración **default / WyreSounds** real en Dropbox, no la copia incompleta
+`wyresounds/config.json`. Conserva su raíz, reglas de recorrido, previews de 135–195 s
+(pueden ser más cortos), mínimo 4 loops, cortes por silencio, portada `template`,
+referencias, presupuesto y ciclo de 3 videos con descanso de 30 días.
+
+Un video semanal: **lunes 18:00 America/Argentina/Buenos_Aires**, elegido a partir del
+primer horario de WyreSounds. Un único slot y `kits_per_week: 1`.
+Nombres reales de los kits, sin nombres generados; SEO de artistas desactivado para
+respetar `(FREE) Guitar Sample Pack "{name}" ({loop_count} loops)`.
+La cantidad corresponde al preview renderizado, no al total de la carpeta.
+
+Descripción del usuario conservada, incluidos términos 50/50 e hashtags 2025.
+Etiquetas tomadas de la captura. Link individual sin parámetros de seguimiento;
+sin enlace general para evitar que kits nuevos hereden una descarga equivocada.
+
+## Catálogo preparado
+
+| Kit | Loops disponibles en Dropbox |
+|---|---:|
+| Cold Summer | 8 |
+| Lucid Dreams | 7 |
+| MIDNIGHT | 8 |
+| SAUCO | 10 |
+| Take Me Back | 6 |
+| Yourself | 6 |
+| 999 | 34 |
+
+Incluye los productos de guitarras aunque estuvieran apagados o mal etiquetados en
+WyreSounds. Se excluyen House/Reggaeton, copia `(1)`, bundles y demos que repiten
+productos. La elección identifica productos de guitarra por la carpeta; no supone
+que todos los audios sean pistas de guitarra aislada (algunos incluyen voces).
+
+`payhip_url` es el nombre histórico del campo: admite Rekonise. En los siete kits
+está vacío, por lo que ninguno es elegible todavía. Inventario verificado con el
+lector real de Dropbox. Config y catálogo reproducibles en
+`kiezsa-loops.channel.json` y `kiezsa-loops.kits.json`.
+
+## Validación
+
+- Config validada con el formulario del panel y catálogo con `kit_catalog`.
+- Escrituras remotas con CAS, lectura posterior y registro anterior preservado.
+- Selección real sin links: cola vacía, sin autoaltas ni subidas.
+- Prueba de integración del título: 4 loops renderizados de una carpeta de 8,
+  enlace de Rekonise intacto y plantilla original preservada.
+- Smokes de SEO y multicanal aprobados. El smoke semanal general falla por una
+  expectativa antigua: espera un solo mensaje de Telegram y ahora recibe también
+  el aviso de inicio. No se modificó ese comportamiento en esta fase.
