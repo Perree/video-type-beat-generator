@@ -1,11 +1,18 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
-## Mat produced this one — automatización diaria EN CURSO (2026-11-06)
+## Mat produced this one — automatización diaria ✅ COMPLETADA (2026-11-06)
 - OAuth verificado: `UC7q99p1bly7hLMsK53wfV0Q`; token en GitHub Secrets por slug.
 - 1.147 beats de matwyre, 566 elegibles por artistas solicitados y Melodic.
 - 35 fondos locales verificados y copiados a carpeta propia de Dropbox.
-- Config/registro inicialmente en pausa, un video diario 18:00 Argentina.
-- Nuevo modo melodic_v1 por etiquetas reales. Pendientes prueba remota y activación.
+- Config/registro activos por CAS y releídos; un video diario 18:00 Argentina.
+- Nuevo modo melodic_v1 por etiquetas reales. 351 pruebas worker OK (dos omitidas).
+- Dry-run remoto `42237868882`: planned=14, eligible=4, sin errores ni escrituras.
+  Nueva opción include_paused permite probar un canal pausado solo en dry-run.
+- Corrida real `42238364215` exitosa: uploaded=4, failed/blocked/orphan/unknown=0.
+  Videos programados 6–9/11 a las 18:00; hoy `JxlB37KZzsA` (NOCHE FRÍA).
+  Diez pendientes restantes en el búfer; cron diario mantiene las próximas subidas.
+- Cuatro recibos scheduled e imágenes distintas verificados en Dropbox. Otros canales
+  conservan su configuración; BEAT_CHANNELS ampliado con el slug propio.
 - Detalle: `docs/MAT_PRODUCED_THIS_ONE.md`.
 
 ## mattwyyre — Imágenes y franjas uniformes ✅ COMPLETADA (2026-11-04)

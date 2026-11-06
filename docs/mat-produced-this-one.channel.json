@@ -1,17 +1,15 @@
 {
-  "id": "mat-produced-this-one",
   "actions_slug": "mat-produced-this-one",
-  "active": false,
-  "priority": 10,
-  "youtube_channel_id": "UC7q99p1bly7hLMsK53wfV0Q",
-  "genres": [
-    "melodic"
-  ],
+  "active": true,
   "dropbox_images": {
     "melodic": "/Soft Projects/Type Beat Generator/contenido/canales/mat-produced-this-one/fondos"
   },
+  "genres": [
+    "melodic"
+  ],
+  "id": "mat-produced-this-one",
   "images_folder": "",
-  "tags": [],
+  "priority": 10,
   "selection_tags": [
     "duki",
     "duki beat",
@@ -54,63 +52,65 @@
     "type beat topopp gen",
     "type beat topoppgen"
   ],
-  "slots": [
-    {
-      "weekday": 0,
-      "hour": 18,
-      "minute": 0
-    },
-    {
-      "weekday": 1,
-      "hour": 18,
-      "minute": 0
-    },
-    {
-      "weekday": 2,
-      "hour": 18,
-      "minute": 0
-    },
-    {
-      "weekday": 3,
-      "hour": 18,
-      "minute": 0
-    },
-    {
-      "weekday": 4,
-      "hour": 18,
-      "minute": 0
-    },
-    {
-      "weekday": 5,
-      "hour": 18,
-      "minute": 0
-    },
-    {
-      "weekday": 6,
-      "hour": 18,
-      "minute": 0
-    }
-  ],
-  "upload_spread": {
-    "min_days": 2,
-    "max_days": 4
-  },
-  "visual": {
-    "mode": "image",
-    "image_fit": "contain",
-    "plain_image": true,
-    "custom_thumbnail": false,
-    "thumbnail_source": "auto"
-  },
   "seo": {
-    "title_mode": "melodic_v1",
-    "title_template": "(FREE) {style} Type Beat - \"{name}\"",
+    "description": "{style} Type Beat - \"{name}\"\n\nPurchase / Free Demo Download: {url}\nBeat Store: https://www.beatstars.com/matwyre\n\nProd. MatWyre\nInstagram: https://instagram.com/matwyreoff\n\nFREE FOR NON-PROFIT USE ONLY.\nCredit \"Prod. MatWyre\" in the title and description. Credit any co-producers listed in the original beat too.\nPurchase a license for Spotify, Apple Music and other commercial releases.\nDo not register this instrumental or a song using it with Content ID.\n\nAll rights reserved - MatWyre.\n#TypeBeat #MatWyre",
     "tags": [
       "free type beat",
       "type beat",
       "matwyre",
       "mat produced this one"
     ],
-    "description": "{style} Type Beat - \"{name}\"\n\nPurchase / Free Demo Download: {url}\nBeat Store: https://www.beatstars.com/matwyre\n\nProd. MatWyre\nInstagram: https://instagram.com/matwyreoff\n\nFREE FOR NON-PROFIT USE ONLY.\nCredit \"Prod. MatWyre\" in the title and description. Credit any co-producers listed in the original beat too.\nPurchase a license for Spotify, Apple Music and other commercial releases.\nDo not register this instrumental or a song using it with Content ID.\n\nAll rights reserved - MatWyre.\n#TypeBeat #MatWyre"
-  }
+    "title_mode": "melodic_v1",
+    "title_template": "(FREE) {style} Type Beat - \"{name}\""
+  },
+  "slots": [
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 0
+    },
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 1
+    },
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 2
+    },
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 3
+    },
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 4
+    },
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 5
+    },
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 6
+    }
+  ],
+  "tags": [],
+  "upload_spread": {
+    "max_days": 4,
+    "min_days": 2
+  },
+  "visual": {
+    "custom_thumbnail": false,
+    "image_fit": "contain",
+    "mode": "image",
+    "plain_image": true,
+    "thumbnail_source": "auto"
+  },
+  "youtube_channel_id": "UC7q99p1bly7hLMsK53wfV0Q"
 }
