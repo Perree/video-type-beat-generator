@@ -60,8 +60,8 @@
       "matwyre",
       "mat produced this one"
     ],
-    "title_mode": "melodic_v1",
-    "title_template": "(FREE) {style} Type Beat - \"{name}\""
+    "title_mode": "melodic_fixed_v1",
+    "title_template": "(FREE) Fattmack x Topoppgen Type Beat - \"{name}\""
   },
   "slots": [
     {

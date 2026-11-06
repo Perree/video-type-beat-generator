@@ -21,13 +21,25 @@ token enviado en memoria directamente a GitHub Secrets, sin guardarlo en disco.
 
 ## Metadatos
 
-Modo `melodic_v1`: `(FREE) {style} Type Beat - "{name}"`.
-Solo usa los artistas presentes en las etiquetas reales del beat, hasta dos,
-o Melodic si no hay artista de la lista. No asigna Fattmack a todos los beats
-solo porque figure en las capturas. Descripción con enlace individual de BeatStars,
-crédito MatWyre y condiciones de uso de los otros canales adaptadas a esta tienda.
+Modo vigente `melodic_fixed_v1`, solicitado expresamente por el usuario:
+`(FREE) Fattmack x Topoppgen Type Beat - "{name}"`.
+El título mantiene siempre esos artistas y esa estructura; solo cambia el nombre
+del beat. La selección de audio continúa usando las etiquetas solicitadas.
+Descripción y tags por beat conservan su lógica anterior; en una repetición puede
+rotar el orden de tags, manteniendo el mismo formato del título.
+Descripción con enlace individual de BeatStars, crédito MatWyre y condiciones
+de uso de los otros canales adaptadas a esta tienda.
 Las capturas de Prod. Anti sirven como referencia visual y de estructura;
 sus enlaces, contacto y derechos no se copian a este canal.
+
+Los cuatro videos de la tanda inicial fueron corregidos mediante Google y releídos
+con su título exacto. Se verificaron fechas, privacidad, descripción y tags sin cambios.
+La autorización adicional de edición se usó en memoria para esta corrección;
+el token ampliado no se guardó ni se transfirió al worker.
+Config y plantillas del registro actualizadas por CAS y releídas. Snapshots de los
+cuatro videos corregidos, con historial anterior conservado; pendientes preparados
+para el formato nuevo. Los 566 beats elegibles validan sus títulos y snapshots.
+Control del worker: 352 pruebas OK (dos omitidas), incluida repetición con título fijo.
 
 ## Estado
 

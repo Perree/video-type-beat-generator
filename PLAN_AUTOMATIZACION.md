@@ -1,5 +1,15 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Mat produced this one — título fijo Fattmack x Topoppgen ✅ COMPLETADA (2026-11-06)
+- Pedido explícito: `(FREE) Fattmack x Topoppgen Type Beat - "{name}"`; solo cambia
+  el nombre del beat. Modo melodic_fixed_v1 conserva descripción y tags por beat.
+- Cuatro videos existentes corregidos en YouTube y releídos, con fechas y demás
+  metadatos conservados. Autorización de edición en memoria, sin guardar el token ampliado.
+- Config, registro y snapshots actualizados por CAS; historial previo conservado.
+  Selección de audio y publicación diaria 18:00 Argentina conservadas.
+- Los 566 beats elegibles validan el formato; 352 pruebas worker OK (dos omitidas).
+- Detalle: `docs/MAT_PRODUCED_THIS_ONE.md`.
+
 ## Mat produced this one — automatización diaria ✅ COMPLETADA (2026-11-06)
 - OAuth verificado: `UC7q99p1bly7hLMsK53wfV0Q`; token en GitHub Secrets por slug.
 - 1.147 beats de matwyre, 566 elegibles por artistas solicitados y Melodic.
