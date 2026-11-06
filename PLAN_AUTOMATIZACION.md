@@ -1,5 +1,15 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Lovesickk — Referencias para pruebas de títulos ✅ COMPLETADA (2026-11-06)
+- Cinco capturas del usuario registradas: títulos, estructura de descripciones,
+  vistas/fechas observadas y límites de comparación.
+- Cuatro familias propuestas: género simple, género con detalle, cruce de géneros
+  y artistas; selección futura condicionada por tags reales y licencia propia.
+- Contrastados los tags públicos de Her eyes, Couwart, Intriga y Nevermind.
+- Solo documentación; rotación, registro de variantes y métricas pendientes de
+  implementación. Sin cambios en configuración activa ni videos de YouTube.
+- Referencia: `docs/LOVESICKK_SEO_REFERENCIAS.md`.
+
 ## Mat produced this one — título fijo Fattmack x Topoppgen ✅ COMPLETADA (2026-11-06)
 - Pedido explícito: `(FREE) Fattmack x Topoppgen Type Beat - "{name}"`; solo cambia
   el nombre del beat. Modo melodic_fixed_v1 conserva descripción y tags por beat.
