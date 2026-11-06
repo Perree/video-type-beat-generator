@@ -112,6 +112,15 @@ def main(argv=None):
                     upload_budget=None if args.dry_run else (
                         PrivatePilotBudget(transport, os.environ['GITHUB_RUN_ID'])
                         if args.private_pilot and actions else UploadBudget(transport)))
+                if not args.dry_run:
+                    # Monitoring failures must never undo or block a publication.
+                    from core.beat_title_metrics import collect
+                    try:
+                        samples = collect(cloud, channel, client.statistics)
+                        if samples:
+                            summary['title_metric_samples'] = samples
+                    except Exception:
+                        summary['title_metrics_unavailable'] = 1
         except ChannelNotConfigured:
             # Canal sin config: queda en pausa (no pone en rojo la corrida) y avisa qué falta.
             summary = _paused_summary(args)

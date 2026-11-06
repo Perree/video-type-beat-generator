@@ -7,6 +7,7 @@ import unicodedata
 from core.beat_names import clean_name
 from core import beat_latin_seo, beat_house_seo, beat_indie_seo, beat_club_seo, beat_club_seo_v2, beat_melodic_seo
 from core import beat_melodic_fixed_seo
+from core import beat_rnb_seo
 from core.beat_seo_report import fields, text, texts, moment, parse_report, validate_report
 
 
@@ -23,7 +24,8 @@ MODES = {beat_latin_seo.MODE: (beat_latin_seo, ('{artists}', '{style}')),
          beat_club_seo_v2.MODE: (beat_club_seo_v2, ('{style}', '{detail}')),
          beat_indie_seo.MODE: (beat_indie_seo, ('{style}',)),
          beat_melodic_seo.MODE: (beat_melodic_seo, ('{style}',)),
-         beat_melodic_fixed_seo.MODE: (beat_melodic_fixed_seo, ())}
+         beat_melodic_fixed_seo.MODE: (beat_melodic_fixed_seo, ()),
+         beat_rnb_seo.MODE: (beat_rnb_seo, ('{style}',))}
 
 
 def _mode(profile):
@@ -161,6 +163,8 @@ def build_snapshot(job, track, channel, now, payload=None, cached=None, *, previ
         'report_hash': digest(report) if report else None,
         'scores': scores, 'candidates': options,
         'selected': dict(eligible[0], description=description(profile, track, eligible[0]))}
+    if _mode(profile) is beat_rnb_seo:
+        snapshot['experiment'] = beat_rnb_seo.experiment(track, profile, snapshot['selected'])
     snapshot['sha256'] = digest(snapshot)
     cache = {'manual_hash': fingerprint, 'report': deepcopy(report)} if source == 'report' else None
     return snapshot, cache
@@ -168,7 +172,8 @@ def build_snapshot(job, track, channel, now, payload=None, cached=None, *, previ
 
 def validate_snapshot(snapshot, job):
     fields(snapshot, ('schema_version', 'job_id', 'channel_id', 'track', 'manual', 'as_of',
-                      'source', 'report_hash', 'scores', 'candidates', 'selected', 'sha256'))
+                      'source', 'report_hash', 'scores', 'candidates', 'selected', 'sha256')
+           + (('experiment',) if 'experiment' in snapshot else ()))
     if type(snapshot['schema_version']) is not int or snapshot['schema_version'] != 1:
         raise ValueError('seo_snapshot_invalid')
     if snapshot['job_id'] != job['id'] or snapshot['channel_id'] != job['channel']:
@@ -203,6 +208,11 @@ def validate_snapshot(snapshot, job):
     if (snapshot['candidates'] != options and snapshot['candidates'] != legacy
             or snapshot['selected'] not in selections):
         raise ValueError('seo_snapshot_invalid')
+    if _mode(profile) is beat_rnb_seo:
+        if snapshot.get('experiment') != beat_rnb_seo.experiment(track, profile, snapshot['selected']):
+            raise ValueError('seo_experiment_invalid')
+    elif 'experiment' in snapshot:
+        raise ValueError('seo_experiment_invalid')
     body = {k: v for k, v in snapshot.items() if k != 'sha256'}
     if snapshot['sha256'] != digest(body):
         raise ValueError('seo_snapshot_invalid')

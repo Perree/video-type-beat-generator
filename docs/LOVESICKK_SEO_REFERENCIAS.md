@@ -99,6 +99,7 @@ en el trabajo de publicación.
 
 - [x] Referencias y descripciones anotadas.
 - [x] Cuatro familias definidas para orientar la implementación.
-- [ ] Implementar selección estable por tags y registro de variante.
-- [ ] Integrar medición y comparación con datos autorizados.
+- [x] Implementar selección estable por tags y registro de variante (`rnb_test_v1`).
+- [x] Integrar registro de vistas, likes y comentarios con permisos existentes.
+- [ ] Integrar impresiones, CTR, tiempo de reproducción y búsqueda de Analytics.
 - [ ] Validar con el catálogo del canal y activar la configuración correspondiente.
