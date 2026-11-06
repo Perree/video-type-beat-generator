@@ -1,5 +1,21 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Lovesickk — Variantes de títulos por tags y seguimiento básico ✅ COMPLETADA (2026-11-06)
+- Nuevo modo `rnb_test_v1`: hasta cuatro familias compatibles con los tags reales;
+  asignación estable por beat y registro de familia/versión/tags en el snapshot.
+- Descripciones con contexto propio del beat; BPM/tono solo cuando están disponibles.
+- Registro automático de vistas, likes y comentarios a partir de los días 7/28;
+  datos ausentes y muestras tardías explícitos. Sin selección automática de ganador.
+- Código publicado y configuración/registro de Lovesickk actualizados por CAS y
+  releídos. Horarios, otros canales, estado y títulos ya programados conservados.
+- 90 snapshots del catálogo real validados; 359 pruebas locales y remotas OK
+  (dos omisiones opcionales). Dry-run remoto `42265734697` exitoso: eligible=0,
+  failed=0, uploaded=0; no ejercitó un nuevo render ni una subida en esta corrida.
+- Cuatro pendientes sin snapshot usarán el modo nuevo, desde la publicación
+  prevista del 12/11 a las 18:00 Argentina, sujeta al procesamiento normal.
+- Pendiente separado: integrar impresiones, CTR, tiempo de reproducción y búsqueda
+  mediante Analytics. Detalle: `docs/LOVESICKK_PRUEBAS_TITULOS.md`.
+
 ## Lovesickk — Referencias para pruebas de títulos ✅ COMPLETADA (2026-11-06)
 - Cinco capturas del usuario registradas: títulos, estructura de descripciones,
   vistas/fechas observadas y límites de comparación.

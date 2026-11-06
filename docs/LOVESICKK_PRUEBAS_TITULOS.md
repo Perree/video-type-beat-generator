@@ -65,3 +65,19 @@ controlado del mismo video.
   reconstruidos y validados. Asignación: 34 simple, 28 detalle, 13 cruce y 15 artistas.
 
 Referencias originales: `docs/LOVESICKK_SEO_REFERENCIAS.md`.
+
+## Activación verificada el 2026-11-06
+
+- Código publicado en master (`6cfdc8c`); perfil y plantillas de Lovesickk escritos
+  por CAS y releídos. Otros canales y el estado de trabajos quedaron intactos.
+- Simulación remota [42265734697](https://github.com/Perree/video-type-beat-generator/actions/runs/42265734697)
+  exitosa sobre ese commit; control remoto de 359 pruebas aprobado. El worker
+  devolvió eligible=0, planned=0, failed=0 y uploaded=0. Verifica carga/configuración,
+  pero no un nuevo render, una subida real ni una captura real de métricas.
+- Próximos pendientes revisados localmente: Away (12/11, detalle acústico), Noir
+  (14/11, simple), Happier (17/11, simple), Nothing of You (19/11, detalle guitarra).
+  Publicaciones previstas a las 18:00 Argentina, sujetas al procesamiento normal.
+  La asignación es por ID; los primeros cuatro no cubren necesariamente las cuatro
+  familias. En todo el catálogo sí están representadas las cuatro.
+- Videos ya subidos, incluidos los programados para 7/11 y 10/11, conservan títulos.
+- API de contadores: [videos.list](https://developers.google.com/youtube/v3/docs/videos/list).
