@@ -48,3 +48,23 @@ class MelodicSeoTests(unittest.TestCase):
         tracks = [dict(id='1', tags=['melodic house']),
                   dict(id='2', tags=['melodic']), dict(id='3', tags=['juice wrld'])]
         self.assertEqual([t['id'] for t in eligible_tracks(channel, tracks)], ['2', '3'])
+
+    def test_fixed_channel_titles_do_not_change_with_artists_or_repeat(self):
+        from core import beat_melodic_fixed_seo
+        profile = self.profile()
+        profile.update(title_mode='melodic_fixed_v1',
+                       title_template='(FREE) Fattmack x Topoppgen Type Beat - "{name}"')
+        channel = dict(id='test', seo=profile)
+        job = dict(id='job', channel='test', track_id='TK1', cycle=2)
+        for tags in [['juice wrld'], ['duki'], ['melodic']]:
+            track = dict(id='TK1', title='Percocet Love', tags=tags)
+            options = beat_melodic_fixed_seo.variants(track, profile)
+            self.assertTrue(all(option['title'] ==
+                '(FREE) Fattmack x Topoppgen Type Beat - "Percocet Love"' for option in options))
+            self.assertEqual(options[0]['tags'], melodic.variants(track, profile)[0]['tags'])
+            snapshot, _ = beat_seo.build_snapshot(job, track, channel, '2026-11-06T12:00:00+00:00')
+            beat_seo.validate_snapshot(snapshot, job)
+            repeated, _ = beat_seo.build_snapshot(job, track, channel, '2026-11-06T12:00:00+00:00',
+                                                 previous_selected=snapshot['selected'])
+            beat_seo.validate_snapshot(repeated, job)
+            self.assertEqual(repeated['selected']['title'], snapshot['selected']['title'])
