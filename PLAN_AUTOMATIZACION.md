@@ -8,6 +8,17 @@
 - Nuevo modo melodic_v1 por etiquetas reales. Pendientes prueba remota y activación.
 - Detalle: `docs/MAT_PRODUCED_THIS_ONE.md`.
 
+## mattwyyre — Imágenes y franjas uniformes ✅ COMPLETADA (2026-11-04)
+
+- Causa: `image_fit=contain` conservaba cada foto completa, variando el ancho visible y las barras.
+- Nuevo `visual.image_fit=fixed_bars`: imagen central 1232 × 1080 y franjas negras de
+  344 px por lado en 1920 × 1080, siguiendo la captura del usuario; recorte centrado sin deformar.
+- Miniatura automática con el mismo encuadre; originales y videos ya subidos intactos.
+  Cambio de configuración limitado a mattwyyre; `cover` y `contain` siguen disponibles.
+- Verificación: 27 pruebas de imagen y render aprobadas; geometría idéntica para cuatro
+  proporciones y tres previews con fondos reales del canal, inspección visual aprobada.
+- Código en `core/`, sin cambios en `main.py`. Detalle: `docs/TYPE_BEATS_CHANNELS.md`.
+
 ## Kiezah — forma habitual de títulos y etiquetas por beat ✅ COMPLETADA (2026-11-03)
 - Pedido: misma forma de las capturas, con géneros y tags variables según BeatStars.
 - Modo `club_v2`: `[FREE] {style} Type Beat - "{name}" | {detail}`, nombre en mayúsculas;
