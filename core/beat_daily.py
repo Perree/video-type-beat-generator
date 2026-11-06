@@ -63,6 +63,7 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
               source=None, renderer=render_reserved, report_loader=None,
               notify=None, thumbnailer=None, seed=None, private_pilot=False,
               expected_owner=None, share_links=None, calendar=None, upload_budget=None,
+              include_paused=False,
               clock=lambda: datetime.now(timezone.utc)):
     """Planifica el búfer del canal y sube los trabajos que tocan hoy.
 
@@ -72,6 +73,8 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
     se suma ``calendar_unavailable`` y la corrida no planifica, no cancela ni sube nada.
     Devuelve el resumen de contadores (``COUNTERS``).
     """
+    if include_paused and not dry_run:
+        raise ValueError('include_paused_requires_dry_run')
     summary = dict.fromkeys(COUNTERS, 0)
     if dry_run:
         calendar = None
@@ -90,6 +93,8 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
             return summary
         if expected_owner is not None and channel.get('youtube_channel_id') != expected_owner:
             raise ValueError('youtube_destination_changed')
+        if not channel['active'] and include_paused:
+            channel = dict(channel, active=True)
         if not channel['active']:
             summary['blocked'] += 1
             return summary

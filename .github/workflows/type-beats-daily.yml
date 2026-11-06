@@ -17,6 +17,10 @@ on:
         description: 'One eligible job per channel, private without scheduled publication'
         type: boolean
         default: true
+      include_paused:
+        description: 'Simulate paused channel in memory (requires dry_run)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -92,9 +96,17 @@ jobs:
           BEAT_TELEGRAM_CHAT_ID: ${{ secrets.AUTOMATION_TELEGRAM_CHAT_ID || secrets.KIT_TELEGRAM_CHAT_ID }}
           DRY_RUN: ${{ (inputs.dry_run || (vars.BEAT_LIVE_ENABLED != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.private_pilot))) && 'true' || 'false' }}
           PRIVATE_PILOT: ${{ github.event_name == 'workflow_dispatch' && inputs.private_pilot && 'true' || 'false' }}
+          INCLUDE_PAUSED: ${{ inputs.include_paused && 'true' || 'false' }}
         run: |
           if [ "$DRY_RUN" = "true" ]; then
-            python scripts/run_beat_daily.py --dry-run
+            if [ "$INCLUDE_PAUSED" = "true" ]; then
+              python scripts/run_beat_daily.py --dry-run --include-paused
+            else
+              python scripts/run_beat_daily.py --dry-run
+            fi
+          elif [ "$INCLUDE_PAUSED" = "true" ]; then
+            echo 'include_paused requires dry_run'
+            exit 1
           elif [ "$PRIVATE_PILOT" = "true" ]; then
             python scripts/run_beat_daily.py --private-pilot
           else

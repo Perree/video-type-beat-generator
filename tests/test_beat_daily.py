@@ -689,6 +689,25 @@ class DailyTests(unittest.TestCase):
         self.assertEqual(self.memory.files, before)
         self.assertEqual(self.public.calls, [])
 
+    def test_explicit_paused_simulation_preserves_cloud_and_never_uploads(self):
+        config, rev = self.cloud.read('config')
+        config['channels'][0]['active'] = False
+        self.cloud.write('config', config, rev)
+        before = copy.deepcopy(self.memory.files)
+        summary = self.run_worker(dry_run=True, include_paused=True)
+        self.assertGreater(summary['planned'], 0)
+        self.assertEqual(summary['failed'], 0)
+        self.assertEqual(summary['uploaded'], 0)
+        self.assertEqual(self.calls, [])
+        self.assertEqual(self.memory.files, before)
+
+    def test_paused_simulation_rejects_real_upload_mode(self):
+        before = copy.deepcopy(self.memory.files)
+        with self.assertRaisesRegex(ValueError, 'include_paused_requires_dry_run'):
+            self.run_worker(include_paused=True)
+        self.assertEqual(self.memory.files, before)
+        self.assertEqual(self.calls, [])
+
     def test_global_budget_shared_across_channels(self):
         config, rev = self.cloud.read('config')
         second = copy.deepcopy(config['channels'][0])
