@@ -1,5 +1,13 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Mat produced this one — automatización diaria EN CURSO (2026-11-06)
+- OAuth verificado: `UC7q99p1bly7hLMsK53wfV0Q`; token en GitHub Secrets por slug.
+- 1.147 beats de matwyre, 566 elegibles por artistas solicitados y Melodic.
+- 35 fondos locales verificados y copiados a carpeta propia de Dropbox.
+- Config/registro inicialmente en pausa, un video diario 18:00 Argentina.
+- Nuevo modo melodic_v1 por etiquetas reales. Pendientes prueba remota y activación.
+- Detalle: `docs/MAT_PRODUCED_THIS_ONE.md`.
+
 ## Kiezah — forma habitual de títulos y etiquetas por beat ✅ COMPLETADA (2026-11-03)
 - Pedido: misma forma de las capturas, con géneros y tags variables según BeatStars.
 - Modo `club_v2`: `[FREE] {style} Type Beat - "{name}" | {detail}`, nombre en mayúsculas;
