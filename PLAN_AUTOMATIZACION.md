@@ -16,8 +16,8 @@
 - Integrado origin/master acc8e62 por fast-forward. Control worker: 381 pruebas OK
   (dos omitidas); siete pruebas Latin y nueve MatWyre posteriores OK. Simulación
   local contra Dropbox: planned=7, eligible=2, uploaded/failed/orphan/unknown=0.
-- Siguiente fase: OAuth/identidad del canal, secretos, alta en BEAT_CHANNELS,
-  publicación del código si no estuviera disponible, piloto audiovisual y activación.
+- Código publicado en master: 38e0174. Siguiente fase: OAuth/identidad del canal,
+  secretos, alta en BEAT_CHANNELS, piloto audiovisual y activación.
   Detalle y límites: docs/WYRELATINBEATZ.md. No se subieron videos a YouTube.
 
 ## matwyrebeats — Automatización por tags y familias ✅ COMPLETADA (2026-11-07)

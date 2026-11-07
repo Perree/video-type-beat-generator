@@ -124,8 +124,9 @@ conservan sus revisiones después de la simulación. Un primer intento del coman
 de comprobación omitió el adaptador de recursos y falló; la corrida corregida
 usó DropboxAssets y aprobó.
 
-Pendientes para activar: publicar el código del nuevo modo, OAuth con identidad
-coincidente, secretos BEAT_CHANNEL_ID_WYRELATINBEATZ y BEAT_YT_TOKEN_JSON_WYRELATINBEATZ,
+Código del nuevo modo publicado en master con el commit `38e0174`.
+Pendientes para activar: OAuth con identidad coincidente,
+secretos BEAT_CHANNEL_ID_WYRELATINBEATZ y BEAT_YT_TOKEN_JSON_WYRELATINBEATZ,
 alta en BEAT_CHANNELS, piloto audiovisual y activación. No se ha subido ningún
 video a YouTube durante esta preparación. El seguimiento de métricas de títulos
 de otros modos no se extiende automáticamente a latin_v2.
