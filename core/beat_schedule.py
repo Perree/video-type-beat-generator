@@ -7,6 +7,7 @@ from core.beat_schema import identity, instant, migrate
 from core.beat_rotation import repeat_ready, publication_time
 from core.beat_performance import performance, choose
 from core.beat_selection import eligible_tracks
+from core.beat_matwyre import SELECTION as MATWYRE, balanced
 
 
 def slots(channel, now):
@@ -98,6 +99,8 @@ def plan(config, state, tracks, now, *, seed=None, reports=None, occupied_days=(
                          and identity(tid, cid, cycle, slot) not in existing_ids]
             if not available:
                 continue
+            if MATWYRE in {t.casefold() for t in ch.get('selection_tags', [])}:
+                available = balanced(available, {t['id']: t for t in pools[cid]}, history)
             # Missing performance data: oldest public use first, stable ID ties.
             def lru(tid):
                 dates = [publication_time(j) for j in history

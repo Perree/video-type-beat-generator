@@ -14,6 +14,20 @@ def publication_link(channel, track, link):
         if not isinstance(link, str) or not SHORT_LINK.fullmatch(link):
             raise ValueError('beat_short_link_missing')
         return link
+    if channel.get('seo', {}).get('title_mode') == 'matwyre_v1':
+        if isinstance(link, str) and SHORT_LINK.fullmatch(link):
+            return link
+        # Use the catalog's actual page slug, never rebuild it from a display name.
+        from urllib.parse import urlsplit
+        url = track.get('url', '')
+        parsed = urlsplit(url) if isinstance(url, str) else None
+        tid = track.get('id', '')
+        if (parsed and parsed.scheme == 'https' and parsed.netloc == 'www.beatstars.com'
+                and not parsed.query and not parsed.fragment
+                and re.fullmatch(r'TK[0-9]{1,20}', tid)
+                and re.fullmatch(r'/beat/[A-Za-z0-9_-]+-' + re.escape(tid[2:]), parsed.path)):
+            return url
+        raise ValueError('beat_individual_link_missing')
     from core.beat_seo import beat_url
     return link or beat_url(track)
 

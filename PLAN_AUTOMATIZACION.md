@@ -1,5 +1,14 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## matwyrebeats — Automatización por tags y familias EN CURSO (2026-11-07)
+- Usuario aprobó automatización y amplió a tags musicales compatibles sin forzar artistas.
+- Modo matwyre_v1, selección versionada y mezcla 50/30/20; exclusión conservadora
+  de nombres históricos. 404 beats elegibles del catálogo actual de 1.151.
+- OAuth propio confirmado, 24 imágenes sincronizadas y config/registro preparados
+  en pausa. Lunes/miércoles/viernes, 18:00 Argentina como horario inicial.
+- Validación de 404 snapshots y pruebas locales aprobadas; pendientes simulación
+  remota, activación y programación. Detalle: `docs/MATWYREBEATS_AUTOMATIZACION.md`.
+
 ## matwyrebeats — Análisis de competencia y propuesta SEO ✅ COMPLETADA (2026-11-07)
 - Historial propio contrastado con 14 capturas de Santu, Grow Beatz, Yhiem y Nikill;
   cobertura del export y límites de comparación registrados.

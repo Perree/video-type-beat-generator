@@ -21,6 +21,8 @@ def apply_channel_templates(channel, saved):
         for token, replacement in (
             ('{channel}', channel['id']), ('{socials}', saved.get('socials', '')),
             ('{hashtags}', saved.get('hashtags', '')), ('{tags}', ', '.join(profile['tags']))):
+            if token == '{hashtags}' and profile.get('title_mode') == 'matwyre_v1':
+                continue
             if token in value:
                 if not isinstance(replacement, str):
                     raise ValueError('channel_template_value_invalid')
@@ -36,6 +38,8 @@ def apply_channel_templates(channel, saved):
             allowed.update(('style', 'title', 'technical', 'afro_hashtags'))
         elif profile.get('title_mode') == 'rnb_test_v1':
             allowed.update(('style', 'context', 'music_info'))
+        elif profile.get('title_mode') == 'matwyre_v1':
+            allowed.update(('style', 'context', 'music_info', 'credits', 'hashtags'))
         if set(re.findall(r'\{([^{}]+)\}', value)) - allowed:
             raise ValueError('channel_template_placeholder_unsupported')
         return value
