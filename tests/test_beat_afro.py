@@ -83,6 +83,7 @@ class AfroTests(unittest.TestCase):
 
     def test_paused_config_and_three_day_cadence_survive_restart(self):
         ch = self.channel()
+        ch['active'] = False  # The deployed example may already be active.
         migrate({'channels': [ch]}, 'config')
         self.assertFalse(ch['active'])
         dates = slots(ch, '2026-11-07T23:00:00-03:00')

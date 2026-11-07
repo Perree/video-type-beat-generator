@@ -1,5 +1,25 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## afrowyre — conexión, piloto privado y activación ✅ COMPLETADA (2026-11-07)
+
+- OAuth e identidad verificados: AfroWyre, `@afrowyre`, `UCakkqBMHo6tRnihgqpJg_Sg`.
+  Secretos propios en `kit-weekly`; BEAT_CHANNELS ampliado conservando los ocho previos.
+- 28 fondos sincronizados y verificados por tamaño/content hash; config y registro
+  propios guardados por CAS, releídos y activos. Cada tres días, 14:00 Argentina.
+- Integrados los cambios actuales de master; código publicado. 366 pruebas worker
+  OK (dos omitidas), local y en Actions; seis pruebas Afro con config activa OK.
+- Dry-run `42393131030`: success, planned=5, eligible=1, uploaded=0, sin errores.
+- Piloto `42393378694`: success, uploaded=1, failed/orphan/unknown/blocked=0.
+  MUJERES `TK19637168`, video `IRXRIqpRRC4`; solicitud privada sin publishAt,
+  recibo Dropbox `private_pilot`. Un intento del cupo normal; sin excepciones.
+- Enlace individual `https://bsta.rs/iDfeG7` resuelve al beat correcto (HTTP 200).
+  Frame reproducido desde la imagen del snapshot e inspeccionado. Sin acceso a Edge:
+  revisión audiovisual en Studio pendiente del usuario; límites en `docs/AFROWYRE.md`.
+- El piloto consume el turno 8/11 y permanece privado. Cuatro pendientes desde
+  11/11, 14/11, 17/11 y 20/11, a las 14:00, sujetos a subida exitosa y cupo.
+  Cron/escalonado/búfer existentes y demás canales conservados.
+
+
 ## afrowyre — preparación de selección Afro y títulos por beat ✅ COMPLETADA (2026-11-07)
 
 - Canal aportado: `@afrowyre`. Cada tres días, 14:00 Argentina; borrador local

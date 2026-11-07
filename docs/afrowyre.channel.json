@@ -1,31 +1,46 @@
 {
-  "id": "afrowyre",
   "actions_slug": "afrowyre",
-  "active": false,
-  "priority": 10,
-  "slots": [],
-  "interval_schedule": {
-    "days": 3,
-    "anchor": "2026-11-08T14:00:00-03:00"
+  "active": true,
+  "dropbox_images": {
+    "afro": "/Soft Projects/Type Beat Generator/contenido/canales/afrowyre/fondos"
   },
-  "upload_spread": {"min_days": 2, "max_days": 4},
-  "genres": ["afro"],
-  "images_folder": "images/afrowyre/Principal",
-  "dropbox_images": {},
-  "selection_tags": ["afro*"],
+  "genres": [
+    "afro"
+  ],
+  "id": "afrowyre",
+  "images_folder": "",
+  "interval_schedule": {
+    "anchor": "2026-11-08T14:00:00-03:00",
+    "days": 3
+  },
+  "priority": 10,
+  "selection_tags": [
+    "afro*"
+  ],
+  "seo": {
+    "description": "{title}\n\n💰 Purchase the license for this beat (Untagged / Instant Delivery):\n{url}\n\n✉️ Contact / Business Inquiries:\ncontact@matwyre.com (NO LOOPS)\nEmail For Loops: matwyreloops@gmail.com\n📷 Follow me on Instagram: @matwyreoff\n\n🎸 Technical Info:\n{technical}\nProduced by MatWyre\n\n⚠️ TERMS OF USE:\nThe free version of this beat is strictly for non-profit, audition purposes only (YouTube or Soundcloud with no monetization). If you plan to release your song on major platforms like Spotify, Apple Music, etc., you must purchase a lease from the link above. Credit is always required: (Prod. by MatWyre).\n\n{afro_hashtags}",
+    "tags": [
+      "free type beat",
+      "instrumental",
+      "MatWyre",
+      "afrowyre"
+    ],
+    "title_mode": "afro_v1",
+    "title_template": "(FREE) {style} Type Beat - \"{name}\""
+  },
+  "slots": [],
   "tags": [],
-  "visual": {
-    "mode": "image",
-    "plain_image": true,
-    "image_fit": "contain",
-    "custom_thumbnail": false,
-    "thumbnail_source": "auto"
+  "upload_spread": {
+    "max_days": 4,
+    "min_days": 2
   },
   "use_channel_templates": true,
-  "seo": {
-    "title_mode": "afro_v1",
-    "title_template": "(FREE) {style} Type Beat - \"{name}\"",
-    "tags": ["free type beat", "instrumental", "MatWyre", "afrowyre"],
-    "description": "{title}\n\n💰 Purchase the license for this beat (Untagged / Instant Delivery):\n{url}\n\n✉️ Contact / Business Inquiries:\ncontact@matwyre.com (NO LOOPS)\nEmail For Loops: matwyreloops@gmail.com\n📷 Follow me on Instagram: @matwyreoff\n\n🎸 Technical Info:\n{technical}\nProduced by MatWyre\n\n⚠️ TERMS OF USE:\nThe free version of this beat is strictly for non-profit, audition purposes only (YouTube or Soundcloud with no monetization). If you plan to release your song on major platforms like Spotify, Apple Music, etc., you must purchase a lease from the link above. Credit is always required: (Prod. by MatWyre).\n\n{afro_hashtags}"
-  }
+  "visual": {
+    "custom_thumbnail": false,
+    "image_fit": "contain",
+    "mode": "image",
+    "plain_image": true,
+    "thumbnail_source": "auto"
+  },
+  "youtube_channel_id": "UCakkqBMHo6tRnihgqpJg_Sg"
 }
