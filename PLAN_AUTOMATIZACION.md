@@ -17,6 +17,56 @@
 - Próxima fase pendiente: registro/config remotos, sincronización de fondos,
   OAuth/ID, publicación del código, dry-run, piloto privado y activación.
   Sin push, subidas ni cambios de configuración remota durante esta preparación.
+## Lovesickk — Variantes de títulos por tags y seguimiento básico ✅ COMPLETADA (2026-11-06)
+- Nuevo modo `rnb_test_v1`: hasta cuatro familias compatibles con los tags reales;
+  asignación estable por beat y registro de familia/versión/tags en el snapshot.
+- Descripciones con contexto propio del beat; BPM/tono solo cuando están disponibles.
+- Registro automático de vistas, likes y comentarios a partir de los días 7/28;
+  datos ausentes y muestras tardías explícitos. Sin selección automática de ganador.
+- Código publicado y configuración/registro de Lovesickk actualizados por CAS y
+  releídos. Horarios, otros canales, estado y títulos ya programados conservados.
+- 90 snapshots del catálogo real validados; 359 pruebas locales y remotas OK
+  (dos omisiones opcionales). Dry-run remoto `42265734697` exitoso: eligible=0,
+  failed=0, uploaded=0; no ejercitó un nuevo render ni una subida en esta corrida.
+- Cuatro pendientes sin snapshot usarán el modo nuevo, desde la publicación
+  prevista del 12/11 a las 18:00 Argentina, sujeta al procesamiento normal.
+- Pendiente separado: integrar impresiones, CTR, tiempo de reproducción y búsqueda
+  mediante Analytics. Detalle: `docs/LOVESICKK_PRUEBAS_TITULOS.md`.
+
+## Lovesickk — Referencias para pruebas de títulos ✅ COMPLETADA (2026-11-06)
+- Cinco capturas del usuario registradas: títulos, estructura de descripciones,
+  vistas/fechas observadas y límites de comparación.
+- Cuatro familias propuestas: género simple, género con detalle, cruce de géneros
+  y artistas; selección futura condicionada por tags reales y licencia propia.
+- Contrastados los tags públicos de Her eyes, Couwart, Intriga y Nevermind.
+- Solo documentación; rotación, registro de variantes y métricas pendientes de
+  implementación. Sin cambios en configuración activa ni videos de YouTube.
+- Referencia: `docs/LOVESICKK_SEO_REFERENCIAS.md`.
+
+## Mat produced this one — título fijo Fattmack x Topoppgen ✅ COMPLETADA (2026-11-06)
+- Pedido explícito: `(FREE) Fattmack x Topoppgen Type Beat - "{name}"`; solo cambia
+  el nombre del beat. Modo melodic_fixed_v1 conserva descripción y tags por beat.
+- Cuatro videos existentes corregidos en YouTube y releídos, con fechas y demás
+  metadatos conservados. Autorización de edición en memoria, sin guardar el token ampliado.
+- Config, registro y snapshots actualizados por CAS; historial previo conservado.
+  Selección de audio y publicación diaria 18:00 Argentina conservadas.
+- Los 566 beats elegibles validan el formato; 352 pruebas worker OK (dos omitidas).
+- Detalle: `docs/MAT_PRODUCED_THIS_ONE.md`.
+
+## Mat produced this one — automatización diaria ✅ COMPLETADA (2026-11-06)
+- OAuth verificado: `UC7q99p1bly7hLMsK53wfV0Q`; token en GitHub Secrets por slug.
+- 1.147 beats de matwyre, 566 elegibles por artistas solicitados y Melodic.
+- 35 fondos locales verificados y copiados a carpeta propia de Dropbox.
+- Config/registro activos por CAS y releídos; un video diario 18:00 Argentina.
+- Nuevo modo melodic_v1 por etiquetas reales. 351 pruebas worker OK (dos omitidas).
+- Dry-run remoto `42237868882`: planned=14, eligible=4, sin errores ni escrituras.
+  Nueva opción include_paused permite probar un canal pausado solo en dry-run.
+- Corrida real `42238364215` exitosa: uploaded=4, failed/blocked/orphan/unknown=0.
+  Videos programados 6–9/11 a las 18:00; hoy `JxlB37KZzsA` (NOCHE FRÍA).
+  Diez pendientes restantes en el búfer; cron diario mantiene las próximas subidas.
+- Cuatro recibos scheduled e imágenes distintas verificados en Dropbox. Otros canales
+  conservan su configuración; BEAT_CHANNELS ampliado con el slug propio.
+- Detalle: `docs/MAT_PRODUCED_THIS_ONE.md`.
 
 ## mattwyyre — Imágenes y franjas uniformes ✅ COMPLETADA (2026-11-04)
 

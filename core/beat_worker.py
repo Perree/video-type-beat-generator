@@ -39,11 +39,15 @@ def _with_slug(notifier, slug):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--include-paused', action='store_true',
+                        help='Simulate paused channel in memory; requires --dry-run')
     parser.add_argument('--private-pilot', action='store_true',
                         help='Try one job; private video without publishAt')
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--receipts', default='exported_videos/type_beats/receipts')
     args = parser.parse_args(argv)
+    if args.include_paused and not args.dry_run:
+        parser.error('--include-paused requires --dry-run')
     summary = {'failed': 1, 'dry_run': args.dry_run}
     # Suppress dependency output, including HTTP errors containing URLs/tokens.
     with quiet_dependencies():
@@ -99,6 +103,7 @@ def main(argv=None):
                         client.check_owner(channel, expected_owner)
                 summary = run_daily(cloud, channel, assets, client.upload,
                     args.receipts, dry_run=args.dry_run, report_loader=loader,
+                    include_paused=args.include_paused,
                     notify=notifier, thumbnailer=client.thumbnail, seed=args.seed,
                     private_pilot=args.private_pilot, expected_owner=expected_owner,
                     share_links=ShareLinks(),
@@ -107,6 +112,15 @@ def main(argv=None):
                     upload_budget=None if args.dry_run else (
                         PrivatePilotBudget(transport, os.environ['GITHUB_RUN_ID'])
                         if args.private_pilot and actions else UploadBudget(transport)))
+                if not args.dry_run:
+                    # Monitoring failures must never undo or block a publication.
+                    from core.beat_title_metrics import collect
+                    try:
+                        samples = collect(cloud, channel, client.statistics)
+                        if samples:
+                            summary['title_metric_samples'] = samples
+                    except Exception:
+                        summary['title_metrics_unavailable'] = 1
         except ChannelNotConfigured:
             # Canal sin config: queda en pausa (no pone en rojo la corrida) y avisa qué falta.
             summary = _paused_summary(args)

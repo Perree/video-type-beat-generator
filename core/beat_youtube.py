@@ -23,6 +23,22 @@ class BeatYouTube:
         """Videos del canal para el calendario (ver youtube.list_channel_calendar)."""
         return youtube.list_channel_calendar(channel, self.tokens_dir, max_videos)
 
+    def statistics(self, channel, video_ids):
+        if not 1 <= len(video_ids) <= 50 or any(
+                not isinstance(v, str) or not re.fullmatch(r'[A-Za-z0-9_-]{11}', v) for v in video_ids):
+            raise ValueError('youtube_ids_invalid')
+        rows = self.service(channel).videos().list(
+            part='snippet,status,statistics', id=','.join(video_ids)).execute().get('items', [])
+        result = {}
+        for row in rows:
+            stats, snippet = row.get('statistics', {}), row['snippet']
+            result[row['id']] = {'title': snippet['title'], 'channel_id': snippet['channelId'],
+                'published_at': snippet['publishedAt'],
+                'privacy': row.get('status', {}).get('privacyStatus'),
+                **{key: int(stats[field]) if field in stats else None
+                   for key, field in [('views', 'viewCount'), ('likes', 'likeCount'), ('comments', 'commentCount')]}}
+        return result
+
     def upload(self, **kwargs):
         from googleapiclient.http import MediaFileUpload
         from googleapiclient.errors import HttpError

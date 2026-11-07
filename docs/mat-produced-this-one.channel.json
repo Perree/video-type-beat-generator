@@ -1,0 +1,116 @@
+{
+  "actions_slug": "mat-produced-this-one",
+  "active": true,
+  "dropbox_images": {
+    "melodic": "/Soft Projects/Type Beat Generator/contenido/canales/mat-produced-this-one/fondos"
+  },
+  "genres": [
+    "melodic"
+  ],
+  "id": "mat-produced-this-one",
+  "images_folder": "",
+  "priority": 10,
+  "selection_tags": [
+    "duki",
+    "duki beat",
+    "duki type beat",
+    "fatt mack",
+    "fatt mack beat",
+    "fatt mack type beat",
+    "fattmack",
+    "fattmack beat",
+    "fattmack type beat",
+    "hard melodic",
+    "juice wrld",
+    "juice wrld beat",
+    "juice wrld type beat",
+    "juicewrld",
+    "juicewrld beat",
+    "juicewrld type beat",
+    "khea",
+    "khea beat",
+    "khea type beat",
+    "melodic",
+    "melodic dark type beat",
+    "melodic hard",
+    "melodic hard type beat",
+    "melodic trap",
+    "melodic trap type beat",
+    "melodic type beat",
+    "topopp gen",
+    "topopp gen beat",
+    "topopp gen type beat",
+    "topoppgen",
+    "topoppgen beat",
+    "topoppgen type beat",
+    "type beat duki",
+    "type beat fatt mack",
+    "type beat fattmack",
+    "type beat juice wrld",
+    "type beat juicewrld",
+    "type beat khea",
+    "type beat topopp gen",
+    "type beat topoppgen"
+  ],
+  "seo": {
+    "description": "{style} Type Beat - \"{name}\"\n\nPurchase / Free Demo Download: {url}\nBeat Store: https://www.beatstars.com/matwyre\n\nProd. MatWyre\nInstagram: https://instagram.com/matwyreoff\n\nFREE FOR NON-PROFIT USE ONLY.\nCredit \"Prod. MatWyre\" in the title and description. Credit any co-producers listed in the original beat too.\nPurchase a license for Spotify, Apple Music and other commercial releases.\nDo not register this instrumental or a song using it with Content ID.\n\nAll rights reserved - MatWyre.\n#TypeBeat #MatWyre",
+    "tags": [
+      "free type beat",
+      "type beat",
+      "matwyre",
+      "mat produced this one"
+    ],
+    "title_mode": "melodic_fixed_v1",
+    "title_template": "(FREE) Fattmack x Topoppgen Type Beat - \"{name}\""
+  },
+  "slots": [
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 0
+    },
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 1
+    },
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 2
+    },
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 3
+    },
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 4
+    },
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 5
+    },
+    {
+      "hour": 18,
+      "minute": 0,
+      "weekday": 6
+    }
+  ],
+  "tags": [],
+  "upload_spread": {
+    "max_days": 4,
+    "min_days": 2
+  },
+  "visual": {
+    "custom_thumbnail": false,
+    "image_fit": "contain",
+    "mode": "image",
+    "plain_image": true,
+    "thumbnail_source": "auto"
+  },
+  "youtube_channel_id": "UC7q99p1bly7hLMsK53wfV0Q"
+}
