@@ -10,6 +10,43 @@
 - Pendiente: revisión del usuario antes de automatizar. Sin descargas, cambios en
   configuración activa, metadatos de YouTube ni programación de publicaciones.
 
+## afrowyre — conexión, piloto privado y activación ✅ COMPLETADA (2026-11-07)
+
+- OAuth e identidad verificados: AfroWyre, `@afrowyre`, `UCakkqBMHo6tRnihgqpJg_Sg`.
+  Secretos propios en `kit-weekly`; BEAT_CHANNELS ampliado conservando los ocho previos.
+- 28 fondos sincronizados y verificados por tamaño/content hash; config y registro
+  propios guardados por CAS, releídos y activos. Cada tres días, 14:00 Argentina.
+- Integrados los cambios actuales de master; código publicado. 366 pruebas worker
+  OK (dos omitidas), local y en Actions; seis pruebas Afro con config activa OK.
+- Dry-run `42393131030`: success, planned=5, eligible=1, uploaded=0, sin errores.
+- Piloto `42393378694`: success, uploaded=1, failed/orphan/unknown/blocked=0.
+  MUJERES `TK19637168`, video `IRXRIqpRRC4`; solicitud privada sin publishAt,
+  recibo Dropbox `private_pilot`. Un intento del cupo normal; sin excepciones.
+- Enlace individual `https://bsta.rs/iDfeG7` resuelve al beat correcto (HTTP 200).
+  Frame reproducido desde la imagen del snapshot e inspeccionado. Sin acceso a Edge:
+  revisión audiovisual en Studio pendiente del usuario; límites en `docs/AFROWYRE.md`.
+- El piloto consume el turno 8/11 y permanece privado. Cuatro pendientes desde
+  11/11, 14/11, 17/11 y 20/11, a las 14:00, sujetos a subida exitosa y cupo.
+  Cron/escalonado/búfer existentes y demás canales conservados.
+
+
+## afrowyre — preparación de selección Afro y títulos por beat ✅ COMPLETADA (2026-11-07)
+
+- Canal aportado: `@afrowyre`. Cada tres días, 14:00 Argentina; borrador local
+  pausado en `docs/afrowyre.channel.json`, fecha base provisional 8/11.
+- Filtro explícito `afro*`: variantes de la familia Afro y etiquetas compuestas,
+  sin cambiar los filtros exactos de los demás canales. Catálogo público de
+  MatWyre: 1.151 beats, 25 elegibles; sus snapshots generados y revalidados.
+- Nuevo modo `afro_v1`: estilo/artistas solo por tags, nombre real y descripción
+  del usuario; BPM/tono solo si existen. Enlace individual corto obligatorio:
+  si falta, no llama al uploader ni consume intentos. Otros modos conservados.
+- 28 imágenes locales verificadas y copiadas a carpeta propia, con coincidencias
+  de las capturas; sin alterar originales ni usar imágenes de competidores.
+- Control worker: 352 pruebas OK (dos omitidas); detalles y análisis de las
+  referencias en `docs/AFROWYRE.md`. Sin cambios en `main.py`.
+- Próxima fase pendiente: registro/config remotos, sincronización de fondos,
+  OAuth/ID, publicación del código, dry-run, piloto privado y activación.
+  Sin push, subidas ni cambios de configuración remota durante esta preparación.
 ## Lovesickk — Variantes de títulos por tags y seguimiento básico ✅ COMPLETADA (2026-11-06)
 - Nuevo modo `rnb_test_v1`: hasta cuatro familias compatibles con los tags reales;
   asignación estable por beat y registro de familia/versión/tags en el snapshot.
