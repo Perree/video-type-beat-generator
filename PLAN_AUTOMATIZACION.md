@@ -1,5 +1,15 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## matwyrebeats — Análisis de competencia y propuesta SEO ✅ COMPLETADA (2026-11-07)
+- Historial propio contrastado con 14 capturas de Santu, Grow Beatz, Yhiem y Nikill;
+  cobertura del export y límites de comparación registrados.
+- Propuesta de tres líneas por beat: núcleo melodic/emo, Milo J acústico/emocional
+  y prueba acotada de trap. Títulos, descripciones y tags condicionados al audio.
+- Filtro propuesto para el catálogo propio de BeatStars; pilotos y métricas
+  definidos sin implementar ni activar. Detalle: `docs/MATWYREBEATS_PROPUESTA_SEO.md`.
+- Pendiente: revisión del usuario antes de automatizar. Sin descargas, cambios en
+  configuración activa, metadatos de YouTube ni programación de publicaciones.
+
 ## Lovesickk — Variantes de títulos por tags y seguimiento básico ✅ COMPLETADA (2026-11-06)
 - Nuevo modo `rnb_test_v1`: hasta cuatro familias compatibles con los tags reales;
   asignación estable por beat y registro de familia/versión/tags en el snapshot.
