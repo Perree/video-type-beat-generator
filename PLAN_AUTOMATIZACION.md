@@ -1,13 +1,17 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
-## matwyrebeats — Automatización por tags y familias EN CURSO (2026-11-07)
+## matwyrebeats — Automatización por tags y familias ✅ COMPLETADA (2026-11-07)
 - Usuario aprobó automatización y amplió a tags musicales compatibles sin forzar artistas.
 - Modo matwyre_v1, selección versionada y mezcla 50/30/20; exclusión conservadora
   de nombres históricos. 404 beats elegibles del catálogo actual de 1.151.
-- OAuth propio confirmado, 24 imágenes sincronizadas y config/registro preparados
-  en pausa. Lunes/miércoles/viernes, 18:00 Argentina como horario inicial.
-- Validación de 404 snapshots y pruebas locales aprobadas; pendientes simulación
-  remota, activación y programación. Detalle: `docs/MATWYREBEATS_AUTOMATIZACION.md`.
+- OAuth propio confirmado, 24 imágenes sincronizadas y config/registro activos,
+  releídos. Lunes/miércoles/viernes, 18:00 Argentina como horario inicial.
+- 404 snapshots validados y 375 pruebas worker OK, local y remoto (dos omisiones).
+  Dry-run `42396922345` aprobado; corrida real `42397167599` exitosa: uploaded=1,
+  failed/blocked/unknown/orphan/calendar_unavailable/thumbnail_failed=0.
+- OLVIDARTE `O22BXIPrDSE`, programado para el 9/11 a las 18:00 según recibo;
+  cinco pendientes hasta el 20/11. Imagen/hash inspeccionados; otros nueve canales
+  conservados. Límites de verificación: `docs/MATWYREBEATS_AUTOMATIZACION.md`.
 
 ## matwyrebeats — Análisis de competencia y propuesta SEO ✅ COMPLETADA (2026-11-07)
 - Historial propio contrastado con 14 capturas de Santu, Grow Beatz, Yhiem y Nikill;
@@ -16,8 +20,8 @@
   y prueba acotada de trap. Títulos, descripciones y tags condicionados al audio.
 - Filtro propuesto para el catálogo propio de BeatStars; pilotos y métricas
   definidos sin implementar ni activar. Detalle: `docs/MATWYREBEATS_PROPUESTA_SEO.md`.
-- Pendiente: revisión del usuario antes de automatizar. Sin descargas, cambios en
-  configuración activa, metadatos de YouTube ni programación de publicaciones.
+- Propuesta aprobada por el usuario; implementación en la fase indicada arriba.
+  Durante esta investigación no se modificaron metadatos ni se programaron videos.
 
 ## afrowyre — conexión, piloto privado y activación ✅ COMPLETADA (2026-11-07)
 

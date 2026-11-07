@@ -1,7 +1,7 @@
 {
   "id": "matwyrebeats",
   "actions_slug": "matwyrebeats",
-  "active": false,
+  "active": true,
   "priority": 10,
   "youtube_channel_id": "UCrXlloS9FyZ32yaqV32GZjQ",
   "genres": [

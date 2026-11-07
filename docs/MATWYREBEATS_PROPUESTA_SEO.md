@@ -1,7 +1,10 @@
 # matwyrebeats: propuesta editorial y selección de beats
 
-Fecha: 2026-11-07. Estado: investigación y propuesta terminadas; implementación,
-descargas, cambios de metadatos y activación pendientes de aprobación del usuario.
+Fecha: 2026-11-07. Propuesta aprobada por el usuario. Automatización implementada
+y activada; estado y resultados en `docs/MATWYREBEATS_AUTOMATIZACION.md`.
+El usuario amplió expresamente la selección a tags musicales compatibles, con
+títulos por género cuando no haya artista confirmado. Esto reemplaza la restricción
+inicial de exigir un artista específico en cada beat que se describe más abajo.
 
 ## Decisión recomendada
 

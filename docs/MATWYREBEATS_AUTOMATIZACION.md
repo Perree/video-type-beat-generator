@@ -12,7 +12,8 @@ no haya un artista confirmado. No limitar la selección a los pocos tags de arti
 - 24 imágenes de `images/matwyrebeats/Principal`, verificadas y copiadas sin
   alterar sus bytes a la carpeta propia de Dropbox.
 - Imagen completa centrada con bandas negras; sin texto agregado; miniatura automática.
-- Configuración y registro preparados en pausa; activación tras validación remota.
+- Configuración y registro activos por CAS y releídos tras validación remota.
+- BEAT_CHANNELS incluye matwyrebeats conservando los nueve canales anteriores.
 
 ## Catálogo y prevención de repeticiones
 
@@ -70,8 +71,40 @@ No elige automáticamente un ganador con métricas incompletas.
   reproducción de snapshots, exclusiones, enlaces y observaciones de métricas.
 - Control general del worker aprobado localmente: 375 pruebas (dos omisiones
   opcionales); comprobaciones específicas repetidas tras pulir nombres/títulos.
-- Simulación remota, activación y primera programación: pendientes en este punto.
+- Simulación remota `42396922345`: success; planned=6, eligible=1, uploaded=0,
+  failed/blocked/unknown/orphan/calendar_unavailable=0. Sin escrituras de publicación.
+- Corrida real `42397167599`: success; planned=6, eligible=1, uploaded=1,
+  failed/blocked/unknown/orphan/expired/calendar_unavailable/thumbnail_failed/budget=0.
+- Los controles remotos aprobaron 375 pruebas (dos omisiones opcionales).
 - Configuración de los otros nueve canales conservada en la preparación.
 - Secretos nuevos por slug en GitHub; OAuth usado en memoria sin token local.
 
 Referencia editorial: `docs/MATWYREBEATS_PROPUESTA_SEO.md`.
+
+## Primera programación y funcionamiento continuo
+
+Video `O22BXIPrDSE`: `(FREE) Sad Type Beat - "OLVIDARTE"`, beat `TK12208309`.
+Recibo de estado confirmado en Dropbox: uploaded, publication_mode=scheduled,
+turno 09/11/2026 a las 18:00 Argentina. Solicitud de inserción privada con
+publishAt para esa fecha; no es un piloto privado permanente.
+Enlace: https://www.youtube.com/watch?v=O22BXIPrDSE
+
+Sus tags de catálogo son juicewrld, sad y sad beat; el título fuente menciona
+Milo J Guitar, pero este modo no convierte menciones del título en tags de artista
+o instrumento. El título elegido usa únicamente el clima respaldado por los tags.
+
+Imagen propia image_01.jfif. Descarga posterior del origen de Dropbox con hash
+idéntico al snapshot y miniatura reproducida con el mismo compositor; inspección
+visual del encuadre completo y bandas aprobada. No se reprodujo el video privado
+en YouTube ni se releyeron sus metadatos allí en esta sesión: la confirmación de
+programación se apoya en la respuesta exitosa de inserción y el recibo persistido.
+
+Cinco pendientes reservados: 11, 13, 16, 18 y 20/11, todos a las 18:00 Argentina.
+No están todos subidos: el escalonado existente los procesará cuando corresponda.
+El cron diario de GitHub repone la ventana de 14 días y renderiza/sube sin esta PC.
+Las futuras subidas dependen de permisos válidos, acceso a fuentes y cupo normal;
+no se cambió ni se exceptuó el límite compartido de intentos.
+
+Verificación final: configuración y registro activos, nueve canales anteriores
+idénticos a la copia previa, un solo trabajo subido de matwyrebeats y cinco
+pendientes. Código y documentación publicados; `main.py` intacto.
