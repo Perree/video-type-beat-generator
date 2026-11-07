@@ -30,6 +30,8 @@ def apply_channel_templates(channel, saved):
         allowed = {'name', 'url'}
         if profile.get('title_mode') == 'latin_v1':
             allowed.update(('artists', 'style', 'bpm', 'key'))
+        elif profile.get('title_mode') == 'latin_v2':
+            allowed.update(('style', 'detail', 'context', 'music_info', 'latin_hashtags'))
         elif profile.get('title_mode') in ('house_v1', 'indie_v1', 'club_v1'):
             allowed.add('style')
         elif profile.get('title_mode') == 'club_v2':

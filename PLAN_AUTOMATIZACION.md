@@ -1,5 +1,25 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## WyreLatinBeatz — preparación de automatización latina ✅ COMPLETADA (2026-11-07)
+
+- Pedido: cada dos días a las 15:00 Argentina, videos propios de WyreLatinBeatz.
+  Configuración y ficha del registro guardadas por CAS y releídas, pausadas;
+  otros diez canales conservados. Ancla 8/11, sin reservar ni programar en YouTube.
+- Modo optativo latin_v2: artistas/género/emoción por tags reales, descripción
+  propia, BPM/key disponibles y hashtags alineados; enlace individual verificado
+  por ID. latin_v1 y snapshots anteriores conservados. Sin cambios en main.py.
+- Catálogo MatWyre: 1.151 beats; 138 elegibles y snapshots validados. Once capturas
+  de competencia documentadas, sin atribuir vistas a metadatos ni copiar bloques SEO.
+- Búsqueda local: MP4 de so pretty en Escritorio/wyrelatinbeatz/principal, 5,9 MB;
+  copiado a fondos propios en Dropbox y cotejado por tamaño/content hash. Windows:
+  2:38, 1920x1080, 25 FPS. Sin decodificación local por falta de FFmpeg/ffprobe.
+- Integrado origin/master acc8e62 por fast-forward. Control worker: 381 pruebas OK
+  (dos omitidas); siete pruebas Latin y nueve MatWyre posteriores OK. Simulación
+  local contra Dropbox: planned=7, eligible=2, uploaded/failed/orphan/unknown=0.
+- Siguiente fase: OAuth/identidad del canal, secretos, alta en BEAT_CHANNELS,
+  publicación del código si no estuviera disponible, piloto audiovisual y activación.
+  Detalle y límites: docs/WYRELATINBEATZ.md. No se subieron videos a YouTube.
+
 ## matwyrebeats — Automatización por tags y familias ✅ COMPLETADA (2026-11-07)
 - Usuario aprobó automatización y amplió a tags musicales compatibles sin forzar artistas.
 - Modo matwyre_v1, selección versionada y mezcla 50/30/20; exclusión conservadora

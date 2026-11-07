@@ -1,0 +1,42 @@
+{
+  "id": "wyrelatinbeatz",
+  "actions_slug": "wyrelatinbeatz",
+  "youtube_channel_id": "UCsG-_JcI6ItbS89eHyvjjsw",
+  "active": false,
+  "priority": 10,
+  "slots": [],
+  "interval_schedule": {
+    "days": 2,
+    "anchor": "2026-11-08T15:00:00-03:00"
+  },
+  "selection_tags": [
+    "reggaeton rnb", "reggaeton r&b", "reggaeton r b", "latin rnb", "latin r&b", "latin r b",
+    "latin pop", "pop latino", "latin trap", "trap latino", "latin trap type beat", "trap latino type beat",
+    "reggaeton", "regueton", "reggeaton", "sad reggaeton", "reggaeton sad", "reggaeton romantico",
+    "reggaeton beat", "reggaeton 2024", "reggaeton type beat", "regueton type beat",
+    "dancehall", "latin dancehall", "dancehall type beat", "trapnb", "trap rnb bet",
+    "trap r&b", "trap rnb", "rnb trap", "trap rb", "trap soul"
+  ],
+  "genres": ["latin"],
+  "tags": [],
+  "images_folder": "",
+  "dropbox_images": {},
+  "visual": {
+    "mode": "video",
+    "video_source": "dropbox",
+    "videos_folder": "/Soft Projects/Type Beat Generator/contenido/canales/wyrelatinbeatz/fondos",
+    "clip_min_seconds": 3,
+    "clip_max_seconds": 6,
+    "plain_image": true,
+    "custom_thumbnail": false,
+    "thumbnail_source": "auto"
+  },
+  "upload_spread": {"min_days": 2, "max_days": 4},
+  "use_channel_templates": true,
+  "seo": {
+    "title_mode": "latin_v2",
+    "title_template": "(FREE) {style} Type Beat - \"{name}\"{detail}",
+    "description": "Compra este beat sin tags / Purchase this beat (Untagged):\n{url}\n\n{context}\n\n{music_info}\n\nProducido por MatWyre.\nInstagram: https://instagram.com/wyrebeats\nContacto comercial: contact@matwyre.com\n\nUSO Y LICENCIAS\nUso gratuito no comercial en YouTube/SoundCloud, sin monetizacion. Credito obligatorio: Prod. MatWyre.\nPara uso comercial o distribucion en Spotify, Apple Music y otras plataformas, adquiri una licencia del beat.\nSi el beat incluye otros productores, tambien deben recibir credito.\nNo registres el beat ni canciones que lo incorporen en Content ID.\nConsulta las condiciones completas en la licencia correspondiente.\n\nCopyright WyreBeats / MatWyre\n\n{latin_hashtags}",
+    "tags": ["type beat", "instrumental", "MatWyre", "WyreLatinBeatz"]
+  }
+}
