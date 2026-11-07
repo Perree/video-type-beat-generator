@@ -27,6 +27,7 @@ _YT_REASONS = {
 }
 
 TEXTS = {
+    'beat_short_link_missing': 'BeatStars no devolvió el enlace corto individual del beat. No se subió; se reintentará en otra corrida.',
     'seo_text_invalid': 'Un texto del título, descripción o etiquetas no es válido. Revisá los textos SEO del canal y del beat.',
     'upload_budget_unavailable': 'No se pudo guardar la pausa del canal: se detuvo esta corrida por seguridad.',
     'shared_upload_budget_exhausted': 'Se alcanzaron los 10 intentos diarios compartidos entre Beats y Loops. Pendientes para otra corrida.',

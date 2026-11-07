@@ -74,11 +74,28 @@ class ShareInDescription(daily.DailyTests):
             self.assertIn('https://www.beatstars.com/beat/', call['description'])
             self.assertNotIn('{url}', call['description'])
 
+    def test_afro_requires_short_link_before_upload_attempt(self):
+        config, rev = self.cloud.read('config')
+        config['channels'][0]['seo'].update(title_mode='afro_v1',
+            title_template='(FREE) {style} Type Beat - "{name}"')
+        config['channels'][0]['selection_tags'] = ['afro*']
+        self.cloud.write('config', config, rev)
+        for page in self.public.fixture['pages']:
+            for track in page['profileTracks']['content']:
+                track['metadata']['tags'] = ['afro rnb']
+        summary = self.run_worker(share_links=ShareLinks(FakeShare({}, fail=True)))
+        self.assertEqual(summary['uploaded'], 0)
+        self.assertEqual(self.calls, [])
+        self.assertGreater(summary['reasons'].get('beat_short_link_missing', 0), 0)
+        state, _ = self.cloud.read('state')
+        self.assertEqual(state['attempts'], {})
+
 
 # Re-running the inherited daily tests here would only repeat them.
 for _name in [n for n in dir(ShareInDescription) if n.startswith('test_')
               and n not in ('test_short_link_replaces_placeholder_at_upload',
-                            'test_falls_back_to_page_url_without_short_link')]:
+                            'test_falls_back_to_page_url_without_short_link',
+                            'test_afro_requires_short_link_before_upload_attempt')]:
     setattr(ShareInDescription, _name, None)
 
 

@@ -8,6 +8,16 @@ from core.beat_source import profile_username
 SHORT_LINK = re.compile(r'https://bsta\.rs/[A-Za-z0-9]{4,20}')
 
 
+def publication_link(channel, track, link):
+    """Afrowyre requires a real individual short link before reserving an upload."""
+    if channel.get('seo', {}).get('title_mode') == 'afro_v1':
+        if not isinstance(link, str) or not SHORT_LINK.fullmatch(link):
+            raise ValueError('beat_short_link_missing')
+        return link
+    from core.beat_seo import beat_url
+    return link or beat_url(track)
+
+
 class ShareLinks:
     """Lazily maps track ID -> short link for one profile. Never raises: callers fall back to the page URL."""
 

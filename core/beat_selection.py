@@ -1,4 +1,5 @@
 """Channel eligibility only; selection tags are independent of SEO metadata."""
+from core.beat_afro import is_afro
 
 
 class SelectionChanged(ValueError):
@@ -26,7 +27,8 @@ def eligible_tracks(channel, tracks):
             continue
         tags = track.get('tags', [])
         if not wanted or (type(tags) is list and any(
-                type(tag) is str and tag.strip().casefold() in wanted for tag in tags)):
+                type(tag) is str and (tag.strip().casefold() in wanted
+                    or ('afro*' in wanted and is_afro(tag))) for tag in tags)):
             result.append(track)
     return result
 

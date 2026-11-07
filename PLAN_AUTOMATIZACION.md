@@ -1,5 +1,23 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## afrowyre — preparación de selección Afro y títulos por beat ✅ COMPLETADA (2026-11-07)
+
+- Canal aportado: `@afrowyre`. Cada tres días, 14:00 Argentina; borrador local
+  pausado en `docs/afrowyre.channel.json`, fecha base provisional 8/11.
+- Filtro explícito `afro*`: variantes de la familia Afro y etiquetas compuestas,
+  sin cambiar los filtros exactos de los demás canales. Catálogo público de
+  MatWyre: 1.151 beats, 25 elegibles; sus snapshots generados y revalidados.
+- Nuevo modo `afro_v1`: estilo/artistas solo por tags, nombre real y descripción
+  del usuario; BPM/tono solo si existen. Enlace individual corto obligatorio:
+  si falta, no llama al uploader ni consume intentos. Otros modos conservados.
+- 28 imágenes locales verificadas y copiadas a carpeta propia, con coincidencias
+  de las capturas; sin alterar originales ni usar imágenes de competidores.
+- Control worker: 352 pruebas OK (dos omitidas); detalles y análisis de las
+  referencias en `docs/AFROWYRE.md`. Sin cambios en `main.py`.
+- Próxima fase pendiente: registro/config remotos, sincronización de fondos,
+  OAuth/ID, publicación del código, dry-run, piloto privado y activación.
+  Sin push, subidas ni cambios de configuración remota durante esta preparación.
+
 ## mattwyyre — Imágenes y franjas uniformes ✅ COMPLETADA (2026-11-04)
 
 - Causa: `image_fit=contain` conservaba cada foto completa, variando el ancho visible y las barras.
