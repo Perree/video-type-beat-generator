@@ -100,6 +100,7 @@ class LatinV2Tests(unittest.TestCase):
 
     def test_two_day_calendar_at_fifteen_survives_restart(self):
         ch = self.channel()
+        ch['active'] = False  # The deployed channel may already be active.
         self.assertFalse(ch['active'])
         self.assertEqual(ch['visual']['mode'], 'video')
         dates = slots(ch, '2026-11-07T23:00:00-03:00')

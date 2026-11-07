@@ -1,5 +1,23 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## WyreLatinBeatz — conexión, piloto y activación ✅ COMPLETADA (2026-11-07)
+
+- OAuth confirmó WyreLatinBeatz, UCsG-_JcI6ItbS89eHyvjjsw; conexión propia en
+  kit-weekly y BEAT_CHANNELS ampliado a once, conservando los diez anteriores.
+  Token únicamente en memoria y GitHub Secrets. Config/registro activos, releídos.
+- Cada dos días a las 15:00 Argentina. MP4 local decodificado completo mediante
+  FFmpeg temporal; tres frames inspeccionados: imagen fija, bandas negras, sin texto.
+- Dry-run 42400468689: success, planned=7, eligible=2, uploaded=0, sin errores.
+- Piloto 42400704460: success, uploaded=1, sin errores; Na Naa TK25183840,
+  video zCE5-L0v92U, recibo private_pilot. Consume el turno 8/11 y queda privado.
+- Corrida normal 42418626392: success, uploaded=1, sin errores. BEAUTY GIRL
+  TK18759646, video tLGLB16eCNQ, recibo scheduled para 10/11 15:00 Argentina.
+  Cinco pendientes para 12, 14, 16, 18 y 20/11. Dos intentos normales, sin excepciones.
+- 382 pruebas aprobadas en cada corrida remota, incluidas las reales de FFmpeg;
+  siete pruebas locales Latin OK con la copia activa. Cron y demás canales intactos.
+  Límite: sin reproducción de YouTube ni lectura posterior del status por API;
+  solicitudes y recibos verificados. Detalle: docs/WYRELATINBEATZ.md.
+
 ## WyreLatinBeatz — preparación de automatización latina ✅ COMPLETADA (2026-11-07)
 
 - Pedido: cada dos días a las 15:00 Argentina, videos propios de WyreLatinBeatz.
