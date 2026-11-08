@@ -36,7 +36,7 @@ def labels(track):
     return base, partner, style, detail
 
 
-def variants(track, profile):
+def variants(track, profile, *, name=None):
     base, partner, style, detail = labels(track)
     template = profile['title_template'].replace('{style}', style).replace('{detail}', detail)
     budget = 100 - len(template.replace('{name}', ''))
@@ -45,7 +45,8 @@ def variants(track, profile):
         budget = 100 - len(template.replace('{name}', ''))
     if budget < 1:
         raise ValueError('seo_title_too_long')
-    title = template.replace('{name}', clean_name(parse(track['title'])['name'])[:budget].rstrip())
+    name = clean_name(parse(track['title'])['name']) if name is None else name
+    title = template.replace('{name}', name[:budget].rstrip())
     words = [f'{style.lower()} type beat', f'{base.lower()} type beat', f'{base.lower()} instrumental']
     if partner:
         words.append(f'{partner.lower()} type beat')

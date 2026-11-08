@@ -7,6 +7,7 @@ import wave
 from pathlib import Path
 import tempfile
 import unittest
+from copy import deepcopy
 
 from core.beat_seo import build_snapshot, validate_snapshot
 from core.beat_schema import migrate, instant
@@ -26,6 +27,23 @@ def channel():
 
 
 class EmotionalHouseTests(unittest.TestCase):
+    def test_names_keep_free_and_v1_snapshots_remain_valid(self):
+        ch = channel()
+        job = {'id': 'j', 'channel': ch['id'], 'track_id': 'TK123', 'cycle': 1}
+        for raw, name in [("I'm free", "I'm free"), ('Carefree', 'Carefree'),
+                          ('[FREE] Deep House Type Beat - "FREE FALL"', 'FREE FALL'),
+                          ('(BEAT PRO-1) [house, sad] Free Again - 120bpm - key A Minor (prod. @matwyre)', 'Free Again')]:
+            track = {'id': 'TK123', 'title': raw, 'tags': ['deep house']}
+            snap, _ = build_snapshot(job, track, ch, '2026-11-08T18:00:00-03:00')
+            self.assertIn('"' + name + '"', snap['selected']['title'])
+            validate_snapshot(snap, job)
+        old = deepcopy(ch)
+        old['seo']['title_mode'] = 'emotional_house_v1'
+        snap, _ = build_snapshot(job, {'id': 'TK123', 'title': "I'm free", 'tags': ['deep house']},
+                                 old, '2026-11-08T18:00:00-03:00')
+        self.assertIn('"I\'m"', snap['selected']['title'])
+        validate_snapshot(snap, job)
+
     def test_profile_schema_and_destination_are_valid(self):
         ch = channel()
         migrate({'channels': [ch]}, 'config')
