@@ -1,5 +1,26 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Canal emocional house — preparación local y overlay ✅ COMPLETADA (2026-11-08)
+
+- Referencia: cuatro capturas de Klein Beats. Perfil provisional emotional-house
+  pausado, cada dos días, 18:00 Argentina provisional. Sin ID ficticio ni conexión.
+- Tres grupos de clips separados con rotación A/B/C por turno: emocional, club,
+  afro-calido. Cortes 4–7, 2–4 y 3–6 s; audio fuente descartado, vertical completo
+  sobre negro, sin miniatura personalizada ni texto sobre el video.
+- Modo SEO optativo emotional_house_v1: estructura de títulos de referencia,
+  nombres/enlaces/créditos propios y cruces musicales según tags reales.
+- Overlay optativo film_gate_red_v1: ventanilla lateral roja y grano suave.
+  Aproximación original a las capturas, sin afirmar el filtro/cámara exactos.
+  Solo el perfil nuevo lo activa; main.py y otros perfiles intactos.
+- Validación: seis pruebas específicas, incluido render FFmpeg/ffprobe real;
+  quince pruebas del montaje existente, incluidos dos smokes reales, aprobadas.
+  Suite oficial worker: 419 pruebas OK, sin omisiones. Suite amplia de Beats:
+  475 pruebas OK en el entorno del proyecto (antes de sumar las seis nuevas).
+- Pendiente siguiente fase: clips que aportará el usuario, canal de destino,
+  hora definitiva, catálogo real, muestra audiovisual y activación del worker.
+  No se copiaron materiales ni se realizaron cambios remotos/subidas.
+  Detalles: docs/EMOTIONAL_HOUSE_SETUP.md.
+
 ## IslaBeats — artistas predeterminados y variantes Afro ✅ COMPLETADA (2026-11-08)
 
 - Usuario pidió eliminar títulos solo de género: Bad Bunny x Mora predeterminados

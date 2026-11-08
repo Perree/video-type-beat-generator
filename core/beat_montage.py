@@ -7,9 +7,9 @@ from decimal import Decimal
 from core.beat_download import audio_type, duration
 from core.beat_http import BeatError
 from core.beat_visual import fetch, MAX_VIDEO_BYTES
+from core.beat_film_overlay import filters
 
 FPS = 30
-NORMALIZE = 'scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,setsar=1,fps=30,format=yuv420p,setpts=PTS-STARTPTS'
 
 
 def video_info(path, tools):
@@ -91,10 +91,11 @@ def render_montage(audio, output, seconds, rows, spec, root, dropbox, tools, job
             frames = rng.randint(minimum, maximum)
             length = frames / FPS
             start = rng.uniform(margin, max(margin, available - margin - length))
+            extra_inputs, filtering = filters(spec, root)
             tools._call([tools.ffmpeg, '-nostdin', '-v', 'error', '-xerror', '-y',
                 '-protocol_whitelist', 'file', '-f', demuxer, '-i', str(source),
-                '-ss', str(start), '-t', str(length), '-map', '0:v:0', '-an', '-sn', '-dn',
-                '-vf', NORMALIZE, '-frames:v', str(frames), '-c:v', 'libx264',
+                *extra_inputs, '-ss', str(start), '-t', str(length), '-an', '-sn', '-dn',
+                *filtering, '-frames:v', str(frames), '-c:v', 'libx264',
                 '-preset', 'fast', '-map_metadata', '-1', str(clip)], 180)
             if not clip.is_file() or not clip.stat().st_size:
                 raise BeatError('video_decode_failed')

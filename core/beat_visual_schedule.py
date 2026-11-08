@@ -6,6 +6,8 @@ from datetime import date
 
 def job_options(channel, job):
     spec = options(channel)
+    from core.beat_video_groups import for_job
+    spec = for_job(spec, channel, job)
     if spec['mode'] != 'alternate':
         return spec
     stored = job.get('visual_mode_snapshot')

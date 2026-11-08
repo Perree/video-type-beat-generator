@@ -17,6 +17,18 @@ def options(channel):
                   clip_min_seconds=3, clip_max_seconds=6,
                   thumbnail_source='auto', thumbnail_path='')
     result.update(raw)
+    if result.get('video_fit', 'cover') not in ('cover', 'contain'):
+        raise ValueError('invalid_video_fit')
+    if result.get('film_overlay', 'none') not in ('none', 'film_gate_red_v1'):
+        raise ValueError('invalid_film_overlay')
+    if 'video_groups' in result:
+        from core.beat_video_groups import validate
+        validate(result['video_groups'])
+        if result['mode'] != 'video':
+            raise ValueError('video_groups_require_interval_video')
+        if result['video_source'] == 'dropbox':
+            for group in result['video_groups']:
+                dropbox_path(group['folder'])
     if type(result.get('plain_image', False)) is not bool:
         raise ValueError('invalid_plain_image')
     # custom_thumbnail: False → no se sube miniatura; YouTube usa un cuadro del video

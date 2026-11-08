@@ -36,6 +36,8 @@ def apply_channel_templates(channel, saved):
             allowed.add('style')
         elif profile.get('title_mode') == 'club_v2':
             allowed.update(('style', 'detail'))
+        elif profile.get('title_mode') == 'emotional_house_v1':
+            allowed.update(('style', 'detail', 'title', 'music_info', 'credits', 'house_hashtags'))
         elif profile.get('title_mode') == 'afro_v1':
             allowed.update(('style', 'title', 'technical', 'afro_hashtags'))
         elif profile.get('title_mode') in ('guitar_v1', 'koena_v1'):

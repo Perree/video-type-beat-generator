@@ -1,0 +1,37 @@
+{
+  "id": "emotional-house",
+  "actions_slug": "emotional-house",
+  "active": false,
+  "priority": 10,
+  "slots": [],
+  "interval_schedule": {"days": 2, "anchor": "2026-11-10T18:00:00-03:00"},
+  "upload_spread": {"min_days": 2, "max_days": 4},
+  "genres": ["house"],
+  "images_folder": "",
+  "dropbox_images": {},
+  "selection_tags": ["deep house", "deep house type beat", "deephouse", "melodic deep house", "sad deep house", "afro house", "afrohouse", "afro house type beat", "tech house", "tech house type beat", "house", "house type beat", "melodic house", "emotional house", "sad house", "club house", "latin house", "reggaeton house", "jersey", "jersey club", "jersey club type beat", "jersey type beat"],
+  "tags": [],
+  "visual": {
+    "mode": "video",
+    "video_source": "dropbox",
+    "videos_folder": "/Soft Projects/Type Beat Generator/contenido/canales/emotional-house/emocional",
+    "clip_min_seconds": 4,
+    "clip_max_seconds": 7,
+    "video_fit": "contain",
+    "film_overlay": "film_gate_red_v1",
+    "custom_thumbnail": false,
+    "thumbnail_source": "auto",
+    "plain_image": true,
+    "video_groups": [
+      {"name": "emocional", "folder": "/Soft Projects/Type Beat Generator/contenido/canales/emotional-house/emocional", "min_seconds": 4, "max_seconds": 7},
+      {"name": "club", "folder": "/Soft Projects/Type Beat Generator/contenido/canales/emotional-house/club", "min_seconds": 2, "max_seconds": 4},
+      {"name": "afro-calido", "folder": "/Soft Projects/Type Beat Generator/contenido/canales/emotional-house/afro-calido", "min_seconds": 3, "max_seconds": 6}
+    ]
+  },
+  "seo": {
+    "title_mode": "emotional_house_v1",
+    "title_template": "[FREE] {style} Type Beat - \"{name}\" | {detail}",
+    "tags": ["type beat", "free type beat", "instrumental", "matwyre"],
+    "description": "{title}\n\nBuy this beat / License (untagged): {url}\nBeat store: https://www.beatstars.com/matwyre\n\n{music_info}\n{credits}\n\nFree for non-commercial use only. Credit MatWyre and every co-producer listed on the original beat page. Purchase a license for commercial releases. Do not register this instrumental or a song using it with Content ID. Full license terms on the individual beat page.\n\n{house_hashtags}"
+  }
+}
