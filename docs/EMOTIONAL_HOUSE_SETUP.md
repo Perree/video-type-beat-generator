@@ -1,8 +1,11 @@
 # Canal emocional house — preparación
 
-Fase local preparada el 8/11/2026. Perfil provisional:
-`docs/emotional-house.channel.json`. No está conectado ni activado en la nube.
-No se modificó ningún canal existente ni se subió ningún video.
+Fase local preparada el 8/11/2026. Canal indicado después: **afterbeachbeats**,
+`UCqSN_dCTnhNcRcMmW3qc3JQ` (nombre contrastado en el HTML público de YouTube).
+Esto no comprueba acceso OAuth ni titularidad. Perfil:
+`docs/emotional-house.channel.json`. Copiado y releído en la configuración
+de Dropbox y en el registro, pausado, con nombre visible afterbeachbeats.
+Los otros catorce perfiles se conservaron iguales. No se activaron subidas.
 
 ## Referencia del usuario
 
@@ -38,8 +41,9 @@ Rotación A/B/C por fecha del turno, independiente del beat y sus reintentos:
 
 Cada grupo tiene su propia carpeta Dropbox bajo
 `/Soft Projects/Type Beat Generator/contenido/canales/emotional-house/`.
-Las carpetas son destinos propuestos; todavía no se crearon ni se cargaron clips.
-Se clasificarán los materiales que indique el usuario. No se mezclan carpetas
+Las carpetas ya contienen nueve clips del 8/11/2026, tres por grupo, copiados
+y descargados de vuelta por API para comparar byte por byte con sus originales.
+No se mezclan carpetas
 en un mismo montaje. Un grupo vacío detiene su render; no toma material ajeno.
 
 El motor toma un fragmento por fuente, hasta doce fuentes y 512 MiB por montaje,
@@ -71,11 +75,10 @@ ancla local 10/11/2026, editable antes de activar. No es una fecha prometida:
 no hay reservas ni publicaciones creadas. Se conserva el escalonado habitual
 de 2–4 días y el cupo compartido existente.
 
-Antes de activar falta recibir carpetas de clips, identificar el canal nuevo,
-verificar su conexión propia y contrastar los tags con el catálogo de beats.
-Después: copiar y verificar materiales, ajustar hora/ancla, renderizar una
-muestra con los clips reales, ejecutar simulación y conectar el worker.
-No hay un YouTube ID ficticio ni credenciales de otro canal en el perfil.
+Antes de activar falta completar la conexión propia de YouTube, contrastar
+los tags con el catálogo, ajustar hora/ancla y ejecutar simulación del worker.
+El ID de destino es el aportado por el usuario. No se reutilizan credenciales
+de otro canal ni se habilita el calendario por la identificación pública.
 
 ## Validación de esta fase
 
@@ -85,8 +88,63 @@ No hay un YouTube ID ficticio ni credenciales de otro canal en el perfil.
 - Render real FFmpeg con dos fuentes verticales y audio fuente: MP4 de 2,5 s,
   1080p/30 FPS, marco visible, bandas negras y únicamente audio del beat
   (silencio de prueba). Duración y pistas verificadas con ffprobe.
-- No se probaron aún los materiales reales, licencias de los clips ni subidas.
+- No se verificaron licencias de los clips ni se realizaron subidas a YouTube.
 - Suite oficial `smoke_beat_hardening.py --worker-only`: 419 pruebas aprobadas,
   sin omisiones, con FFmpeg real y las seis pruebas nuevas incluidas.
   Suite amplia de Beats en el entorno del proyecto: 475 aprobadas antes de
   incorporar las seis nuevas al patrón de descubrimiento del worker.
+
+## Materiales recibidos el 8/11/2026
+
+Origen indicado: `C:\Users\matia\Videos\4K Video Downloader+`.
+Se seleccionaron exclusivamente nueve MP4 cuya fecha de creación local corresponde
+al 8/11/2026; las fechas de modificación coinciden con el mismo día.
+Los siete videoclips descargados el 7/11 quedaron excluidos.
+Originales conservados; copias locales en `videos/emotional-house/` y remotas
+en las carpetas del perfil. Nombres de destino estables `clip-01.mp4` a
+`clip-09.mp4`, sin sobrescribir archivos distintos. Total: 15.527.195 bytes.
+
+| Grupo | Clips | Contenido observado |
+|---|---|---|
+| emocional | 02, 04, 05 | Auto nocturno, montaje VHS urbano y escenas retro |
+| club | 06, 07, 09 | Fiesta, club rojo y montaje surrealista rojo |
+| afro-calido | 01, 03, 08 | Costa, atardecer, viaje y baile frente al mar |
+
+Clasificación editorial por revisión de tres cuadros de cada archivo; no es
+una etiqueta de género musical inherente al video. Todos pasan decodificación
+completa con FFmpeg. Duran entre 6,76 y 40,72 s. El 04 es 240×240 y el 09,
+234×416: al ampliar se conserva su suavidad, no se presume detalle 1080p real.
+Algunos originales ya contienen cortes y estética VHS; se conservan.
+
+Inventario con dimensiones, tamaños, SHA-256 y rutas verificadas:
+`docs/emotional-house.assets.json`. Inventario privado con nombres originales
+y revisiones de Dropbox en `tokens/emotional_house_assets.json`, fuera de Git.
+
+La prueba con fuentes reales detectó que el contenedor incluye una cola de
+audio más larga que el video. `video_info` ahora usa la menor duración entre
+contenedor e imagen, cuando el archivo expone esta última, para evitar cortes
+truncados y descartes. Una prueba de regresión cubre el caso y duraciones
+inválidas. Se aprobaron 16 pruebas de montaje y seis del perfil, con FFmpeg real.
+
+Se renderizaron tres muestras de 24 s con los clips reales y audio silencioso
+de prueba: `exported_videos/emotional-house-previews/emocional.mp4`, `club.mp4`
+y `afro-calido.mp4`. Las tres incluyen exactamente las tres fuentes de su
+grupo, cero descartes, marco/grano, 1080p/30 FPS y duración validada por ffprobe.
+El audio se decodificó completo y contiene únicamente el silencio de prueba:
+no quedó sonido de los originales. Nueve cuadros finales inspeccionados.
+Son muestras visuales, no beats terminados ni videos subidos a YouTube.
+El contacto de revisión está en `exported_videos/emotional-house-previews/revision.jpg`.
+
+Se consultó el catálogo público real de MatWyre: 1.151 beats, 73 elegibles por
+las etiquetas del perfil. Los 73 snapshots SEO se generaron y revalidaron.
+Simulación local del worker con el perfil pausado habilitado solo en memoria:
+`planned=6`, `eligible=1`, `uploaded=0`; todos los contadores de error en cero.
+No crea reservas reales ni modifica el estado de publicaciones.
+
+Se abrió OAuth para comprobar y conectar el destino. El primer intento confirmó
+el ID, pero no guardó secretos: la importación de Google cargó indirectamente
+`unittest` y activó la guarda de pruebas de `gh_status`. Se detectó el motivo
+y se reabrió la conexión usando el interruptor documentado para operaciones
+reales del proyecto. No se desactivó ni modificó esa guarda en el código.
+La conexión no se considera completada mientras no exista comprobante de
+identidad y guardado exitoso de secretos propios.

@@ -1,0 +1,107 @@
+{
+  "channel_id": "UCqSN_dCTnhNcRcMmW3qc3JQ",
+  "channel_name": "afterbeachbeats",
+  "download_date": "2026-11-08",
+  "source_date_field": "CreationTime (America/Argentina/Buenos_Aires)",
+  "files": [
+    {
+      "index": 1,
+      "group": "afro-calido",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/emotional-house/afro-calido/clip-01.mp4",
+      "bytes": 1368843,
+      "seconds": 10.077143,
+      "width": 720,
+      "height": 1280,
+      "sha256": "c36a77c82e78e334b249357ec0775d52be1912917060ec15175f42e5a6acc3ad",
+      "remote_verified": true
+    },
+    {
+      "index": 2,
+      "group": "emocional",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/emotional-house/emocional/clip-02.mp4",
+      "bytes": 1266743,
+      "seconds": 14.210136,
+      "width": 720,
+      "height": 540,
+      "sha256": "75768d526a936ad7bd3d7961d95b8add274c7999b8f171381a47822339c5cbc1",
+      "remote_verified": true
+    },
+    {
+      "index": 3,
+      "group": "afro-calido",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/emotional-house/afro-calido/clip-03.mp4",
+      "bytes": 599230,
+      "seconds": 6.832667,
+      "width": 540,
+      "height": 960,
+      "sha256": "cf4a8aee8a9185035b9d072439256f883904ec39c64201b86e287e42523e82e1",
+      "remote_verified": true
+    },
+    {
+      "index": 4,
+      "group": "emocional",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/emotional-house/emocional/clip-04.mp4",
+      "bytes": 420540,
+      "seconds": 15.711089,
+      "width": 240,
+      "height": 240,
+      "sha256": "119ef405aa6c3cce8a007ecbf4e77fafecb76868af3e2b8dde48642a31e55d7b",
+      "remote_verified": true
+    },
+    {
+      "index": 5,
+      "group": "emocional",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/emotional-house/emocional/clip-05.mp4",
+      "bytes": 1300528,
+      "seconds": 15.139311,
+      "width": 576,
+      "height": 1024,
+      "sha256": "afbcbfec974af3cd9533035368cd93350bd25fc62a7dba3caa33a2651e0a8e5a",
+      "remote_verified": true
+    },
+    {
+      "index": 6,
+      "group": "club",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/emotional-house/club/clip-06.mp4",
+      "bytes": 599469,
+      "seconds": 6.761134,
+      "width": 720,
+      "height": 720,
+      "sha256": "87c573b00848d65136504d5ece9c59f7fdb5c2b2cf0d6c4ecbcadbe9a17b8438",
+      "remote_verified": true
+    },
+    {
+      "index": 7,
+      "group": "club",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/emotional-house/club/clip-07.mp4",
+      "bytes": 7903940,
+      "seconds": 40.721134,
+      "width": 720,
+      "height": 1280,
+      "sha256": "0737e7e4a383673f853437334dca94062a445c835287d19e56e119eb9f4a5105",
+      "remote_verified": true
+    },
+    {
+      "index": 8,
+      "group": "afro-calido",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/emotional-house/afro-calido/clip-08.mp4",
+      "bytes": 1674491,
+      "seconds": 24.540136,
+      "width": 720,
+      "height": 1280,
+      "sha256": "f4adc77b3fd233b9b90b24c8c4523845096b12ab5294898492df926e69244cba",
+      "remote_verified": true
+    },
+    {
+      "index": 9,
+      "group": "club",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/emotional-house/club/clip-09.mp4",
+      "bytes": 393411,
+      "seconds": 17.791,
+      "width": 234,
+      "height": 416,
+      "sha256": "dee8442d28a7e1fc8e99eaf6a820fad2c75ec09552df39d17523496a94b842ad",
+      "remote_verified": true
+    }
+  ]
+}

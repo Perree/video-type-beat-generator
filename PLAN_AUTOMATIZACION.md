@@ -1,5 +1,28 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## afterbeachbeats — clips de hoy y tres muestras ✅ COMPLETADA (2026-11-08)
+
+- Destino aportado: UCqSN_dCTnhNcRcMmW3qc3JQ, afterbeachbeats según HTML público.
+  Perfil interno emotional-house asociado a ese ID, todavía pausado; configuración
+  y registro remotos guardados por CAS y releídos. Otros catorce perfiles iguales.
+- Nueve MP4 creados el 8/11 en 4K Video Downloader+; siete videos del 7/11
+  excluidos. Originales intactos. Tres grupos de tres clips, copias locales
+  y en Dropbox; 15.527.195 bytes releídos y comparados byte por byte.
+- Todos los originales decodificados completos. Dos tienen baja resolución,
+  documentada. Inventario verificable: docs/emotional-house.assets.json.
+- Tres muestras reales de 24 s, con ventanilla roja/grano, bandas negras,
+  cero fuentes descartadas y audio silencioso de prueba; duración/pistas
+  comprobadas con ffprobe, audio decodificado y nueve cuadros inspeccionados.
+- Corregida la duración utilizable: cortes por duración de imagen cuando
+  el audio del contenedor es más largo. Regresión y 22 pruebas específicas OK,
+  incluidos smokes FFmpeg reales. Sin cambios en main.py ni otros perfiles.
+- Catálogo real: 1.151 beats, 73 elegibles, 73 snapshots SEO válidos. Simulación
+  local: planned=6, eligible=1, uploaded=0 y errores en cero, sin reservas reales.
+- OAuth iniciado por navegador; primer intento confirmó ID pero falló el guardado
+  por la guarda de pruebas activada indirectamente al importar Google. Reabierto
+  con el interruptor documentado de credenciales reales. Conexión todavía pendiente.
+  Detalle: docs/EMOTIONAL_HOUSE_SETUP.md. Sin subidas a YouTube.
+
 ## Canal emocional house — preparación local y overlay ✅ COMPLETADA (2026-11-08)
 
 - Referencia: cuatro capturas de Klein Beats. Perfil provisional emotional-house

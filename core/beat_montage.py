@@ -24,13 +24,21 @@ def video_info(path, tools):
     try:
         info = json.loads(tools._call([tools.ffprobe, '-v', 'error', '-protocol_whitelist', 'file',
             '-f', demuxer, '-show_entries',
-            'format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate',
+            'format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate,duration',
             '-of', 'json', str(path)], 30, True))
         streams = [row for row in info['streams'] if row['codec_type'] == 'video']
         if len(streams) != 1:
             raise BeatError('video_stream_rejected')
         video = streams[0]
         seconds = float(info['format']['duration'])
+        # Downloads may have longer audio, or video starting after timestamp zero.
+        # Normalization resets video timestamps, so cuts must fit its own duration.
+        video_seconds = video.get('duration')
+        if video_seconds not in (None, 'N/A'):
+            video_seconds = float(video_seconds)
+            if not math.isfinite(video_seconds) or video_seconds <= 0:
+                raise BeatError('video_incompatible')
+            seconds = min(seconds, video_seconds)
         rate = video['avg_frame_rate'].split('/')
         fps = int(rate[0]) / int(rate[1])
         if (video['codec_name'] not in {'h264', 'hevc', 'vp8', 'vp9', 'av1', 'mpeg4', 'prores', 'mjpeg'}

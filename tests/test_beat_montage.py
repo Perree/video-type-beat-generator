@@ -59,6 +59,19 @@ class MontageProcesses(Processes):
 
 
 class MontageTests(unittest.TestCase):
+    def test_source_cuts_use_video_duration_when_audio_is_longer(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / 'source.mp4'
+            source.write_bytes(MP4)
+            process = MontageProcesses(incompatible={'duration': '6.6'})
+            seconds, demuxer = video_info(source, MediaTools('fakeffmpeg', 'fakeprobe', process))
+            self.assertEqual(seconds, 6.6)
+            self.assertEqual(demuxer, 'mov')
+            for bad in ('NaN', '-1', 'Infinity'):
+                with self.assertRaises(BeatError):
+                    video_info(source, MediaTools('fakeffmpeg', 'fakeprobe',
+                        MontageProcesses(incompatible={'duration': bad})))
+
     def setup_resources(self, root):
         (root / 'a.mp4').write_bytes(MP4)
         (root / 'b.webm').write_bytes(b'\x1aE\xdf\xa3' + b'fake')

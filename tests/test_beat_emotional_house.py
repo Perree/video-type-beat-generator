@@ -31,7 +31,7 @@ class EmotionalHouseTests(unittest.TestCase):
         migrate({'channels': [ch]}, 'config')
         self.assertFalse(ch['active'])
         self.assertFalse(options(ch)['custom_thumbnail'])
-        self.assertNotIn('youtube_channel_id', ch)
+        self.assertEqual(ch['youtube_channel_id'], 'UCqSN_dCTnhNcRcMmW3qc3JQ')
         self.assertEqual(ch['interval_schedule']['days'], 2)
 
     def test_rotation_is_slot_based_and_does_not_mix_pools(self):
