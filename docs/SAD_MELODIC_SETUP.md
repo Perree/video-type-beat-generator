@@ -18,7 +18,12 @@ Perfil: `docs/sad-melodic.channel.json`. `sad-melodic` es una clave interna prov
 
 ## Pendiente para activar
 
-1. Recibir las imágenes y configurar su carpeta local o Dropbox en el perfil.
+1. Imágenes recibidas y configuradas (2026-11-08): 30 JFIF de
+   `C:\Users\matia\Downloads\fondos`, copiadas sin modificar a
+   `/Soft Projects/Type Beat Generator/contenido/canales/sad-melodic/fondos`.
+   Copia local de Dropbox verificada por SHA-256; sincronización remota aún no comprobada.
+   Las 30 pasan decodificación y composición del render; sin recorte ni texto añadido.
+   Algunas incluyen iconos de redes dentro del original, conservados sin retoque.
 2. Incorporar el perfil al registro/configuración remotos con la clave definitiva, preservando
    los demás canales, conectar OAuth y comprobar que pertenece al ID de destino.
 3. Verificar las condiciones FREE de los beats seleccionados y revisar un render real.
@@ -26,3 +31,7 @@ Perfil: `docs/sad-melodic.channel.json`. `sad-melodic` es una clave interna prov
 
 Esta fase prepara código y perfil local en pausa. No descarga beats, no modifica la configuración
 remota y no sube videos. No hay programación de publicaciones activa todavía.
+
+Vista previa local: `exported_videos/sad-melodic-preview/preview.mp4` (3 s, audio silencioso
+de prueba, H.264 1920×1080); `thumbnail.jpg` usa la misma composición. No es un beat publicado.
+Los originales quedan en Downloads y las imágenes no se agregan a Git.

@@ -4,21 +4,61 @@
   "active": false,
   "priority": 10,
   "youtube_channel_id": "UCE-BtAOt98IH0hTc4ceuYsQ",
-  "genres": ["sad"],
-  "dropbox_images": {},
+  "genres": [
+    "sad"
+  ],
+  "dropbox_images": {
+    "sad": "/Soft Projects/Type Beat Generator/contenido/canales/sad-melodic/fondos"
+  },
   "images_folder": "",
   "tags": [],
-  "selection_tags": ["juice wrld", "iann dior", "the kid laroi", "sad beat"],
-  "slots": [
-    {"weekday": 0, "hour": 20, "minute": 0},
-    {"weekday": 1, "hour": 20, "minute": 0},
-    {"weekday": 2, "hour": 20, "minute": 0},
-    {"weekday": 3, "hour": 20, "minute": 0},
-    {"weekday": 4, "hour": 20, "minute": 0},
-    {"weekday": 5, "hour": 20, "minute": 0},
-    {"weekday": 6, "hour": 20, "minute": 0}
+  "selection_tags": [
+    "juice wrld",
+    "iann dior",
+    "the kid laroi",
+    "sad beat"
   ],
-  "upload_spread": {"min_days": 2, "max_days": 4},
+  "slots": [
+    {
+      "weekday": 0,
+      "hour": 20,
+      "minute": 0
+    },
+    {
+      "weekday": 1,
+      "hour": 20,
+      "minute": 0
+    },
+    {
+      "weekday": 2,
+      "hour": 20,
+      "minute": 0
+    },
+    {
+      "weekday": 3,
+      "hour": 20,
+      "minute": 0
+    },
+    {
+      "weekday": 4,
+      "hour": 20,
+      "minute": 0
+    },
+    {
+      "weekday": 5,
+      "hour": 20,
+      "minute": 0
+    },
+    {
+      "weekday": 6,
+      "hour": 20,
+      "minute": 0
+    }
+  ],
+  "upload_spread": {
+    "min_days": 2,
+    "max_days": 4
+  },
   "visual": {
     "mode": "image",
     "image_fit": "contain",
@@ -29,7 +69,10 @@
   "seo": {
     "title_mode": "sad_melodic_v1",
     "title_template": "(FREE) {style} Type Beat - \"{name}\"",
-    "tags": ["type beat", "instrumental"],
+    "tags": [
+      "type beat",
+      "instrumental"
+    ],
     "description": "{title}\n\nPurchase / Free Demo Download: {url}\n\nFREE FOR NON-PROFIT USE ONLY.\nPurchase a license for commercial releases and distribution on streaming platforms.\nCredit all producers listed on the original beat page.\nSee the individual beat page for full license terms and producer credits.\n\n{music_info}\n\n{sad_hashtags}"
   }
 }

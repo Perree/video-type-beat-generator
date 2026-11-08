@@ -1694,3 +1694,19 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
 - Guía: `docs/SAD_MELODIC_SETUP.md`. Pendiente para la siguiente fase: imágenes del usuario,
   registro/configuración remotos, conexión OAuth del canal, revisión del render y activación.
   No hubo descargas, cambios remotos ni subidas de videos en esta fase de preparación.
+
+## Canal sad melodic — Incorporar imágenes del usuario ✅ COMPLETADA (2026-11-08)
+
+- Recibidas 30 imágenes JFIF desde `C:\Users\matia\Downloads\fondos`.
+- Todas decodifican y cumplen los límites del render; composición individual verificada.
+- Copiadas sin alterar a la carpeta local sincronizada de Dropbox:
+  `/Soft Projects/Type Beat Generator/contenido/canales/sad-melodic/fondos`.
+  Integridad de las 30 copias verificada con SHA-256; originales preservados.
+- Perfil actualizado con `dropbox_images.sad`; sigue en pausa, mismo canal y horario diario 20:00 Argentina.
+- Vista previa real de 3 s con silencio, H.264 1920×1080 y JPG de la misma composición;
+  sin texto añadido ni recorte. Algunos originales contienen iconos sociales incrustados.
+- Validación: 11 pruebas aprobadas (perfil sad, JFIF y ajustes de imagen), más composición
+  de las 30 imágenes y render FFmpeg; inspección visual de la hoja de contacto y composición.
+- Medios y vista previa fuera de Git. No se subieron videos ni se activó la publicación.
+- Pendiente: verificar sincronización remota, incorporar perfil al registro/worker,
+  conectar y verificar OAuth de YouTube y simular el catálogo real antes de activar.
