@@ -1,5 +1,24 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## IslaBeats — títulos y tags como DysmoBeats ✅ COMPLETADA (2026-11-08)
+
+- Pedido explícito de mayor similitud con la competencia de las capturas. Nuevo modo
+  optativo latin_dysmo_v1: artistas, nombre propio y cierre `| Género Type Beat`,
+  con emoción si existe en los tags. Sin inventar parejas ni copiar marcas SOLD.
+- Tags amplios con combinaciones y orden de búsqueda de artistas/género reales,
+  hasta 40 entradas y 450 caracteres. 138 snapshots del catálogo revalidados.
+- Código publicado db6c182; configuración activa por CAS y releída. Otros trece
+  canales, selección, fondos y horarios conservados. Modos históricos intactos.
+- Dos videos existentes editados con autorización temporal de Google. Verificación
+  posterior por API en 42498318065: verified=2, failed=0, differences=[].
+  Es tan fina conserva 8/11 15:00; VERTE DE NUEVO conserva 10/11 15:00 Argentina.
+  Descripciones y status completo idénticos al respaldo; 21 y nueve tags respectivamente.
+- Dos snapshots actualizados por CAS con respaldos privados; demás estado idéntico.
+  405 pruebas remotas OK con FFmpeg real; simulación 42497347567 sin errores ni subidas.
+- Verificador de solo lectura y opción manual del workflow publicados en 55e7c36,
+  para comprobar metadata sin OAuth adicional, sin publicar ni modificar datos.
+  Detalles y límites en docs/ISLABEATZ.md. main.py sin cambios.
+
 ## IslaBeats — copiar perfil latino, imágenes y activación ✅ COMPLETADA (2026-11-08)
 
 - Base copiada de WyreLatinBeatz: filtros latinos, descripción comercial, cada dos días
