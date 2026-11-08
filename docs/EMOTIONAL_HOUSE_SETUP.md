@@ -4,8 +4,9 @@ Fase local preparada el 8/11/2026. Canal indicado después: **afterbeachbeats**,
 `UCqSN_dCTnhNcRcMmW3qc3JQ` (nombre contrastado en el HTML público de YouTube).
 Esto no comprueba acceso OAuth ni titularidad. Perfil:
 `docs/emotional-house.channel.json`. Copiado y releído en la configuración
-de Dropbox y en el registro, pausado, con nombre visible afterbeachbeats.
-Los otros catorce perfiles se conservaron iguales. No se activaron subidas.
+de Dropbox y en el registro, con nombre visible afterbeachbeats.
+Los otros catorce perfiles se conservaron iguales. Activación y comprobantes
+al final de este documento.
 
 ## Referencia del usuario
 
@@ -68,17 +69,16 @@ activa el efecto; no se cambiaron perfiles de otros canales.
 parte del video y estará en los cuadros de los que YouTube genere miniaturas.
 El software no controla cuál de esos cuadros elegirá YouTube.
 
-## Calendario y activación pendiente
+## Calendario
 
-Frecuencia solicitada: cada dos días. Hora provisional: 18:00 Argentina,
-ancla local 10/11/2026, editable antes de activar. No es una fecha prometida:
-no hay reservas ni publicaciones creadas. Se conserva el escalonado habitual
-de 2–4 días y el cupo compartido existente.
+Frecuencia solicitada: cada dos días. Hora inicial: 18:00 Argentina,
+ancla 10/11/2026. Se conserva el escalonado habitual de 2–4 días y el cupo
+compartido existente. La primera publicación ya está programada; fechas
+y comprobantes al final de este documento.
 
-Antes de activar falta completar la conexión propia de YouTube, contrastar
-los tags con el catálogo, ajustar hora/ancla y ejecutar simulación del worker.
-El ID de destino es el aportado por el usuario. No se reutilizan credenciales
-de otro canal ni se habilita el calendario por la identificación pública.
+La activación se realizó después de verificar OAuth propio, catálogo,
+materiales y simulación remota. El ID es el aportado por el usuario.
+No se reutilizan credenciales de otro canal.
 
 ## Validación de esta fase
 
@@ -88,7 +88,8 @@ de otro canal ni se habilita el calendario por la identificación pública.
 - Render real FFmpeg con dos fuentes verticales y audio fuente: MP4 de 2,5 s,
   1080p/30 FPS, marco visible, bandas negras y únicamente audio del beat
   (silencio de prueba). Duración y pistas verificadas con ffprobe.
-- No se verificaron licencias de los clips ni se realizaron subidas a YouTube.
+- En esta fase inicial no se verificaron licencias ni se subió a YouTube;
+  la primera programación posterior se documenta al final.
 - Suite oficial `smoke_beat_hardening.py --worker-only`: 419 pruebas aprobadas,
   sin omisiones, con FFmpeg real y las seis pruebas nuevas incluidas.
   Suite amplia de Beats en el entorno del proyecto: 475 aprobadas antes de
@@ -157,5 +158,45 @@ y stdin; no se escribió en archivos. Secretos propios del slug emotional-house
 en kit-weekly. La clave interna del worker es emotional-house; el ID real de
 YouTube se valida mediante `youtube_channel_id` en el perfil.
 BEAT_CHANNELS ampliado de catorce a quince canales y releído, conservando
-las catorce entradas anteriores. Configuración y registro todavía pausados
-mientras se valida la simulación remota antes de la activación.
+las catorce entradas anteriores. Configuración y registro activados después
+de validar la simulación remota, respetando la fecha ancla del perfil.
+
+### Validación previa y corrección del nombre
+
+420 pruebas locales del worker aprobadas y 420 remotas en la simulación
+`42502449664`: planned=6, eligible=1, uploaded=0 y errores en cero.
+Código publicado en master; horario 18:00 Argentina, cada dos días desde 10/11.
+
+La primera ejecución real (`42502675468`) se pausó y canceló antes de insertar:
+la inspección de su snapshot detectó que el parser genérico convertía
+"I'm free" en "I'm". Cero intentos y cero videos creados; lease liberado.
+Solo se eliminó su snapshot todavía no intentado, con respaldo y CAS.
+Los seis turnos planificados y los demás canales se conservaron.
+
+Modo nuevo `emotional_house_v2`: limpieza de metadatos estructurados sin
+quitar FREE significativo del nombre. v1 conserva su comportamiento para
+snapshots históricos. Siete pruebas específicas aprobadas, incluido replay
+v1, nombres I'm free/Carefree/Free Again y montaje real; 73 snapshots v2 válidos.
+Publicado en `03fb4b1`. Perfil remoto v2 activado/releído antes de reintentar.
+
+### Primera programación real
+
+Ejecución corregida `42503228240`: success; 421 pruebas del worker aprobadas.
+uploaded=1, eligible=1; failed/unknown/orphan/expired/blocked/budget/
+calendar_unavailable/thumbnail_failed=0. Lease liberado al terminar.
+
+- Beat `TK18104679`, I'm free, duración de catálogo 139 s.
+- Video `3lcuzQJgEHI`, modo scheduled, 10/11/2026 a las 18:00 Argentina.
+- Título: `[FREE] Deep House Type Beat - "I'm free" | EDM Deep House Instrumental`.
+- Primer turno: montaje emocional con los tres clips de su carpeta, overlay
+  film_gate_red_v1; custom_thumbnail=false. Sin miniatura personalizada enviada.
+- Cinco reservas planned: 12, 14, 16, 18 y 20/11 a las 18:00. Esperan la ventana
+  habitual de subida anticipada de 2–4 días. El worker diario de las 19:00
+  mantiene el búfer; el calendario de publicación es cada dos días.
+
+La verificación de metadata y programación por API en `42503503105` confirmó
+un video sin diferencias en título, etiquetas ni fecha.
+
+Los renders siguientes usan `video_fit: square`. Se recorta cada clip al centro
+sin deformarlo y se compone un cuadrado de 1080×1080 dentro de 1920×1080,
+con bandas de 420 px y el overlay en su posición original.

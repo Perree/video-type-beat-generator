@@ -18,7 +18,7 @@
     "videos_folder": "/Soft Projects/Type Beat Generator/contenido/canales/emotional-house/emocional",
     "clip_min_seconds": 4,
     "clip_max_seconds": 7,
-    "video_fit": "contain",
+    "video_fit": "square",
     "film_overlay": "film_gate_red_v1",
     "custom_thumbnail": false,
     "thumbnail_source": "auto",

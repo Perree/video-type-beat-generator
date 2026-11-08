@@ -1,5 +1,28 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## afterbeachbeats — encuadre uniforme ✅ COMPLETADA (2026-11-08)
+
+- Los tres montajes usan un recorte central de 1080×1080 en un lienzo de 1920×1080.
+  Las bandas laterales de 420 px y el overlay mantienen la misma posición en cada corte.
+- Validación con nueve fuentes reales y 23 pruebas de montaje y perfil con FFmpeg.
+
+## afterbeachbeats — conexión y activación ✅ COMPLETADA (2026-11-08)
+
+- OAuth confirmó afterbeachbeats, UCqSN_dCTnhNcRcMmW3qc3JQ. Secretos propios
+  del slug emotional-house en kit-weekly; token solo en memoria/stdin.
+- BEAT_CHANNELS ampliado a quince conservando los catorce anteriores.
+  Perfil y registro activos, cada dos días a las 18:00 Argentina desde 10/11.
+- 420 pruebas locales y remotas OK. Simulación 42502449664: planned=6,
+  eligible=1, uploaded=0 y errores en cero. Código publicado en master.
+- Primera ejecución detenida antes de subir por limpieza incorrecta de "I'm free".
+  Cero intentos/videos, lease libre. Modo v2 versionado preserva el nombre y v1
+  histórico; siete pruebas específicas y 73 snapshots v2 OK, publicado 03fb4b1.
+- Ejecución corregida 42503228240: success, 421 pruebas remotas OK, uploaded=1,
+  sin errores ni miniatura personalizada; lease libre. I'm free, 3lcuzQJgEHI,
+  scheduled para 10/11 a las 18:00 Argentina. Cinco reservas desde 12/11 a 20/11.
+- Metadata y programación verificadas por API en 42503503105. Un video verificado, cero diferencias.
+  Detalles: docs/EMOTIONAL_HOUSE_SETUP.md.
+
 ## afterbeachbeats — clips de hoy y tres muestras ✅ COMPLETADA (2026-11-08)
 
 - Destino aportado: UCqSN_dCTnhNcRcMmW3qc3JQ, afterbeachbeats según HTML público.

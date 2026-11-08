@@ -15,9 +15,14 @@ def create_gate(path):
 
 
 def normalize_filter(fit):
-    sizing = ('scale=1920:1080:force_original_aspect_ratio=decrease,'
-              'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black' if fit == 'contain' else
-              'scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080')
+    if fit == 'square':
+        sizing = ('scale=1080:1080:force_original_aspect_ratio=increase:force_divisible_by=2,'
+                  'crop=1080:1080,pad=1920:1080:420:0:color=black')
+    elif fit == 'contain':
+        sizing = ('scale=1920:1080:force_original_aspect_ratio=decrease,'
+                  'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black')
+    else:
+        sizing = 'scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080'
     return sizing + ',setsar=1,fps=30,format=yuv420p,setpts=PTS-STARTPTS'
 
 
