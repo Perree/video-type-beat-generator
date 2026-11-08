@@ -15,6 +15,7 @@ from core import beat_guitar_seo
 from core import beat_koena_seo
 from core import beat_latin_taimet_seo
 from core import beat_latin_dysmo_seo
+from core import beat_latin_dysmo_default_seo
 from core import beat_sad_seo
 from core.beat_seo_report import fields, text, texts, moment, parse_report, validate_report
 
@@ -33,6 +34,7 @@ MODES = {beat_latin_seo.MODE: (beat_latin_seo, ('{artists}', '{style}')),
          beat_latin_seo_v2.MODE: (beat_latin_seo_v2, ('{style}', '{detail}')),
          beat_latin_taimet_seo.MODE: (beat_latin_taimet_seo, ('{style}',)),
          beat_latin_dysmo_seo.MODE: (beat_latin_dysmo_seo, ('{style}', '{detail}')),
+         beat_latin_dysmo_default_seo.MODE: (beat_latin_dysmo_default_seo, ('{style}', '{detail}')),
          beat_afro_seo.MODE: (beat_afro_seo, ('{style}',)),
          beat_house_seo.MODE: (beat_house_seo, ('{style}',)),
          beat_club_seo.MODE: (beat_club_seo, ('{style}',)),
