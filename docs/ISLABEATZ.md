@@ -9,9 +9,9 @@ Perfil: `docs/islabeatz.channel.json`. Slug propio: `islabeatz`.
 - Referencias aportadas: capturas de IslaBeats y DysmoBeats (`@dysmoprod`).
   Imágenes centradas con negro lateral, sin texto; artistas primero, nombre entre comillas
   y cierre `| Género Type Beat` (con emoción cuando corresponde).
-- Se usa el modo optativo `latin_dysmo_v1`: artistas, género y emoción salen de los tags
-  reales del catálogo de descarga; conserva el nombre real de cada beat. No fuerza
-  Bad Bunny x Mora a todos los títulos. Sin artistas etiquetados, usa el género.
+- Modo actual `latin_dysmo_v3`: conserva los artistas etiquetados y usa Bad Bunny x Mora
+  como referencia editorial predeterminada cuando faltan artistas, por pedido explícito
+  del usuario. Género, emoción y nombre del beat siguen saliendo del catálogo real.
 - Los bloques TAGS (IGNORE), contactos y marcas SOLD de DysmoBeats no se copian.
   Las cifras de vistas en las capturas no prueban el efecto de los metadatos.
 
@@ -118,3 +118,58 @@ Se añadió comprobación reutilizable de solo lectura en `core/beat_metadata_ve
 y la opción manual `verify_metadata` del workflow, publicada en `55e7c36`. Verifica
 propietario, título, tags sin depender de su orden y fecha futura. No planifica,
 reserva, sube ni modifica videos, estado o configuración.
+
+## Artistas predeterminados (2026-11-08)
+
+Corrección explícita del usuario: no quiere títulos que muestren solo el género;
+usar los artistas de la competencia como predeterminados. `latin_dysmo_v2` agrega
+Bad Bunny x Mora al título y a las variantes de tags cuando el beat no contiene
+artistas reconocidos. Si tiene uno o dos artistas etiquetados, conserva esos nombres.
+
+Esto es una decisión editorial del usuario: no se guarda la pareja predeterminada
+como si hubiera sido un tag original de BeatStars. El snapshot conserva los tags
+fuente; la descripción musical y los hashtags descriptivos existentes se mantienen.
+Género y emoción conservan su respaldo en los tags originales. El modo v1 permanece
+sin cambios para poder validar snapshots históricos.
+
+Ejemplo real: `(FREE) Bad Bunny x Mora Type Beat - "VERTE DE NUEVO" | Reggaeton Type Beat`.
+138 snapshots revalidados; 71 necesitan la pareja predeterminada. 28 pruebas y siete
+subtests específicos aprobados; 409 pruebas del worker OK local (dos omisiones).
+Código publicado `bf1ea4b`; modo v2 activo por CAS y releído en Dropbox.
+Registro y plantilla compatibles; otros trece canales y calendario conservados.
+
+`FkYJK_CIeZI` (VERTE DE NUEVO) editado y releído por Data API: título y conjunto de tags
+coinciden con el nuevo snapshot. Descripción y status completo idénticos al respaldo;
+conserva 10/11/2026 15:00 Argentina. Solo su snapshot se actualizó por CAS, con respaldo
+privado y comprobación de que el resto del estado es idéntico. El otro video ya tenía
+artistas y conserva Feid x Tainy. El token temporal de edición no se guardó.
+
+Simulación remota `42499009444` aprobada: 409 pruebas OK y contadores
+planned/eligible/uploaded/failed/orphan/unknown/blocked/expired/calendar_unavailable=0.
+No se solicitaron subidas nuevas.
+
+## Variantes Afro y Afro Reggaeton (2026-11-08)
+
+Pedido adicional del usuario: variar también con Afro y Afro Reggaeton en títulos.
+`latin_dysmo_v3` mantiene el artista editorial predeterminado y los artistas propios
+cuando existen, y reconoce las etiquetas Afro del catálogo. Con Afro y Reggaeton
+usa `Afro Reggaeton Type Beat`; con Afro sin Reggaeton, `Afro Type Beat`.
+Género y emoción se reflejan también en los tags y la descripción correspondiente.
+La selección del catálogo no cambia ni se asigna Afro aleatoriamente a otros beats.
+
+Catálogo disponible: 138 elegibles, ocho Afro y dos Afro Reggaeton; los 138 snapshots
+se generaron y revalidaron. Ejemplos reales:
+
+- `(FREE) Bad Bunny x Mora Type Beat - "OH GIRL" | Afro Type Beat`
+- `(FREE) Bad Bunny x Mora Type Beat - "MUJERES" | Afro Reggaeton Type Beat`
+- `(FREE) Bad Bunny x Mora Type Beat - "LO NUESTRO TERMINO?" | Emotional Afro Type Beat`
+
+Los modos v1/v2 y sus snapshots conservan sus resultados. El render, las imágenes,
+los horarios y la selección no se modifican. Los dos videos ya subidos no tienen
+etiquetas Afro y conservan sus títulos corregidos. Código publicado `0a81a46`;
+modo v3 activo por CAS y releído. 413 pruebas locales aprobadas (dos omisiones).
+
+Verificación remota `42499554038` completada con éxito: 413 pruebas con FFmpeg real,
+verified=2, failed=0, differences=[]. Ambos títulos/tags y las fechas futuras de
+YouTube coinciden con el perfil final. No se subieron videos adicionales.
+Los respaldos y resultados completos están en tokens/islabeatz_afro_*, fuera de Git.

@@ -1,5 +1,24 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## IslaBeats — artistas predeterminados y variantes Afro ✅ COMPLETADA (2026-11-08)
+
+- Usuario pidió eliminar títulos solo de género: Bad Bunny x Mora predeterminados
+  cuando faltan artistas; se conservan los artistas etiquetados cuando existen.
+  Modo versionado latin_dysmo_v2 publicado bf1ea4b y activo por CAS.
+- 138 snapshots validados, 71 con pareja editorial predeterminada. Los tags fuente
+  no se alteran; título y tags de búsqueda usan la referencia editorial solicitada.
+- VERTE DE NUEVO FkYJK_CIeZI corregido en YouTube y releído: título/tags coinciden;
+  descripción y status completos conservados, incluido 10/11 15:00 Argentina.
+  Solo su snapshot sincronizado por CAS; estado restante idéntico y respaldado.
+- Pedido adicional: variar con Afro y Afro Reggaeton. Modo latin_dysmo_v3 publicado
+  0a81a46 y activo/releído. Ocho beats Afro y dos Afro Reggaeton entre 138 elegibles;
+  familias según tags reales. Selección, imágenes, calendario y otros canales intactos.
+- Todos los snapshots revalidados; 413 pruebas locales OK (dos omitidas). Simulación
+  v2 42499009444 aprobada, sin subidas ni errores. Verificación final v3 42499554038:
+  413 pruebas remotas con FFmpeg real; verified=2, failed=0, differences=[].
+- Modos anteriores conservados para snapshots históricos. Sin nuevas subidas ni
+  cambios en main.py. Detalles y comprobantes: docs/ISLABEATZ.md.
+
 ## IslaBeats — títulos y tags como DysmoBeats ✅ COMPLETADA (2026-11-08)
 
 - Pedido explícito de mayor similitud con la competencia de las capturas. Nuevo modo
