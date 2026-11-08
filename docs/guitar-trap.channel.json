@@ -61,7 +61,8 @@
     "plain_image": true,
     "image_fit": "contain",
     "custom_thumbnail": true,
-    "thumbnail_source": "auto"
+    "thumbnail_source": "auto",
+    "source_trim_seconds": 15
   },
   "upload_spread": {
     "min_days": 2,

@@ -79,16 +79,18 @@ def render_montage(audio, output, seconds, rows, spec, root, dropbox, tools, job
         fetch(row, source, MAX_VIDEO_BYTES, dropbox)
         try:
             available, demuxer = video_info(source, tools)
-            if available < spec['clip_min_seconds']:
+            margin = spec.get('source_trim_seconds', 0)
+            usable = available - 2 * margin
+            if usable < spec['clip_min_seconds']:
                 raise BeatError('video_too_short')
             # Whole frames avoid concat boundary gaps from fractional clip lengths.
             minimum = math.ceil(spec['clip_min_seconds'] * FPS)
-            maximum = math.floor(min(available, spec['clip_max_seconds']) * FPS)
+            maximum = math.floor(min(usable, spec['clip_max_seconds']) * FPS)
             if maximum < minimum:
                 raise BeatError('video_too_short')
             frames = rng.randint(minimum, maximum)
             length = frames / FPS
-            start = rng.uniform(0, max(0, available - length))
+            start = rng.uniform(margin, max(margin, available - margin - length))
             tools._call([tools.ffmpeg, '-nostdin', '-v', 'error', '-xerror', '-y',
                 '-protocol_whitelist', 'file', '-f', demuxer, '-i', str(source),
                 '-ss', str(start), '-t', str(length), '-map', '0:v:0', '-an', '-sn', '-dn',

@@ -119,6 +119,33 @@ class MontageTests(unittest.TestCase):
             self.assertTrue((root / 'clips.txt').is_file())
             self.assertEqual(sum(Decimal(str(row['seconds'])) for row in result['clips']), Decimal('2.375'))
 
+    def test_source_trim_avoids_both_ends_and_rejects_too_short_sources(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            audio = root / 'audio.bin'
+            audio.write_bytes(TS)
+            spec = options({'visual': {'source_trim_seconds': 15,
+                                      'clip_min_seconds': .5, 'clip_max_seconds': .5}})
+            row = {'path': '/video.mp4', 'size': len(MP4)}
+            process = MontageProcesses(output_seconds=2.375)
+            def fixture(row, target, *args):
+                target.write_bytes(MP4)
+            with patch('core.beat_montage.fetch', side_effect=fixture), \
+                 patch('core.beat_montage.video_info', return_value=(60, 'mov')):
+                render_montage(audio, root / 'video.mp4', 2.375, [row], spec, root,
+                               None, MediaTools('fakeffmpeg', 'fakeprobe', process), 'job')
+            command = next(cmd for cmd in process.calls if '-vf' in cmd)
+            self.assertGreaterEqual(float(command[command.index('-ss') + 1]), 15)
+            self.assertLessEqual(float(command[command.index('-ss') + 1]) + .5, 45)
+            with patch('core.beat_montage.fetch', side_effect=fixture), \
+                 patch('core.beat_montage.video_info', return_value=(30, 'mov')):
+                with self.assertRaisesRegex(BeatError, 'no_compatible_videos'):
+                    render_montage(audio, root / 'short.mp4', 2.375, [row], spec, root,
+                                   None, MediaTools('fakeffmpeg', 'fakeprobe', process), 'job')
+        for margin in (-1, True, float('nan'), 61):
+            with self.assertRaisesRegex(ValueError, 'invalid_source_trim'):
+                options({'visual': {'source_trim_seconds': margin}})
+
     def test_empty_damaged_incompatible_and_decode_errors(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

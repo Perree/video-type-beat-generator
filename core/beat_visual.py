@@ -40,6 +40,9 @@ def options(channel):
             raise ValueError('invalid_clip_duration')
     if result['clip_min_seconds'] > result['clip_max_seconds']:
         raise ValueError('invalid_clip_duration')
+    margin = result.get('source_trim_seconds', 0)
+    if (type(margin) not in (int, float) or not math.isfinite(margin) or not 0 <= margin <= 60):
+        raise ValueError('invalid_source_trim')
     if math.ceil(result['clip_min_seconds'] * 30) > math.floor(result['clip_max_seconds'] * 30):
         raise ValueError('El rango de fragmentos debe contener al menos un cuadro a 30 FPS.')
     if result['video_source'] == 'dropbox' and result['videos_folder']:
