@@ -1,5 +1,16 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Guitar trap — materiales en Dropbox ✅ COMPLETADA (2026-11-07)
+
+- Usuario aportó dos carpetas locales y autorizó copiarlas a Dropbox.
+- Copiados siete videos originales y 35 miniaturas, separados en `fondos` y
+  `miniaturas`, bajo `contenido/canales/guitar-trap` (identificador provisional).
+- Los 42 archivos se releyeron y verificaron por tamaño y content hash;
+  542.378.546 bytes. Imágenes verificadas con Pillow; videos con ffprobe.
+- Originales conservados; sin conversión, render ni publicaciones en YouTube.
+- Pendientes: identidad del canal, selección por tags del catálogo, configuración
+  editorial, calendario y prueba audiovisual. Ver `docs/GUITAR_TRAP_ASSETS.md`.
+
 ## WyreLatinBeatz — preparación de automatización latina ✅ COMPLETADA (2026-11-07)
 
 - Pedido: cada dos días a las 15:00 Argentina, videos propios de WyreLatinBeatz.
