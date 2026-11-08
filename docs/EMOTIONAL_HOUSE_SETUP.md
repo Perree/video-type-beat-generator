@@ -148,3 +148,14 @@ y se reabrió la conexión usando el interruptor documentado para operaciones
 reales del proyecto. No se desactivó ni modificó esa guarda en el código.
 La conexión no se considera completada mientras no exista comprobante de
 identidad y guardado exitoso de secretos propios.
+
+## Conexión verificada (8/11/2026)
+
+OAuth completado: afterbeachbeats, `UCqSN_dCTnhNcRcMmW3qc3JQ`, ID comprobado
+antes de guardar el token en GitHub Secrets. El token solo transitó por memoria
+y stdin; no se escribió en archivos. Secretos propios del slug emotional-house
+en kit-weekly. La clave interna del worker es emotional-house; el ID real de
+YouTube se valida mediante `youtube_channel_id` en el perfil.
+BEAT_CHANNELS ampliado de catorce a quince canales y releído, conservando
+las catorce entradas anteriores. Configuración y registro todavía pausados
+mientras se valida la simulación remota antes de la activación.
