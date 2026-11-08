@@ -2,7 +2,7 @@
   "id": "emotional-house",
   "youtube_channel_id": "UCqSN_dCTnhNcRcMmW3qc3JQ",
   "actions_slug": "emotional-house",
-  "active": false,
+  "active": true,
   "priority": 10,
   "slots": [],
   "interval_schedule": {"days": 2, "anchor": "2026-11-10T18:00:00-03:00"},

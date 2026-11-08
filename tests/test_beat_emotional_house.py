@@ -26,10 +26,9 @@ def channel():
 
 
 class EmotionalHouseTests(unittest.TestCase):
-    def test_profile_is_paused_and_schema_valid(self):
+    def test_profile_schema_and_destination_are_valid(self):
         ch = channel()
         migrate({'channels': [ch]}, 'config')
-        self.assertFalse(ch['active'])
         self.assertFalse(options(ch)['custom_thumbnail'])
         self.assertEqual(ch['youtube_channel_id'], 'UCqSN_dCTnhNcRcMmW3qc3JQ')
         self.assertEqual(ch['interval_schedule']['days'], 2)
