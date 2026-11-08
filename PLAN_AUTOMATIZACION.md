@@ -1,5 +1,24 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## IslaBeats — copiar perfil latino, imágenes y activación ✅ COMPLETADA (2026-11-08)
+
+- Base copiada de WyreLatinBeatz: filtros latinos, descripción comercial, cada dos días
+  a las 15:00 Argentina y escalonado 2–4 días. Identidad y marca propias de IslaBeats.
+- Referencias del usuario: IslaBeats y DysmoBeats. Modo existente latin_v2: artistas,
+  género y emoción por tags reales del catálogo de descarga; sin forzar parejas.
+- 17 JFIF de images/islabaetz/Principal copiados a Dropbox y comparados byte por byte.
+  Imagen fija completa, centrada con bandas negras, sin texto ni miniatura separada.
+  17 composiciones verificadas y preview real FFmpeg de 3 s inspeccionado.
+- 138 snapshots SEO válidos; 17 pruebas y 18 subtests específicos OK. Simulación:
+  planned=7, eligible=1, uploaded=0, sin fallos. 398 pruebas worker OK local y remoto.
+- OAuth verificado: IslaBeats, UCPDszmzMcBNuR2h1ReIRupg. Secretos propios en kit-weekly;
+  perfil/registro activos y releídos, BEAT_CHANNELS ampliado a catorce conservando los trece.
+- Primera corrida real 42494221965 exitosa: uploaded=2, sin failed/unknown/orphan/
+  blocked/budget/expired/calendar_unavailable/thumbnail_failed. Recibos scheduled:
+  8/11 Es tan fina gH_XRs4cRxQ; 10/11 VERTE DE NUEVO FkYJK_CIeZI, ambos 15:00.
+- Cinco reservas desde 12/11 hasta 20/11. Detalles y límites: docs/ISLABEATZ.md.
+  Sin cambios en main.py ni código nuevo; reutiliza módulos existentes.
+
 ## WyreLatinBeatz — formato de títulos como Taimet ✅ COMPLETADA (2026-11-07)
 
 - Pedido: títulos más parecidos a las capturas de Taimet. Modo optativo
