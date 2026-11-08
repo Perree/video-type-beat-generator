@@ -1,5 +1,23 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## WyreLatinBeatz — formato de títulos como Taimet ✅ COMPLETADA (2026-11-07)
+
+- Pedido: títulos más parecidos a las capturas de Taimet. Modo optativo
+  latin_taimet_v1: `(FREE) ARTISTA x ARTISTA TYPE BEAT - "NOMBRE"`, mayúsculas,
+  sin sufijo de género/emoción ni año. Un artista si solo hay uno etiquetado;
+  género como alternativa si no hay artistas. Sin inventar parejas.
+- Módulos anteriores y snapshots conservados. Descripciones y tags idénticos
+  para los 138 beats elegibles comprobados; calendario, fondos y demás canales
+  intactos. Cinco pendientes desde 12/11 usarán el nuevo modo. BEAUTY GIRL ya
+  programado para 10/11 y el piloto conservan sus títulos anteriores.
+- Código publicado b37f760; config activa y plantilla del registro actualizadas
+  por CAS y releídas. Sin cambios en el estado ni edición de videos de YouTube.
+- 393 pruebas worker OK, local (dos omitidas) y remoto. Dry-run 42436934787:
+  success; planned/eligible/uploaded/failed/orphan/unknown=0. No ejercitó un render
+  nuevo; 138 snapshots reconstruidos y validados localmente.
+- Integrado origin/master 69336d3 con los modos Guitar/Koena conservados. Detalle:
+  docs/WYRELATINBEATZ.md. Sin cambios en main.py.
+
 ## Make You Beats — títulos de Koena 🔄 EN CURSO (2026-11-07)
 
 - Corrección explícita del usuario: usar Guitar x Hurricane Wisdom x Nino Paid

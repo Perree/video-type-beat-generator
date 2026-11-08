@@ -30,6 +30,18 @@ latinas iniciales aprobadas. Se construyeron y revalidaron 138 snapshots del
 catálogo guardado de 1.151 beats. Se integró origin/master 69336d3 conservando
 los modos Guitar y Koena y su tratamiento de enlaces individuales.
 
+Control del worker local: 393 pruebas aprobadas, dos omitidas opcionales de
+FFmpeg. Código publicado en master b37f760; configuración activa y plantilla
+del registro guardadas por CAS y releídas. Se comprobaron sin cambios los otros
+canales y los campos del canal ajenos a title_mode/title_template. No se escribió
+en el estado de publicaciones, no se amplió OAuth ni se editaron videos de YouTube.
+Simulación remota de comprobación:
+[42436934787](https://github.com/Perree/video-type-beat-generator/actions/runs/42436934787).
+Terminó en success, 393 pruebas aprobadas; planned=0, eligible=0, uploaded=0,
+failed=0, orphan=0, unknown=0. No ejercitó un render o subida nuevos porque no
+había pendientes en la ventana de subida. La reconstrucción local valida todos
+los 138 snapshots y verifica que sus tags/descripciones coinciden con latin_v2.
+
 ## Activación — 7/11/2026
 
 El usuario autorizó activar y dejar lista la automatización. OAuth verificó
