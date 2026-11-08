@@ -1710,3 +1710,13 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
 - Medios y vista previa fuera de Git. No se subieron videos ni se activó la publicación.
 - Pendiente: verificar sincronización remota, incorporar perfil al registro/worker,
   conectar y verificar OAuth de YouTube y simular el catálogo real antes de activar.
+
+## Canal sad melodic — Franjas negras constantes ✅ COMPLETADA (2026-11-08)
+
+- Pedido del usuario: conservar siempre el mismo ancho lateral y la imagen centrada.
+- Perfil cambiado a `image_fit=fixed_bars`: 344 px negros a cada lado del cuadro 1920×1080,
+  área central 1232×1080, escalado proporcional y recorte centrado sin deformar los originales.
+- Mismo encuadre para fondo y miniatura; regenerada e inspeccionada la vista previa local.
+- Validación: 10 pruebas aprobadas, incluyendo distintas proporciones, simetría del recorte
+  y coincidencia de la composición del video con la miniatura. Render de prueba FFmpeg OK.
+- Sin cambios remotos ni publicación; el canal continúa en pausa.

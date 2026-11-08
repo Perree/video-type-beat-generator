@@ -61,7 +61,7 @@
   },
   "visual": {
     "mode": "image",
-    "image_fit": "contain",
+    "image_fit": "fixed_bars",
     "plain_image": true,
     "custom_thumbnail": false,
     "thumbnail_source": "auto"

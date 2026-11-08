@@ -83,6 +83,6 @@ class SadChannelTests(unittest.TestCase):
             compose(root / 'source.png', 'Motion', root / 'frame.png', root / 'thumb.jpg',
                     plain=spec['plain_image'], fit=spec['image_fit'])
             with Image.open(root / 'frame.png') as frame, Image.open(root / 'thumb.jpg') as thumb:
-                self.assertEqual(frame.getbbox(), (420, 0, 1500, 1080))
+                self.assertEqual(frame.getbbox(), (344, 0, 1576, 1080))
                 difference = ImageChops.difference(frame.resize(thumb.size), thumb)
                 self.assertLess(sum(ImageStat.Stat(difference).mean) / 3, 2)

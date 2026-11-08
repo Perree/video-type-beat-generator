@@ -9,7 +9,9 @@ Perfil: `docs/sad-melodic.channel.json`. `sad-melodic` es una clave interna prov
   Un beat necesita al menos uno, no los cuatro. El catálogo existente sigue siendo la fuente.
 - Título según los artistas realmente etiquetados (hasta dos en el título);
   prefijo Sad solo con `sad beat`. Si solo tiene ese tag: `(FREE) Sad Type Beat - "Nombre"`.
-- Imagen fija completa, centrada en 1920×1080, bandas negras cuando corresponda, sin texto.
+- Imagen fija centrada en 1920×1080, con franjas negras constantes de 344 px por lado
+  (`image_fit=fixed_bars`). Área central de 1232×1080, sin texto añadido ni deformación;
+  se recorta desde el centro cuando la proporción de la imagen lo requiere.
   No requiere carpeta de miniaturas: `custom_thumbnail=false` deja a YouTube usar un cuadro
   del video, idéntico al fondo fijo. El render también produce JPG de la misma composición.
 - Descripción en inglés, enlace individual resuelto por el pipeline, BPM/tono cuando constan
@@ -22,7 +24,7 @@ Perfil: `docs/sad-melodic.channel.json`. `sad-melodic` es una clave interna prov
    `C:\Users\matia\Downloads\fondos`, copiadas sin modificar a
    `/Soft Projects/Type Beat Generator/contenido/canales/sad-melodic/fondos`.
    Copia local de Dropbox verificada por SHA-256; sincronización remota aún no comprobada.
-   Las 30 pasan decodificación y composición del render; sin recorte ni texto añadido.
+   Las 30 pasan decodificación y composición del render; originales sin modificar.
    Algunas incluyen iconos de redes dentro del original, conservados sin retoque.
 2. Incorporar el perfil al registro/configuración remotos con la clave definitiva, preservando
    los demás canales, conectar OAuth y comprobar que pertenece al ID de destino.
