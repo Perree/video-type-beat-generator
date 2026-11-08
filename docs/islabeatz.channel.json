@@ -56,7 +56,7 @@
       "MatWyre",
       "IslaBeats"
     ],
-    "title_mode": "latin_dysmo_v2",
+    "title_mode": "latin_dysmo_v3",
     "title_template": "(FREE) {style} Type Beat - \"{name}\"{detail}"
   },
   "slots": [],

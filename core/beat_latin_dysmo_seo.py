@@ -7,8 +7,8 @@ MODE = 'latin_dysmo_v1'
 TOKENS = latin.TOKENS
 
 
-def _keywords(track, profile):
-    style, mood, artists = latin.context(track)
+def _keywords(track, profile, musical_context=None):
+    style, mood, artists = musical_context if musical_context is not None else latin.context(track)
     genre = style.lower()
     musical = ((mood + ' ') if mood else '') + style
     labels = list(artists)
@@ -44,8 +44,8 @@ def _keywords(track, profile):
     return tags
 
 
-def variants(track, profile):
-    style, mood, artists = latin.context(track)
+def variants(track, profile, *, musical_context=None):
+    style, mood, artists = musical_context if musical_context is not None else latin.context(track)
     musical = ((mood + ' ') if mood else '') + style
     label = ' x '.join(artists) if artists else musical
     detail = ' | ' + musical + ' Type Beat' if artists else ''
@@ -55,7 +55,7 @@ def variants(track, profile):
         raise ValueError('seo_title_too_long')
     name = clean_name(parse(track['title'])['name'])[:budget].rstrip()
     title = template.replace('{name}', name)
-    tags = _keywords(track, profile)
+    tags = _keywords(track, profile, musical_context)
     return [dict(title=title, tags=tags[i:] + tags[:i]) for i in range(len(tags))]
 
 

@@ -77,8 +77,8 @@ def variants(track, profile):
     return [{'title': title, 'tags': tags[i:] + tags[:i]} for i in range(len(tags))]
 
 
-def description(profile, track, option):
-    style, mood, artists = context(track)
+def description(profile, track, option, *, musical_context=None):
+    style, mood, artists = musical_context if musical_context is not None else context(track)
     musical = (mood + ' ' if mood else '') + style
     sentence = musical + ' instrumental para grabar voces y componer canciones.'
     if artists:
