@@ -1,0 +1,82 @@
+{
+  "id": "guitar-trap",
+  "actions_slug": "guitar-trap",
+  "youtube_channel_id": "UCwo47db3RCos_jTzzr1nsdg",
+  "active": false,
+  "priority": 10,
+  "slots": [
+    {
+      "weekday": 0,
+      "hour": 18,
+      "minute": 0
+    },
+    {
+      "weekday": 1,
+      "hour": 18,
+      "minute": 0
+    },
+    {
+      "weekday": 2,
+      "hour": 18,
+      "minute": 0
+    },
+    {
+      "weekday": 3,
+      "hour": 18,
+      "minute": 0
+    },
+    {
+      "weekday": 4,
+      "hour": 18,
+      "minute": 0
+    },
+    {
+      "weekday": 5,
+      "hour": 18,
+      "minute": 0
+    },
+    {
+      "weekday": 6,
+      "hour": 18,
+      "minute": 0
+    }
+  ],
+  "selection_tags": [
+    "guitar-trap:v1"
+  ],
+  "genres": [
+    "guitar"
+  ],
+  "tags": [],
+  "images_folder": "",
+  "dropbox_images": {
+    "guitar": "/Soft Projects/Type Beat Generator/contenido/canales/guitar-trap/miniaturas"
+  },
+  "visual": {
+    "mode": "video",
+    "video_source": "dropbox",
+    "videos_folder": "/Soft Projects/Type Beat Generator/contenido/canales/guitar-trap/fondos",
+    "clip_min_seconds": 3,
+    "clip_max_seconds": 6,
+    "plain_image": true,
+    "image_fit": "contain",
+    "custom_thumbnail": true,
+    "thumbnail_source": "auto"
+  },
+  "upload_spread": {
+    "min_days": 2,
+    "max_days": 4
+  },
+  "use_channel_templates": true,
+  "seo": {
+    "title_mode": "guitar_v1",
+    "title_template": "[FREE] {style} Type Beat - \"{name}\"",
+    "tags": [
+      "type beat",
+      "instrumental",
+      "matwyre",
+      "make you beats"
+    ],
+    "description": "{title}\n\nPurchase / Free Demo Download: {url}\nBeat Store: https://www.beatstars.com/matwyre\nInstagram: https://instagram.com/matwyreoff\n\n{music_info}\n\n{credits}\n\nFREE FOR NON-PROFIT USE ONLY.\nCredit \"Prod. MatWyre\" and all co-producers listed on the original beat.\nPurchase a license for commercial releases and distribution on streaming platforms.\nDo not register this instrumental or a song using it with Content ID.\nSee the individual beat page for full license terms.\n\n{guitar_hashtags}"
+  }
+}

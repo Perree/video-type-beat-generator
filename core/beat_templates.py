@@ -38,6 +38,8 @@ def apply_channel_templates(channel, saved):
             allowed.update(('style', 'detail'))
         elif profile.get('title_mode') == 'afro_v1':
             allowed.update(('style', 'title', 'technical', 'afro_hashtags'))
+        elif profile.get('title_mode') == 'guitar_v1':
+            allowed.update(('style', 'title', 'music_info', 'credits', 'guitar_hashtags'))
         elif profile.get('title_mode') == 'rnb_test_v1':
             allowed.update(('style', 'context', 'music_info'))
         elif profile.get('title_mode') == 'matwyre_v1':

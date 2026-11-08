@@ -1,6 +1,7 @@
 """Channel eligibility only; selection tags are independent of SEO metadata."""
 from core.beat_afro import is_afro
 from core.beat_matwyre import SELECTION as MATWYRE, matches as matwyre_matches
+from core.beat_guitar import SELECTION as GUITAR, matches as guitar_matches
 import re
 
 
@@ -38,6 +39,10 @@ def eligible_tracks(channel, tracks):
         if not track.get('active', True) or track.get('id') in excluded:
             continue
         tags = track.get('tags', [])
+        if GUITAR in wanted:
+            if guitar_matches(track):
+                result.append(track)
+            continue
         if MATWYRE in wanted:
             if matwyre_matches(track):
                 result.append(track)
