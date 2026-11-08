@@ -1,4 +1,63 @@
-# WyreLatinBeatz — preparación de automatización
+# WyreLatinBeatz — automatización
+
+## Activación — 7/11/2026
+
+El usuario autorizó activar y dejar lista la automatización. OAuth verificó
+`WyreLatinBeatz`, `UCsG-_JcI6ItbS89eHyvjjsw`. El token se mantuvo en memoria y se
+envió directamente a GitHub Secrets, sin guardarlo en archivos ni mostrarlo.
+Se verificaron los nombres BEAT_CHANNEL_ID_WYRELATINBEATZ y
+BEAT_YT_TOKEN_JSON_WYRELATINBEATZ en `kit-weekly`; BEAT_CHANNELS conserva los diez
+slugs previos y agrega wyrelatinbeatz. El lanzador operativo requiere
+`TBVG_REAL_CREDENTIALS=1`: algunas dependencias Google importan unittest y activan
+la protección de credenciales diseñada para tests. El primer guardado no llegó
+a completarse; la segunda autorización verificó nuevamente la identidad y guardó
+correctamente la conexión.
+
+Dry-run remoto [42400468689](https://github.com/Perree/video-type-beat-generator/actions/runs/42400468689):
+success, 382 pruebas aprobadas, incluidas las pruebas reales de FFmpeg; planned=7,
+eligible=2, uploaded/failed/orphan/unknown/blocked/calendar_unavailable=0.
+Se usó include_paused solo en esa simulación, sin crear reservas reales.
+
+Config y registro habilitados por revisión CAS y releídos, conservando los otros
+diez canales. Piloto privado
+[42400704460](https://github.com/Perree/video-type-beat-generator/actions/runs/42400704460):
+success, 382 pruebas aprobadas; planned=7, eligible=1, uploaded=1,
+failed/blocked/orphan/unknown/calendar_unavailable/thumbnail_failed=0.
+Video [Na Naa](https://www.youtube.com/watch?v=zCE5-L0v92U), track TK25183840,
+título `(FREE) Emotional Reggaeton Type Beat - "Na Naa"`. Recibo de Actions con
+outcome=uploaded y recibo del estado Dropbox con publication_mode=private_pilot
+confirmados. El uploader solicita privado sin publishAt en ese modo. No se
+afirma haber hecho una lectura posterior del status mediante la API ni haber
+reproducido el piloto final desde YouTube.
+
+El piloto consume el turno 8/11 y permanece privado. Los turnos públicos empiezan
+el 10/11 a las 15:00, luego 12, 14, 16, 18 y 20. Corrida normal
+[42418626392](https://github.com/Perree/video-type-beat-generator/actions/runs/42418626392):
+success, 382 pruebas aprobadas; planned=0, eligible=1, uploaded=1,
+failed/blocked/orphan/unknown/calendar_unavailable/thumbnail_failed=0.
+Primera publicación: [BEAUTY GIRL](https://www.youtube.com/watch?v=tLGLB16eCNQ),
+track TK18759646, `(FREE) Feid x Mora Type Beat - "BEAUTY GIRL" | Sad Reggaeton`.
+Recibo local de Actions outcome=uploaded y recibo Dropbox con
+publication_mode=scheduled y slot=2026-11-10T15:00:00-03:00 cotejados.
+El uploader envía publishAt para ese turno. Sin lectura posterior del status
+mediante la API ni reproducción de YouTube en esta sesión.
+
+Verificación final: config active=true y registro activo=true; calendario de dos
+días a las 15:00 conservado. Cinco pendientes sin subir para 12, 14, 16, 18 y 20/11.
+El cron existente corre diariamente a las 19:00 de Argentina y mantiene el buffer;
+BEAT_LIVE_ENABLED=true. Cupos, escalonado y otros canales conservados. Dos subidas
+normales del cupo compartido usadas en esta activación, sin excepciones: un piloto
+privado y una publicación programada. La automatización queda activa y lista.
+
+Recurso local comprobado mediante FFmpeg 7.1 incluido en imageio-ffmpeg 0.6.0,
+instalado únicamente en el directorio temporal de Codex: decodificación completa
+del stream de video sin errores, frames a 5/60/150 segundos inspeccionados.
+El MP4 contiene una imagen fija vertical con bandas negras laterales, sin texto;
+los frames inspeccionados conservan el mismo encuadre. El montaje reemplaza el
+audio original por el preview del beat seleccionado. Esto comprueba el recurso
+fuente; no equivale a reproducir el video final desde YouTube.
+
+## Antecedente: fase de preparación
 
 Pedido: automatizar el canal analizado en el ZIP del usuario y las once capturas
 de competencia. Publicar cada dos días a las 15:00 de Argentina, con los videos
