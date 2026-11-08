@@ -1,7 +1,7 @@
 {
   "id": "sad-melodic",
   "actions_slug": "sad-melodic",
-  "active": false,
+  "active": true,
   "priority": 10,
   "youtube_channel_id": "UCE-BtAOt98IH0hTc4ceuYsQ",
   "genres": [

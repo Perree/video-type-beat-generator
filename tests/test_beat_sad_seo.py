@@ -50,7 +50,7 @@ class SadChannelTests(unittest.TestCase):
         self.assertNotEqual(repeat['selected']['tags'], selected['tags'])
 
     def test_paused_and_daily_argentina_schedule(self):
-        config = dict(channels=[self.channel])
+        config = dict(channels=[dict(self.channel, active=False)])
         tracks = [dict(id='TK123', title='Motion', tags=['sad beat'])]
         now = '2026-11-08T19:00:00-03:00'
         self.assertEqual(simulate(config, tracks, now=now)['jobs'], [])

@@ -1,7 +1,7 @@
-# Canal sad melodic — preparación
+# wavybeatz — automatización diaria
 
 Destino indicado: https://www.youtube.com/channel/UCE-BtAOt98IH0hTc4ceuYsQ/
-Perfil: `docs/sad-melodic.channel.json`. `sad-melodic` es una clave interna provisional.
+Perfil: `docs/sad-melodic.channel.json`. `sad-melodic` es la clave interna del canal wavybeatz.
 
 - Todos los días a las 20:00 de Argentina (UTC-3); calendario del worker en Buenos Aires.
 - Selección OR por tags exactos, ignorando mayúsculas y espacios externos:
@@ -18,21 +18,36 @@ Perfil: `docs/sad-melodic.channel.json`. `sad-melodic` es una clave interna prov
   en el título y hashtags de los tags reales. No se inventan mail, tienda ni coproductores.
   La plantilla limita FREE al uso no comercial y remite a las condiciones de cada beat.
 
-## Pendiente para activar
+## Activación (2026-11-08)
 
 1. Imágenes recibidas y configuradas (2026-11-08): 30 JFIF de
    `C:\Users\matia\Downloads\fondos`, copiadas sin modificar a
    `/Soft Projects/Type Beat Generator/contenido/canales/sad-melodic/fondos`.
-   Copia local de Dropbox verificada por SHA-256; sincronización remota aún no comprobada.
+   Carga directa verificada en Dropbox: 30 archivos `image_01.jfif` a `image_30.jfif`,
+   descargados de vuelta y comparados byte por byte con los originales.
    Las 30 pasan decodificación y composición del render; originales sin modificar.
    Algunas incluyen iconos de redes dentro del original, conservados sin retoque.
-2. Incorporar el perfil al registro/configuración remotos con la clave definitiva, preservando
-   los demás canales, conectar OAuth y comprobar que pertenece al ID de destino.
-3. Verificar las condiciones FREE de los beats seleccionados y revisar un render real.
-4. Simular con el catálogo real antes de habilitar `active` y el worker de publicación.
+2. Perfil incorporado al registro/configuración remotos. OAuth verificado: wavybeatz,
+   `UCE-BtAOt98IH0hTc4ceuYsQ`. Credenciales propias del slug en el entorno kit-weekly.
+3. Catálogo real revisado: 1.151 beats, 549 coinciden con el filtro; 549 snapshots SEO válidos.
+   Vista previa FFmpeg revisada. La plantilla remite a las condiciones individuales de licencia.
+4. CLI real en simulación: planned=14, eligible=4; failed/unknown/orphan/expired/blocked=0.
+   Perfil y registro activados; slug agregado a BEAT_CHANNELS preservando los otros doce.
 
-Esta fase prepara código y perfil local en pausa. No descarga beats, no modifica la configuración
-remota y no sube videos. No hay programación de publicaciones activa todavía.
+Publicación habilitada para todos los días a las 20:00 Argentina. El worker se ejecuta diariamente
+a las 19:00 Argentina y sube por anticipado según el escalonado de 2 a 4 días; el límite compartido
+con los demás canales sigue vigente. Primera corrida real: `42492174737` (resultado abajo).
+Respaldos y reportes privados en `tokens/sad_melodic_*`, fuera de Git.
+
+### Resultado de la primera corrida
+
+- GitHub Actions: https://github.com/Perree/video-type-beat-generator/actions/runs/42492174737
+  completada con éxito; 398 pruebas en el worker.
+- planned=14, eligible=4, uploaded=4; failed/unknown/orphan/expired/blocked/budget/
+  calendar_unavailable/thumbnail_failed=0.
+- Programados a las 20:00 Argentina: 08/11 `ZFZhrroc2jc`, 09/11 `QOUQziC3YzQ`,
+  10/11 `IBhEfNGIks8`, 11/11 `Quk0nAgYtz0` (2026).
+- Las diez reservas restantes del búfer esperan su ventana normal de subida anticipada.
 
 Vista previa local: `exported_videos/sad-melodic-preview/preview.mp4` (3 s, audio silencioso
 de prueba, H.264 1920×1080); `thumbnail.jpg` usa la misma composición. No es un beat publicado.

@@ -1720,3 +1720,25 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
 - Validación: 10 pruebas aprobadas, incluyendo distintas proporciones, simetría del recorte
   y coincidencia de la composición del video con la miniatura. Render de prueba FFmpeg OK.
 - Sin cambios remotos ni publicación; el canal continúa en pausa.
+
+## wavybeatz — Activar automatización diaria ✅ COMPLETADA (2026-11-08)
+
+- Autorización explícita del usuario para activar el canal. OAuth completado y verificado:
+  wavybeatz, `UCE-BtAOt98IH0hTc4ceuYsQ`; clave interna `sad-melodic`.
+- 30 JFIF cargados directamente al Dropbox visible para el worker y descargados de vuelta
+  para comparar byte por byte. La copia sincronizada local no era visible para este cliente.
+- Catálogo real: 1.151 beats, 549 elegibles por los cuatro tags OR exactos del usuario;
+  549 snapshots SEO generados y revalidados sin fallos.
+- Perfil y registro remotos activados; secretos propios en kit-weekly y slug agregado
+  a BEAT_CHANNELS preservando los otros doce canales, sus credenciales y calendarios.
+- Todos los días a las 20:00 Argentina, imagen fija con franjas constantes de 344 px por lado,
+  sin miniatura separada. Escalonado de subidas 2–4 días y cupo compartido conservados.
+- Validación: 398 pruebas del worker OK local (2 omitidas) y revisión remota aprobada;
+  CLI real --dry-run --include-paused: planned=14, eligible=4, sin fallos.
+- Primera corrida real `42492174737` completada con éxito: planned=14, uploaded=4;
+  failed/unknown/orphan/expired/blocked/budget/calendar_unavailable/thumbnail_failed=0.
+- Primeros videos programados a las 20:00 Argentina: 08/11 ZFZhrroc2jc,
+  09/11 QOUQziC3YzQ, 10/11 IBhEfNGIks8 y 11/11 Quk0nAgYtz0 (2026).
+  Otras diez reservas esperan su ventana de subida. Publicación diaria automática habilitada.
+- Guía actualizada: docs/SAD_MELODIC_SETUP.md. Respaldos y reportes privados en tokens/,
+  fuera de Git. El test de pausa ahora simula la pausa sin depender del estado activo del perfil.
