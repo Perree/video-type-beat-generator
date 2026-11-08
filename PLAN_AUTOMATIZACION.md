@@ -1,5 +1,18 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Make You Beats — títulos de Koena 🔄 EN CURSO (2026-11-07)
+
+- Corrección explícita del usuario: usar Guitar x Hurricane Wisdom x Nino Paid
+  y Guitar x Nino Paid x FattMack, con el nombre real de cada instrumental.
+- Modo optativo koena_v1 publicado y activado en la config remota por CAS;
+  selección de beats, horarios, otros canales y modos históricos conservados.
+- 611 snapshots generados/revalidados y 388 pruebas locales OK (dos omitidas).
+- Pendiente: editar los tres títulos ya subidos y sus snapshots. El OAuth con
+  permiso adicional de edición venció sin completarse; no se aplicaron
+  esas ediciones en YouTube. Reabrir autorización y comprobar el ID antes de editar.
+- Simulación adicional 42433527359 cancelada en cola, sin tocar la corrida
+  ajena que la precedía. Detalle: docs/GUITAR_TRAP_ASSETS.md.
+
 ## Make You Beats — automatización diaria ✅ COMPLETADA (2026-11-07)
 
 - Usuario pidió automatizar `UCwo47db3RCos_jTzzr1nsdg` y subir a diario. OAuth

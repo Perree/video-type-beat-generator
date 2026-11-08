@@ -110,3 +110,45 @@ La segunda fase, solicitada después por el usuario, conecta y automatiza el can
   no se reprodujeron los videos de YouTube ni se hizo lectura posterior de
   `status` por API. Las miniaturas personalizadas siguen pendientes de habilitación
   o diagnóstico del canal; permanecen configuradas para próximos intentos.
+
+## Corrección solicitada: títulos de Koena
+
+El usuario corrigió explícitamente el criterio anterior: los títulos deben usar
+las familias de Koena aunque los tags usados para descargar sean Juice WRLD.
+La condición anterior de derivar artistas/instrumento del título desde los tags
+queda reemplazada solo para los títulos de este canal.
+
+Modo optativo `koena_v1`, sin modificar `guitar_v1` ni sus snapshots históricos:
+
+- `[FREE] Guitar x Hurricane Wisdom x Nino Paid Type Beat - "{name}"`.
+- `[FREE] Guitar x Nino Paid x FattMack Type Beat - "{name}"`.
+
+Se conserva el nombre real del beat; no se copian los nombres propios de los
+instrumentales del competidor. La familia principal se asigna a tres de cuatro
+valores hash del ID y la segunda al restante, de forma estable. No implica que
+un catálogo pequeño tenga una proporción exacta 75/25. Tags de selección,
+horarios, fondos y términos de licencia se conservan. La primera línea de la
+descripción refleja el título nuevo.
+
+Los 611 snapshots del catálogo se generaron y revalidaron. 388 pruebas locales
+OK, con dos smokes opcionales omitidos. Código publicado en `f5aeb15` y modo
+remoto activo por CAS y leído de vuelta; demás canales conservados.
+
+La edición de los tres videos existentes quedó preparada en
+`tokens/guitar_trap_koena_targets.json` (respaldo local, fuera de Git), pero no
+se ejecutó: Google no recibió la autorización adicional de edición dentro de
+los cinco minutos del flujo OAuth. No se modificaron los títulos de YouTube
+ni los snapshots de esas tres publicaciones. Próximo paso: reabrir OAuth con
+`youtube.force-ssl`, verificar el mismo ID de canal, editar título y primera
+línea de la descripción, releer título/status y migrar sus snapshots por CAS.
+
+Títulos preparados:
+
+- `YRndKj7tJNs`: `[FREE] Guitar x Hurricane Wisdom x Nino Paid Type Beat - "Lovers"`.
+- `_icpxvFht34`: `[FREE] Guitar x Nino Paid x FattMack Type Beat - "Vida de Rock"`.
+- `8g2abkDlkV8`: `[FREE] Guitar x Hurricane Wisdom x Nino Paid Type Beat - "I don't have friends"`.
+
+La simulación remota adicional `42433527359` se canceló mientras estaba en
+cola detrás de otra corrida de todos los canales; no se afirma validación
+remota nueva ni se canceló la corrida ajena. Las pruebas de esta corrección
+son las 388 locales y la generación/revalidación de los 611 snapshots.
