@@ -54,8 +54,8 @@
       "MatWyre",
       "WyreLatinBeatz"
     ],
-    "title_mode": "latin_v2",
-    "title_template": "(FREE) {style} Type Beat - \"{name}\"{detail}"
+    "title_mode": "latin_taimet_v1",
+    "title_template": "(FREE) {style} TYPE BEAT - \"{name}\""
   },
   "slots": [],
   "tags": [],

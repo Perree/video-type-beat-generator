@@ -20,6 +20,9 @@ class LatinV2Tests(unittest.TestCase):
 
     def snapshot(self, tags, title='Noche', previous=None):
         ch = self.channel()
+        # Replay v2 independently of subsequent changes to the live channel format.
+        ch['seo'].update(title_mode='latin_v2',
+                         title_template='(FREE) {style} Type Beat - "{name}"{detail}')
         apply_channel_templates(ch, {'title_template': ch['seo']['title_template'],
                                     'description_template': ch['seo']['description']})
         job = {'id': 'job', 'channel': ch['id'], 'track_id': 'TK1', 'cycle': 2 if previous else 1}

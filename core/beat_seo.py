@@ -13,6 +13,7 @@ from core import beat_afro_seo
 from core import beat_latin_seo_v2
 from core import beat_guitar_seo
 from core import beat_koena_seo
+from core import beat_latin_taimet_seo
 from core.beat_seo_report import fields, text, texts, moment, parse_report, validate_report
 
 
@@ -27,6 +28,7 @@ MODES = {beat_latin_seo.MODE: (beat_latin_seo, ('{artists}', '{style}')),
          beat_guitar_seo.MODE: (beat_guitar_seo, ('{style}',)),
          beat_koena_seo.MODE: (beat_koena_seo, ('{style}',)),
          beat_latin_seo_v2.MODE: (beat_latin_seo_v2, ('{style}', '{detail}')),
+         beat_latin_taimet_seo.MODE: (beat_latin_taimet_seo, ('{style}',)),
          beat_afro_seo.MODE: (beat_afro_seo, ('{style}',)),
          beat_house_seo.MODE: (beat_house_seo, ('{style}',)),
          beat_club_seo.MODE: (beat_club_seo, ('{style}',)),

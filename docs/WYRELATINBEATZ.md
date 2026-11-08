@@ -1,5 +1,35 @@
 # WyreLatinBeatz — automatización
 
+## Formato de títulos de referencia Taimet — 7/11/2026
+
+Pedido del usuario: que los títulos se parezcan más a los de Taimet. Se toma de
+las capturas su estructura visual, sin atribuirle causalmente sus visualizaciones:
+`(FREE) ARTISTA x ARTISTA TYPE BEAT - "NOMBRE"`. Artistas, TYPE BEAT y nombre en
+mayúsculas, separador x minúsculo, sin año ni sufijo de género/emoción.
+
+Modo optativo `latin_taimet_v1` en módulo propio. Reutiliza contexto, descripción
+y tags de latin_v2. Los artistas siguen saliendo de los tags reales; con uno se
+usa ese artista, y sin artistas se usa el género en mayúsculas. No se inventa una
+pareja para llenar la plantilla. Se conserva el nombre original, pasado a
+mayúsculas antes de calcular su límite de longitud, incluidas expansiones Unicode.
+
+Ejemplos reales del catálogo: `(FREE) BAD BUNNY x FEID TYPE BEAT - "VIDA MIA"`,
+`(FREE) BAD BUNNY TYPE BEAT - "NEW YORK"` y
+`(FREE) LATIN TRAP TYPE BEAT - "LO NUESTRO EMPIEZA"`.
+
+Se mantienen las descripciones, tags, enlaces individuales, selección de beats,
+video de fondo y calendario cada dos días a las 15:00. Los módulos latin_v1 y
+latin_v2 siguen disponibles para revalidar snapshots anteriores. BEAUTY GIRL,
+ya programado para el 10/11, y el piloto privado conservan su metadata anterior.
+Los cinco pendientes desde el 12/11 todavía no tienen snapshots: tomarán el modo
+nuevo al prepararse. No se requiere borrar ni modificar el estado de subidas.
+
+Verificación: cinco casos nuevos de formato, artistas, fallback, longitud Unicode,
+reintentos, repetición, compatibilidad de snapshots y manipulación; 18 pruebas
+latinas iniciales aprobadas. Se construyeron y revalidaron 138 snapshots del
+catálogo guardado de 1.151 beats. Se integró origin/master 69336d3 conservando
+los modos Guitar y Koena y su tratamiento de enlaces individuales.
+
 ## Activación — 7/11/2026
 
 El usuario autorizó activar y dejar lista la automatización. OAuth verificó

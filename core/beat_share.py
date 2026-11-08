@@ -14,7 +14,7 @@ def publication_link(channel, track, link):
         if not isinstance(link, str) or not SHORT_LINK.fullmatch(link):
             raise ValueError('beat_short_link_missing')
         return link
-    if channel.get('seo', {}).get('title_mode') in ('matwyre_v1', 'latin_v2', 'guitar_v1', 'koena_v1'):
+    if channel.get('seo', {}).get('title_mode') in ('matwyre_v1', 'latin_v2', 'latin_taimet_v1', 'guitar_v1', 'koena_v1'):
         if isinstance(link, str) and SHORT_LINK.fullmatch(link):
             return link
         # Use the catalog's actual page slug, never rebuild it from a display name.
