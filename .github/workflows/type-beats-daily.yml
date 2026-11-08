@@ -21,6 +21,10 @@ on:
         description: 'Simulate paused channel in memory (requires dry_run)'
         type: boolean
         default: false
+      verify_metadata:
+        description: 'Only read and verify uploaded titles, tags and future schedules'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -97,8 +101,11 @@ jobs:
           DRY_RUN: ${{ (inputs.dry_run || (vars.BEAT_LIVE_ENABLED != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.private_pilot))) && 'true' || 'false' }}
           PRIVATE_PILOT: ${{ github.event_name == 'workflow_dispatch' && inputs.private_pilot && 'true' || 'false' }}
           INCLUDE_PAUSED: ${{ inputs.include_paused && 'true' || 'false' }}
+          VERIFY_METADATA: ${{ inputs.verify_metadata && 'true' || 'false' }}
         run: |
-          if [ "$DRY_RUN" = "true" ]; then
+          if [ "$VERIFY_METADATA" = "true" ]; then
+            python -m core.beat_metadata_verify
+          elif [ "$DRY_RUN" = "true" ]; then
             if [ "$INCLUDE_PAUSED" = "true" ]; then
               python scripts/run_beat_daily.py --dry-run --include-paused
             else
