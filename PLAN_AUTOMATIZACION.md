@@ -1675,3 +1675,22 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
   revisiones de config y estado remoto sin cambios. No se subieron videos.
 - Control del worker sobre copia aislada de los cambios de esta fase: 329 pruebas,
   OK (2 omitidas). Los cambios en curso de otros canales no forman parte del arreglo.
+
+## Canal sad melodic — Preparar automatización de imagen fija ✅ COMPLETADA (2026-11-08)
+
+- Perfil local `docs/sad-melodic.channel.json`, en pausa, para el canal indicado por el usuario:
+  `UCE-BtAOt98IH0hTc4ceuYsQ`. Clave interna provisional `sad-melodic`.
+- Horario solicitado: todos los días a las 20:00 Argentina (UTC-3).
+- Selección OR por tags exactos: juice wrld, iann dior, the kid laroi, sad beat;
+  ignora mayúsculas y espacios externos, sin ampliar el filtro a géneros vecinos.
+- Modo SEO `sad_melodic_v1`: artistas de los tags reales, prefijo Sad solo cuando corresponde,
+  nombre limpio, descripción en inglés con enlace individual, BPM/tono disponibles y hashtags.
+  Sin enlaces, datos de contacto ni créditos de terceros inventados. Compatible con snapshots,
+  repetición del beat y compilación de plantillas del canal.
+- Imagen fija completa sin texto, bandas negras según proporción; YouTube usa un cuadro del video
+  como miniatura, sin carpeta ni diseño de portada separado. Reutiliza el render existente.
+- Validación: 86 pruebas aprobadas (nuevo perfil/SEO, selección, snapshots, plantillas,
+  composición, SEO melódico y planificación). main.py sin cambios.
+- Guía: `docs/SAD_MELODIC_SETUP.md`. Pendiente para la siguiente fase: imágenes del usuario,
+  registro/configuración remotos, conexión OAuth del canal, revisión del render y activación.
+  No hubo descargas, cambios remotos ni subidas de videos en esta fase de preparación.
