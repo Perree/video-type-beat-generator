@@ -1,7 +1,7 @@
 # Guitar trap — materiales del nuevo canal
 
-Preparación solicitada el 7/11/2026. `guitar-trap` es un identificador provisional;
-todavía no identifica un canal de YouTube ni una automatización activa.
+Preparación de materiales solicitada el 7/11/2026, inicialmente con el
+identificador provisional `guitar-trap`.
 
 Actualización: el usuario identificó Make You Beats,
 `UCwo47db3RCos_jTzzr1nsdg`, y pidió publicación diaria. OAuth confirmó ese ID
@@ -39,12 +39,10 @@ identifica una pista de video y duración positiva en cada uno de los siete vide
 No se realizó una decodificación completa ni un render de prueba.
 Inventario detallado local en `tokens/guitar_trap_assets.json` (fuera de Git).
 
-## Trabajo pendiente
+## Alcance de la primera fase
 
-Esta fase prepara los materiales en Dropbox. Quedan pendientes el nombre/handle
-del canal, selección definitiva del catálogo, configuración de títulos y tags,
-calendario, emparejamiento/rotación audiovisual y un render de prueba.
-No activa publicaciones ni modifica los canales existentes.
+La primera fase copió los materiales en Dropbox sin activar publicaciones.
+La segunda fase, solicitada después por el usuario, conecta y automatiza el canal.
 
 ## Automatización preparada
 
@@ -73,4 +71,42 @@ No activa publicaciones ni modifica los canales existentes.
 - Las siete fuentes suman más de 512 MiB: el límite existente puede omitir una
   fuente por montaje; no se elevó ese límite ni el cupo diario de subidas.
 
-La preparación remota permanece pausada hasta terminar las comprobaciones.
+## Validación y conexión
+
+- OAuth verificó Make You Beats y su ID exacto antes de guardar secretos propios
+  en `kit-weekly`. Token no persistido en archivos ni mostrado en logs.
+- Registro y configuración remotos guardados por CAS y releídos, conservando
+  los once canales existentes. BEAT_CHANNELS contiene doce slugs en total:
+  once anteriores más `guitar-trap`.
+- Simulación remota `42430925997`: success; planned=14, eligible=3,
+  uploaded=0 y todos los contadores de error en cero.
+- 387 pruebas locales aprobadas con los smokes reales de FFmpeg activados,
+  sin omisiones. La primera simulación remota aprobó las 386 pruebas anteriores
+  al ajuste de margen; el piloto usa el ajuste y su nueva prueba de regresión.
+- Muestra corregida completa de 204,0163 s validada, tres frames y miniatura
+  inspeccionados. Un frame conserva subtítulos incrustados en el videoclip
+  original; no se afirma que el margen elimine todos los textos de las fuentes.
+- Configuración/registro activos para ejecutar el piloto privado
+  `42431249016`; la prueba queda privada y consume su primer turno.
+- Piloto terminado con success: uploaded=1, failed/unknown/orphan=0.
+  `TK11808450`, `[FREE] Juice WRLD Type Beat - "I don't have friends"`,
+  YouTube `8g2abkDlkV8`; turno 8/11 a las 18:00 consumido como `private_pilot`.
+  Miniatura personalizada rechazada (`thumbnail_failed=1`, `thumbnail_rejected`);
+  no impidió subir el video. Se solicitó al usuario comprobar la habilitación
+  de miniaturas personalizadas; no se da por confirmada la causa del rechazo.
+- Corrida normal `42431772121` terminada con success: uploaded=2,
+  failed/unknown/orphan/blocked/expired/calendar_unavailable=0.
+  Miniaturas rechazadas en ambos videos (`thumbnail_failed=2`).
+- `Lovers` (`TK22318974`, `YRndKj7tJNs`) programado para 9/11/2026, 18:00
+  Buenos Aires; `Vida de Rock` (`TK20944427`, `_icpxvFht34`) para 10/11, 18:00.
+  Son recibos `scheduled`, no videos publicados en el momento de esta sesión.
+- Quedan once turnos planificados del 11 al 21/11. La corrida diaria habitual
+  mantiene el búfer, sujeta a cupo y procesamiento exitoso; PC apagada permitida.
+  El piloto no se convierte automáticamente en público.
+- Comprobación final: config y registro activos, tres recibos uploaded (un
+  piloto privado y dos scheduled), once planned y lease liberado. 387 pruebas
+  remotas aprobadas tanto en el piloto como en la corrida normal.
+- Límite de comprobación: se verificaron solicitudes y recibos de la API, pero
+  no se reprodujeron los videos de YouTube ni se hizo lectura posterior de
+  `status` por API. Las miniaturas personalizadas siguen pendientes de habilitación
+  o diagnóstico del canal; permanecen configuradas para próximos intentos.

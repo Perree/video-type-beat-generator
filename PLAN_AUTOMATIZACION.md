@@ -1,5 +1,26 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Make You Beats — automatización diaria ✅ COMPLETADA (2026-11-07)
+
+- Usuario pidió automatizar `UCwo47db3RCos_jTzzr1nsdg` y subir a diario. OAuth
+  confirmó Make You Beats; slug `guitar-trap`, horario inicial 18:00 Argentina.
+- Config/registro activos por CAS y releídos; secretos propios en kit-weekly,
+  BEAT_CHANNELS ampliado a doce conservando los once anteriores y sus calendarios.
+- Selección optativa guitar-trap:v1 y SEO guitar_v1: 611 elegibles sobre 1.151,
+  snapshots validados; artista/instrumento por tags, datos musicales disponibles,
+  créditos y enlace real por beat. Código en core, sin modificar main.py.
+- Siete videos y 35 miniaturas en Dropbox: montaje 1080p/30 FPS, fragmentos
+  3–6 s sin audio fuente; margen optativo de 15 s, miniaturas rotativas con bandas.
+- 387 pruebas locales y remotas aprobadas con FFmpeg real. Muestra de 204 s
+  validada y frames inspeccionados. Dry-run 42430925997: planned=14, eligible=3.
+- Piloto 42431249016: uploaded=1, video 8g2abkDlkV8 privado (turno 8/11).
+- Corrida 42431772121: uploaded=2, sin failed/unknown/orphan. Lovers YRndKj7tJNs
+  para 9/11, Vida de Rock _icpxvFht34 para 10/11, ambos 18:00; once pendientes.
+- Pendiente separado: YouTube rechazó las tres miniaturas personalizadas;
+  solicitada comprobación de habilitación al usuario, causa aún no confirmada.
+  La publicación diaria queda activa. Recibos verificados, sin reproducción ni
+  lectura posterior del status por API. Detalle: docs/GUITAR_TRAP_ASSETS.md.
+
 ## Guitar trap — materiales en Dropbox ✅ COMPLETADA (2026-11-07)
 
 - Usuario aportó dos carpetas locales y autorizó copiarlas a Dropbox.
