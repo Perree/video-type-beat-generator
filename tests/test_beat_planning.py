@@ -55,7 +55,7 @@ class PlanningTests(unittest.TestCase):
                          {"jobs": []}, {"lock": {"owner": "x", "expires_at": "bad"}}):
             with self.assertRaises((ValueError, TypeError)):
                 migrate(document, "state")
-        for change in ({"buffer_days": 15}, {"daily_upload_attempts": 7}, {"daily_upload_attempts": 16},
+        for change in ({"buffer_days": 15}, {"daily_upload_attempts": 7}, {"daily_upload_attempts": 16}, {"daily_upload_attempts": 26},
                        {"channels": [{"id": "x", "slots": [{"weekday": True, "hour": 18, "minute": 0}]}]}):
             with self.assertRaises(ValueError):
                 migrate(change, "config")
@@ -139,7 +139,7 @@ class PlanningTests(unittest.TestCase):
         second = self.store.dry_run(config, reversed(TRACKS))
         self.assertEqual(first, second)
         self.assertEqual(self.fake.counter, 0)
-        self.assertEqual(first["upload_attempts_remaining"], 15)
+        self.assertEqual(first["upload_attempts_remaining"], 25)
 
     def test_cancelled_and_failed_slots_not_duplicated(self):
         state = migrate({}, "state")
@@ -148,12 +148,12 @@ class PlanningTests(unittest.TestCase):
         apply_plan(state, jobs)
         self.assertEqual(plan(CONFIG, state, TRACKS, NOW), [])
 
-    def test_global_fifteen_attempts_retries_count_and_midnight(self):
+    def test_global_twenty_five_attempts_retries_count_and_midnight(self):
         jobs = self.prepare()
-        for i in range(15):
+        for i in range(25):
             self.store.reserve_attempt(jobs[i % 4]["id"], str(i))
         with self.assertRaises(BudgetExhausted):
-            self.store.reserve_attempt(jobs[0]["id"], "sixteenth")
+            self.store.reserve_attempt(jobs[0]["id"], "twenty-sixth")
         self.assertTrue(self.store.reserve_attempt(jobs[0]["id"], "0")["replayed"])
         with self.assertRaises(ValueError):
             self.store.reserve_attempt(jobs[1]["id"], "0")
@@ -172,7 +172,7 @@ class PlanningTests(unittest.TestCase):
 
     def test_concurrent_cas_global_budget(self):
         jobs = self.prepare()
-        for i in range(5):  # 12 racing workers compete for the last 10 of 15 attempts.
+        for i in range(15):  # 12 racing workers compete for the last 10 of 25 attempts.
             self.store.reserve_attempt(jobs[i % 4]["id"], "pre-" + str(i))
         barrier = Barrier(12)
         fake = self.fake
@@ -197,7 +197,7 @@ class PlanningTests(unittest.TestCase):
         with ThreadPoolExecutor(max_workers=12) as pool:
             results = list(pool.map(reserve, range(12)))
         self.assertEqual(sum(results), 10)
-        self.assertEqual(len(self.cloud.read("state")[0]["attempts"]["2026-10-12"]), 15)
+        self.assertEqual(len(self.cloud.read("state")[0]["attempts"]["2026-10-12"]), 25)
 
     def test_incomplete_v1_never_resets_budget_or_jobs(self):
         self.prepare()

@@ -9,7 +9,7 @@ from core.beat_cloud import BeatCloud, CloudError, Conflict, decode_document
 from core.beat_schema import DAILY_UPLOAD_ATTEMPTS
 
 LIMIT = DAILY_UPLOAD_ATTEMPTS
-LEGACY_LIMITS = (10,)  # Ledgers written before the 15-attempt limit; upgraded on next write.
+LEGACY_LIMITS = (10, 15)  # Ledgers written before the 25-attempt limit; upgraded on next write.
 PATH = dropbox_layout.REGISTRY_DIR + '/upload_budget.json'
 PACIFIC = ZoneInfo('America/Los_Angeles')
 

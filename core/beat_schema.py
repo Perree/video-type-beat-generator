@@ -10,8 +10,8 @@ from core import beat_interval
 BA = timezone(timedelta(hours=-3), "America/Argentina/Buenos_Aires")
 VERSION = 1
 # Daily automation upload attempts (shared with Loops via core.upload_budget).
-DAILY_UPLOAD_ATTEMPTS = 15
-LEGACY_UPLOAD_ATTEMPTS = (6, 10)
+DAILY_UPLOAD_ATTEMPTS = 25
+LEGACY_UPLOAD_ATTEMPTS = (6, 10, 15)
 
 
 def instant(value):
@@ -111,11 +111,15 @@ def migrate(document, kind):
                 raise ValueError("invalid_job_status")
             if "lost" in job and (job["lost"] is not True or job["status"] != "cancelled"):
                 raise ValueError("invalid_job_status")
+            if "swapped" in job:
+                if job["swapped"] is not True or job["status"] != "cancelled":
+                    raise ValueError("invalid_job_status")
+                instant(job.get("swapped_at"))
             if 'publication_mode' in job and job['publication_mode'] not in ('scheduled', 'private_pilot'):
                 raise ValueError('invalid_publication_mode')
             pair = (job["channel"], instant(job["slot"]))
-            # Una subida perdida libera su horario: otro trabajo puede ocuparlo.
-            if not job.get("lost"):
+            # Una subida perdida o un beat reemplazado liberan su horario: otro trabajo puede ocuparlo.
+            if not job.get("lost") and not job.get("swapped"):
                 if pair in occupied:
                     raise ValueError("duplicate_channel_slot")
                 occupied.add(pair)

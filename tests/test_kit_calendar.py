@@ -28,6 +28,7 @@ SUNDAY = datetime(2026, 10, 11, 10, 0)
 MONDAY_TAKEN = [scheduled_row('2026-10-12T18:00:00Z')]  # lunes 12, 15:00 en Buenos Aires
 MON, WED, FRI = '2026-10-12T21:00:00Z', '2026-10-14T21:00:00Z', '2026-10-16T21:00:00Z'
 NEXT_MON = '2026-10-19T21:00:00Z'
+TUESDAY = datetime(2026, 10, 13, 10, 0)  # dos días después de la corrida regular del domingo
 
 
 class WeeklyCalendarTests(unittest.TestCase):
@@ -39,12 +40,12 @@ class WeeklyCalendarTests(unittest.TestCase):
         now = SUNDAY.replace(tzinfo=BA)
         initialize(memory, now - timedelta(days=1))
         budget = UploadBudget(memory, lambda: now)
-        for _ in range(14):
+        for _ in range(24):
             budget.reserve('beats')
         code, _, dbx, tg = self.run_week(extra_hooks={'upload_budget': budget})
         self.assertEqual(code, 0)
         self.assertEqual(Counters.uploads, 1)
-        self.assertTrue(any('15 intentos' in message for message in tg.sent))
+        self.assertTrue(any('25 intentos' in message for message in tg.sent))
         code, _, _, _ = self.run_week(dbx, extra_hooks={'upload_budget': budget})
         self.assertEqual(code, 0)
         self.assertEqual(Counters.uploads, 1)
@@ -72,7 +73,8 @@ class WeeklyCalendarTests(unittest.TestCase):
     def run_week(self, dbx=None, **kw):
         dbx = dbx or FakeDropbox()
         tg = kw.pop('tg', FakeTelegram())
-        code, log = weekly._run(dbx, tg, self.out.name, now=SUNDAY, **kw)
+        kw.setdefault('now', SUNDAY)
+        code, log = weekly._run(dbx, tg, self.out.name, **kw)
         return code, log, dbx, tg
 
     def test_taken_monday_moves_to_wed_fri_and_next_monday(self):
@@ -99,6 +101,37 @@ class WeeklyCalendarTests(unittest.TestCase):
         code, _, _, _ = self.run_week(dbx, calendar_fn=self.calendar({'canal-smoke': rows}))
         self.assertEqual(code, 0)
         self.assertEqual(Counters.uploads, 3)
+
+    def test_catch_up_fills_only_missing_slots_of_that_week(self):
+        # La corrida del domingo no subió nada (cupo lleno): el martes se completan mié y vie;
+        # el lunes ya pasó y nunca se adelanta la semana siguiente.
+        tg = FakeTelegram()
+        code, log, dbx, _ = self.run_week(tg=tg, now=TUESDAY, catch_up=2,
+                                          calendar_fn=self.calendar({'canal-smoke': []}))
+        self.assertEqual(code, 0)
+        self.assertEqual(Counters.publish_ats, [WED, FRI])
+        self.assertIn('Recuperación: 2 horario(s)', log)
+        # Segunda recuperación el mismo día: nada que hacer, sin avisos ni cupo.
+        quiet = FakeTelegram()
+        rows = [scheduled_row(WED), scheduled_row(FRI)]
+        code, log, _, _ = self.run_week(dbx, tg=quiet, now=TUESDAY, catch_up=2,
+                                        calendar_fn=self.calendar({'canal-smoke': rows}))
+        self.assertEqual(code, 0)
+        self.assertEqual(Counters.uploads, 2)
+        self.assertEqual(quiet.sent, [])
+        self.assertIn('ya está programada', log)
+
+    def test_catch_up_after_complete_week_does_nothing(self):
+        code, _, dbx, _ = self.run_week(calendar_fn=self.calendar({'canal-smoke': []}))
+        self.assertEqual(code, 0)
+        self.assertEqual(Counters.uploads, 3)
+        quiet = FakeTelegram()
+        rows = [scheduled_row(iso) for iso in (MON, WED, FRI)]
+        code, _, _, _ = self.run_week(dbx, tg=quiet, now=TUESDAY, catch_up=2,
+                                      calendar_fn=self.calendar({'canal-smoke': rows}))
+        self.assertEqual(code, 0)
+        self.assertEqual(Counters.uploads, 3)
+        self.assertEqual(quiet.sent, [])
 
     def test_horizon_cuts_and_warns(self):
         # Todos los lun/mié/vie de los próximos 28 días ocupados salvo el viernes 16.

@@ -1895,3 +1895,24 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
   teléfono) y un beat sin preview en BeatStars (`explicit_audio_association_required`).
 - Validación: pruebas del contador, Beats diario, planificación, panel y calendario de kits actualizadas;
   prueba nueva de contador heredado con límite 10. Sin subidas ni cambios remotos en esta sesión.
+
+## Beats y Loops — Cupo 25, recuperación diaria de Loops y reemplazo de beats sin audio ✅ COMPLETADA (2026-11-09)
+
+- Qué no salió el lunes 09/11: Loops. La corrida del domingo de WyreSounds, WyreAfro y kiezsa loops
+  arrancó con el cupo compartido lleno (10/10, gastado por Beats) y se aplazó; como Loops corre una vez
+  por semana por canal, nadie lo reintentaba. Beats estaba al día: ey mat y mattwyyre no tienen trabajo
+  esos días porque el worker ya lee el calendario de YouTube de cada canal y esos días tenían programación.
+- Rescate con corridas manuales (`dry_run=false`): WyreSounds 09/11 y 11/11 (el 13/11 sin kit disponible),
+  WyreAfro 10/11 y 13/11, kiezsa loops 09/11 (su primer video). 5 intentos del día del Pacífico.
+- Cupo: `DAILY_UPLOAD_ATTEMPTS = 25` a pedido del usuario. Config con 6, 10 o 15 migra a 25; un
+  contador remoto con `limit: 10` o `15` se acepta y pasa a 25 en su próxima escritura.
+- Recuperación de Loops: la corrida diaria suma los canales cuyo día cayó en los últimos 6 días con
+  `catch_up` (días de atraso). `run_kit_weekly.py --catch-up N` recalcula los horarios de esa semana y sube
+  solo los que siguen sin video; si la semana está completa termina sin avisos, sin lock y sin cupo.
+- Beats: si el audio de un beat falla antes de subir (`explicit_audio_association_required`,
+  `audio_type_rejected`, `duration_mismatch`, `download_limit`), su trabajo pasa a `cancelled` con
+  `swapped: true`, libera el horario y otro beat lo toma en la misma corrida (`core/beat_swap.py`,
+  hasta 3 por corrida). Ese beat no se vuelve a elegir en el canal por 30 días. No gasta cupo.
+- Decisiones del usuario: guitar-trap sigue sin verificación telefónica (miniatura rechazada, se acepta).
+- Validación: tests de cupo actualizados, tests nuevos de recuperación de Loops y de reemplazo de beats,
+  smoke multicanal de Loops. `smoke_kit_weekly.py` ya fallaba antes de este cambio (resumen de Telegram).

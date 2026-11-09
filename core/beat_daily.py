@@ -23,6 +23,7 @@ from core.beat_selection import (eligible_tracks, selection_tags, ensure_selecti
 from core.publish_calendar import occupied_days
 from core import upload_spread
 from core.upload_budget import UploadDeferred
+from core import beat_swap
 
 
 def calendar_days(calendar, channel_id, clock):
@@ -57,6 +58,20 @@ def visual_genre(channel, track):
     folders = channel.get('dropbox_images', {})
     available = [genre for genre in genres if folders.get(genre)]
     return next((genre for genre in matches if genre in available), next(iter(available), ''))
+
+
+def _replace_track(cloud, clock, job, config, tracks, **plan_args):
+    """Cancela ``job`` (beat sin audio) y replanifica su canal; devuelve los trabajos nuevos."""
+    store = BeatState(cloud, clock)
+    if not store.swap_unusable(job['id']):
+        return []
+    owner = store.acquire(require_existing=True)
+    try:
+        additions = store.fill_buffer(config, tracks.values(), owner, **plan_args)
+    finally:
+        store.release(owner)
+    return sorted((deepcopy(added) for added in additions if added['channel'] == job['channel']),
+                  key=lambda added: added['slot'])
 
 
 def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
@@ -166,7 +181,10 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
         jobs = sorted((deepcopy(job) for job in state['jobs'].values()
                        if job['channel'] == channel_id and job['status'] in ('planned', 'failed')),
                       key=lambda job: job['slot'])
+        swaps = 0
+        # ``jobs`` puede crecer: un beat sin audio se reemplaza y el nuevo entra en la cola.
         for job in jobs:
+            entered = False
             # One eligible job only, even if persistence fails after the insert.
             if private_pilot and summary['eligible'] >= 1:
                 break
@@ -223,6 +241,7 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
                 ensure_selection(selection_cloud, channel)
                 with renderer(cloud, job['id'], track, channel, genre,
                               config.get('beatstars_profile_url'), assets, dry_run=dry_run) as media:
+                    entered = True
                     if dry_run:
                         remaining -= 1
                         continue
@@ -261,6 +280,18 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
                 summary['expired'] += 1
                 note(summary, 'slot_expired')
             except Exception as exc:
+                # Falla propia del beat antes de subir (sin audio): otro beat toma el horario.
+                if (not entered and not dry_run and swaps < beat_swap.MAX_PER_RUN
+                        and classify(exc) in beat_swap.UNUSABLE):
+                    swaps += 1
+                    try:
+                        jobs.extend(_replace_track(cloud, clock, job, planning_config, tracks,
+                            seed=seed, reports=reports, occupied_days=taken,
+                            before_commit=lambda: ensure_selection(selection_cloud, channel)))
+                        note(summary, 'track_swapped')
+                        continue
+                    except Exception as swap_exc:
+                        note(summary, swap_exc)
                 summary['failed'] += 1
                 note(summary, exc)
     except SelectionChanged:

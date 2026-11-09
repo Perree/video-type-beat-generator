@@ -109,6 +109,14 @@ class BeatState:
         guard = (lambda source: self._lease(source, owner)) if owner is not None else None
         return self.cloud.update("state", mutate, guard=guard)
 
+    def swap_unusable(self, job_id):
+        """Cancela un trabajo cuyo beat no se puede usar; su horario queda para otro beat.
+
+        Ver ``core.beat_swap``. Solo si sigue pendiente y sin intento. Devuelve True si lo hizo.
+        """
+        from core.beat_swap import mark
+        return self.cloud.update("state", lambda state: mark(state, job_id, self.clock()))
+
     def release_lost(self, channel, rows, taken, owner=None):
         """Libera las subidas perdidas del canal (ver ``beat_lost.lost_jobs``).
 

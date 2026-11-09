@@ -130,7 +130,13 @@ empezando por el domingo (`default,a,b` = domingo, lunes, martes). El día se fi
 `lun`..`dom`: `default,a=jue`. Sin la variable corre solo el canal por defecto, los domingos, como siempre.
 El workflow se dispara todos los días a las 23:00 UTC; el job `plan` (sin secretos ni Environment) arma la lista de
 canales del día y el job `weekly` corre uno por canal, cada uno con su Environment y su `concurrency`. En
-`workflow_dispatch` se elige el canal por su slug (`default` para el primero) y `dry_run`.
+`workflow_dispatch` se elige el canal por su slug (`default` para el primero) y `dry_run` (por defecto `true`:
+para subir de verdad hay que pasar `dry_run=false`).
+
+**Recuperación (2026-11-09):** la corrida diaria también suma los demás canales con `catch_up` = días desde su
+corrida regular. En ese modo el worker recalcula los horarios de esa semana y sube solo los que siguen sin video
+(por ejemplo, si el cupo compartido estaba lleno el día del canal). Si la semana está completa termina enseguida:
+sin avisos de Telegram, sin lock y sin gastar cupo. Nunca adelanta la semana siguiente.
 
 - El worker corta si la config o el token de YouTube del Environment no son del canal que le tocó
   (`kit_channel.check_owner`).

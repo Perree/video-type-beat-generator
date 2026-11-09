@@ -42,6 +42,8 @@ HORIZON_DAYS = 28
 # Pasado este tiempo desde la última lectura, se relee el calendario antes de videos.insert.
 CALENDAR_MAX_AGE_S = 20 * 60
 _PENDING_STATES = ('scheduled', 'uploaded', 'private_pending')
+# Hora local del cron (23:00 UTC): desde acá cuenta la semana de una corrida regular.
+CRON_HOUR = 20
 
 
 def local_tz():
@@ -83,6 +85,23 @@ def free_slots(now_local, slots_cfg, count, youtube_days, taken, tz):
     own = {day for day in map(_iso_day, taken) if day is not None}
     return next_free_slots(slots_cfg, now_local, set(youtube_days) - own, count,
                            HORIZON_DAYS, tz=tz)
+
+
+def catch_up_slots(now_local, late_days, slots_cfg, count, youtube_days, taken, tz):
+    """Horarios de la semana de la corrida regular de hace ``late_days`` días que siguen sin video.
+
+    Recalcula los slots que habría elegido esa corrida y deja solo los que todavía no
+    pasaron, no están en ``taken`` (``scheduled_packs``) y cuyo día no tiene otro video en
+    YouTube. Nunca adelanta horarios de la semana siguiente.
+    """
+    regular = datetime.combine(now_local.date() - timedelta(days=late_days),
+                               datetime.min.time()).replace(hour=CRON_HOUR)
+    out = []
+    for slot in free_slots(regular, slots_cfg, count, youtube_days, taken, tz):
+        if (slot > now_local and local_to_youtube_publish_at(True, slot, tz=tz) not in taken
+                and slot_day(slot, tz) not in youtube_days):
+            out.append(slot)
+    return out
 
 
 def scheduled_packs(state):
@@ -188,7 +207,7 @@ def save_new_kits(added, app_config, dbx, path, dry_run):
 
 def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, now=None,
                seed=None, notifier=kit_notify, output_dir=None, hooks=None, paths=None,
-               label=None, calendar_fn=None):
+               label=None, calendar_fn=None, catch_up=0):
     """Corre la semana y devuelve el código de salida (0 ok, 1 hubo un fallo).
 
     ``hooks`` son reemplazos para pruebas: ``list_packs_fn``, ``monotonic`` y los de
@@ -200,6 +219,9 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
     no hay días ocupados. Si la lectura falla no se sube nada y se avisa por Telegram.
     Un kit que no da un video se saltea y se prueba con el siguiente; que no alcancen los
     kits para todos los horarios es un aviso, no un fallo.
+    ``catch_up`` (días desde la corrida regular del canal, 0 = hoy): mayor que 0, solo se
+    suben los horarios de esa semana que quedaron sin video; si no falta ninguno, termina
+    sin avisos, sin lock y sin gastar cupo.
     """
     hooks = dict(hooks or {})
     own = paths is not None and not paths.is_default
@@ -207,7 +229,7 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
     if label:
         notifier = kit_channel.Prefixed(notifier, label)
         hooks.setdefault('art_notify', notifier.send)
-    if not dry_run:
+    if not dry_run and not catch_up:
         _notify(notifier, 'Automatización de Loop kits iniciada: revisando calendario y kits pendientes.')
     tz = local_tz()
     now_local = now or datetime.now(tz).replace(tzinfo=None)
@@ -236,6 +258,21 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
             _notify(notifier, kit_notify.alert(exc, step='calendario'))
             print(f"Fallo en calendario ({kit_notify.error_kind(exc)}).")
             return 1
+    if catch_up:
+        # Chequeo barato antes del lock: con la semana completa no hay nada que hacer.
+        try:
+            missing = catch_up_slots(now_local, catch_up, slots_cfg, count, youtube_days,
+                                     scheduled_packs(store.load()), tz)
+        except Exception as exc:
+            _notify(notifier, kit_notify.alert(exc, step='recuperación'))
+            print(f"Fallo en recuperación ({kit_notify.error_kind(exc)}).")
+            return 1
+        if not missing:
+            print("Recuperación: la semana ya está programada, no hay nada que subir.")
+            return 0
+        print(f"Recuperación: {len(missing)} horario(s) de la semana sin video.")
+        if not dry_run:
+            _notify(notifier, 'Loop kits: recuperando horarios de la semana que quedaron sin video.')
     read_at = monotonic()
     # Días de los videos subidos en esta corrida: no bloquean otro horario del mismo día.
     uploaded_days = set()
@@ -269,9 +306,13 @@ def run_weekly(*, app_config, channel, channel_templates, dbx, dry_run=False, no
             from core import kit_week
             state = store.load()
             taken = scheduled_packs(state)
-            slots = free_slots(now_local, slots_cfg, count, youtube_days, taken, tz)
+            if catch_up:
+                slots = catch_up_slots(now_local, catch_up, slots_cfg, count, youtube_days,
+                                       taken, tz)
+            else:
+                slots = free_slots(now_local, slots_cfg, count, youtube_days, taken, tz)
             proposed = [local_to_youtube_publish_at(True, slot, tz=tz) for slot in slots]
-            if len(slots) < count:
+            if len(slots) < count and not catch_up:
                 warnings.append(f"Solo {len(slots)} de {count} horario(s) libres en YouTube en "
                                 f"los próximos {HORIZON_DAYS} días: el resto ya está ocupado.")
             # Los kits de los slots ya subidos esta semana no se vuelven a elegir.
@@ -441,7 +482,12 @@ def main(argv=None):
     parser.add_argument('--cloud-config', action='store_true',
                         help='Lee la config de Dropbox aunque exista la local.')
     parser.add_argument('--seed', type=int)
+    parser.add_argument('--catch-up', type=int, default=int(os.environ.get('KIT_CATCH_UP') or 0),
+                        help='Días desde la corrida regular del canal (0-6): solo completa los '
+                             'horarios de esa semana que quedaron sin video.')
     args = parser.parse_args(argv)
+    if not 0 <= args.catch_up <= 6:
+        parser.error('--catch-up va de 0 a 6.')
 
     label = None
     try:
@@ -482,7 +528,7 @@ def main(argv=None):
                                   channel_templates=templates, dbx=dbx,
                                   dry_run=args.dry_run, seed=args.seed, output_dir=out,
                                   paths=paths, label=label, calendar_fn=calendar_fn,
-                                  hooks={} if args.dry_run else {
+                                  catch_up=args.catch_up, hooks={} if args.dry_run else {
                                       'upload_budget': UploadBudget(DropboxTransport(dbx))})
     except (Exception, SystemExit) as exc:
         # Sin traceback ni mensaje: el log de Actions es público. Los nombres de las

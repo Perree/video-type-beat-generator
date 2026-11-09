@@ -83,6 +83,8 @@ jobs:
         env:
           # Slug ya validado por el job plan; elige config, catálogo y estado del canal.
           KIT_AUTOMATION: ${{ matrix.channel }}
+          # Días desde su corrida regular: >0 solo completa los horarios de su semana sin video.
+          KIT_CATCH_UP: ${{ matrix.catch_up }}
           KIT_YT_CHANNEL: ${{ secrets.KIT_YT_CHANNEL }}
           KIT_YT_TOKEN_JSON: ${{ secrets.KIT_YT_TOKEN_JSON }}
           KIT_DROPBOX_REFRESH_TOKEN: ${{ secrets.KIT_DROPBOX_REFRESH_TOKEN }}

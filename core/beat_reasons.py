@@ -30,7 +30,7 @@ TEXTS = {
     'beat_short_link_missing': 'BeatStars no devolvió el enlace corto individual del beat. No se subió; se reintentará en otra corrida.',
     'seo_text_invalid': 'Un texto del título, descripción o etiquetas no es válido. Revisá los textos SEO del canal y del beat.',
     'upload_budget_unavailable': 'No se pudo guardar la pausa del canal: se detuvo esta corrida por seguridad.',
-    'shared_upload_budget_exhausted': 'Se alcanzaron los 15 intentos diarios compartidos entre Beats y Loops. Pendientes para otra corrida.',
+    'shared_upload_budget_exhausted': 'Se alcanzaron los 25 intentos diarios compartidos entre Beats y Loops. Pendientes para otra corrida.',
     'invalid_upload_budget': 'El contador compartido de subidas no es válido: subidas detenidas.',
     'telegram_failed': 'No se pudo enviar el aviso a Telegram. Revisá el bot y el chat compartidos.',
     'youtube_token_expired': 'El permiso de YouTube venció o fue revocado. Reconectá el canal '
@@ -58,6 +58,7 @@ TEXTS = {
     'image_catalog_failed': 'No se pudieron listar las imágenes del canal en Dropbox.',
     'image_catalog_limit': 'La carpeta de imágenes del canal tiene demasiados archivos.',
     'download_limit': 'Un archivo de Dropbox superó el tamaño permitido.',
+    'track_swapped': 'Un beat no tenía audio disponible: se reemplazó por otro beat en el mismo horario.',
     'request_failed': 'BeatStars no respondió.',
     'scan_timeout': 'BeatStars tardó demasiado en responder.',
     'scan_incomplete': 'BeatStars devolvió el catálogo incompleto.',

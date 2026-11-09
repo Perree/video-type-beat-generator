@@ -203,15 +203,21 @@ def _check_runs(a, b, out_dir):
 
 def _check_schedule():
     m = kit_channel.matrix
-    check(m('', 6) == [{'channel': 'default', 'suffix': ''}] and m(None, 0) == [],
-          "sin KIT_CHANNELS debe correr solo el canal por defecto, el domingo")
+    check(m('', 6) == [{'channel': 'default', 'suffix': '', 'catch_up': 0}]
+          and m(None, 0) == [{'channel': 'default', 'suffix': '', 'catch_up': 1}],
+          "sin KIT_CHANNELS: el canal por defecto el domingo, y en recuperación el resto de los días")
     text = 'default, canal-b ,canal-c=vie,canal-d=2'
     check(kit_channel.parse_schedule(text) == [('default', 6), ('canal-b', 0), ('canal-c', 4),
                                                ('canal-d', 2)], "calendario: un canal por día")
-    check(m(text, 0) == [{'channel': 'canal-b', 'suffix': '-canal-b'}] and m(text, 1) == [],
+    # Le toca a canal-b (catch_up 0); el resto entra en recuperación con los días de atraso.
+    check(m(text, 0) == [{'channel': 'canal-b', 'suffix': '-canal-b', 'catch_up': 0},
+                         {'channel': 'default', 'suffix': '', 'catch_up': 1},
+                         {'channel': 'canal-c', 'suffix': '-canal-c', 'catch_up': 3},
+                         {'channel': 'canal-d', 'suffix': '-canal-d', 'catch_up': 5}]
+          and not [e for e in m(text, 1) if e['catch_up'] == 0],
           "matriz del día")
-    check(m(text, 3, only='canal-c') == [{'channel': 'canal-c', 'suffix': '-canal-c'}]
-          and m(text, 3, only='default') == [{'channel': 'default', 'suffix': ''}],
+    check(m(text, 3, only='canal-c') == [{'channel': 'canal-c', 'suffix': '-canal-c', 'catch_up': 0}]
+          and m(text, 3, only='default') == [{'channel': 'default', 'suffix': '', 'catch_up': 0}],
           "corrida manual de un canal")
     for bad_only in ('no-esta', 'x"; echo hola', '../a'):
         check(_raises(kit_channel.KitChannelError, m, text, 0, bad_only), f"only aceptado: {bad_only}")
@@ -223,16 +229,18 @@ def _check_schedule():
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
         ok = kit_plan.main({'KIT_CHANNELS': text}, sunday)
         bad = kit_plan.main({'KIT_CHANNELS': text, 'KIT_ONLY': 'no-esta'}, sunday)
-    check(ok == 0 and out.getvalue().strip() == 'matrix=[{"channel":"default","suffix":""}]',
-          f"kit_plan: {out.getvalue()!r}")
+    sunday_matrix = ('matrix=[{"channel":"default","suffix":"","catch_up":0},'
+                     '{"channel":"canal-c","suffix":"-canal-c","catch_up":2},'
+                     '{"channel":"canal-d","suffix":"-canal-d","catch_up":4},'
+                     '{"channel":"canal-b","suffix":"-canal-b","catch_up":6}]')
+    check(ok == 0 and out.getvalue().strip() == sunday_matrix, f"kit_plan: {out.getvalue()!r}")
     check(bad == 1 and 'no-esta' not in err.getvalue(), "kit_plan aceptó un canal desconocido")
     # Cron del domingo demorado hasta el lunes 00:17 en Buenos Aires: sigue siendo domingo.
     out = io.StringIO()
     late = datetime(2026, 10, 12, 3, 17, tzinfo=timezone.utc)
     with contextlib.redirect_stdout(out):
         kit_plan.main({'KIT_CHANNELS': text}, late)
-    check(out.getvalue().strip() == 'matrix=[{"channel":"default","suffix":""}]',
-          f"kit_plan con cron demorado: {out.getvalue()!r}")
+    check(out.getvalue().strip() == sunday_matrix, f"kit_plan con cron demorado: {out.getvalue()!r}")
     check("cron: '0 23 * * *'" in open(os.path.join(ROOT, '.github', 'workflows', 'kit-weekly.yml'),
                                        encoding='utf-8').read() and kit_plan.CRON_OFFSET.total_seconds() == 23 * 3600,
           "kit_plan.CRON_OFFSET no coincide con el cron del workflow")

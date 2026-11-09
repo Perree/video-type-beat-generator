@@ -164,18 +164,25 @@ def parse_schedule(text):
 def matrix(text, weekday, only=None):
     """Canales que corren: los del día ``weekday``, o solo ``only`` (corrida manual).
 
+    En la corrida diaria también entran los canales cuyo día cayó en los últimos 6 días, en
+    modo recuperación: solo suben los horarios de su semana que hayan quedado sin video (por
+    ejemplo, si el cupo compartido estaba lleno). Si la semana está completa no hacen nada.
+
     Returns:
-        lista de ``{channel, suffix}``; ``suffix`` completa el nombre del Environment.
+        lista de ``{channel, suffix, catch_up}``; ``suffix`` completa el nombre del
+        Environment y ``catch_up`` son los días desde su corrida regular (0 = le toca hoy).
     """
     schedule = parse_schedule(text)
     if only is not None and str(only).strip():
         key = DEFAULT if is_default(only) else _check(only)
         if key not in dict(schedule):
             raise KitChannelError("Ese canal no está en KIT_CHANNELS.")
-        chosen = [key]
+        chosen = [(key, 0)]
     else:
-        chosen = [key for key, day in schedule if day == weekday]
-    return [{'channel': key, 'suffix': environment(key)[len(ENV_PREFIX):]} for key in chosen]
+        chosen = sorted(((key, (weekday - day) % 7) for key, day in schedule),
+                        key=lambda item: item[1])
+    return [{'channel': key, 'suffix': environment(key)[len(ENV_PREFIX):], 'catch_up': late}
+            for key, late in chosen]
 
 
 def matrix_json(text, weekday, only=None):

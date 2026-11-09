@@ -112,7 +112,7 @@ def _config(out_dir):
 
 
 def _run(dbx, tg, out_dir, dry_run=False, now=NOW, config=None, extra_hooks=None,
-         calendar_fn=None, channel='canal-smoke'):
+         calendar_fn=None, channel='canal-smoke', catch_up=0):
     hooks = {'list_packs_fn': _packs, 'render_fn': _fake_render, 'cut_fn': _fake_cut,
              'end_fn': lambda path, **_k: 28.0, **(extra_hooks or {})}
     buf = io.StringIO()
@@ -120,7 +120,7 @@ def _run(dbx, tg, out_dir, dry_run=False, now=NOW, config=None, extra_hooks=None
         code = run_kit_weekly.run_weekly(
             app_config=config or _config(out_dir), channel=channel, channel_templates={},
             dbx=dbx, dry_run=dry_run, now=now, seed=1, notifier=tg, hooks=hooks,
-            output_dir=out_dir, calendar_fn=calendar_fn)
+            output_dir=out_dir, calendar_fn=calendar_fn, catch_up=catch_up)
     return code, buf.getvalue()
 
 

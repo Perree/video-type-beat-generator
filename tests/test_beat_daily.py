@@ -116,7 +116,7 @@ class DailyTests(unittest.TestCase):
         from core.upload_budget import UploadBudget, initialize
         initialize(self.memory, NOW - timedelta(days=1))
         budget = UploadBudget(self.memory, lambda: NOW)
-        for _ in range(12):
+        for _ in range(22):
             budget.reserve('loops')
         summary = self.run_worker(upload_budget=budget)
         self.assertEqual(summary['uploaded'], 3)
@@ -260,6 +260,58 @@ class DailyTests(unittest.TestCase):
         self.assertEqual(summary['blocked'], 1)
         self.assertEqual(summary['planned'], 0)
         self.assertEqual(self.cloud.read('state'), before)
+
+    def test_beat_without_audio_is_replaced_by_another_in_same_slot(self):
+        from core.beat_http import BeatError
+        from core.beat_swap import unusable_tracks
+        # Solo miércoles: 2 horarios en el búfer y beats de sobra para reemplazar.
+        self.cloud.update('config', lambda config: config['channels'][0].update(
+            slots=[{'weekday': 2, 'hour': 18, 'minute': 0}]))
+        original, failed = self.renderer, []
+        @contextmanager
+        def no_audio_once(cloud, job_id, track, *args, **kwargs):
+            if not failed:
+                failed.append((job_id, track['id']))
+                raise BeatError('explicit_audio_association_required')
+            with original(cloud, job_id, track, *args, **kwargs) as media:
+                yield media
+        with patch.object(self, 'renderer', side_effect=no_audio_once):
+            summary = self.run_worker()
+        self.assertEqual(summary['failed'], 0)
+        self.assertEqual(summary['uploaded'], 2)
+        self.assertEqual(summary['reasons'].get('track_swapped'), 1)
+        state, _ = self.cloud.read('state')
+        job_id, track_id = failed[0]
+        swapped = state['jobs'][job_id]
+        self.assertEqual((swapped['status'], swapped['swapped']), ('cancelled', True))
+        replacement = [job for job in state['jobs'].values()
+                       if job['slot'] == swapped['slot'] and job['status'] == 'uploaded']
+        self.assertEqual(len(replacement), 1)
+        self.assertNotEqual(replacement[0]['track_id'], track_id)
+        # El beat sin audio no gastó intento y descansa en el canal.
+        attempted = {e['job_id'] for day in state['attempts'].values() for e in day.values()}
+        self.assertNotIn(job_id, attempted)
+        self.assertEqual(len(attempted), 2)
+        self.assertIn(('channel', track_id), unusable_tracks(state, NOW))
+        self.assertNotIn(track_id, {job['track_id'] for job in plan(
+            migrate(self.cloud.read('config')[0], 'config'), state,
+            [{'id': track_id}], NOW + timedelta(days=8))})
+
+    def test_beat_swaps_stop_after_limit(self):
+        from core.beat_http import BeatError
+        from core.beat_swap import MAX_PER_RUN
+        self.cloud.update('config', lambda config: config['channels'][0].update(
+            slots=[{'weekday': 2, 'hour': 18, 'minute': 0}]))
+        @contextmanager
+        def never_audio(*args, **kwargs):
+            raise BeatError('explicit_audio_association_required')
+            yield
+        with patch.object(self, 'renderer', side_effect=never_audio):
+            summary = self.run_worker()
+        self.assertEqual(summary['reasons'].get('track_swapped'), MAX_PER_RUN)
+        self.assertEqual(summary['uploaded'], 0)
+        self.assertEqual(self.calls, [])
+        self.assertGreater(summary['failed'], 0)
 
     def test_selection_change_before_next_render_blocks_pending_jobs(self):
         original = self.renderer
@@ -719,9 +771,9 @@ class DailyTests(unittest.TestCase):
         self.assertEqual({job['channel'] for job in state['jobs'].values()}, {'channel'})
         summary = run_daily(self.cloud, 'second', DropboxAssets(self.assets_client), self.upload,
                             self.receipts, source=self.source, renderer=self.renderer, clock=lambda: NOW)
-        self.assertEqual(summary['uploaded'], 1)
+        self.assertEqual(summary['uploaded'], 11)
         self.assertGreater(summary['budget'], 0)
-        self.assertEqual(len(self.calls), 15)
+        self.assertEqual(len(self.calls), 25)
 
     def test_exclusive_reservation_race_only_one_winner(self):
         state, rev = self.cloud.read('state')

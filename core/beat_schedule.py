@@ -7,6 +7,7 @@ from core.beat_schema import identity, instant, migrate
 from core.beat_rotation import repeat_ready, publication_time
 from core.beat_performance import performance, choose
 from core.beat_selection import eligible_tracks
+from core.beat_swap import unusable_tracks
 from core.beat_matwyre import SELECTION as MATWYRE, balanced
 
 
@@ -61,11 +62,14 @@ def plan(config, state, tracks, now, *, seed=None, reports=None, occupied_days=(
         raise ValueError("invalid_track_id")
     channels = sorted((ch for ch in config["channels"] if ch["active"]),
                       key=lambda ch: (-ch["priority"], ch["id"]))
-    pools = {ch['id']: eligible_tracks(ch, tracks) for ch in channels}
+    # Un beat reemplazado por no tener audio descansa en ese canal (core.beat_swap).
+    unusable = unusable_tracks(state, now)
+    pools = {ch['id']: [t for t in eligible_tracks(ch, tracks) if (ch['id'], t['id']) not in unusable]
+             for ch in channels}
     catalog_ids = {cid: sorted({track['id'] for track in pool}) for cid, pool in pools.items()}
-    # Las subidas perdidas (``lost``) ya no ocupan su horario.
+    # Las subidas perdidas (``lost``) y los beats reemplazados (``swapped``) no ocupan su horario.
     occupied = {(j["channel"], instant(j["slot"])) for j in state["jobs"].values()
-                if not j.get("lost")}
+                if not j.get("lost") and not j.get("swapped")}
     existing_ids = set(state["jobs"])
     occupied_days = set(occupied_days)
     queues = {ch["id"]: [s for s in slots(ch, now)
