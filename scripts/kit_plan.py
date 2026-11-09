@@ -16,11 +16,15 @@ if ROOT not in sys.path:
 
 from core import kit_channel
 
+CRON_OFFSET = timedelta(hours=23)  # Igual al cron de .github/workflows/kit-weekly.yml.
+
 
 def main(env=None, now=None):
     env = os.environ if env is None else env
-    # Día de la semana en Buenos Aires (UTC-3 fijo), igual que los horarios del worker.
-    today = (now or datetime.now(timezone.utc)) - timedelta(hours=3)
+    # Día del cron (23:00 UTC = 20:00 Buenos Aires), no de la hora real de arranque:
+    # GitHub suele demorar el cron 3-4 h y cruzar la medianoche, lo que salteaba el
+    # canal del día. Restar 23 h devuelve el día del disparo para demoras de hasta 24 h.
+    today = (now or datetime.now(timezone.utc)) - CRON_OFFSET
     try:
         print('matrix=' + kit_channel.matrix_json(
             env.get('KIT_CHANNELS'), today.weekday(), env.get('KIT_ONLY')))

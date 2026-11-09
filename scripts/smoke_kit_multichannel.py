@@ -226,6 +226,16 @@ def _check_schedule():
     check(ok == 0 and out.getvalue().strip() == 'matrix=[{"channel":"default","suffix":""}]',
           f"kit_plan: {out.getvalue()!r}")
     check(bad == 1 and 'no-esta' not in err.getvalue(), "kit_plan aceptó un canal desconocido")
+    # Cron del domingo demorado hasta el lunes 00:17 en Buenos Aires: sigue siendo domingo.
+    out = io.StringIO()
+    late = datetime(2026, 10, 12, 3, 17, tzinfo=timezone.utc)
+    with contextlib.redirect_stdout(out):
+        kit_plan.main({'KIT_CHANNELS': text}, late)
+    check(out.getvalue().strip() == 'matrix=[{"channel":"default","suffix":""}]',
+          f"kit_plan con cron demorado: {out.getvalue()!r}")
+    check("cron: '0 23 * * *'" in open(os.path.join(ROOT, '.github', 'workflows', 'kit-weekly.yml'),
+                                       encoding='utf-8').read() and kit_plan.CRON_OFFSET.total_seconds() == 23 * 3600,
+          "kit_plan.CRON_OFFSET no coincide con el cron del workflow")
 
     with open(os.path.join(ROOT, '.github', 'workflows', 'kit-weekly.yml'), encoding='utf-8') as f:
         workflow = f.read()
