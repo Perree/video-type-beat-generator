@@ -163,8 +163,28 @@ def _logic_checks():
     ok &= _check(floor['ok'] is False, f'short_min=100 con 90 s: {floor}')
 
     ok &= _check(settings({'target_min_s': 120}) == {
-        'target_min_s': 120.0, 'target_max_s': 195.0, 'short_min_s': 0.0, 'min_loops': 4},
-        'settings')
+        'target_min_s': 120.0, 'target_max_s': 195.0, 'short_min_s': 0.0, 'min_loops': 4,
+        'loops_per_video': 4}, 'settings')
+    ok &= _check(settings({'loops_per_video': 0})['loops_per_video'] == 0, 'loops_per_video 0')
+    # Modo por cantidad: un kit de 8 loops da 2 videos de 4 y vuelve a empezar.
+    eight = _pack(loops=[f'/kits/pack/loops/f{i}.wav' for i in range(8)])
+    first = plan_audio(eight, [], rng, loops_per_video=4, end_fn=lambda p, **kw: 20.0)
+    second = plan_audio(eight, [first], rng, loops_per_video=4, end_fn=lambda p, **kw: 20.0)
+    names = lambda plan: {seg['path'] for seg in plan['segments']}
+    ok &= _check(first['ok'] and len(first['segments']) == 4 and not first['exhausted']
+                 and not first['short'], f'8 loops, video 1: {first}')
+    ok &= _check(second['ok'] and len(second['segments']) == 4 and second['exhausted']
+                 and not names(first) & names(second), f'8 loops, video 2: {second}')
+    # 6 loops: el segundo video usa los 2 que quedan y completa con 2 ya usados.
+    six = _pack(loops=[f'/kits/pack/loops/s{i}.wav' for i in range(6)])
+    a = plan_audio(six, [], rng, loops_per_video=4, end_fn=lambda p, **kw: 20.0)
+    b = plan_audio(six, [a], rng, loops_per_video=4, end_fn=lambda p, **kw: 20.0)
+    ok &= _check(b['ok'] and len(b['segments']) == 4 and b['exhausted']
+                 and {seg['path'] for seg in six['loops']} - names(a) <= names(b),
+                 f'6 loops, video 2: {b}')
+    ok &= _check(plan_audio(_pack(loops=['/x/a.wav'] * 0 + ['/x/a.wav']), [], rng,
+                            loops_per_video=4, end_fn=lambda p, **kw: 20.0)['ok'] is False,
+                 'kit con menos loops que los del video')
     ok &= _check(settings({'min_loops_per_video': 6})['min_loops'] == 6, 'min_loops_per_video')
     try:
         plan_audio(loop_pack, [], rng, target_min=200, target_max=195)

@@ -18,6 +18,9 @@ from core.kit_trim import KitTrimError, _ffmpeg, preview_end_sec
 
 DEFAULTS = {'target_min_s': 135.0, 'target_max_s': 195.0, 'short_min_s': 0.0}
 DEFAULT_MIN_LOOPS = 4
+# Loops por video: el kit se reparte en videos de esta cantidad (8 loops = 2 videos), sin
+# importar la duración. 0 vuelve al modo por duración (target_min_s..target_max_s).
+DEFAULT_LOOPS_PER_VIDEO = 4
 # Margen hacia adentro de la ventana: el corte real se cuantiza a muestras.
 EDGE_SEC = 0.05
 _TRIM_DEFAULTS = {'noise_db': -40, 'min_silence': 0.35, 'min_preview': 1.5, 'max_preview': 40}
@@ -32,6 +35,7 @@ def settings(kit_cfg=None):
     kit_cfg = kit_cfg or {}
     cfg = {key: float(kit_cfg.get(key, default)) for key, default in DEFAULTS.items()}
     cfg['min_loops'] = max(1, int(kit_cfg.get('min_loops_per_video', DEFAULT_MIN_LOOPS)))
+    cfg['loops_per_video'] = max(0, int(kit_cfg.get('loops_per_video', DEFAULT_LOOPS_PER_VIDEO)))
     return cfg
 
 
@@ -65,8 +69,45 @@ def _segment(rec, start, end):
             'start': round(start, 3), 'end': round(end, 3)}
 
 
+def _plan_fixed(pack, used, rng, count, trim, local_fn, end_fn):
+    """Modo por cantidad: ``count`` loops al azar, primero los no usados en el ciclo.
+
+    Si al kit le quedan menos de ``count`` sin usar, se completan con loops ya usados y el
+    kit cierra el ciclo (``exhausted``): la próxima vuelta arranca de nuevo con otro orden.
+    """
+    loops = list(pack.get('loops') or [])
+    fresh = [loop for loop in loops if loop['path'] not in used]
+    rest = [loop for loop in loops if loop['path'] in used]
+    rng.shuffle(fresh)
+    rng.shuffle(rest)
+    segments, unusable, fresh_taken = [], 0, 0
+    for index, loop in enumerate(fresh + rest):
+        if len(segments) >= count:
+            break
+        try:
+            end = round(float(end_fn(local_fn(loop), **trim)), 3)
+        except KitTrimError:
+            end = 0
+        if end <= 0:
+            unusable += 1
+            continue
+        segments.append(_segment(loop, 0.0, end))
+        fresh_taken += index < len(fresh)
+    warnings = []
+    if unusable:
+        warnings.append(f"{unusable} loop(s) no se pudieron usar (sin corte claro).")
+    if len(segments) < count:
+        return {'ok': False, 'mode': None, 'segments': [], 'duration': 0.0, 'short': True,
+                'exhausted': True,
+                'warnings': warnings + [f"El kit no junta {count} loops utilizables: no se arma video."]}
+    return {'ok': True, 'mode': 'assembled', 'segments': segments,
+            'duration': round(sum(seg['end'] - seg['start'] for seg in segments), 3),
+            'short': False, 'exhausted': len(fresh) - fresh_taken < count, 'warnings': warnings}
+
+
 def plan_audio(pack, used_before, rng, target_min=135, target_max=195, *, short_min=0,
-               min_loops=DEFAULT_MIN_LOOPS, trim=None, local_fn=None, end_fn=None):
+               min_loops=DEFAULT_MIN_LOOPS, loops_per_video=0, trim=None, local_fn=None,
+               end_fn=None):
     """Decide los tramos de audio de un video para que dure entre target_min y target_max.
 
     Args:
@@ -96,6 +137,8 @@ def plan_audio(pack, used_before, rng, target_min=135, target_max=195, *, short_
     local_fn = local_fn or _local_path
     end_fn = end_fn or preview_end_sec
     used = _used_paths(used_before)
+    if int(loops_per_video or 0) > 0:
+        return _plan_fixed(pack, used, rng, int(loops_per_video), trim, local_fn, end_fn)
     warnings = []
 
     def nothing(text):

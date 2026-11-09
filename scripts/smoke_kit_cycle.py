@@ -28,6 +28,8 @@ from core import kit_cycle
 from core.kit_audio import plan_audio
 
 START = datetime(2026, 1, 4, 23, 5, 0)  # domingo
+# Reglas anteriores (3 videos y 30 días de descanso): siguen disponibles por config.
+LEGACY = {'cycle_max_videos': 3, 'cycle_rest_days': 30, 'kit_min_gap_days': 7}
 
 
 def _check(cond, msg):
@@ -75,9 +77,18 @@ def _overlap(first, second):
 
 def _unit_checks():
     ok = True
-    cfg = kit_cycle.settings()
-    ok &= _check(cfg == {'cycle_max_videos': 3, 'cycle_rest_days': 30, 'kit_min_gap_days': 7,
-                         'kits_per_week': 3}, f'defaults {cfg}')
+    defaults = kit_cycle.settings()
+    ok &= _check(defaults == {'cycle_max_videos': 99, 'cycle_rest_days': 0, 'kit_min_gap_days': 0,
+                              'kits_per_week': 3}, f'defaults {defaults}')
+    # Rueda: un kit que se quedó sin loops vuelve a estar disponible enseguida.
+    closed = kit_cycle.advance({}, START, defaults, close=True)
+    ok &= _check(kit_cycle.status(closed, START.isoformat(), START + timedelta(days=1),
+                                  defaults)['eligible'], 'rueda: kit cerrado disponible al día siguiente')
+    # Un descanso guardado con la regla vieja de 30 días se acorta a la vigente.
+    old = {'cycle_videos': 1, 'rest_until': (START + timedelta(days=30)).isoformat()}
+    ok &= _check(kit_cycle.status(old, START.isoformat(), START + timedelta(days=1),
+                                  defaults)['eligible'], 'descanso viejo acortado')
+    cfg = kit_cycle.settings(LEGACY)
     ok &= _check(kit_cycle.settings({'cycle_rest_days': 45})['cycle_rest_days'] == 45, 'config')
 
     cycle = {}
@@ -141,7 +152,7 @@ def _unit_checks():
 def _simulation_checks():
     """20 semanas con 12 kits: reglas del ciclo y del audio sobre el estado guardado."""
     ok = True
-    cfg = kit_cycle.settings()
+    cfg = kit_cycle.settings(LEGACY)
     rng = random.Random(5)
     packs = [_pack(f'K{i:02d}') for i in range(11)] + [_pack('Chico', loops=6)]
     by_path = {p['dropbox_path']: p for p in packs}

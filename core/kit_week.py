@@ -240,6 +240,7 @@ def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_c
                 pack, kit_cycle.used_segments(state, path, now, cycle_cfg), rng,
                 audio_cfg['target_min_s'], audio_cfg['target_max_s'],
                 short_min=audio_cfg['short_min_s'], min_loops=audio_cfg['min_loops'],
+                loops_per_video=audio_cfg['loops_per_video'],
                 trim=kit_cfg.get('trim'), local_fn=local_fn, end_fn=hooks.get('end_fn'))
             if not plan['ok']:
                 raise KitSkip('audio')
@@ -249,7 +250,8 @@ def make_video(selection, entry, *, kit_cfg, channel, channel_templates, slots_c
             image_local = _image_local(image, tmp, dbx) if image else None
             pack_id = store.upsert_pack(path, pack['name'])
 
-            base_name = (entry or {}).get('name') or pack['name']
+            # Solo el nombre del kit ("CYPRUS"), nunca la descripción completa de la tienda.
+            base_name = kit_names.short_name((entry or {}).get('name') or pack['name'])
             names_cfg = kit_cfg.get('names')
             if names_cfg and genre:
                 names_cfg = {**names_cfg, 'genre': genre}

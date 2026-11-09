@@ -25,6 +25,19 @@ _SYSTEM = (
     "Respondes solo con la lista pedida, un nombre por línea, sin numerar ni explicar.")
 
 
+def short_name(full):
+    """Solo el nombre del kit, sin la descripción de la tienda.
+
+    ``"CYPRUS - Melodic House x Reggaeton (Production Suite)"`` -> ``"CYPRUS"``;
+    ``"Vertigo - Reggaeton x Latin House (Loop Kit)"`` -> ``"Vertigo"``. Si no queda nada,
+    devuelve el texto original.
+    """
+    text = str(full or '').strip()
+    name = re.split(r'\s+[-–—|]\s+', text, maxsplit=1)[0]
+    name = re.sub(r'\s*[(\[].*$', '', name).strip(' !-–—|')
+    return name or text
+
+
 def _norm(name):
     text = unicodedata.normalize('NFKD', name)
     text = ''.join(c for c in text if not unicodedata.combining(c))

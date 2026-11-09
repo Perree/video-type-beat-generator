@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """Ciclo de videos por kit: hasta N videos, descanso y ciclo nuevo.
 
+Desde 2026-11-09 los kits giran en rueda: sin descanso ni separación por defecto. Un kit
+cierra su ciclo cuando se le acaban los loops y vuelve a arrancar enseguida; siempre sale
+primero el que hace más que no se usa, así nunca queda un horario sin kit.
+
 Funciones puras sobre el estado de ``kit_state.load()``; no leen ni escriben
 Dropbox. Los plazos se cuentan por fecha de calendario: una corrida semanal que
 arranca unos minutos antes que la anterior igual cumple los 7 días.
@@ -11,9 +15,9 @@ from datetime import datetime, timedelta
 from core.kit_select import KitSelectError, choose
 
 DEFAULTS = {
-    'cycle_max_videos': 3,
-    'cycle_rest_days': 30,
-    'kit_min_gap_days': 7,
+    'cycle_max_videos': 99,  # el ciclo lo cierra el kit al quedarse sin loops
+    'cycle_rest_days': 0,
+    'kit_min_gap_days': 0,
     'kits_per_week': 3,
 }
 _COUNTED_STATES = ('rendered', 'scheduled', 'private_pending', 'uploaded')
@@ -59,8 +63,11 @@ def current(cycle, now, cfg=None, last_used_at=None):
     now = _when(now)
     videos = int((cycle or {}).get('cycle_videos') or 0)
     rest_until = _when((cycle or {}).get('rest_until'))
+    last = _when(last_used_at)
+    if rest_until is not None and last is not None:
+        # Un descanso guardado con una regla más larga se acorta a la regla vigente.
+        rest_until = min(rest_until, last + timedelta(days=cfg['cycle_rest_days']))
     if rest_until is None and videos >= cfg['cycle_max_videos']:
-        last = _when(last_used_at)
         rest_until = last + timedelta(days=cfg['cycle_rest_days']) if last else now
     if rest_until is not None and _days_between(rest_until, now) >= 0:
         return {'cycle_videos': 0, 'rest_until': None}

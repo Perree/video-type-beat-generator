@@ -1916,3 +1916,25 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
 - Decisiones del usuario: guitar-trap sigue sin verificación telefónica (miniatura rechazada, se acepta).
 - Validación: tests de cupo actualizados, tests nuevos de recuperación de Loops y de reemplazo de beats,
   smoke multicanal de Loops. `smoke_kit_weekly.py` ya fallaba antes de este cambio (resumen de Telegram).
+
+## Loops — Rueda de kits, 4 loops por video, nombre corto y fotos de kiezsa loops ✅ COMPLETADA (2026-11-09)
+
+- Pedido del usuario: que ningún día quede sin video, que los kits giren en rueda (kit 1, 2, 3 y
+  vuelta al 1), que cada video use una parte del kit, que el orden de los loops sea al azar, que el
+  título lleve solo el nombre del kit y que kiezsa loops use fotos como sus otros videos.
+- Causa de los huecos: cada kit cerraba su ciclo después de un video (el audio de 135-195 s se comía
+  casi todos sus loops) y descansaba 30 días. El viernes 13/11 de WyreSounds quedó sin kit por eso.
+- `core/kit_cycle.py`: por defecto sin descanso ni separación (`cycle_rest_days: 0`,
+  `kit_min_gap_days: 0`, `cycle_max_videos: 99`). Sale primero el kit que hace más que no se usa;
+  un descanso guardado con la regla vieja se acorta a la vigente. Las reglas viejas siguen por config.
+- `core/kit_audio.py`: `loops_per_video` (por defecto 4): cada video lleva 4 loops al azar del kit
+  sin importar la duración; 8 loops = 2 videos. Si quedan menos de 4 sin usar se completan con
+  usados y el kit arranca una vuelta nueva con otro orden. `loops_per_video: 0` vuelve al modo por duración.
+- `core/kit_names.short_name`: el título y la portada usan solo el nombre ("CYPRUS - ... (Production
+  Suite)" → "CYPRUS"). Afectaba a WyreSounds, cuyo catálogo tiene los nombres completos de la tienda.
+- kiezsa loops (config en Dropbox): `cover_mode: dropbox` con la carpeta nueva
+  `contenido/loop_kits/referencias/kiezsa-loops` (copia de las 14 fotos de wyreguitars) en lugar de la
+  portada con IA, que había elegido una referencia con una persona famosa. Copia de la config anterior
+  guardada fuera del repo.
+- Validación: smokes de ciclo, audio y simulación actualizados (rueda, 4 loops, descanso acortado);
+  test nuevo `tests/test_kit_short_name.py`.

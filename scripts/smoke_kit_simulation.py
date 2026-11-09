@@ -137,7 +137,8 @@ def _config():
         'names': {'genre': GENRES[0]},
         'cover': {'template': {'size': 240}, 'frame': {'size': list(FRAME)}},
         'target_min_s': WINDOW[0], 'target_max_s': WINDOW[1], 'cycle_max_videos': MAX_VIDEOS,
-        'cycle_rest_days': REST_DAYS, 'kit_min_gap_days': GAP_DAYS, 'kits_per_week': 3}}
+        'cycle_rest_days': REST_DAYS, 'kit_min_gap_days': GAP_DAYS, 'kits_per_week': 3,
+        'loops_per_video': 0}}  # esta simulación prueba el modo por duración
 
 
 def _put_catalog(dbx, kits):
