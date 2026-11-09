@@ -106,11 +106,16 @@
     "min_days": 2
   },
   "visual": {
-    "custom_thumbnail": false,
+    "clip_max_seconds": 6,
+    "clip_min_seconds": 3,
+    "custom_thumbnail": true,
     "image_fit": "contain",
-    "mode": "image",
+    "mode": "alternate",
     "plain_image": true,
-    "thumbnail_source": "auto"
+    "source_trim_seconds": 15,
+    "thumbnail_source": "auto",
+    "video_source": "dropbox",
+    "videos_folder": "/Soft Projects/Type Beat Generator/contenido/canales/guitar-trap/fondos"
   },
   "youtube_channel_id": "UC7q99p1bly7hLMsK53wfV0Q"
 }

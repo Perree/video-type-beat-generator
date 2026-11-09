@@ -17,7 +17,18 @@ token enviado en memoria directamente a GitHub Secrets, sin guardarlo en disco.
 - 35 imágenes locales de `images/mat produced this one/Principal` verificadas
   con Pillow y copiadas a Dropbox sin modificar sus bytes. Originales intactos.
   Carpeta: `/Soft Projects/Type Beat Generator/contenido/canales/mat-produced-this-one/fondos`.
-- Imagen completa en 16:9, bandas negras, sin texto; miniatura automática.
+- Foto completa en 16:9, con bandas negras y sin texto. Las primeras publicaciones
+  usaron miniatura automática.
+
+## Prueba de fondos desde el 8/11/2026
+
+- El calendario alterna foto fija de Mat y montaje de los siete videoclips ya
+  disponibles en la carpeta de fondos de Make You Beats. El montaje usa cortes
+  de 3–6 segundos, omite los primeros y últimos 15 segundos de cada fuente
+  y usa solo el audio del beat.
+- Ambos formatos usan como miniatura una foto del catálogo habitual de Mat,
+  con el mismo encuadre y sin texto. Para mantener esa estética en los montajes,
+  el worker envía la foto como miniatura personalizada.
 
 ## Metadatos
 

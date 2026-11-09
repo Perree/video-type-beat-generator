@@ -1,5 +1,15 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Mat produced this one — prueba de fondos alternados ✅ COMPLETADA (2026-11-08)
+
+- Configuración activa en Dropbox y releída. Foto fija propia intercalada con
+  montajes de Make You Beats. Ambos formatos usan el catálogo de fotos de Mat
+  para las miniaturas, con el encuadre habitual.
+- Reservas del 11 al 14/11 comprobadas con recursos reales. Foto el 11 y 13,
+  montaje el 12 y 14. Los otros canales conservan su configuración.
+- 93 pruebas pasaron y 2 se omitieron. El envío real de la nueva miniatura
+  personalizada queda para la primera subida programada.
+
 ## afterbeachbeats — encuadre uniforme ✅ COMPLETADA (2026-11-08)
 
 - Los tres montajes usan un recorte central de 1080×1080 en un lienzo de 1920×1080.
