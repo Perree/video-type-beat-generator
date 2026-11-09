@@ -33,6 +33,7 @@ from smoke_kit_state import FakeDropbox  # también instala el doble de dropbox.
 
 from core import kit_art, kit_catalog, kit_cycle, kit_names, kit_settings, kit_source, kit_state
 from core import youtube
+kit_art.AI_IMAGES_ENABLED = True  # este smoke prueba el código de la IA, apagado en producción
 import run_kit_weekly
 
 START = datetime(2026, 10, 4, 20, 0)   # domingo 20:00, hora de Buenos Aires

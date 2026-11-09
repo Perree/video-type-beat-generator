@@ -25,6 +25,7 @@ if ROOT not in sys.path:
 from core import kit_http
 from core import (kit_art, kit_catalog, kit_cloud, kit_cover, kit_llm, kit_names, kit_settings,
                   kit_spend, kit_state, kit_template_art)
+kit_art.AI_IMAGES_ENABLED = True  # este smoke prueba el código de la IA, apagado en producción
 
 os.environ[kit_llm.ENV_HOSTS] = 'img.example'
 for _name in kit_cloud.ENV_VARS:

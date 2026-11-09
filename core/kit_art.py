@@ -38,6 +38,10 @@ ENV_KEY = 'KIT_IMAGE_API_KEY'
 MODE_AUTO, MODE_MANUAL = 'auto', 'manual'
 MODE_TEMPLATE = 'template'  # portada completa a partir de un modelo y un fondo (kit_template_art)
 MODE_DROPBOX = 'dropbox'    # sin IA: una imagen de Dropbox del género, rotando
+# Imágenes con IA (OpenAI) apagadas a pedido del usuario (2026-11-09): no se paga por generar
+# portadas. Con False, ``auto`` y ``template`` se comportan como ``dropbox``. El código de la IA
+# (``for_video`` y ``kit_template_art``) queda intacto: para volver a usarlo, poner True.
+AI_IMAGES_ENABLED = False
 BACKGROUNDS_DIR = 'fondos'  # subcarpeta del género con las imágenes a usar tal cual
 DEFAULTS = {
     'base_url': 'https://api.openai.com/v1',
@@ -482,6 +486,8 @@ def for_cover(kit_cfg, kit, title, fallback_image, store, rng, work_dir, dbx=Non
     current = mode(kit_cfg)
     if current == MODE_MANUAL:
         return fallback_image, [], False
+    if not AI_IMAGES_ENABLED and current in (MODE_AUTO, MODE_TEMPLATE):
+        current = MODE_DROPBOX  # ver AI_IMAGES_ENABLED: nunca se llama a la API de imágenes
     path, refs, complete = None, [], False
     if current == MODE_AUTO:
         path, refs = for_video(kit_cfg, kit, None, store, rng, work_dir, dbx=dbx,

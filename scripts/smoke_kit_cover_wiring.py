@@ -19,6 +19,8 @@ for p in (ROOT, os.path.join(ROOT, 'scripts')):
         sys.path.insert(0, p)
 
 from core import kit_source, kit_template_art
+from core import kit_art
+kit_art.AI_IMAGES_ENABLED = True  # este smoke prueba el código de la IA, apagado en producción
 from run_kit_preview import run_preview
 
 NOW = datetime(2026, 10, 5, 10, 0)

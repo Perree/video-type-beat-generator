@@ -180,7 +180,9 @@ class ForCoverTests(unittest.TestCase):
         folder = ROOT + '/guitarras'
         notes = []
         budget = kit_spend.Budget({}, None, NOW)
-        with mock.patch.object(dropbox_client, 'list_folder_entries',
+        # Prueba el código de la IA, apagado en producción (kit_art.AI_IMAGES_ENABLED).
+        with mock.patch.object(kit_art, 'AI_IMAGES_ENABLED', True), \
+                mock.patch.object(dropbox_client, 'list_folder_entries',
                                return_value=_entries(folder, ['x.jpg'])), \
                 mock.patch.object(kit_art.kit_source, 'download_pack_files',
                                   side_effect=lambda paths, dest, dbx=None: _fake_fetch()[0](paths, dest)):

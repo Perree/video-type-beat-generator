@@ -22,6 +22,7 @@ if ROOT not in sys.path:
 
 from core import kit_http
 from core import dropbox_client, kit_art, kit_cloud, kit_llm, kit_state
+kit_art.AI_IMAGES_ENABLED = True  # este smoke prueba el código de la IA, apagado en producción
 
 # El host de ejemplo tiene que estar permitido para probar el cliente de la API.
 os.environ[kit_llm.ENV_HOSTS] = 'img.example'

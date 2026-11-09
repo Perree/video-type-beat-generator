@@ -1938,3 +1938,16 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
   guardada fuera del repo.
 - Validación: smokes de ciclo, audio y simulación actualizados (rueda, 4 loops, descanso acortado);
   test nuevo `tests/test_kit_short_name.py`.
+
+## Loops — Sin imágenes con IA ✅ COMPLETADA (2026-11-09)
+
+- Pedido del usuario: no pagar por generar imágenes con la API de OpenAI; dejar el código para el futuro.
+- `core/kit_art.AI_IMAGES_ENABLED = False`: en `for_cover` (único punto que llama a la IA) los modos
+  `auto` y `template` se comportan como `dropbox`. El código de la IA (`kit_art.for_video`,
+  `core/kit_template_art.py`) queda intacto; se vuelve a usar poniendo True.
+- WyreSounds (config en Dropbox, copia de la anterior fuera del repo): `cover_mode: dropbox` y
+  `refs_root` corregido a `contenido/loop_kits/referencias` (el anterior, `/loop_kits/_referencias`, no
+  existía). Usa las fotos de `guitarras/fondos` (11) y `reggaeton_house/fondos` (28) según el género del kit.
+- Los nombres de video con LLM (texto) no cambian; solo se apagaron las imágenes.
+- Validación: test nuevo `tests/test_kit_no_ai_images.py` (auto y template nunca llaman a la API);
+  los smokes del código de IA lo activan explícitamente para seguir cubriéndolo.
