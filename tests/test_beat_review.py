@@ -105,7 +105,7 @@ class ReviewTests(unittest.TestCase):
         self.assertEqual(len(attempts), 1)
         summary = self.case.run_worker()
         self.assertEqual(summary['blocked'], 1)
-        self.assertEqual(len(self.case.calls), 9)
+        self.assertEqual(len(self.case.calls), 13)
         self.assertNotIn('youtube_id', self.case.cloud.read('state')[0]['jobs'][attempts[0]['job_id']])
 
     def test_destination_changed_during_render_blocks_upload(self):
@@ -144,12 +144,12 @@ class ReviewTests(unittest.TestCase):
             return journal(*args, **kwargs)
         with patch('core.beat_publish.journal', side_effect=writing):
             summary = self.case.run_worker(thumbnailer=lambda *a: thumbnails.append(a))
-        self.assertEqual(summary['uploaded'], 10)
+        self.assertEqual(summary['uploaded'], 14)
         self.assertEqual(summary['failed'], 0)
-        self.assertEqual(len(thumbnails), 10)
-        self.assertEqual(len(self.case.calls), 10)
+        self.assertEqual(len(thumbnails), 14)
+        self.assertEqual(len(self.case.calls), 14)
         self.case.run_worker()
-        self.assertEqual(len(self.case.calls), 10)
+        self.assertEqual(len(self.case.calls), 14)
 
     def test_unbounded_and_invalid_backoff_fail_without_sleep(self):
         for delay in (1000000, float('nan'), float('inf'), -1, '30'):

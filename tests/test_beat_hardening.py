@@ -157,12 +157,14 @@ class HardeningTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertIsNone(calls[0]['publish_at'])
 
-    def test_distinct_jobs_racing_cannot_exceed_global_ten_attempts(self):
+    def test_distinct_jobs_racing_cannot_exceed_global_fifteen_attempts(self):
         self.case.run_worker(dry_run=True)
         owner = BeatState(self.case.cloud, lambda: daily_fixtures.NOW).acquire()
         store = BeatState(self.case.cloud, lambda: daily_fixtures.NOW)
         jobs = store.fill_buffer(daily_fixtures.CONFIG, [{'id': 'TK'+str(i)} for i in range(14)], owner)
         store.release(owner)
+        for i in range(5):  # 12 racing jobs compete for the last 10 of 15 attempts.
+            store.reserve_attempt(jobs[13]['id'], 'pre-' + str(i))
         def reserve(index):
             try:
                 store.reserve_attempt(jobs[index]['id'], str(index), exclusive=True)

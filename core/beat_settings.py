@@ -7,7 +7,7 @@ from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 
-from core.beat_schema import BA, instant, migrate
+from core.beat_schema import BA, DAILY_UPLOAD_ATTEMPTS, instant, migrate
 from core.beat_schedule import plan
 from core.beat_source import profile_username
 from core import channel_kind
@@ -99,5 +99,5 @@ def simulate(config, tracks, state=None, now=None):
     state = migrate({} if state is None else state, "state")
     now = instant(now if now is not None else datetime.now(BA))
     return {"as_of": now.isoformat(), "jobs": plan(config, state, tracks, now),
-            "remaining": 10 - len(state["attempts"].get(now.date().isoformat(), {})),
+            "remaining": DAILY_UPLOAD_ATTEMPTS - len(state["attempts"].get(now.date().isoformat(), {})),
             "state": deepcopy(state)}

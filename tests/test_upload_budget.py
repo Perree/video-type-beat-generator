@@ -12,9 +12,10 @@ from core.upload_budget import UploadBudget, UploadDeferred, PATH, initialize
 
 
 class BudgetTests(unittest.TestCase):
-    def test_legacy_config_migrates_to_ten(self):
+    def test_legacy_config_migrates_to_fifteen(self):
         from core.beat_schema import migrate
-        self.assertEqual(migrate({'daily_upload_attempts': 6}, 'config')['daily_upload_attempts'], 10)
+        for legacy in (6, 10):
+            self.assertEqual(migrate({'daily_upload_attempts': legacy}, 'config')['daily_upload_attempts'], 15)
 
     def setUp(self):
         self.now = datetime(2026, 11, 4, 12, tzinfo=timezone.utc)
@@ -23,14 +24,16 @@ class BudgetTests(unittest.TestCase):
         self.budget = UploadBudget(self.memory, lambda: self.now)
         self.budget.cloud.sleep = lambda _: None
 
-    def test_mixed_beats_loops_stop_at_ten_across_instances(self):
-        for i in range(10):
+    def test_mixed_beats_loops_stop_at_fifteen_across_instances(self):
+        for i in range(15):
             UploadBudget(self.memory, lambda: self.now).reserve('beat' if i % 2 else 'loops')
         with self.assertRaises(UploadDeferred):
             self.budget.call('another-channel', lambda: self.fail('must not upload'))
-        self.assertEqual(len(self.budget.read()[0]['days']['2026-11-04']), 10)
+        self.assertEqual(len(self.budget.read()[0]['days']['2026-11-04']), 15)
 
     def test_concurrent_workers_cannot_overspend(self):
+        for i in range(5):  # 12 racing workers compete for the last 10 of 15 attempts.
+            self.budget.reserve('pre-' + str(i))
         barrier = Barrier(12)
         memory = self.memory
         class Racing:
@@ -66,6 +69,20 @@ class BudgetTests(unittest.TestCase):
             UploadBudget(MemoryDropbox()).reserve('beat')
         with self.assertRaises(Conflict):
             initialize(self.memory)
+
+    def test_ledger_written_with_ten_upgrades_to_fifteen_keeping_history(self):
+        doc = {'version': 1, 'limit': 10, 'blocked': {},
+               'days': {'2026-11-03': {f'old-{i}': 'legacy' for i in range(10)},
+                        '2026-11-04': {f'used-{i}': 'beat' for i in range(10)}}}
+        self.memory.write(PATH, json.dumps(doc).encode(), self.memory.read(PATH)[1])
+        for i in range(5):
+            self.budget.reserve('beat')
+        with self.assertRaises(UploadDeferred):
+            self.budget.reserve('beat')
+        saved = self.budget.read()[0]
+        self.assertEqual(saved['limit'], 15)
+        self.assertEqual(len(saved['days']['2026-11-03']), 10)
+        self.assertEqual(len(saved['days']['2026-11-04']), 15)
 
     def test_corrupt_state_fails_closed(self):
         self.memory.write(PATH, b'{}', self.memory.read(PATH)[1])

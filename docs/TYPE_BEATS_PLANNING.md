@@ -1,7 +1,7 @@
 # Type Beats — Fase 2 completada, revisión aplicada
 
-> Actualización 2026-11-03: el límite operativo es de 10 intentos diarios
-> compartidos entre Beats y Loops. Las referencias históricas a seis quedan
+> Actualización 2026-11-09: el límite operativo es de 15 intentos diarios
+> compartidos entre Beats y Loops. Las referencias históricas a seis o diez quedan
 > reemplazadas por [el presupuesto compartido](UPLOAD_BUDGET.md). El asistente
 > de distribución conserva su propuesta de horarios; no cambia los calendarios.
 

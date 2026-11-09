@@ -1876,3 +1876,22 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
   Otras diez reservas esperan su ventana de subida. Publicación diaria automática habilitada.
 - Guía actualizada: docs/SAD_MELODIC_SETUP.md. Respaldos y reportes privados en tokens/,
   fuera de Git. El test de pausa ahora simula la pausa sin depender del estado activo del perfil.
+
+## Beats y Loops — Quince intentos diarios compartidos y revisión de cronogramas ✅ COMPLETADA (2026-11-09)
+
+- Pedido del usuario: subir el tope compartido de 10 a 15 y revisar los cronogramas de todos los canales.
+  El contador llegó a 10/10 el 07/11 y el 08/11 (15 canales de Beats + 4 de Loops).
+- `core/beat_schema.DAILY_UPLOAD_ATTEMPTS = 15`, única fuente para el esquema, la reserva propia de
+  Beats, el worker diario, ajustes, panel y `core/upload_budget.LIMIT`. Config con 6 o 10 migra a 15.
+  El contador remoto con `limit: 10` se acepta y pasa a 15 en su próxima escritura, sin tocar el historial.
+- Bug de Loops: el cron de las 20:00 llega con 3-4 h de demora y `scripts/kit_plan.py` calculaba el día
+  por la hora de arranque. El jueves 05/11 la corrida empezó el viernes 00:17 y no corrió wyreguitars.
+  Ahora el día sale de la hora del disparo (resta 23 h, coincide con el cron); smoke con caso demorado.
+- Revisión de Beats (estado real en Dropbox, solo lectura): todos los canales activos tienen sus próximos
+  14 días planificados según su calendario; los huecos previos a cada activación son esperados.
+  ey mat (09 y 12/11) y mattwyyre (09, 11 y 13/11) no tienen trabajo: el planificador saltea días ya
+  ocupados en YouTube, como lo documentado para mattwyyre el 02/11. Falta confirmarlo en YouTube Studio.
+- Pendientes del usuario: guitar-trap tiene la miniatura rechazada por YouTube (verificar el canal por
+  teléfono) y un beat sin preview en BeatStars (`explicit_audio_association_required`).
+- Validación: pruebas del contador, Beats diario, planificación, panel y calendario de kits actualizadas;
+  prueba nueva de contador heredado con límite 10. Sin subidas ni cambios remotos en esta sesión.

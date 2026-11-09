@@ -9,6 +9,9 @@ from core import beat_interval
 
 BA = timezone(timedelta(hours=-3), "America/Argentina/Buenos_Aires")
 VERSION = 1
+# Daily automation upload attempts (shared with Loops via core.upload_budget).
+DAILY_UPLOAD_ATTEMPTS = 15
+LEGACY_UPLOAD_ATTEMPTS = (6, 10)
 
 
 def instant(value):
@@ -49,10 +52,10 @@ def migrate(document, kind):
     if kind == "config":
         result.setdefault("channels", [])
         result.setdefault("buffer_days", 14)
-        result.setdefault("daily_upload_attempts", 10)
-        if result["daily_upload_attempts"] == 6:
-            result["daily_upload_attempts"] = 10  # Legacy fixed limit; preserve all history.
-        if result["buffer_days"] != 14 or result["daily_upload_attempts"] != 10:
+        result.setdefault("daily_upload_attempts", DAILY_UPLOAD_ATTEMPTS)
+        if result["daily_upload_attempts"] in LEGACY_UPLOAD_ATTEMPTS:
+            result["daily_upload_attempts"] = DAILY_UPLOAD_ATTEMPTS  # Legacy fixed limit; preserve all history.
+        if result["buffer_days"] != 14 or result["daily_upload_attempts"] != DAILY_UPLOAD_ATTEMPTS:
             raise ValueError("invalid_fixed_limits")
         channels = result["channels"]
         if not isinstance(channels, list) or len(channels) > 100:
@@ -132,7 +135,7 @@ def migrate(document, kind):
         tokens = set()
         for day, attempts in result["attempts"].items():
             datetime.strptime(day, "%Y-%m-%d")
-            if not isinstance(attempts, dict) or len(attempts) > 10:
+            if not isinstance(attempts, dict) or len(attempts) > DAILY_UPLOAD_ATTEMPTS:
                 raise ValueError("invalid_attempts")
             for token, entry in attempts.items():
                 if not isinstance(token, str) or not token or not isinstance(entry, dict) or entry.get("job_id") not in result["jobs"]:

@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 from core.beat_catalog import BeatCatalog
 from core.beat_cloud import BeatCloud
 from core.beat_fakes import MemoryDropbox
-from core.beat_schema import instant
+from core.beat_schema import DAILY_UPLOAD_ATTEMPTS, instant
 from core.beat_source import BeatStarsSource
 from core.beat_state import BeatState, BudgetExhausted
 from core.beat_schedule import plan, apply_plan
@@ -161,7 +161,7 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
         summary['planned'] = len(additions)
         attempted = {entry['job_id'] for entries in state['attempts'].values()
                      for entry in entries.values()}
-        remaining = 10 - len(state['attempts'].get(instant(clock()).date().isoformat(), {}))
+        remaining = DAILY_UPLOAD_ATTEMPTS - len(state['attempts'].get(instant(clock()).date().isoformat(), {}))
         budget_day = instant(clock()).date()
         jobs = sorted((deepcopy(job) for job in state['jobs'].values()
                        if job['channel'] == channel_id and job['status'] in ('planned', 'failed')),
@@ -182,7 +182,7 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
             if now.date() != budget_day:
                 latest, _ = cloud.read('state')
                 budget_day = now.date()
-                remaining = 10 - len(latest['attempts'].get(budget_day.isoformat(), {}))
+                remaining = DAILY_UPLOAD_ATTEMPTS - len(latest['attempts'].get(budget_day.isoformat(), {}))
             if instant(job['slot']) <= now:
                 summary['expired'] += 1
                 note(summary, 'slot_expired')

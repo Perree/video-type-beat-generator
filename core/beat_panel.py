@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import QWidget, QDialog, QVBoxLayout, QFileDialog, QInputDi
 
 from core import automation_status as status, beat_settings, channel_kind, cloud_registry, kit_channel
 from core.beat_panel_form import BeatPanelForm
-from core.beat_schema import BA, migrate
+from core.beat_schema import BA, DAILY_UPLOAD_ATTEMPTS, migrate
 from core.beat_source import profile_username
 from core.beat_tasks import BeatTask, analyze, checkpoint, load_state
 from core.beat_remote_form import BeatRemoteForm
@@ -381,7 +381,7 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
             counts[job["status"]] = counts.get(job["status"], 0) + 1
         day = datetime.now(BA).date().isoformat()
         used = len(state["attempts"].get(day, {}))
-        self.quota.setText(f"Límite local de Beats del {day}: {used}/10 intentos consumidos. El contador global incluye también Loops. "
+        self.quota.setText(f"Límite local de Beats del {day}: {used}/{DAILY_UPLOAD_ATTEMPTS} intentos consumidos. El contador global incluye también Loops. "
                            "La cuota real de YouTube se verifica en Google Cloud.")
         self.output.setPlainText(f"Estado remoto consultado (sin escrituras).\nJobs: {counts}\n"
                                  f'Lock: {"presente" if state["lock"] else "libre"}')
@@ -407,7 +407,7 @@ class BeatPanel(QWidget, BeatPanelForm, BeatRemoteForm, ChannelWizardHost):
         self.job_model.set_jobs(jobs)
         self.output.setPlainText(f'Simulación desde {result["as_of"]}, próximos 14 días.\n'
                                  f'Estado: {"instantánea de Dropbox" if remote else "vacío, escenario local"}.\n'
-                                 f'Jobs nuevos: {len(jobs)}. Intentos disponibles hoy: {result["remaining"]}/10 (estimación de Beats; no descuenta Loops).\n'
+                                 f'Jobs nuevos: {len(jobs)}. Intentos disponibles hoy: {result["remaining"]}/{DAILY_UPLOAD_ATTEMPTS} (estimación de Beats; no descuenta Loops).\n'
                                  "La cuota se consume al intentar subir, no al planificar slots.\n"
                                  "Tags de selección filtran por coincidencia exacta, sin mayúsculas ni espacios exteriores.\n"
                                  "Sin tags de selección se conserva el catálogo activo completo; tags SEO y géneros no filtran.")

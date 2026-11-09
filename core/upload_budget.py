@@ -6,8 +6,10 @@ from zoneinfo import ZoneInfo
 
 from core import dropbox_layout
 from core.beat_cloud import BeatCloud, CloudError, Conflict, decode_document
+from core.beat_schema import DAILY_UPLOAD_ATTEMPTS
 
-LIMIT = 10
+LIMIT = DAILY_UPLOAD_ATTEMPTS
+LEGACY_LIMITS = (10,)  # Ledgers written before the 15-attempt limit; upgraded on next write.
 PATH = dropbox_layout.REGISTRY_DIR + '/upload_budget.json'
 PACIFIC = ZoneInfo('America/Los_Angeles')
 
@@ -25,7 +27,7 @@ class UploadBudget:
         data, rev = self.cloud._retry(lambda: self.transport.read(PATH))
         try:
             doc = decode_document(data)
-            if (doc['version'] != 1 or doc['limit'] != LIMIT
+            if (doc['version'] != 1 or doc['limit'] not in (LIMIT, *LEGACY_LIMITS)
                     or not isinstance(doc['days'], dict) or not isinstance(doc['blocked'], dict)):
                 raise ValueError()
             for day, entries in doc['days'].items():
@@ -44,6 +46,7 @@ class UploadBudget:
     def _update(self, mutate):
         for _ in range(10):
             doc, rev = self.read()  # Missing/corrupt ledger fails closed.
+            doc['limit'] = LIMIT
             result = mutate(doc)
             payload = json.dumps(doc, sort_keys=True).encode()
             try:
@@ -106,7 +109,7 @@ class UploadBudget:
 def initialize(transport, now=None):
     """Explicit first deployment only. Reserve activation day for legacy uploads.
 
-    Never overwrite an existing ledger. Ten fresh slots become available at the
+    Never overwrite an existing ledger. Fresh slots become available at the
     next Pacific midnight; uploads made before deployment cannot be undercounted.
     """
     now = now or datetime.now(timezone.utc)

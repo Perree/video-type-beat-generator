@@ -39,12 +39,12 @@ class WeeklyCalendarTests(unittest.TestCase):
         now = SUNDAY.replace(tzinfo=BA)
         initialize(memory, now - timedelta(days=1))
         budget = UploadBudget(memory, lambda: now)
-        for _ in range(9):
+        for _ in range(14):
             budget.reserve('beats')
         code, _, dbx, tg = self.run_week(extra_hooks={'upload_budget': budget})
         self.assertEqual(code, 0)
         self.assertEqual(Counters.uploads, 1)
-        self.assertTrue(any('10 intentos' in message for message in tg.sent))
+        self.assertTrue(any('15 intentos' in message for message in tg.sent))
         code, _, _, _ = self.run_week(dbx, extra_hooks={'upload_budget': budget})
         self.assertEqual(code, 0)
         self.assertEqual(Counters.uploads, 1)
