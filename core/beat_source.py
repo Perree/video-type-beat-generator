@@ -36,10 +36,14 @@ class Track:
     tags: tuple
     duration: float | None
     preview_ref: dict
+    bpm: float | None = None
+    key: str = ""
+    collaborators: tuple = ()
 
     def payload(self):
         result = asdict(self)
         result["tags"] = list(self.tags)
+        result["collaborators"] = list(self.collaborators)
         return result
 
 
@@ -48,6 +52,23 @@ class Snapshot:
     member_id: str
     username: str
     tracks: tuple
+
+
+def _music(raw):
+    """BPM, key and collaborators as shown on the BeatStars page; anything odd is simply left out."""
+    meta = raw["metadata"]
+    bpm = meta.get("bpm")
+    if isinstance(bpm, bool) or not isinstance(bpm, (int, float)) or not 0 < bpm < 1000:
+        bpm = None
+    note = meta.get("keyNote") or {}
+    key = note.get("value") if isinstance(note, dict) else None
+    key = key.strip() if isinstance(key, str) and len(key) <= 40 else ""
+    names = []
+    for person in raw.get("collaborators") or ():
+        name = person.get("displayName") if isinstance(person, dict) else None
+        if isinstance(name, str) and name.strip() and len(name) <= 100 and not any(ord(c) < 32 for c in name):
+            names.append(name.strip())
+    return bpm, key, tuple(dict.fromkeys(names[:10]))
 
 
 def parse_track(raw, member_id):
@@ -76,9 +97,10 @@ def parse_track(raw, member_id):
                 duration = float(duration)
                 break
         url = "https://www.beatstars.com/beat/" + slug
+        bpm, key, collaborators = _music(raw)
         return Track(track_id, _text(raw["title"], 500), url, tags, duration,
                      {"provider": "beatstars", "track_id": track_id,
-                      "v2_id": str(v2), "page_url": url})
+                      "v2_id": str(v2), "page_url": url}, bpm, key, collaborators)
     except (KeyError, TypeError, AttributeError):
         raise BeatError("invalid_metadata") from None
 

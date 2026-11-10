@@ -2,6 +2,7 @@
 from collections import Counter
 from copy import deepcopy
 from datetime import datetime, timezone
+import re
 import unittest
 from core import beat_matwyre as repertoire
 from core import beat_matwyre_seo as seo
@@ -22,7 +23,7 @@ def channel():
     return dict(id='matwyrebeats', active=True, priority=10, selection_tags=[repertoire.SELECTION],
                 slots=[dict(weekday=d, hour=18, minute=0) for d in range(7)],
                 youtube_channel_id='UC' + 'x' * 22,
-                seo=dict(title_mode=seo.MODE, title_template='(FREE) {style} Type Beat - "{name}"',
+                seo=dict(title_mode=seo.MODE, title_template='(FREE) {style} Type Beat - "{name}" | {detail} Type Beat 2026',
                          tags=['matwyre', 'matwyrebeats'],
                          description='Compra: {url}\n{context}\n{music_info}\n{credits}\n{hashtags}'))
 
@@ -43,24 +44,39 @@ class MatwyreTests(unittest.TestCase):
             self.assertEqual(repertoire.context(t)['family'], family)
             self.assertEqual(eligible_tracks(channel(), [t]), [t])
             for option in seo.variants(t, channel()['seo']):
-                if not repertoire.context(t)['artists']:
-                    self.assertNotIn('Duki', option['title'])
-                    self.assertNotIn('Milo J', option['title'])
                 self.assertNotIn('FREE FOR PROFIT', option['title'])
+                for artist in repertoire.context(t)['artists']:
+                    self.assertIn(artist, option['title'].split(' Type Beat')[0])
         for tags in [['melodic house'], ['sad', 'reggaeton'], ['guitar pop'], ['rnb', 'afrobeats'],
                      ['not duki'], ['hardstyle'], ['sadder'], ['hyperpop']]:
             self.assertEqual(eligible_tracks(channel(), [track(tags)]), [])
         old = dict(channel(), selection_tags=['sad'])
         self.assertEqual(eligible_tracks(old, [track(['sad', 'reggaeton'])]), [track(['sad', 'reggaeton'])])
 
+    def test_title_format_always_two_artists(self):
+        pattern = re.compile(r'^\(FREE\) (.+) x (.+) Type Beat - "La Noche" \| (.+) Type Beat 2026$')
+        for tags, genre in [(['sad', 'guitar'], 'Sad'), (['duki', 'melodic'], 'Melodic'),
+                            (['khea', 'duki', 'melodic'], 'Melodic'), (['rnb'], 'R&B'),
+                            (['hard'], 'Hard'), (['milo j', 'sad trap'], 'Trap')]:
+            t = track(tags)
+            titles = [o['title'] for o in seo.variants(t, channel()['seo'])]
+            self.assertGreater(len(titles), 1)
+            for title in titles:
+                m = pattern.match(title)
+                self.assertTrue(m, title)
+                self.assertNotEqual(m.group(1), m.group(2))
+                self.assertEqual(m.group(3), genre)
+        for o in seo.variants(track(['khea', 'duki', 'melodic']), channel()['seo']):
+            self.assertEqual(set(o['title'].split(' Type Beat')[0][7:].split(' x ')), {'Khea', 'Duki'})
+
     def test_precise_labels(self):
         for tags, must, absent in [(['acoustic'], 'Acoustic', 'Guitar'),
                                    (['hard'], 'Hard', 'Hard Trap'),
                                    (['emo rap'], 'Emo Rap', 'Emo Trap'),
                                    (['guitar'], 'Guitar', 'Acoustic'),
-                                   (['sad'], 'Sad', 'Milo J')]:
+                                   (['sad'], 'Sad', 'Hard')]:
             t = track(tags)
-            text = str(seo.variants(t, channel()['seo']))
+            text = str([o['title'].split('|')[1] for o in seo.variants(t, channel()['seo'])])
             self.assertIn(must, text)
             self.assertNotIn(absent, text)
         t = track(['Khea', 'Duki', 'melodic'])

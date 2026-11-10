@@ -27,7 +27,7 @@ def apply_channel_templates(channel, saved):
                 if not isinstance(replacement, str):
                     raise ValueError('channel_template_value_invalid')
                 value = value.replace(token, replacement)
-        allowed = {'name', 'url'}
+        allowed = {'name', 'url', 'music_info'}
         if profile.get('title_mode') == 'latin_v1':
             allowed.update(('artists', 'style', 'bpm', 'key'))
         elif profile.get('title_mode') in ('latin_v2', 'latin_taimet_v1', 'latin_dysmo_v1', 'latin_dysmo_v2', 'latin_dysmo_v3'):
@@ -47,7 +47,7 @@ def apply_channel_templates(channel, saved):
         elif profile.get('title_mode') == 'rnb_test_v1':
             allowed.update(('style', 'context', 'music_info'))
         elif profile.get('title_mode') == 'matwyre_v1':
-            allowed.update(('style', 'context', 'music_info', 'credits', 'hashtags'))
+            allowed.update(('style', 'detail', 'context', 'music_info', 'credits', 'hashtags'))
         if set(re.findall(r'\{([^{}]+)\}', value)) - allowed:
             raise ValueError('channel_template_placeholder_unsupported')
         return value

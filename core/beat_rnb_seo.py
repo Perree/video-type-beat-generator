@@ -2,7 +2,7 @@
 import hashlib
 from core.beat_latin_seo import normalized
 from core.beat_names import clean_name
-from core.beat_title import parse
+from core.beat_title import parse, parse_track
 
 MODE = 'rnb_test_v1'
 TOKENS = ('{style}', '{context}', '{music_info}')
@@ -99,7 +99,7 @@ def description(profile, track, option):
     sentence = f'{detail + " " if detail else ""}{style} instrumental for vocal recording and songwriting.'
     if artists:
         sentence += ' Artist references: ' + ' x '.join(artists) + '.'
-    info = parse(track['title'])
+    info = parse_track(track)
     music = '\n'.join(label + info[key] for label, key in [('BPM: ', 'bpm'), ('Key: ', 'key')] if info[key])
     return (profile['description'].replace('{style}', style).replace('{context}', sentence)
             .replace('{music_info}', music))

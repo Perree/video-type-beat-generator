@@ -2,7 +2,7 @@
 from core.beat_afro import is_afro, style
 from core.beat_latin_seo import normalized
 from core.beat_names import clean_name
-from core.beat_title import parse
+from core.beat_title import parse, parse_track
 
 MODE = 'afro_v1'
 TOKENS = ('{style}', '{title}', '{technical}', '{afro_hashtags}')
@@ -38,7 +38,7 @@ def variants(track, profile):
 
 
 def description(profile, track, option):
-    info = parse(track['title'])
+    info = parse_track(track)
     technical = []
     if info['bpm']:
         technical.append('BPM: ' + info['bpm'])

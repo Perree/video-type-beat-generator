@@ -2,7 +2,7 @@
 import re
 from core.beat_latin_seo import normalized
 from core.beat_names import clean_name
-from core.beat_title import parse
+from core.beat_title import parse, parse_track
 
 MODE = 'emotional_house_v1'
 TOKENS = ('{style}', '{detail}', '{title}', '{music_info}', '{credits}', '{house_hashtags}')
@@ -63,7 +63,7 @@ def variants(track, profile, *, name=None):
 
 def description(profile, track, option):
     base, partner, style, detail = labels(track)
-    music = parse(track['title'])
+    music = parse_track(track)
     technical = '\n'.join(label + music[key] for label, key in [('BPM: ', 'bpm'), ('Key: ', 'key')] if music[key])
     authors = re.search(r'\((?:prod\.?\s+([^)]{1,250})|((?:@?matwyre)\s+x\s+[^)]{1,230}))\)', track['title'], re.I)
     credits = ('Prod. ' + (authors.group(1) or authors.group(2)).strip() if authors else

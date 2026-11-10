@@ -5,6 +5,7 @@ import json
 import re
 import unicodedata
 from core.beat_names import clean_name
+from core.beat_title import parse_track
 from core import beat_latin_seo, beat_house_seo, beat_indie_seo, beat_club_seo, beat_club_seo_v2, beat_melodic_seo
 from core import beat_melodic_fixed_seo
 from core import beat_rnb_seo
@@ -28,7 +29,7 @@ def digest(value):
         separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
 
 
-PLACEHOLDERS = ('{name}', '{url}')
+PLACEHOLDERS = ('{name}', '{url}', '{music_info}')
 # Opt-in title modes: module and the placeholders its title template must contain.
 MODES = {beat_latin_seo.MODE: (beat_latin_seo, ('{artists}', '{style}')),
          beat_emotional_house_seo.MODE: (beat_emotional_house_seo, ('{style}', '{detail}')),
@@ -110,7 +111,20 @@ def track_input(track):
         # reports, manual templates and tags keep their strict text boundary.
         title = title.replace('<3', '♥').replace('\u200d', '')
         title = re.sub(r'[<>{}]', '', title).strip()
-    return {'id': tid, 'title': text(title, 500), 'tags': texts(track.get('tags'))}
+    result = {'id': tid, 'title': text(title, 500), 'tags': texts(track.get('tags'))}
+    # BPM, key and collaborators come from the BeatStars page; optional so old snapshots stay valid.
+    bpm = track.get('bpm')
+    if type(bpm) in (int, float) and 0 < bpm < 1000:
+        result['bpm'] = bpm
+    key = track.get('key')
+    if isinstance(key, str) and key.strip():
+        result['key'] = re.sub(r'[<>{}\x00-\x1f]', '', key).strip()[:40]
+    people = [re.sub(r'[<>{}\x00-\x1f]', '', n).strip()[:100] for n in track.get('collaborators') or ()
+              if isinstance(n, str)]
+    people = [n for n in dict.fromkeys(people) if n and n.casefold() != 'matwyre'][:10]
+    if people:
+        result['collaborators'] = people
+    return result
 
 
 def candidates(track, profile, scores):
@@ -141,10 +155,35 @@ def candidates(track, profile, scores):
     return options
 
 
+def music_info(track):
+    """«BPM: 160» / «Key: A Sharp Minor» según el título del beat en BeatStars (solo lo que traiga)."""
+    info = parse_track(track)
+    return '\n'.join(label + info[key] for label, key in (('BPM: ', 'bpm'), ('Key: ', 'key')) if info[key])
+
+
+def _with_music_info(value, track):
+    """Rellena {music_info} en cualquier canal; sin datos quita el token y su línea en blanco."""
+    if '{music_info}' not in value:
+        return value
+    info = music_info(track)
+    if not info:
+        value = re.sub(r'\n\n\{music_info\}(?=\n\n)', '', value)
+        value = re.sub(r'^\{music_info\}\n+|\n*\{music_info\}$', '', value)
+    return value.replace('{music_info}', info)
+
+
+def _with_collaborators(value, track):
+    """«Prod. MatWyre» (línea propia) → «Prod. MatWyre x colab 1 x colab 2» si el beat tiene colaboradores."""
+    people = track.get('collaborators')
+    if not people:
+        return value
+    return re.sub(r'(?m)^Prod\. MatWyre\b(?! x )', lambda m: m.group(0) + ''.join(' x ' + n for n in people), value)
+
+
 def description(profile, track, option, link=None):
     mode = _mode(profile)
     value = mode.description(profile, track, option) if mode else profile['description']
-    return render(value, track, link)
+    return render(_with_collaborators(_with_music_info(value, track), track), track, link)
 
 
 def build_snapshot(job, track, channel, now, payload=None, cached=None, *, previous_selected=None):
@@ -203,7 +242,8 @@ def validate_snapshot(snapshot, job):
     if snapshot['job_id'] != job['id'] or snapshot['channel_id'] != job['channel']:
         raise ValueError('seo_snapshot_invalid')
     moment(snapshot['as_of'])
-    fields(snapshot['track'], ('id', 'title', 'tags'))
+    fields(snapshot['track'], ('id', 'title', 'tags') + tuple(
+        k for k in ('bpm', 'key', 'collaborators') if k in snapshot['track']))
     track = track_input(snapshot['track'])
     if track['id'] != job['track_id']:
         raise ValueError('seo_snapshot_invalid')

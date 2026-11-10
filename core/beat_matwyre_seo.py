@@ -1,12 +1,12 @@
 """Truthful artist/style titles with stable per-beat presentation experiments."""
 import hashlib
 import re
-from core.beat_matwyre import context, MELODIC, SAD, CHILL, RNB, GUITAR, HARD, TRAP, EMO
+from core.beat_matwyre import context, ARTISTS, MELODIC, SAD, CHILL, RNB, GUITAR, HARD, TRAP, EMO
 from core.beat_names import clean_name
-from core.beat_title import parse
+from core.beat_title import parse, parse_track
 
 MODE = 'matwyre_v1'
-TOKENS = ('{style}', '{context}', '{music_info}', '{credits}', '{hashtags}')
+TOKENS = ('{style}', '{detail}', '{context}', '{music_info}', '{credits}', '{hashtags}')
 
 
 def _source_credits(title):
@@ -31,22 +31,43 @@ def _sound(info):
     return ' '.join(v for v in (detail, genre) if v)
 
 
+FALLBACK_GENRE = {'melodic': 'Melodic', 'emotional': 'Emotional', 'trap': 'Trap'}
+VARIANTS = 3
+
+
+def _pairs(track, info):
+    """Always two artists: tag-backed ones first, the rest filled from the roster.
+
+    Variants only rotate the artists; the title format never changes.
+    """
+    pool = [n for n, _ in ARTISTS if not (info['family'] == 'trap' and n == 'Milo J')]
+    known = list(info['artists'])
+    others = [n for n in pool if n not in known]
+    seed = int(hashlib.sha256((MODE + ':' + track['id']).encode()).hexdigest()[:8], 16)
+    shift = seed % len(others)
+    others = others[shift:] + others[:shift]
+    if len(known) >= 2:
+        pairs = [known[:2], known[1::-1]]
+    elif known:
+        pairs = [[known[0], others[0]], [others[1], known[0]], [known[0], others[2]]]
+    else:
+        pairs = [others[i:i + 2] for i in range(0, 2 * VARIANTS, 2)]
+    return pairs[:VARIANTS]
+
+
+def _genre(info):
+    return info['genre'] or FALLBACK_GENRE[info['family']]
+
+
 def _options(track, profile):
     info = context(track)
-    style = ' x '.join(info['artists']) or _sound(info)
-    if not style:
-        raise ValueError('matwyre_style_missing')
-    # Preserve the catalog's name rather than fabricating an emotional phrase.
-    templates = [('search', profile['title_template'].replace('{style}', style)),
-                 ('name_first', '{name} (' + style + ' Type Beat)')]
-    if info['artists'] and info['genre']:
-        templates.append(('detail', '(FREE) ' + style + ' Type Beat - "{name}" | '
-                          + _sound(info)))
-    keywords = [f'{a.lower()} type beat' for a in info['artists']]
-    if info['genre']:
-        keywords.append(info['genre'].lower() + ' type beat')
-    if len(info['artists']) > 1:
-        keywords.append(' x '.join(a.lower() for a in info['artists']) + ' type beat')
+    pairs = _pairs(track, info)
+    detail = _genre(info)
+    templates = [('pair', profile['title_template'].replace('{style}', ' x '.join(pair))
+                  .replace('{detail}', detail)) for pair in pairs]
+    keywords = [f'{a.lower()} type beat' for a in pairs[0]]
+    keywords.append(detail.lower() + ' type beat')
+    keywords.append(' x '.join(a.lower() for a in pairs[0]) + ' type beat')
     tags = info['tags']
     for values, keyword in ((EMO, info['genre'].lower() + ' type beat'), (RNB, 'rnb type beat'),
                             (MELODIC, 'melodic type beat'), (GUITAR, 'guitar type beat'),
@@ -86,19 +107,18 @@ def experiment(track, profile, selected):
 
 def description(profile, track, option):
     info = context(track)
-    style = ' x '.join(info['artists']) or info['genre'] or info['detail']
+    style = ' x '.join(_pairs(track, info)[0])
     details = [info['genre'], info['detail']]
     sentence = f'{style} type beat para escribir y grabar voces.'
     if any(details):
         sentence += ' Sonido: ' + ', '.join(dict.fromkeys(d for d in details if d)) + '.'
-    parsed = parse(track['title'])
+    parsed = parse_track(track)
     music = '\n'.join(label + parsed[key] for label, key in [('BPM: ', 'bpm'), ('Tono: ', 'key')] if parsed[key])
     authors = _source_credits(track['title'])
     credits = ('Producción: ' + (authors.group(1) or authors.group(2)).strip() if authors else
                'Prod. MatWyre. Créditos completos y colaboradores en la ficha original del beat.')
     hashtags = ['#TypeBeat', '#MatWyre']
-    if info['artists']:
-        hashtags.insert(0, '#' + re.sub(r'[^A-Za-z0-9]', '', info['artists'][0]) + 'TypeBeat')
+    hashtags.insert(0, '#' + re.sub(r'[^A-Za-z0-9]', '', _pairs(track, info)[0][0]) + 'TypeBeat')
     result = profile['description']
     for token, value in (('{style}', style), ('{context}', sentence), ('{music_info}', music),
                          ('{credits}', credits), ('{hashtags}', ' '.join(hashtags))):

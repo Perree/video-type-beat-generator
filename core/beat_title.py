@@ -85,6 +85,17 @@ def parse(stem, artists=()):
     return info
 
 
+def parse_track(track, artists=()):
+    """Como ``parse`` del título, pero con el BPM y la key reales de BeatStars si el track los trae."""
+    info = parse(track['title'], artists)
+    bpm = track.get('bpm')
+    if type(bpm) in (int, float) and bpm > 0:
+        info['bpm'] = str(int(bpm)) if bpm == int(bpm) else f'{bpm:.1f}'
+    if isinstance(track.get('key'), str) and track['key'].strip():
+        info['key'] = track['key'].strip()
+    return info
+
+
 def variables_in(template):
     return _VAR.findall(template)
 

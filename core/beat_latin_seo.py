@@ -2,7 +2,7 @@
 import hashlib
 import re
 import unicodedata
-from core.beat_title import parse
+from core.beat_title import parse, parse_track
 from core.beat_names import clean_name
 
 MODE = 'latin_v1'
@@ -60,7 +60,7 @@ def description(profile, track, option):
     # The same candidate order produces the exact artist/style pair chosen for the title.
     index = variants(track, profile).index(option)
     artists, style = list(contexts(track))[index]
-    info = parse(track['title'])
+    info = parse_track(track)
     values = dict(artists=artists, style=style, bpm=info['bpm'], key=info['key'])
     lines = []
     for line in profile['description'].split('\n'):

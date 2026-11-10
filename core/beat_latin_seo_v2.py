@@ -1,7 +1,7 @@
 """Latin metadata grounded in each track; opt-in, preserving latin_v1 snapshots."""
 from core.beat_latin_seo import normalized
 from core.beat_names import clean_name
-from core.beat_title import parse
+from core.beat_title import parse, parse_track
 
 MODE = 'latin_v2'
 TOKENS = ('{style}', '{detail}', '{context}', '{music_info}', '{latin_hashtags}')
@@ -83,7 +83,7 @@ def description(profile, track, option, *, musical_context=None):
     sentence = musical + ' instrumental para grabar voces y componer canciones.'
     if artists:
         sentence += ' Referencias de estilo: ' + ' x '.join(artists) + '.'
-    info = parse(track['title'])
+    info = parse_track(track)
     technical = '\n'.join(label + info[key] for label, key in [('BPM: ', 'bpm'), ('Key: ', 'key')]
                           if info[key])
     hashtags = ['#' + normalized(artist).replace(' ', '') + 'typebeat' for artist in artists]

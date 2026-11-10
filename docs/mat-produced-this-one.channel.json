@@ -53,7 +53,7 @@
     "type beat topoppgen"
   ],
   "seo": {
-    "description": "{style} Type Beat - \"{name}\"\n\nPurchase / Free Demo Download: {url}\nBeat Store: https://www.beatstars.com/matwyre\n\nProd. MatWyre\nInstagram: https://instagram.com/matwyreoff\n\nFREE FOR NON-PROFIT USE ONLY.\nCredit \"Prod. MatWyre\" in the title and description. Credit any co-producers listed in the original beat too.\nPurchase a license for Spotify, Apple Music and other commercial releases.\nDo not register this instrumental or a song using it with Content ID.\n\nAll rights reserved - MatWyre.\n#TypeBeat #MatWyre",
+    "description": "{style} Type Beat - \"{name}\"\n\nPurchase / Free Demo Download: {url}\nBeat Store: https://www.beatstars.com/matwyre\n\n{music_info}\n\nProd. MatWyre\nInstagram: https://instagram.com/matwyreoff\n\nFREE FOR NON-PROFIT USE ONLY.\nCredit \"Prod. MatWyre\" in the title and description. Credit any co-producers listed in the original beat too.\nPurchase a license for Spotify, Apple Music and other commercial releases.\nDo not register this instrumental or a song using it with Content ID.\n\nAll rights reserved - MatWyre.\n#TypeBeat #MatWyre",
     "tags": [
       "free type beat",
       "type beat",

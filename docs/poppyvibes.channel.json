@@ -30,7 +30,7 @@
     "sad pop beat"
   ],
   "seo": {
-    "description": "🎸 License This Beat (Untagged High Quality):\n➔ {url}\n\n⬇️ Free Demo Download:\n➔ {url}\n\n💻 Website:\n➔ https://www.beatstars.com/matwyre\n\n🔥 BULK DEALS (Add to cart):\n⚡ BUY 2 TRACKS, GET 2 FREE\n⚡ BUY 3 TRACKS, GET 3 FREE\n\n📸 Instagram: https://instagram.com/wyrebeats\n\n---\n\n📜 LICENSE AGREEMENT SUMMARY:\n\n1. Free Use: Allowed on YouTube/SoundCloud (Non-monetized). Credit \"Prod. MatWyre\" is mandatory.\n2. Co-Production: If the title lists another producer, you MUST credit them too.\n3. Streaming: To release on Spotify/Apple Music, purchase a lease.\n4. Content ID: ⛔ STRICTLY PROHIBITED. Do not register this song. It will cause a copyright strike.\n\nAll Rights Reserved © - MatWyre / WyreSounds\n\n---\n\n#IndieRockTypeBeat #BedroomPop #MatWyre\n\nIgnore Tags:\nTame Impala Type Beat, Mac DeMarco Type Beat, Bedroom Pop Instrumental, Indie Rock Type Beat 2026, Boy Pablo Type Beat, Clairo Type Beat, Dream Pop Instrumental, Shoegaze Type Beat, The Strokes Type Beat, Wallows Type Beat, WyreSounds, MatWyre, Alternative Rock Beat.",
+    "description": "🎸 License This Beat (Untagged High Quality):\n➔ {url}\n\n⬇️ Free Demo Download:\n➔ {url}\n\n💻 Website:\n➔ https://www.beatstars.com/matwyre\n\n{music_info}\n\n🔥 BULK DEALS (Add to cart):\n⚡ BUY 2 TRACKS, GET 2 FREE\n⚡ BUY 3 TRACKS, GET 3 FREE\n\n📸 Instagram: https://instagram.com/wyrebeats\n\n---\n\n📜 LICENSE AGREEMENT SUMMARY:\n\n1. Free Use: Allowed on YouTube/SoundCloud (Non-monetized). Credit \"Prod. MatWyre\" is mandatory.\n2. Co-Production: If the title lists another producer, you MUST credit them too.\n3. Streaming: To release on Spotify/Apple Music, purchase a lease.\n4. Content ID: ⛔ STRICTLY PROHIBITED. Do not register this song. It will cause a copyright strike.\n\nAll Rights Reserved © - MatWyre / WyreSounds\n\n---\n\n#IndieRockTypeBeat #BedroomPop #MatWyre\n\nIgnore Tags:\nTame Impala Type Beat, Mac DeMarco Type Beat, Bedroom Pop Instrumental, Indie Rock Type Beat 2026, Boy Pablo Type Beat, Clairo Type Beat, Dream Pop Instrumental, Shoegaze Type Beat, The Strokes Type Beat, Wallows Type Beat, WyreSounds, MatWyre, Alternative Rock Beat.",
     "tags": [
       "free type beat",
       "pop instrumental",
@@ -39,7 +39,7 @@
       "poppyvibes"
     ],
     "title_mode": "indie_v1",
-    "title_template": "[FREE] {style} Type Beat - \"{name}\""
+    "title_template": "[FREE] {style} Type Beat - \"{name}\" (prod. matwyre)"
   },
   "slots": [
     {

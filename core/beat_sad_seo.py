@@ -1,7 +1,7 @@
 """Sad melodic metadata using only the artists present in each beat's tags."""
 import re
 from core.beat_names import clean_name
-from core.beat_title import parse
+from core.beat_title import parse, parse_track
 
 MODE = 'sad_melodic_v1'
 TOKENS = ('{style}', '{title}', '{music_info}', '{sad_hashtags}')
@@ -42,7 +42,7 @@ def variants(track, profile):
 
 def description(profile, track, option):
     style, artists, sad = context(track)
-    music = parse(track['title'])
+    music = parse_track(track)
     technical = '\n'.join(label + music[key] for label, key in
                           [('BPM: ', 'bpm'), ('Key: ', 'key')] if music[key])
     hashtags = ['#' + re.sub(r'[^A-Za-z0-9]', '', a) + 'TypeBeat' for a in artists]

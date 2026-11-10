@@ -28,13 +28,28 @@ class IndieSeoTests(unittest.TestCase):
         snapshot, _ = beat_seo.build_snapshot(job, track, channel, '2026-11-04T01:00:00+00:00')
         beat_seo.validate_snapshot(snapshot, job)
         titles = [o['title'] for o in snapshot['candidates']]
-        self.assertEqual(len(set(titles)), 3)
+        self.assertEqual(len(set(titles)), 4)
+        self.assertIn('[FREE] Indie Rock x Bedroom Pop Type Beat - "Bleeding" (prod. matwyre)', titles)
         self.assertTrue(all('Bleeding' in t and 'Indie Rock' in t and len(t) <= 100 for t in titles))
         body = beat_seo.description(self.profile(), track, snapshot['candidates'][0], 'https://bsta.rs/example')
         self.assertEqual(body, 'License: https://bsta.rs/example')
         changed, _ = beat_seo.build_snapshot(job, track, channel, '2026-11-04T01:00:00+00:00',
                                              previous_selected=snapshot['selected'])
         self.assertNotEqual(changed['selected']['title'], snapshot['selected']['title'])
+
+    def test_winner_leads_three_of_four_and_extensions_keep_its_structure(self):
+        winner = '[FREE] Indie Rock x Bedroom Pop Type Beat - "Bleeding" (prod. matwyre)'
+        firsts = []
+        for i in range(400):
+            track = {'id': f'TK{i}', 'title': 'Bleeding', 'tags': ['indie pop']}
+            titles = [o['title'] for o in beat_indie_seo.variants(track, self.profile())]
+            self.assertIn(winner, titles)
+            self.assertTrue(all(t.startswith('[FREE] Indie Rock x Bedroom Pop Type Beat') for t in titles))
+            firsts.append(titles[0] == winner)
+        self.assertTrue(0.65 < sum(firsts) / len(firsts) < 0.85)
+        other = beat_indie_seo.variants({'id': 'TK1', 'title': 'Bleeding', 'tags': ['sad pop']}, self.profile())
+        self.assertTrue(all(o['title'].startswith('[FREE] Sad Pop Type Beat') and '(prod. matwyre)' in o['title']
+                            for o in other))
 
     def test_long_names_are_bounded_and_order_is_stable(self):
         track = {'id': 'TK1', 'title': 'Long name ' * 40, 'tags': ['indie pop']}

@@ -5,7 +5,8 @@ PROFILE_QUERY = """query($username:String!){
 TRACKS_QUERY = """query($memberId:String!,$page:Int,$size:Int){
   profileTracks(memberId:$memberId,page:$page,size:$size){
     totalElements totalPages number last
-    content{id title v2Id seoMetadata{slug} metadata{tags}
+    content{id title v2Id seoMetadata{slug} metadata{tags bpm keyNote{value}}
+      collaborators{displayName}
       bundle{hls{duration} stream{duration}} profile{memberId}}
   }
 }"""

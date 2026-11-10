@@ -27,13 +27,40 @@ def style(track):
     raise ValueError('indie_style_missing')
 
 
+WINNER_LABEL = 'Indie Rock x Bedroom Pop'
+WINNER_STYLES = {'Bedroom Pop', 'Indie Pop x Bedroom Pop', 'Indie Pop x Indie Rock',
+                 'Indie Rock', 'Indie Pop'}
+# Best performer so far, then extensions that keep its structure and try to beat it.
+WINNER = '[FREE] {label} Type Beat - "{name}" (prod. matwyre)'
+EXTENSIONS = ('[FREE] {label} Type Beat 2026 - "{name}" (prod. matwyre)',
+              '[FREE] {label} Type Beat - "{name}" | {style} (prod. matwyre)',
+              '[FREE] {label} Type Beat - "{name}" (prod. matwyre) | Instrumental')
+WINNER_SHARE = 3  # of every 4 beats start with the winner; the rest start with an extension
+
+
+MIN_NAME = 20  # keep at least this many characters of the beat name when adding collaborators
+
+
+def _with_collaborators(template, collaborators, name_len=MIN_NAME):
+    """«(prod. matwyre)» → «(prod. matwyre x colab 1 x colab 2)»; sin lugar para el nombre, se quitan del final."""
+    people = [p.lower() for p in collaborators]
+    while people:
+        credit = '(prod. matwyre' + ''.join(' x ' + p for p in people) + ')'
+        candidate = template.replace('(prod. matwyre)', credit)
+        if 100 - len(candidate.replace('{name}', '')) >= min(name_len, MIN_NAME):
+            return candidate
+        people.pop()
+    return template
+
+
 def variants(track, profile):
     current = style(track)
-    templates = [profile['title_template'],
-                 '[FREE] "{name}" | {style} Type Beat',
-                 '[FREE] {style} Instrumental - "{name}"']
+    label = WINNER_LABEL if current in WINNER_STYLES else current
+    extensions = [t for t in EXTENSIONS if current != label or '{style}' not in t]
     seed = int(hashlib.sha256(track['id'].encode()).hexdigest()[:8], 16)
-    templates = templates[seed % len(templates):] + templates[:seed % len(templates)]
+    shift = (seed // 4) % len(extensions)
+    extensions = extensions[shift:] + extensions[:shift]
+    templates = ([WINNER] + extensions if seed % 4 < WINNER_SHARE else extensions + [WINNER])
     tags = list(dict.fromkeys([f'{current.lower()} type beat'] + profile['tags']))
     bounded = []
     for tag in tags:
@@ -41,7 +68,8 @@ def variants(track, profile):
             bounded.append(tag)
     result = []
     for template in templates:
-        template = template.replace('{style}', current)
+        template = template.replace('{label}', label).replace('{style}', current)
+        template = _with_collaborators(template, track.get('collaborators') or (), len(clean_name(track['title'])))
         budget = 100 - len(template.replace('{name}', ''))
         if budget < 1:
             raise ValueError('seo_title_too_long')

@@ -2,7 +2,7 @@
 import re
 from core.beat_guitar import context, SAD, EMOTIONAL, EMO, PAIN, MELODIC
 from core.beat_names import clean_name
-from core.beat_title import parse
+from core.beat_title import parse, parse_track
 
 MODE = 'guitar_v1'
 TOKENS = ('{style}', '{title}', '{music_info}', '{credits}', '{guitar_hashtags}')
@@ -40,7 +40,7 @@ def variants(track, profile):
 
 def description(profile, track, option):
     info = context(track)
-    music = parse(track['title'])
+    music = parse_track(track)
     technical = '\n'.join(label + music[key] for label, key in [('BPM: ', 'bpm'), ('Key: ', 'key')] if music[key])
     authors = re.search(r'\((?:prod\.?\s+([^)]{1,250})|((?:@?matwyre)\s+x\s+[^)]{1,230}))\)', track['title'], re.I)
     credits = ('Prod. ' + (authors.group(1) or authors.group(2)).strip() if authors else
