@@ -68,6 +68,8 @@ class BeatStarsDataTests(unittest.TestCase):
             self.assertIn('\n(prod. matwyre)\n', text)
             self.assertIn('BPM: 120' if key == 'bpm' else 'Key: Gm', text)
             self.assertNotIn('Key:' if key == 'bpm' else 'BPM:', text)
+        text = beat_seo.description(profile, {'title': 'Night Love'}, {}, 'https://x.test/a')
+        self.assertIn('Instagram: @matwyreoff\n\n(prod. matwyre)', text)
 
     def test_track_input_cleans_extras(self):
         track = beat_seo.track_input(dict(self.TRACK, collaborators=['MatWyre', '{url}x', 'ok', 'ok']))
@@ -79,6 +81,8 @@ class BeatStarsDataTests(unittest.TestCase):
                'collaborators': [{'displayName': 'prodsantu'}, {'displayName': ''}]}
         self.assertEqual(_music(raw), (120, 'Gm', ('prodsantu',)))
         self.assertEqual(_music({'metadata': {'bpm': None, 'keyNote': None}}), (None, '', ()))
+        self.assertEqual(_music({'metadata': {'bpm': None, 'keyNote': {'value': 'None'}}}),
+                         (None, '', ()))
 
 
 

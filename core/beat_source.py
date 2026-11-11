@@ -63,6 +63,8 @@ def _music(raw):
     note = meta.get("keyNote") or {}
     key = note.get("value") if isinstance(note, dict) else None
     key = key.strip() if isinstance(key, str) and len(key) <= 40 else ""
+    if key.casefold() == 'none':
+        key = ''
     names = []
     for person in raw.get("collaborators") or ():
         name = person.get("displayName") if isinstance(person, dict) else None
