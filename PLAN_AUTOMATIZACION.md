@@ -1999,5 +1999,5 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
   ~60 % de los beats y `(FREE) MELODIC R&B TYPE BEAT - "name"` en ~30 %; detalle, cruce y
   artistas (solo con tags reales) comparten el ~10 % restante. TYPE BEAT en mayúsculas.
 - Asignación estable por ID de beat; `rnb_test_v1` y snapshots existentes intactos.
-- Activación pendiente: publicar código y cambiar `title_mode` de Lovesickk a `rnb_test_v2`
-  en la configuración remota (afecta solo trabajos aún sin snapshot).
+- Activado el 2026-11-11: código publicado en master y `title_mode` de Lovesickk cambiado a `rnb_test_v2`
+  en Dropbox por CAS y releído (afecta solo trabajos sin snapshot; 505 pruebas OK).
