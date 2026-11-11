@@ -1,5 +1,16 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## MurrayBeats — rotación de títulos ✅ COMPLETADA (2026-11-10)
+
+- Modo `murray_reggaeton_v1` activo en Dropbox y releído. Desde el 14/11 se usa
+  el título sin año en cuatro de cada seis turnos, `2026` en uno y `2027` en uno.
+  La variante depende de la fecha argentina del turno y se conserva al reintentar.
+- Tres videos programados preservados. De los once turnos siguientes, siete van
+  sin año y dos con cada año. La primera variante 2026 corresponde al 14/11 y la
+  primera 2027 al 17/11. Todos mantienen las 21:00 Argentina.
+- Se validaron los títulos del catálogo elegible en las seis posiciones de la
+  rotación, los registros históricos y las 441 pruebas del worker con FFmpeg.
+
 ## MurrayBeats — publicación diaria a las 21:00 ✅ COMPLETADA (2026-11-10)
 
 - Canal `UCgIiwbKMWl7sfUHvvzfC61w` conectado y verificado por OAuth. Perfil y registro
