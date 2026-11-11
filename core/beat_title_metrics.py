@@ -11,7 +11,7 @@ def collect(cloud, channel, reader, now=None):
     instant = moment(now)
     config, _ = cloud.read('config')
     spec = next(c for c in config['channels'] if c['id'] == channel)
-    if spec.get('seo', {}).get('title_mode') not in ('rnb_test_v1', 'matwyre_v1'):
+    if spec.get('seo', {}).get('title_mode') not in ('rnb_test_v1', 'rnb_test_v2', 'matwyre_v1'):
         return 0
     state, _ = cloud.read('state')
     jobs = [job for job in state['jobs'].values() if job['channel'] == channel

@@ -152,3 +152,24 @@ class MetricsTests(unittest.TestCase):
         row['views'] = True
         with self.assertRaises(ValueError):
             collect(cloud, 'lovesickk', lambda *a: {j['youtube_id']: row}, '2026-11-13T19:00:00Z')
+
+
+class RnbV2Tests(unittest.TestCase):
+    def test_weighted_uppercase_titles_and_valid_snapshots(self):
+        from core import beat_rnb_seo_v2 as v2
+        seo = dict(channel()['seo'], title_mode=v2.MODE)
+        ch = dict(channel(), seo=seo)
+        counts = {}
+        for i in range(400):
+            t = track(['rnb', 'sad rnb'], f'TK{i}')
+            j = job(t)
+            snap, _ = build_snapshot(j, t, ch, NOW)
+            self.assertEqual(validate_snapshot(snap, j), snap)
+            family = snap['experiment']['family']
+            counts[family] = counts.get(family, 0) + 1
+            title = snap['selected']['title']
+            self.assertIn(title.split(' - ')[0], ('(FREE) R&B TYPE BEAT', '(FREE) MELODIC R&B TYPE BEAT',
+                                                   '(FREE) SAD R&B TYPE BEAT'))
+            self.assertLessEqual(len(title), 100)
+        self.assertGreater(counts['simple'], counts['melodic'] > 0 and counts['melodic'])
+        self.assertGreater(counts['simple'] + counts['melodic'], 340)

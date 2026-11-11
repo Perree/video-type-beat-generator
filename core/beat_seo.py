@@ -8,7 +8,7 @@ from core.beat_names import clean_name
 from core.beat_title import parse_track
 from core import beat_latin_seo, beat_house_seo, beat_indie_seo, beat_club_seo, beat_club_seo_v2, beat_melodic_seo
 from core import beat_melodic_fixed_seo
-from core import beat_rnb_seo
+from core import beat_rnb_seo, beat_rnb_seo_v2
 from core import beat_matwyre_seo
 from core import beat_afro_seo
 from core import beat_latin_seo_v2
@@ -53,6 +53,7 @@ MODES = {beat_latin_seo.MODE: (beat_latin_seo, ('{artists}', '{style}')),
          beat_murray_seo.MODE: (beat_murray_seo, ()),
          beat_murray_seo.EXPIRING_MODE: (beat_murray_seo, ()),
          beat_rnb_seo.MODE: (beat_rnb_seo, ('{style}',)),
+         beat_rnb_seo_v2.MODE: (beat_rnb_seo_v2, ('{style}',)),
          beat_matwyre_seo.MODE: (beat_matwyre_seo, ('{style}',))}
 
 
@@ -235,7 +236,7 @@ def build_snapshot(job, track, channel, now, payload=None, cached=None, *, previ
         'report_hash': digest(report) if report else None,
         'scores': scores, 'candidates': options,
         'selected': dict(eligible[0], description=description(profile, track, eligible[0]))}
-    if _mode(profile) in (beat_rnb_seo, beat_matwyre_seo):
+    if _mode(profile) in (beat_rnb_seo, beat_rnb_seo_v2, beat_matwyre_seo):
         snapshot['experiment'] = _mode(profile).experiment(track, profile, snapshot['selected'])
     snapshot['sha256'] = digest(snapshot)
     cache = {'manual_hash': fingerprint, 'report': deepcopy(report)} if source == 'report' else None
@@ -295,7 +296,7 @@ def validate_snapshot(snapshot, job):
                    or not _matches_options(snapshot, job, track, profile,
                                            mode.variants(track, profile, legacy=True), legacy=True)):
         raise ValueError('seo_snapshot_invalid')
-    if mode in (beat_rnb_seo, beat_matwyre_seo):
+    if mode in (beat_rnb_seo, beat_rnb_seo_v2, beat_matwyre_seo):
         options = {'legacy': True} if legacy else {}
         if snapshot.get('experiment') != mode.experiment(track, profile, snapshot['selected'], **options):
             raise ValueError('seo_experiment_invalid')

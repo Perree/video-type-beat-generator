@@ -1993,3 +1993,11 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
 - Los nombres de video con LLM (texto) no cambian; solo se apagaron las imágenes.
 - Validación: test nuevo `tests/test_kit_no_ai_images.py` (auto y template nunca llaman a la API);
   los smokes del código de IA lo activan explícitamente para seguir cubriéndolo.
+
+## Lovesickk — Títulos como los videos más vistos (`rnb_test_v2`) ✅ COMPLETADA (2026-11-11)
+- Nuevo modo `rnb_test_v2` (código listo, sin activar): `(FREE) R&B TYPE BEAT - "name"` en
+  ~60 % de los beats y `(FREE) MELODIC R&B TYPE BEAT - "name"` en ~30 %; detalle, cruce y
+  artistas (solo con tags reales) comparten el ~10 % restante. TYPE BEAT en mayúsculas.
+- Asignación estable por ID de beat; `rnb_test_v1` y snapshots existentes intactos.
+- Activación pendiente: publicar código y cambiar `title_mode` de Lovesickk a `rnb_test_v2`
+  en la configuración remota (afecta solo trabajos aún sin snapshot).
