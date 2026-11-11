@@ -1,5 +1,22 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## WyreLatinBeatz — títulos de la captura y 16 fondos ✅ COMPLETADA (2026-11-11)
+
+- Modo `wyrelatin_v1` activo y releído: `Bad Bunny x Feid Type Beat - "NOMBRE" |
+  Latin [género] Type Beat`. Pareja editorial de la captura, nombre real en
+  mayúsculas y género por tags. Modos/snapshots históricos conservados.
+- Causa de repetición: único MP4 de imagen fija. 16 JFIF locales distintos
+  copiados y releídos byte por byte; composición completa sobre negro inspeccionada.
+  Perfil activo en modo imagen; 17 selecciones remotas simuladas prueban que usa
+  las 16 antes de repetir. Inventario en docs/wyrelatinbeatz.assets.json.
+- Próxima subida nueva: 14/11 15:00 Argentina. La del 12/11 ya programada conserva
+  el fondo y título anteriores. Estado y demás canales idénticos; registro/config
+  guardados por CAS. Sin editar videos existentes ni hacer subidas nuevas.
+- Código publicado 9580f05; 507 pruebas locales OK (tres omitidas), 138 snapshots
+  del catálogo y todos los históricos validados. Corrida remota 43030788373 success:
+  448 pruebas con FFmpeg OK; simulación sin turnos elegibles, sin errores ni subidas.
+  Detalles: docs/WYRELATINBEATZ.md.
+
 ## MurrayBeats — retiro automático del título 2026 ✅ COMPLETADA (2026-11-10)
 
 - Modo `murray_reggaeton_v2` activo y releído. Desde el 1/1/2027, los turnos de

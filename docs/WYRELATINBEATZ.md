@@ -1,5 +1,41 @@
 # WyreLatinBeatz — automatización
 
+## Títulos del propio canal y rotación de imágenes — 11/11/2026
+
+Referencia: captura de los videos más vistos de WyreLatinBeatz aportada por el
+usuario. Modo optativo `wyrelatin_v1`: `Bad Bunny x Feid Type Beat - "NOMBRE" |
+Latin [género] Type Beat`, sin FREE ni emoción en el título. Pareja editorial
+solicitada a partir de la captura; no modifica etiquetas fuente ni atribuye esos
+artistas al beat en la descripción. Nombre real en mayúsculas; género por tags.
+Los modos históricos siguen validando, junto con sus snapshots ya subidos.
+
+Causa de las tres subidas con el mismo fondo: modo video apuntando al único
+`so-pretty-visual.mp4`, que contiene una imagen fija. Había 16 JFIF locales sin
+conectar al worker. Los 16 tienen píxeles distintos, abren correctamente y pasan
+la composición a 1920×1080, completos sobre negro y sin texto. Se inspeccionó
+la hoja de contacto. Copiados a la carpeta Dropbox `wyrelatinbeatz/imagenes`;
+los 16 archivos descargados nuevamente coinciden byte por byte con los originales.
+Inventario en `docs/wyrelatinbeatz.assets.json`.
+
+Perfil activo cambiado a imagen con `contain`, sin miniatura personalizada.
+La rotación existente usa todas las imágenes antes de reutilizar la primera;
+comprobado contra los recursos remotos durante 17 selecciones simuladas, sin
+persistir reservas ni historial ficticio. 16 fondos cubren 32 días a la frecuencia
+actual de una subida cada dos días. Primera reserva pendiente: 14/11 a las 15:00.
+El video del 12/11 ya estaba subido/programado y conserva su imagen y título.
+
+Código publicado en `9580f05`. Configuración y plantilla del registro guardadas
+por CAS y releídas; demás canales y estado de publicaciones idénticos.
+507 pruebas locales aprobadas, tres omitidas opcionales; 138 snapshots del
+catálogo elegible reconstruidos/validados y todos los snapshots históricos del
+estado remoto validados. No se editaron ni se volvieron a subir videos existentes.
+
+Simulación remota [43030788373](https://github.com/Perree/video-type-beat-generator/actions/runs/43030788373):
+success, 448 pruebas con FFmpeg aprobadas. planned/eligible/uploaded/failed y
+resto de contadores en cero: no había turnos en la ventana de preparación.
+La rotación se verificó por separado con los 16 archivos remotos, y los títulos
+con los 138 beats del catálogo; la simulación no ejercitó un nuevo render/subida.
+
 ## Formato de títulos de referencia Taimet — 7/11/2026
 
 Pedido del usuario: que los títulos se parezcan más a los de Taimet. Se toma de
