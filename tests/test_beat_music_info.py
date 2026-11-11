@@ -56,6 +56,19 @@ class BeatStarsDataTests(unittest.TestCase):
         text = beat_seo.description(profile, track, {}, 'https://x.test/a')
         self.assertIn('\nProd. MatWyre\n', text)
 
+    def test_murray_parenthesized_credit_and_optional_music_info(self):
+        profile = beat_seo.manual_profile(channel('murraybeats'))[1]
+        track = beat_seo.track_input(self.TRACK)
+        text = beat_seo.description(profile, track, {}, 'https://x.test/a')
+        self.assertIn('\n(prod. matwyre x prodsantu x Other One)\n', text)
+        self.assertIn('BPM: 120\nKey: Gm', text)
+        for key, value in (('bpm', 120), ('key', 'Gm')):
+            track = beat_seo.track_input({'id': 'TK1', 'title': 'Night Love', 'tags': [], key: value})
+            text = beat_seo.description(profile, track, {}, 'https://x.test/a')
+            self.assertIn('\n(prod. matwyre)\n', text)
+            self.assertIn('BPM: 120' if key == 'bpm' else 'Key: Gm', text)
+            self.assertNotIn('Key:' if key == 'bpm' else 'BPM:', text)
+
     def test_track_input_cleans_extras(self):
         track = beat_seo.track_input(dict(self.TRACK, collaborators=['MatWyre', '{url}x', 'ok', 'ok']))
         self.assertEqual(track['collaborators'], ['urlx', 'ok'])

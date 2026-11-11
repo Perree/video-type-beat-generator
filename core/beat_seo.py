@@ -173,11 +173,13 @@ def _with_music_info(value, track):
 
 
 def _with_collaborators(value, track):
-    """«Prod. MatWyre» (línea propia) → «Prod. MatWyre x colab 1 x colab 2» si el beat tiene colaboradores."""
+    """Append collaborators to the producer credit, inside parentheses when present."""
     people = track.get('collaborators')
     if not people:
         return value
-    return re.sub(r'(?m)^Prod\. MatWyre\b(?! x )', lambda m: m.group(0) + ''.join(' x ' + n for n in people), value)
+    credits = ''.join(' x ' + name for name in people)
+    return re.sub(r'(?m)^(?:Prod\. MatWyre\b(?! x )|\(prod\. matwyre(?=\)$))',
+                  lambda match: match.group() + credits, value)
 
 
 def description(profile, track, option, link=None):
