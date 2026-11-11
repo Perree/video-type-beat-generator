@@ -60,6 +60,24 @@ class TemplateTests(unittest.TestCase):
         self.assertNotEqual(repeat['selected']['tags'], snapshot['selected']['tags'])
         self.assertEqual(validate_snapshot(repeat, repeat_job), repeat)
 
+    def test_murray_retires_2026_by_publication_date_and_replays_v1(self):
+        channel = json.loads(Path('docs/murraybeats.channel.json').read_text(encoding='utf-8'))
+        old_channel = dict(channel, seo=dict(channel['seo'], title_mode='murray_reggaeton_v1'))
+        job = dict(JOB, id='murray-year-end', channel=channel['id'])
+        cases = (('2026-12-27T00:00:00+00:00', ' 2026'),  # December 26 in Argentina
+                 ('2027-01-01T00:00:00+00:00', ''),      # December 31 in Argentina
+                 ('2027-01-02T00:00:00+00:00', ''),      # January 1, former 2026 slot
+                 ('2027-01-05T00:00:00+00:00', ' 2027'))
+        for slot, year in cases:
+            job['slot'] = slot
+            snapshot, _ = build_snapshot(job, TRACK, channel, NOW)
+            self.assertEqual(snapshot['selected']['title'], f'[FREE] REGGAETON TYPE BEAT{year} - "Night"')
+            self.assertEqual(validate_snapshot(snapshot, job), snapshot)
+        job['slot'] = '2027-01-02T00:00:00+00:00'
+        old, _ = build_snapshot(job, TRACK, old_channel, NOW)
+        self.assertIn('TYPE BEAT 2026', old['selected']['title'])
+        self.assertEqual(validate_snapshot(old, job), old)
+
     def test_catalog_heart_and_markup_build_replayable_snapshots(self):
         for title, expected in [('Nevermind <3', 'Nevermind ♥'),
                                 ('<Night> {demo}', 'Night demo')]:

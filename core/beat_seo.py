@@ -51,6 +51,7 @@ MODES = {beat_latin_seo.MODE: (beat_latin_seo, ('{artists}', '{style}')),
          beat_melodic_seo.MODE: (beat_melodic_seo, ('{style}',)),
          beat_melodic_fixed_seo.MODE: (beat_melodic_fixed_seo, ()),
          beat_murray_seo.MODE: (beat_murray_seo, ()),
+         beat_murray_seo.EXPIRING_MODE: (beat_murray_seo, ()),
          beat_rnb_seo.MODE: (beat_rnb_seo, ('{style}',)),
          beat_matwyre_seo.MODE: (beat_matwyre_seo, ('{style}',))}
 
