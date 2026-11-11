@@ -121,6 +121,24 @@ class MatwyreTests(unittest.TestCase):
             self.assertNotIn('capsctrl', option['title'])
         self.assertIn('matwyre x capsctrl x ibifibi', seo.description(ch['seo'], t, {}))
 
+    def test_historical_matwyre_snapshot_replays(self):
+        ch = channel()
+        ch['seo'].update(title_template='(FREE) {style} Type Beat - "{name}"',
+                         description='{context}\n{music_info}\n{hashtags}')
+        t = track(['duki', 'melodic'])
+        job = dict(id='job', channel=ch['id'], track_id=t['id'], cycle=1)
+        snapshot, _ = build_snapshot(job, t, ch, NOW)
+        tags = ['duki type beat', 'melodic type beat', 'matwyre', 'matwyrebeats']
+        snapshot['candidates'] = [dict(title=title, tags=tags) for title in (
+            '(FREE) Duki Type Beat - "La Noche"', 'La Noche (Duki Type Beat)',
+            '(FREE) Duki Type Beat - "La Noche" | Melodic')]
+        snapshot['selected'] = dict(snapshot['candidates'][0],
+            description='Duki type beat para escribir y grabar voces. Sonido: Melodic.\n\n#DukiTypeBeat #TypeBeat #MatWyre')
+        snapshot['experiment']['family'] = 'search'
+        del snapshot['sha256']
+        snapshot['sha256'] = digest(snapshot)
+        self.assertEqual(validate_snapshot(snapshot, job), snapshot)
+
     def test_balanced_planning_and_absent_family(self):
         ch = channel()
         tracks = [track(tags, 'TK'+str(i*20+j)) for i,tags in enumerate(

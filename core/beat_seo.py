@@ -182,9 +182,12 @@ def _with_collaborators(value, track):
                   lambda match: match.group() + credits, value)
 
 
-def description(profile, track, option, link=None):
+def description(profile, track, option, link=None, *, legacy=False):
     mode = _mode(profile)
-    value = mode.description(profile, track, option) if mode else profile['description']
+    if legacy and mode is beat_matwyre_seo:
+        value = mode.description(profile, track, option, legacy=True)
+    else:
+        value = mode.description(profile, track, option) if mode else profile['description']
     return render(_with_collaborators(_with_music_info(value, track), track), track, link)
 
 
@@ -235,6 +238,20 @@ def build_snapshot(job, track, channel, now, payload=None, cached=None, *, previ
     return snapshot, cache
 
 
+def _matches_options(snapshot, job, track, profile, options, *, legacy=False):
+    # Pre-review snapshots repeated the description in every option.
+    if snapshot['candidates'] != options:
+        expanded = [dict(option, description=description(profile, track, option, legacy=legacy))
+                    for option in options]
+        if snapshot['candidates'] != expanded:
+            return False
+    chosen = options if job['cycle'] > 1 else options[:1]
+    # Early snapshots used the full page URL in place of the upload placeholder.
+    return any(snapshot['selected'] == dict(option, description=description(
+        profile, track, option, link, legacy=legacy))
+        for option in chosen for link in (None, beat_url(track)))
+
+
 def validate_snapshot(snapshot, job):
     fields(snapshot, ('schema_version', 'job_id', 'channel_id', 'track', 'manual', 'as_of',
                       'source', 'report_hash', 'scores', 'candidates', 'selected', 'sha256')
@@ -263,23 +280,21 @@ def validate_snapshot(snapshot, job):
     if ((snapshot['source'] == 'manual' and (rh is not None or scores))
             or (snapshot['source'] != 'manual' and (type(rh) is not str or not re.fullmatch('[0-9a-f]{64}', rh)))):
         raise ValueError('seo_snapshot_invalid')
-    options = candidates(track, profile, scores)
-    # Pre-review v1 snapshots repeated the manual description in every option.
-    # Accept that equivalent encoding on replay; new snapshots store it once.
-    legacy = [dict(option, description=description(profile, track, option)) for option in options]
-    chosen = options if job['cycle'] > 1 else options[:1]
-    # Early snapshots stored the page URL instead of the {url} placeholder.
-    selections = [dict(option, description=description(profile, track, option, link))
-                  for option in chosen for link in (None, beat_url(track))]
-    if (snapshot['candidates'] != options and snapshot['candidates'] != legacy
-            or snapshot['selected'] not in selections):
-        raise ValueError('seo_snapshot_invalid')
-    if _mode(profile) in (beat_rnb_seo, beat_matwyre_seo):
-        if snapshot.get('experiment') != _mode(profile).experiment(track, profile, snapshot['selected']):
-            raise ValueError('seo_experiment_invalid')
-    elif 'experiment' in snapshot:
-        raise ValueError('seo_experiment_invalid')
     body = {k: v for k, v in snapshot.items() if k != 'sha256'}
     if snapshot['sha256'] != digest(body):
         raise ValueError('seo_snapshot_invalid')
+
+    mode = _mode(profile)
+    legacy = not _matches_options(snapshot, job, track, profile, candidates(track, profile, scores))
+    # These modes changed before receiving distinct identifiers. Replay both known outputs.
+    if legacy and (mode not in (beat_indie_seo, beat_matwyre_seo) or len(snapshot['track']) != 3
+                   or not _matches_options(snapshot, job, track, profile,
+                                           mode.variants(track, profile, legacy=True), legacy=True)):
+        raise ValueError('seo_snapshot_invalid')
+    if mode in (beat_rnb_seo, beat_matwyre_seo):
+        options = {'legacy': True} if legacy else {}
+        if snapshot.get('experiment') != mode.experiment(track, profile, snapshot['selected'], **options):
+            raise ValueError('seo_experiment_invalid')
+    elif 'experiment' in snapshot:
+        raise ValueError('seo_experiment_invalid')
     return deepcopy(snapshot)

@@ -51,6 +51,21 @@ class IndieSeoTests(unittest.TestCase):
         self.assertTrue(all(o['title'].startswith('[FREE] Sad Pop Type Beat') and '(prod. matwyre)' in o['title']
                             for o in other))
 
+    def test_historical_indie_snapshot_replays(self):
+        channel = {'id': 'poppyvibes', 'seo': self.profile()}
+        track = {'id': 'TK25222454', 'title': 'Bleeding', 'tags': ['indie pop', 'indie rock']}
+        job = {'id': 'job', 'channel': channel['id'], 'track_id': track['id'], 'cycle': 1}
+        snapshot, _ = beat_seo.build_snapshot(job, track, channel, '2026-11-04T01:00:00+00:00')
+        tags = ['indie pop x indie rock type beat', 'type beat', 'matwyre']
+        snapshot['candidates'] = [dict(title=title, tags=tags) for title in (
+            '[FREE] "Bleeding" | Indie Pop x Indie Rock Type Beat',
+            '[FREE] Indie Pop x Indie Rock Instrumental - "Bleeding"',
+            '[FREE] Indie Pop x Indie Rock Type Beat - "Bleeding"')]
+        snapshot['selected'] = dict(snapshot['candidates'][0], description='License: {url}')
+        del snapshot['sha256']
+        snapshot['sha256'] = beat_seo.digest(snapshot)
+        self.assertEqual(beat_seo.validate_snapshot(snapshot, job), snapshot)
+
     def test_long_names_are_bounded_and_order_is_stable(self):
         track = {'id': 'TK1', 'title': 'Long name ' * 40, 'tags': ['indie pop']}
         options = beat_indie_seo.variants(track, self.profile())

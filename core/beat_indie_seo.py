@@ -53,14 +53,20 @@ def _with_collaborators(template, collaborators, name_len=MIN_NAME):
     return template
 
 
-def variants(track, profile):
+def variants(track, profile, *, legacy=False):
     current = style(track)
-    label = WINNER_LABEL if current in WINNER_STYLES else current
-    extensions = [t for t in EXTENSIONS if current != label or '{style}' not in t]
     seed = int(hashlib.sha256(track['id'].encode()).hexdigest()[:8], 16)
-    shift = (seed // 4) % len(extensions)
-    extensions = extensions[shift:] + extensions[:shift]
-    templates = ([WINNER] + extensions if seed % 4 < WINNER_SHARE else extensions + [WINNER])
+    label = WINNER_LABEL if current in WINNER_STYLES else current
+    if legacy:
+        templates = [profile['title_template'], '[FREE] "{name}" | {style} Type Beat',
+                     '[FREE] {style} Instrumental - "{name}"']
+        shift = seed % len(templates)
+        templates = templates[shift:] + templates[:shift]
+    else:
+        extensions = [t for t in EXTENSIONS if current != label or '{style}' not in t]
+        shift = (seed // 4) % len(extensions)
+        extensions = extensions[shift:] + extensions[:shift]
+        templates = [WINNER] + extensions if seed % 4 < WINNER_SHARE else extensions + [WINNER]
     tags = list(dict.fromkeys([f'{current.lower()} type beat'] + profile['tags']))
     bounded = []
     for tag in tags:
@@ -69,7 +75,8 @@ def variants(track, profile):
     result = []
     for template in templates:
         template = template.replace('{label}', label).replace('{style}', current)
-        template = _with_collaborators(template, track.get('collaborators') or (), len(clean_name(track['title'])))
+        if not legacy:
+            template = _with_collaborators(template, track.get('collaborators') or (), len(clean_name(track['title'])))
         budget = 100 - len(template.replace('{name}', ''))
         if budget < 1:
             raise ValueError('seo_title_too_long')
