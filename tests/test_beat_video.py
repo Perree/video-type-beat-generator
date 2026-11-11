@@ -397,6 +397,7 @@ class VideoTests(unittest.TestCase):
         cloud, key, track, channel = fixture()
         client = AssetsClient()
         client.files['/images/trap/a.png'] = b'<html>bad image</html>'
+        client.files['/images/trap/b.png'] = b'<html>bad image</html>'
         targets = []
         assets = DropboxAssets(client)
         original = assets.download
@@ -413,6 +414,18 @@ class VideoTests(unittest.TestCase):
         self.assertTrue(all(not target.parent.exists() for target in targets))
         self.assertNotIn('image_rotation', cloud.read('state')[0])
         self.assertIsNone(cloud.read('state')[0]['lock'])
+
+    def test_unusable_image_is_skipped_for_the_next_one(self):
+        cloud, key, track, channel = fixture()
+        client = AssetsClient()
+        client.files['/images/trap/a.png'] = b'<html>bad image</html>'
+        assets = DropboxAssets(client)
+        with render_reserved(cloud, key, track, channel, 'trap', 'https://beatstars.com/fixture',
+            assets, resolver=Resolver(), http=HLS(),
+            tools=MediaTools('fakeffmpeg', 'fakeprobe', Processes())) as media:
+            self.assertFalse(media['dry_run'])
+        rows = cloud.read('state')[0]['image_rotation']['channel']['trap']
+        self.assertEqual([row['path'] for row in rows], ['/images/trap/b.png'])
 
     def test_subprocess_deadline_is_sanitized(self):
         def run(*args, **kwargs):

@@ -111,12 +111,13 @@ def fetch(row, target, limit, dropbox):
         raise BeatError('local_resource_changed')
 
 
-def image_resource(channel, genre, state, job, dropbox):
+def image_resource(channel, genre, state, job, dropbox, exclude=()):
     # Preserve the existing Dropbox catalog when configured for this genre.
     if genre in channel.get('dropbox_images', {}):
-        return select_image(channel, genre, state, job, dropbox)
+        return select_image(channel, genre, state, job, dropbox, exclude)
     if channel.get('images_folder'):
-        rows = local_catalog(channel['images_folder'], IMAGE_SUFFIXES, 20 * 1024 * 1024)
+        rows = [row for row in local_catalog(channel['images_folder'], IMAGE_SUFFIXES, 20 * 1024 * 1024)
+                if row['path'] not in exclude]
         if not rows:
             raise BeatError('image_catalog_empty')
         reserved = job.get('visual_snapshot')
@@ -127,7 +128,7 @@ def image_resource(channel, genre, state, job, dropbox):
             return selected
         rows = changed_image(rows, state, job)
         return rows[(job['cycle'] - 1) % len(rows)]
-    return select_image(channel, genre, state, job, dropbox)
+    return select_image(channel, genre, state, job, dropbox, exclude)
 
 
 def thumbnail_resource(spec):

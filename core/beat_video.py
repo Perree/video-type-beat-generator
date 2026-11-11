@@ -16,6 +16,9 @@ from core.beat_selection import require_track
 from core.beat_visual_schedule import job_options
 
 
+BAD_IMAGE_CODES = {'image_rejected', 'image_decode_failed'}
+
+
 def reserved_job(state, job_id, track, channel):
     if channel.get('active') is False:
         raise BeatError('channel_paused')
@@ -76,11 +79,25 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
             tools = tools or MediaTools()
             seconds = tools.verify_audio(audio, expected)
             montage = {}
-            if image:
+            rejected = set()
+            while image:
                 fetch(image, source_image, 20 * 1024 * 1024, dropbox)
-                compose(source_image, track.get('title'), frame, thumbnail,
-                        plain=spec['mode'] == 'video' or spec.get('plain_image', False),
-                        fit=spec.get('image_fit', 'cover'))
+                try:
+                    compose(source_image, track.get('title'), frame, thumbnail,
+                            plain=spec['mode'] == 'video' or spec.get('plain_image', False),
+                            fit=spec.get('image_fit', 'cover'))
+                    break
+                except BeatError as error:
+                    if str(error) not in BAD_IMAGE_CODES:
+                        raise
+                    # Skip an unusable file instead of blocking the channel on it every run.
+                    print('skipping unusable image (%s): %s' % (error, image['path']), file=sys.stderr)
+                    rejected.add(image['path'])
+                    try:
+                        image = image_resource(channel, genre, state, job, dropbox, rejected)
+                    except BeatError:
+                        raise error from None
+            if image:
                 image['sha256'] = image_digest(source_image)
                 prior = previous_publication(state, job)
                 prior_visual = publication_visual(state, prior) if prior else None

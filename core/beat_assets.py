@@ -92,12 +92,12 @@ class DropboxAssets:
                 response.close()
 
 
-def select_image(channel, genre, state, job, dropbox):
+def select_image(channel, genre, state, job, dropbox, exclude=()):
     folders = channel.get('dropbox_images', {})
     if not isinstance(folders, dict) or genre not in channel.get('genres', []):
         raise BeatError('image_genre_unconfigured')
     folder = dropbox_path(folders.get(genre))
-    catalog = dropbox.list_images(folder)
+    catalog = [row for row in dropbox.list_images(folder) if row['path'] not in exclude]
     if not catalog:
         raise BeatError('image_catalog_empty')
     history = state.get('image_rotation', {}).get(channel['id'], {}).get(genre, [])
