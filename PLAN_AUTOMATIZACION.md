@@ -1,5 +1,14 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## MurrayBeats — retiro automático del título 2026 ✅ COMPLETADA (2026-11-10)
+
+- Modo `murray_reggaeton_v2` activo y releído. Desde el 1/1/2027, los turnos de
+  la variante 2026 usan el título sin año. Se mantiene una variante 2027 cada
+  seis publicaciones y las cinco restantes quedan sin año.
+- Se usa la fecha de publicación argentina, incluso si la subida se prepara en
+  diciembre. Los registros de la rotación anterior siguen validando. Pruebas de
+  cierre de año y 442 pruebas del worker con FFmpeg aprobadas.
+
 ## MurrayBeats — rotación de títulos ✅ COMPLETADA (2026-11-10)
 
 - Modo `murray_reggaeton_v1` activo en Dropbox y releído. Desde el 14/11 se usa
