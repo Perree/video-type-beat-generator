@@ -109,6 +109,7 @@
   },
   "use_channel_templates": true,
   "seo": {
+    "title_mode": "murray_reggaeton_v1",
     "title_template": "[FREE] REGGAETON TYPE BEAT - \"{name}\"",
     "tags": [
       "type beat",

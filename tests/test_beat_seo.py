@@ -1,5 +1,6 @@
 """Offline adversarial checks for the Phase 5 trust boundary and immutable jobs."""
 from copy import deepcopy
+from datetime import datetime, timedelta
 import io
 import json
 from pathlib import Path
@@ -40,6 +41,24 @@ class TemplateTests(unittest.TestCase):
         'tags': ['one type beat', 'two type beat', 'three'],
         'title_template': '[FREE] Style Type Beat "{name}"',
         'description': 'Link: {url}\nTitle: {name}'}}
+
+    def test_murray_rotation_follows_the_publication_date_and_replays(self):
+        profile = Path('docs/murraybeats.channel.json')
+        channel = json.loads(profile.read_text(encoding='utf-8'))
+        start = datetime.fromisoformat('2026-11-14T00:00:00+00:00')
+        years = ['', ' 2026', '', '', ' 2027', '', '', ' 2026']
+        for index, year in enumerate(years):
+            slot = (start + timedelta(days=index)).isoformat()
+            job = dict(JOB, id=f'murray-{index}', channel=channel['id'], slot=slot)
+            snapshot, _ = build_snapshot(job, TRACK, channel, NOW)
+            self.assertEqual(snapshot['selected']['title'], f'[FREE] REGGAETON TYPE BEAT{year} - "Night"')
+            self.assertEqual(validate_snapshot(snapshot, job), snapshot)
+        repeat_job = dict(job, cycle=2)
+        repeat, _ = build_snapshot(repeat_job, TRACK, channel, NOW,
+                                   previous_selected=snapshot['selected'])
+        self.assertEqual(repeat['selected']['title'], snapshot['selected']['title'])
+        self.assertNotEqual(repeat['selected']['tags'], snapshot['selected']['tags'])
+        self.assertEqual(validate_snapshot(repeat, repeat_job), repeat)
 
     def test_catalog_heart_and_markup_build_replayable_snapshots(self):
         for title, expected in [('Nevermind <3', 'Nevermind ♥'),

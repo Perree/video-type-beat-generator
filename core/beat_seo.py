@@ -21,6 +21,7 @@ from core import beat_latin_dysmo_afro_seo
 from core import beat_sad_seo
 from core import beat_emotional_house_seo
 from core import beat_emotional_house_seo_v2
+from core import beat_murray_seo
 from core.beat_seo_report import fields, text, texts, moment, parse_report, validate_report
 
 
@@ -49,6 +50,7 @@ MODES = {beat_latin_seo.MODE: (beat_latin_seo, ('{artists}', '{style}')),
          beat_indie_seo.MODE: (beat_indie_seo, ('{style}',)),
          beat_melodic_seo.MODE: (beat_melodic_seo, ('{style}',)),
          beat_melodic_fixed_seo.MODE: (beat_melodic_fixed_seo, ()),
+         beat_murray_seo.MODE: (beat_murray_seo, ()),
          beat_rnb_seo.MODE: (beat_rnb_seo, ('{style}',)),
          beat_matwyre_seo.MODE: (beat_matwyre_seo, ('{style}',))}
 
@@ -127,13 +129,14 @@ def track_input(track):
     return result
 
 
-def candidates(track, profile, scores):
-    if _mode(profile):
-        return _mode(profile).variants(track, profile)
+def candidates(track, profile, scores, job):
+    mode = _mode(profile)
+    if mode and mode is not beat_murray_seo:
+        return mode.variants(track, profile)
     template = profile.get('title_template')
     if template:
         # Fixed title and tag list; only the beat name and link change. Repeats rotate the tag order.
-        title = render(template, track)
+        title = mode.title(track, profile, job['slot']) if mode else render(template, track)
         if len(title) > 100:
             raise ValueError('seo_title_too_long')
         base = list(profile['tags'])
@@ -219,7 +222,7 @@ def build_snapshot(job, track, channel, now, payload=None, cached=None, *, previ
     allowed = {v.casefold() for v in profile['tags']} & {v.casefold() for v in track['tags']}
     scores = {row['tag'].casefold(): row['score'] for row in report['keywords']
               if row['tag'].casefold() in allowed} if report else {}
-    options = candidates(track, profile, scores)
+    options = candidates(track, profile, scores, job)
     eligible = [option for option in options
                 if previous_selected is None or
                 (option['title'], option['tags']) !=
@@ -285,7 +288,7 @@ def validate_snapshot(snapshot, job):
         raise ValueError('seo_snapshot_invalid')
 
     mode = _mode(profile)
-    legacy = not _matches_options(snapshot, job, track, profile, candidates(track, profile, scores))
+    legacy = not _matches_options(snapshot, job, track, profile, candidates(track, profile, scores, job))
     # These modes changed before receiving distinct identifiers. Replay both known outputs.
     if legacy and (mode not in (beat_indie_seo, beat_matwyre_seo) or len(snapshot['track']) != 3
                    or not _matches_options(snapshot, job, track, profile,
