@@ -2,7 +2,7 @@
   "id": "murraybeats",
   "actions_slug": "murraybeats",
   "youtube_channel_id": "UCgIiwbKMWl7sfUHvvzfC61w",
-  "active": false,
+  "active": true,
   "priority": 10,
   "slots": [],
   "interval_schedule": {

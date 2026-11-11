@@ -1,5 +1,27 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## MurrayBeats — publicación diaria a las 21:00 ✅ COMPLETADA (2026-11-10)
+
+- Canal `UCgIiwbKMWl7sfUHvvzfC61w` conectado y verificado por OAuth. Perfil y registro
+  activos, `murraybeats` agregado a la automatización compartida. Turnos diarios a
+  las 21:00 Argentina desde el 11/11, con subidas escalonadas de 2 a 4 días.
+- 100 beats etiquetados como reguetón. Se cruzaron los enlaces de compra de los
+  87 videos públicos, se excluyeron 59 IDs históricos del canal y quedaron 63
+  beats elegibles del género. Los 23 archivos de fondo se copiaron a Dropbox,
+  se compararon con los originales y se compusieron a 1920×1080, centrados y sin texto.
+- Título `[FREE] REGGAETON TYPE BEAT - "{name}"`. Descripción corta con enlace
+  individual, Instagram, uso no comercial en YouTube, BPM, tonalidad y coproductores
+  cuando figuran. `SIN TI` sigue elegible sin BPM ni tonalidad.
+- Compatibilidad restablecida para seis registros históricos de PoppyVibes y
+  MatWyreBeats. Se validaron los 170 trabajos existentes sin reescribir el historial.
+- 440 pruebas locales y remotas con FFmpeg. Simulación con 14 turnos y tres subidas
+  elegibles, sin errores. Perfil en `docs/murraybeats.channel.json`.
+- Corrida `42933162631`: tres subidas programadas sin errores, con fondos distintos.
+  `CIAErgDTmhM` (SUITE), `24bfEbzBDGM` (Hora) y `Qd6Yfneu00E` (SIN TI) para el
+  11, 12 y 13/11 respectivamente a las 21:00 Argentina. Once turnos en cola hasta el 24/11.
+- Verificación `42933305062`: YouTube devolvió los tres horarios, títulos, tags y
+  descripciones esperados. Los enlaces de compra corresponden al ID de cada beat.
+
 ## Mat produced this one — prueba de fondos alternados ✅ COMPLETADA (2026-11-08)
 
 - Configuración activa en Dropbox y releída. Foto fija propia intercalada con
