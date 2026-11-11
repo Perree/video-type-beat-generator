@@ -22,6 +22,7 @@ from core import beat_sad_seo
 from core import beat_emotional_house_seo
 from core import beat_emotional_house_seo_v2
 from core import beat_murray_seo
+from core import beat_wyrelatin_seo
 from core.beat_seo_report import fields, text, texts, moment, parse_report, validate_report
 
 
@@ -33,6 +34,7 @@ def digest(value):
 PLACEHOLDERS = ('{name}', '{url}', '{music_info}')
 # Opt-in title modes: module and the placeholders its title template must contain.
 MODES = {beat_latin_seo.MODE: (beat_latin_seo, ('{artists}', '{style}')),
+         beat_wyrelatin_seo.MODE: (beat_wyrelatin_seo, ('{style}', '{detail}')),
          beat_emotional_house_seo.MODE: (beat_emotional_house_seo, ('{style}', '{detail}')),
          beat_emotional_house_seo_v2.MODE: (beat_emotional_house_seo_v2, ('{style}', '{detail}')),
          beat_sad_seo.MODE: (beat_sad_seo, ('{style}',)),

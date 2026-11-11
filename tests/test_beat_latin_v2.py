@@ -105,7 +105,6 @@ class LatinV2Tests(unittest.TestCase):
         ch = self.channel()
         ch['active'] = False  # The deployed channel may already be active.
         self.assertFalse(ch['active'])
-        self.assertEqual(ch['visual']['mode'], 'video')
         dates = slots(ch, '2026-11-07T23:00:00-03:00')
         self.assertEqual([d.day for d in dates], [8, 10, 12, 14, 16, 18, 20])
         self.assertTrue(all(d.hour == 15 and d.minute == 0 for d in dates))

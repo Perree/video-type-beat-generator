@@ -1,7 +1,9 @@
 {
   "actions_slug": "wyrelatinbeatz",
   "active": true,
-  "dropbox_images": {},
+  "dropbox_images": {
+    "latin": "/Soft Projects/Type Beat Generator/contenido/canales/wyrelatinbeatz/imagenes"
+  },
   "genres": [
     "latin"
   ],
@@ -54,8 +56,8 @@
       "MatWyre",
       "WyreLatinBeatz"
     ],
-    "title_mode": "latin_taimet_v1",
-    "title_template": "(FREE) {style} TYPE BEAT - \"{name}\""
+    "title_mode": "wyrelatin_v1",
+    "title_template": "{style} Type Beat - \"{name}\"{detail}"
   },
   "slots": [],
   "tags": [],
@@ -65,14 +67,11 @@
   },
   "use_channel_templates": true,
   "visual": {
-    "clip_max_seconds": 6,
-    "clip_min_seconds": 3,
-    "custom_thumbnail": false,
-    "mode": "video",
+    "mode": "image",
+    "image_fit": "contain",
     "plain_image": true,
-    "thumbnail_source": "auto",
-    "video_source": "dropbox",
-    "videos_folder": "/Soft Projects/Type Beat Generator/contenido/canales/wyrelatinbeatz/fondos"
+    "custom_thumbnail": false,
+    "thumbnail_source": "auto"
   },
   "youtube_channel_id": "UCsG-_JcI6ItbS89eHyvjjsw"
 }
