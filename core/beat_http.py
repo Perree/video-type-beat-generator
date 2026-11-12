@@ -70,7 +70,7 @@ class PublicTransport:
         self._opener = urllib.request.build_opener(
             urllib.request.ProxyHandler({}), _NoRedirect())
 
-    def query(self, query, variables, deadline):
+    def query(self, query, variables, deadline, _retry=0):
         check_cancelled(self.cancelled)
         if query not in (PROFILE_QUERY, TRACKS_QUERY, PREVIEWS_QUERY, SHARE_QUERY):
             raise BeatError("query_rejected")
@@ -108,6 +108,27 @@ class PublicTransport:
             raise
         except (TimeoutError, OSError, ValueError, RecursionError, urllib.error.URLError):
             raise BeatError("request_failed") from None
-        if not isinstance(result, dict) or result.get("errors") or not isinstance(result.get("data"), dict):
+        if not isinstance(result, dict):
+            raise BeatError("remote_schema_error")
+        errors = result.get("errors")
+        if errors:
+            # BeatStars occasionally returns a GraphQL 500 while resolving a
+            # valid public query (for example, `source cannot be null`). That
+            # is an upstream failure, not evidence that the response schema
+            # changed. Retry a read once within the existing scan deadline.
+            server_error = (isinstance(errors, list) and any(
+                isinstance(error, dict)
+                and isinstance(error.get("extensions"), dict)
+                and (error["extensions"].get("statusCode") == 500
+                     or error["extensions"].get("code") == "INTERNAL_SERVER_ERROR")
+                for error in errors))
+            if server_error:
+                if _retry == 0 and deadline - time.monotonic() > 0.5:
+                    time.sleep(0.25)
+                    check_cancelled(self.cancelled)
+                    return self.query(query, variables, deadline, _retry=1)
+                raise BeatError("request_failed")
+            raise BeatError("remote_schema_error")
+        if not isinstance(result.get("data"), dict):
             raise BeatError("remote_schema_error")
         return result["data"]
