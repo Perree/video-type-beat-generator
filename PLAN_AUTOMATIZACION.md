@@ -2115,8 +2115,15 @@ commit, merge a `master` y push. Si no, no se mergea. Orden: 1 y 5 en paralelo; 
   Las 12 viejas (`Beat-Miiniaturas*.jpg`) se movieron a `_archivo/ey mat/miniaturas_viejas` (content_hash verificado);
   las 60 nuevas (9 + 51) están en `contenido/canales/ey mat/miniaturas` como `ey_mat_01..60.jpg`, verificadas.
   `dropbox_images.melodic` del canal sigue apuntando ahí. Local (git-ignored): `tokens/ey_mat_pinterest_fase1/`.
-- [ ] **Fase 2 – Miniatura estilo Taigen.** `image_fit: fixed_bars` como SSJ; nuevo `core/beat_thumb_badges.py`
+- [x] **Fase 2 – Miniatura estilo Taigen.** ✅ COMPLETADA (2026-11-19, muestra aprobada). `image_fit: fixed_bars` como SSJ; nuevo `core/beat_thumb_badges.py`
   (Parental Advisory abajo a la izquierda, firma «ey mat» en cursiva arriba a la derecha, grano/viñeta), clave `thumbnail_badges`.
+  - `thumbnail_badges: {advisory, signature, font, grain, vignette}` (por defecto `true`, `"ey mat"`, `great_vibes`, 0,035, 0,35),
+    validada en `core/beat_visual.py`; se aplica después del logo en `core/beat_video.py` y se congela en
+    `thumbnail_snapshot.badges` (el snapshot ya no exige `variant` si solo hay badges).
+  - Parental Advisory oficial (pedido de Matías, en vez de uno dibujado): `assets/thumbnail/parental_advisory.png`, de
+    Wikimedia Commons (dominio público), 12 % del ancho. Firma con la fuente del video (`FONTS` de `beat_title_overlay`).
+    Grano con semilla fija y viñeta sobre la foto central; las franjas siguen negras. Tests: `tests/test_beat_thumb_badges.py`.
+  - **Para la Fase 6:** fusionar `docs/ey-mat.thumbnail.json` con el `visual` de ey mat (claves de miniatura + `thumbnail_badges`).
 - [x] **Fase 3 – Estética del video.** ✅ COMPLETADA (2026-11-19, muestra aprobada; los 2 videoclips ya están en `fondos`, subidos sin sobrescribir y verificados por tamaño).
   Subir los videoclips «Righteous» y «Empty Out Your Pockets» a `fondos`
   (mezcla con los de siempre, `source_trim_seconds`); `grade: dark` en `beat_film_overlay`; nombre del beat
