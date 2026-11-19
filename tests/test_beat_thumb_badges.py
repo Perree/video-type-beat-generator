@@ -78,13 +78,13 @@ class OptionTests(unittest.TestCase):
 
 
 class DrawingTests(unittest.TestCase):
-    def test_advisory_label_is_black_and_white(self):
+    def test_advisory_label_is_the_official_png(self):
         label = advisory_label(154)
-        self.assertEqual(label.size, (154, 92))
+        self.assertEqual(label.size, (154, 96))
         gray = label.convert('L')
-        self.assertGreater(gray.getpixel((1, 1)), 240)          # borde blanco
-        self.assertLess(gray.getpixel((10, 8)), 20)              # fondo negro arriba
-        self.assertGreater(mean(label, (12, 31, 142, 33)), 230)  # banda blanca de ADVISORY
+        self.assertLess(gray.getpixel((2, 2)), 20)              # franja negra de PARENTAL
+        self.assertGreater(gray.getpixel((2, 48)), 235)         # banda blanca de ADVISORY
+        self.assertLess(gray.getpixel((2, 93)), 20)             # franja negra de EXPLICIT CONTENT
 
     def test_signature_is_white_on_transparent(self):
         layer = signature_layer('ey mat', 'great_vibes', 54)
@@ -116,7 +116,7 @@ class GeometryTests(unittest.TestCase):
     def test_advisory_bottom_left_and_signature_top_right(self):
         with TemporaryDirectory() as folder:
             picture = render(folder, 'black', badge_options({'grain': 0, 'vignette': 0}))
-        size = (round(1280 * ADVISORY_SHARE), round(1280 * ADVISORY_SHARE * .6))
+        size = (round(1280 * ADVISORY_SHARE), round(1280 * ADVISORY_SHARE * .625))
         x, y = place((1280, 720), size, 'bottom_left')
         self.assertGreater(mean(picture, (x, y, x + size[0], y + size[1])), 60)
         self.assertGreater(mean(picture, (640, 0, 1280 - BAR, 120)), 3)  # firma

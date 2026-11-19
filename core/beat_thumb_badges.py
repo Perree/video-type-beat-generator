@@ -5,7 +5,7 @@ miniatura fixed_bars (1280x720) después del logo:
 
 - grano monocromo con semilla fija y viñeta sobre la foto central, para que imágenes de
   fuentes distintas se vean de la misma serie (las franjas negras siguen negras);
-- Parental Advisory dibujado con PIL (Oswald Bold) abajo a la izquierda de la foto;
+- Parental Advisory oficial (``assets/thumbnail``) abajo a la izquierda de la foto;
 - firma (por defecto «ey mat») en la misma cursiva del video, arriba a la derecha.
 
 Las posiciones salen de ``beat_thumb_logo.place``, que ya descuenta la franja de 344 px.
@@ -15,12 +15,11 @@ from core.beat_http import BeatError
 from core.beat_thumb_logo import place
 from core.beat_title_overlay import FONT_DIR, FONTS
 
-BLOCK_FONT = Path(__file__).resolve().parent.parent / 'assets' / 'kit_cover' / 'Oswald.ttf'
+ADVISORY = Path(__file__).resolve().parent.parent / 'assets' / 'thumbnail' / 'parental_advisory.png'
 DEFAULTS = {'advisory': True, 'signature': 'ey mat', 'font': 'great_vibes', 'grain': .035, 'vignette': .35}
 ADVISORY_SHARE = .12      # ancho del Parental Advisory / ancho de la miniatura
 SIGNATURE_SHARE = .075    # alto de la letra de la firma / alto de la miniatura
 GRAIN_SEED = 7            # misma textura en todos los renders: reintentos idénticos
-SUPERSAMPLE = 4
 
 
 def badge_options(raw):
@@ -42,46 +41,12 @@ def badge_options(raw):
     return result
 
 
-def _fit(draw, text, box_width, box_height, weight=b'Bold'):
-    """Oswald Bold al mayor tamaño que entra en la caja; devuelve (font, bbox)."""
-    from PIL import ImageFont
-    size = box_height
-    while size > 4:
-        font = ImageFont.truetype(str(BLOCK_FONT), size)
-        font.set_variation_by_name(weight)
-        bbox = draw.textbbox((0, 0), text, font=font)
-        if bbox[2] - bbox[0] <= box_width and bbox[3] - bbox[1] <= box_height:
-            return font, bbox
-        size -= 1
-    raise BeatError('thumbnail_badges_font')
-
-
-def _centered(draw, text, box, fill):
-    x0, y0, x1, y1 = box
-    font, bbox = _fit(draw, text, x1 - x0, y1 - y0)
-    x = x0 + (x1 - x0 - (bbox[2] - bbox[0])) / 2 - bbox[0]
-    y = y0 + (y1 - y0 - (bbox[3] - bbox[1])) / 2 - bbox[1]
-    draw.text((x, y), text, font=font, fill=fill)
-
-
 def advisory_label(width):
-    """Etiqueta clásica en blanco y negro: «PARENTAL» / banda blanca «ADVISORY» / «EXPLICIT CONTENT»."""
-    from PIL import Image, ImageDraw
-    s = SUPERSAMPLE
-    w, h = width * s, round(width * .6) * s
-    label = Image.new('RGB', (w, h), 'white')
-    draw = ImageDraw.Draw(label)
-    edge = max(s, round(w * .035))
-    draw.rectangle((edge, edge, w - edge - 1, h - edge - 1), fill='black')
-    inner = w - 2 * edge
-    pad = round(inner * .06)
-    top, band = edge + round((h - 2 * edge) * .30), edge + round((h - 2 * edge) * .74)
-    gap = max(s, round(edge * .9))
-    _centered(draw, 'PARENTAL', (edge + pad, edge + gap, w - edge - pad, top - gap), 'white')
-    draw.rectangle((edge + gap, top, w - edge - gap - 1, band), fill='white')
-    _centered(draw, 'ADVISORY', (edge + gap + pad // 2, top + gap, w - edge - gap - pad // 2, band - gap), 'black')
-    _centered(draw, 'EXPLICIT CONTENT', (edge + pad, band + gap, w - edge - pad, h - edge - gap), 'white')
-    return label.resize((width, h // s), Image.LANCZOS)
+    """Parental Advisory oficial (PNG de Wikimedia Commons, dominio público) escalado a ``width``."""
+    from PIL import Image
+    with Image.open(ADVISORY) as source:
+        label = source.convert('RGB')
+    return label.resize((width, round(label.height * width / label.width)), Image.LANCZOS)
 
 
 def signature_layer(text, font_key, height):

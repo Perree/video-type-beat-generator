@@ -1,0 +1,4 @@
+parental_advisory.png
+Fuente: https://commons.wikimedia.org/wiki/File:Parental_Advisory_label.svg
+(render PNG de 1280 px de Wikimedia, reducido a 640x400 en escala de grises).
+Licencia en Commons: dominio público (logotipo de solo texto). Descargado el 2026-11-19.
