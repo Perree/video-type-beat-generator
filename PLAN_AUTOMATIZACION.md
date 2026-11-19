@@ -2114,7 +2114,8 @@ commit, merge a `master` y push. Si no, no se mergea. Orden: 1 y 5 en paralelo; 
   Archivar las viejas de `contenido/canales/ey mat/miniaturas` en `_archivo/ey mat/miniaturas_viejas` y subir las nuevas.
 - [ ] **Fase 2 – Miniatura estilo Taigen.** `image_fit: fixed_bars` como SSJ; nuevo `core/beat_thumb_badges.py`
   (Parental Advisory abajo a la izquierda, firma «ey mat» en cursiva arriba a la derecha, grano/viñeta), clave `thumbnail_badges`.
-- [ ] **Fase 3 – Estética del video.** Subir los videoclips «Righteous» y «Empty Out Your Pockets» a `fondos`
+- [x] **Fase 3 – Estética del video.** ✅ COMPLETADA (2026-11-19, muestra aprobada; faltan subir los 2 videoclips a Dropbox).
+  Subir los videoclips «Righteous» y «Empty Out Your Pockets» a `fondos`
   (mezcla con los de siempre, `source_trim_seconds`); `grade: dark` en `beat_film_overlay`; nombre del beat
   en cursiva todo el video (PNG con PIL superpuesto en la pasada final, fade 1 s); elegir fuente OFL entre 3 muestras.
   - Código (sin activar): `grade: none|dark` (`GRADES` en `core/beat_film_overlay.py`: eq + curves + vignette + noise
