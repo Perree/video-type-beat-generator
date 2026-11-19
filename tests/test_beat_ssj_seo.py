@@ -13,7 +13,9 @@ from core.beat_seo import build_snapshot, manual_profile, validate_snapshot
 
 NOW = '2026-11-19T12:00:00+00:00'
 CHANNEL = json.loads(Path('docs/prodbyssjbeatzz.channel.json').read_text(encoding='utf-8'))
-START = CHANNEL['seo']['test_start']
+# Expected titles below assume the test started on 2026-12-01; the live doc's start date may move.
+START = '2026-12-01'
+CHANNEL = dict(CHANNEL, seo=dict(CHANNEL['seo'], test_start=START))
 
 
 def slot(day, hour=21):

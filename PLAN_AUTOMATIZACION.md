@@ -2109,9 +2109,12 @@ Objetivo: estética y títulos tipo Taigen / Taylee Rose con toque propio, y 4 v
 Cada fase se hace en un chat (sesión) distinto, en su propia rama. Si los tests y la verificación pasan:
 commit, merge a `master` y push. Si no, no se mergea. Orden: 1 y 5 en paralelo; 3 → 2; 3 → 4; 6 al final.
 
-- [ ] **Fase 1 – Imágenes de miniaturas (unas 40, Pinterest).** 9 aprobadas en `tokens/ey_mat_miniaturas_nuevas/`
-  (git-ignored). Buscar más (≥1000 px, casi cuadradas, sin duplicados) → hoja de contactos → aprobación del usuario.
-  Archivar las viejas de `contenido/canales/ey mat/miniaturas` en `_archivo/ey mat/miniaturas_viejas` y subir las nuevas.
+- [x] **Fase 1 – Imágenes de miniaturas (unas 40, Pinterest).** ✅ COMPLETADA (2026-11-19). 5 búsquedas en Pinterest
+  (con la sesión del usuario en Chrome) → 703 imágenes → 174 pasan filtros (≥1000 px, proporción 0,85–1,2, sin
+  duplicados por SHA ni aHash contra las 9 previas) → 51 elegidas a ojo → aprobadas todas por el usuario.
+  Las 12 viejas (`Beat-Miiniaturas*.jpg`) se movieron a `_archivo/ey mat/miniaturas_viejas` (content_hash verificado);
+  las 60 nuevas (9 + 51) están en `contenido/canales/ey mat/miniaturas` como `ey_mat_01..60.jpg`, verificadas.
+  `dropbox_images.melodic` del canal sigue apuntando ahí. Local (git-ignored): `tokens/ey_mat_pinterest_fase1/`.
 - [ ] **Fase 2 – Miniatura estilo Taigen.** `image_fit: fixed_bars` como SSJ; nuevo `core/beat_thumb_badges.py`
   (Parental Advisory abajo a la izquierda, firma «ey mat» en cursiva arriba a la derecha, grano/viñeta), clave `thumbnail_badges`.
 - [x] **Fase 3 – Estética del video.** ✅ COMPLETADA (2026-11-19, muestra aprobada; los 2 videoclips ya están en `fondos`, subidos sin sobrescribir y verificados por tamaño).
@@ -2141,7 +2144,7 @@ commit, merge a `master` y push. Si no, no se mergea. Orden: 1 y 5 en paralelo; 
   con `beat_seo.fill_chapters` junto a `{url}` (sin la Fase 4 se quita limpio; la Fase 4 le pasa los capítulos).
   `experiment` guarda formato, año, años válidos, slot y día. Tests: `tests/test_beat_year.py`, `tests/test_beat_ey_mat_seo.py`.
   **Para la Fase 6:** el bloque `seo` listo está en `docs/ey-mat.seo.json` (reemplaza `channels[id="ey mat"].seo`);
-  poner `test_start` = primer día de publicación. Pendiente aparte: 6 tests de `tests/test_beat_ssj_seo.py` ya
-  fallaban en `master` (el doc de SSJ pasó a `test_start` 2026-11-19 y los tests suponen 2026-12-01).
+  poner `test_start` = primer día de publicación. Los 6 tests de `tests/test_beat_ssj_seo.py` que fallaban (el doc de SSJ pasó a
+  `test_start` 2026-11-19) ahora fijan su propio inicio 2026-12-01 en el canal de prueba.
 - [ ] **Fase 6 – Horario y activación.** Martes, jueves, sábado y domingo 20:00 (Buenos Aires); script de
   activación por CAS con copia previa; dry-run, un video real y primera semana.
