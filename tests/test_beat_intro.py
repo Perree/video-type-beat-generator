@@ -76,7 +76,7 @@ class IntroOptionsTests(unittest.TestCase):
 
     def test_profile_fields_of_phase_b(self):
         profile = json.loads(Path('docs/prodbyssjbeatzz.channel.json').read_text(encoding='utf-8'))
-        # Solo los campos de B: thumbnail_source/thumbnail_logo llegan en la Fase D.
+        # Solo los campos de B (thumbnail_logo e image_fit se prueban en test_beat_thumb_logo).
         visual = {k: v for k, v in profile['visual'].items() if k not in ('thumbnail_source', 'thumbnail_logo')}
         spec = options({'visual': visual})
         self.assertEqual(spec['video_fit'], 'fixed_bars')

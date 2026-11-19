@@ -12,6 +12,7 @@ from core.beat_render import MediaTools, compose
 from core.beat_visual import options, image_resource, video_catalog, fetch, thumbnail_resource
 from core.beat_montage import render_montage, thumbnail_frame
 from core.beat_intro import cached_intro
+from core.beat_thumb_logo import apply_logo, plan as thumbnail_plan
 from core.beat_rotation import image_digest, previous_publication, publication_visual
 from core.beat_selection import require_track
 from core.beat_visual_schedule import job_options
@@ -106,6 +107,14 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
                     raise BeatError('repeat_image_unchanged')
                 if job.get('visual_snapshot', {}).get('sha256') not in (None, image['sha256']):
                     raise BeatError('reserved_image_changed')
+            thumb = None
+            if spec.get('thumbnail_logo') and image and not custom_thumbnail:
+                # Test A/B 7 con logo / 7 sin logo; el snapshot congela la variante del job.
+                thumb = dict(thumbnail_plan(spec['thumbnail_logo'], state, job), image=image['path'])
+                if thumb['variant'] == 'logo':
+                    logo = root / 'thumbnail-logo.bin'
+                    dropbox.download(spec['thumbnail_logo']['logo'], logo, 20 * 1024 * 1024)
+                    apply_logo(thumbnail, logo, spec['thumbnail_logo']['corner'])
             if spec['mode'] == 'image':
                 tools.render(audio, frame, video, seconds)
             else:
@@ -127,11 +136,15 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
             def record(document):
                 store._lease(document, owner)
                 _, current = reserved_job(document, job_id, track, channel)
-                committed = dict(job, visual_snapshot=dict(image)) if image else job
+                committed = dict(job, visual_snapshot=dict(image)) if image else dict(job)
+                if thumb:
+                    committed['thumbnail_snapshot'] = dict(thumb)
                 if current != job and current != committed:
                     raise BeatError('reservation_changed')
                 if image:
                     document['jobs'][job_id]['visual_snapshot'] = dict(image)
+                if thumb:
+                    document['jobs'][job_id]['thumbnail_snapshot'] = dict(thumb)
                 if image and image.get('source', 'dropbox') == 'dropbox':
                     rows = document.setdefault('image_rotation', {}).setdefault(channel['id'], {}).setdefault(genre, [])
                     if not any(row['job_id'] == job_id for row in rows):
@@ -142,6 +155,7 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
                    'before_upload': lambda: store.renew(owner, ttl=3600),
                    'thumbnail': thumbnail, 'seconds': seconds, 'audio_source': provider,
                    'visual_mode': spec['mode'], 'skipped_videos': montage.get('skipped_videos', 0),
+                   'thumbnail_variant': thumb['variant'] if thumb else None,
                    'uploads': False}
     finally:
         if owner is not None:

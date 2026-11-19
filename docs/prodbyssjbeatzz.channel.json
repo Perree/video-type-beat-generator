@@ -94,7 +94,8 @@
       "seconds": 3.5
     },
     "custom_thumbnail": true,
-    "thumbnail_source": "dropbox_images",
+    "thumbnail_source": "auto",
+    "image_fit": "fixed_bars",
     "thumbnail_logo": {
       "logo": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/logo/ssj-logo.png",
       "cycle": [

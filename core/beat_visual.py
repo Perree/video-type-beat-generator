@@ -23,6 +23,9 @@ def options(channel):
     if 'intro' in result:
         from core.beat_intro import intro_options
         result['intro'] = intro_options(result['intro'])
+    if 'thumbnail_logo' in result:
+        from core.beat_thumb_logo import logo_options
+        result['thumbnail_logo'] = logo_options(result['thumbnail_logo'])
     if result.get('film_overlay', 'none') not in ('none', 'film_gate_red_v1'):
         raise ValueError('invalid_film_overlay')
     if 'video_groups' in result:

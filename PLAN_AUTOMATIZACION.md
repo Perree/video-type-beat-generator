@@ -1,5 +1,23 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## prodbySSJBeatzz — Fase D: miniaturas A/B con y sin logo ✅ COMPLETADA (2026-11-19)
+
+- Miniatura por video con las 29 fotos de `canales/prodbyssjbeatzz/miniaturas/`: la ficha usa
+  `thumbnail_source: auto` + `dropbox_images.melodic` (rotación LRU existente, sin repetir hasta
+  usar todas, como los 16 fondos de WyreLatinBeatz) e `image_fit: fixed_bars` (foto central
+  1232×1080 entre franjas de 344 px, escalada a 1280×720), vía `beat_render.compose`.
+- `core/beat_thumb_logo.py`: `visual.thumbnail_logo = {logo, cycle: [7, 7], corner?}` validado
+  en `beat_visual.options`. Variante = subidas `uploaded` previas del canal módulo 14 (7 con
+  logo, 7 sin logo, en bucle), congelada en `job.thumbnail_snapshot = {variant, upload_index,
+  image}` (validado en `beat_media_schema`): un reintento reusa la misma variante y foto.
+  `render_reserved` devuelve también `thumbnail_variant`.
+- Logo SSJ limpio como en la intro, ~24 % del ancho, arriba a la izquierda dentro de la foto
+  (abajo choca con el sujeto en las fotos de recital), sombra difusa + mezcla `screen`.
+- Tests: `tests/test_beat_thumb_logo.py` (geometría, ciclo 7/7 en 30 subidas con reintentos,
+  rotación de 29 fotos en 60 subidas, schema, render integrado). Suite worker: 481 OK.
+- Previews enviados al usuario (subidas 6–7 con logo, 8–9 sin logo y alternativa de esquina).
+  Nada cargado en la config activa de Dropbox; otros canales intactos.
+
 ## prodbySSJBeatzz — Fase C: títulos y descripción `ssj_v1` ✅ COMPLETADA (2026-11-19)
 
 - `core/beat_ssj_seo.py`, registrado en `beat_seo.MODES`. Dos variantes de título que se

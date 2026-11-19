@@ -45,11 +45,19 @@ vuelta para comparar byte por byte.
 - `video_fit = fixed_bars`: clips recortados al centro a 1232×1080 con franjas negras de 344 px.
 - `source_trim_seconds` pasó a 0: los segmentos ya excluyen los primeros/últimos 10 s del video.
 
+## Decisiones de la Fase D
+
+- Miniatura = foto rotada de `miniaturas/` con el encuadre `fixed_bars` del video (1280×720).
+- Test de logo 7/7 por número de subida del canal, congelado en `job.thumbnail_snapshot`
+  (`variant` `logo`/`sin_logo`, `upload_index`, `image`) para comparar rendimiento después.
+- Logo arriba a la izquierda, ~24 % del ancho, con sombra difusa y mezcla `screen`; probado
+  también abajo a la derecha, descartado porque tapa al artista o al público.
+
 ## Campos de la ficha que dependen de fases siguientes
 
 | Campo | Fase |
 |---|---|
 | `visual.intro` (logo animado) y `visual.video_fit = fixed_bars` para video | B ✅ |
 | `seo.title_mode = ssj_v1`, `main_rotation`, `second_rotation`, `second_every`, `test_start`, descripción | C ✅ |
-| `visual.thumbnail_logo.cycle = [7, 7]` | D |
+| `visual.thumbnail_logo.cycle = [7, 7]`, `image_fit = fixed_bars`, `thumbnail_source = auto` | D ✅ |
 | `youtube_channel_id`, `active`, alta en config/registro Dropbox | E |
