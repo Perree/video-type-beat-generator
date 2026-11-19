@@ -50,6 +50,6 @@ vuelta para comparar byte por byte.
 | Campo | Fase |
 |---|---|
 | `visual.intro` (logo animado) y `visual.video_fit = fixed_bars` para video | B ✅ |
-| `seo.title_mode = ssj_v1`, `main_rotation`, `test_start`, descripción | C ✅ |
+| `seo.title_mode = ssj_v1`, `main_rotation`, `second_rotation`, `second_every`, `test_start`, descripción | C ✅ |
 | `visual.thumbnail_logo.cycle = [7, 7]` | D |
 | `youtube_channel_id`, `active`, alta en config/registro Dropbox | E |

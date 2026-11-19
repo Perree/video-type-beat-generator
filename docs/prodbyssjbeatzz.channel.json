@@ -111,6 +111,16 @@
       "Polo G",
       "Lil Tjay"
     ],
+    "second_rotation": [
+      "Lil Tjay",
+      "Scorey",
+      "Sleepy Hallow",
+      "Toosii",
+      "Juice WRLD"
+    ],
+    "second_every": {
+      "Juice WRLD": 2
+    },
     "tags": [
       "free type beat",
       "type beat",

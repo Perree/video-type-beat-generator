@@ -2,23 +2,31 @@
 
 ## prodbySSJBeatzz — Fase C: títulos y descripción `ssj_v1` ✅ COMPLETADA (2026-11-19)
 
-- `core/beat_ssj_seo.py`, registrado en `beat_seo.MODES`: `[FREE] {main} x {second} Type
-  Beat{year} "{name}"`, siempre dos artistas. Principal por mes de prueba contado por
-  aniversarios desde `seo.test_start` (mes 1 Polo G, mes 2 Lil Tjay, alterna según
-  `seo.main_rotation`). Segundo: primer artista del roster (Juice WRLD, Polo G, Iann Dior,
-  The Kid Laroi, Scorey, Lil Tjay, Toosii) en los tags reales del beat distinto del principal;
-  sin tags, rotación estable por id del beat. Año por día desde `test_start`:
-  ' 2026' / '' / ' 2027' / '', y un año ya vencido en la fecha de publicación se omite.
-- `manual_profile` acepta `main_rotation` y `test_start` solo con `ssj_v1` (validados).
-  Repeticiones: mismo título, tags rotados. El snapshot guarda en `experiment`
-  principal, segundo (+ origen tags/rotación), año, mes de prueba y día; se revalida.
-- Descripción propia en la ficha: título, `{url}`, tienda matwyre, `{music_info}`,
-  `Prod. MatWyre` (+ colaboradores), términos (free non-profit, lease, sin Content ID),
-  bloque de tags de los dos artistas del título (`{artist_tags}`) y `{hashtags}`.
+- `core/beat_ssj_seo.py`, registrado en `beat_seo.MODES`. Dos variantes de título que se
+  alternan para comparar: solo `[FREE] {main} Type Beat{year} "{name}"` y dúo
+  `[FREE] {main} x {second} Type Beat{year} "{name}"`. Patrón por slot diario desde
+  `test_start`: S D S D / D S D S (cada variante recibe 2026, 2027 y sin año por igual).
+- Principal por mes de prueba (aniversarios de `seo.test_start`): mes 1 Polo G, mes 2
+  Lil Tjay, alterna según `seo.main_rotation`.
+- Segundo artista: NO sale de los tags del beat (pedido del usuario). Rotación fija
+  `seo.second_rotation` (Lil Tjay, Scorey, Sleepy Hallow, Toosii, Juice WRLD) contada solo
+  en los slots dúo; `seo.second_every` = {"Juice WRLD": 2} → Juice WRLD en 1 de cada 2
+  vueltas. Si el principal está en la rotación, su lugar lo toma el otro principal
+  (mes 2: Polo G en lugar de Lil Tjay).
+- Año por día desde `test_start`: ' 2026' / '' / ' 2027' / '', y un año ya vencido en la
+  fecha de publicación se omite (nunca 2026 en fechas 2027).
+- `manual_profile` acepta `main_rotation`, `test_start`, `second_rotation` y
+  `second_every` solo con `ssj_v1` (validados). Repeticiones: mismo título, tags rotados.
+  El snapshot guarda en `experiment` variante (solo/dúo), principal, segundo, año, mes de
+  prueba, índice de slot y día; se revalida.
+- Descripción propia en la ficha: título (misma variante), `{url}`, tienda matwyre,
+  `{music_info}`, `Prod. MatWyre` (+ colaboradores), términos (free non-profit, lease, sin
+  Content ID), `{artist_tags}` y `{hashtags}` solo con los artistas del título.
 - Ficha `docs/prodbyssjbeatzz.channel.json`: `test_start` provisorio `2026-12-01`, a fijar
   al activar el canal (Fase E). Config activa de Dropbox y otros canales sin tocar.
-- Tests: `tests/test_beat_ssj_seo.py` (unitarios + simulación de 60 slots diarios: cambio de
-  principal en el mes 2, siempre 2 artistas, sin 2026 desde 2027).
+- Tests: `tests/test_beat_ssj_seo.py` (unitarios + simulación de 60 slots diarios: 30 solo /
+  30 dúo, cambio de principal en el mes 2 con Polo G como segundo, Juice WRLD menos
+  frecuente, sin 2026 desde 2027).
 
 ## prodbySSJBeatzz — Fase B: intro con logo y barras en video ✅ COMPLETADA (2026-11-19)
 
