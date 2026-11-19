@@ -53,6 +53,19 @@ vuelta para comparar byte por byte.
 - Logo arriba a la izquierda, ~24 % del ancho, con sombra difusa y mezcla `screen`; probado
   también abajo a la derecha, descartado porque tapa al artista o al público.
 
+## Fase E — conexión y piloto (2026-11-19)
+
+- OAuth verificó `prodbySSJBeatzz`, `UCqXxj8NtAk35YE4Q2DXBTSg`. Token en memoria, enviado
+  directo a GitHub Secrets (`BEAT_CHANNEL_ID_PRODBYSSJBEATZZ`, `BEAT_YT_TOKEN_JSON_PRODBYSSJBEATZZ`
+  en `kit-weekly`), sin guardarlo en disco. El lanzador necesita el `.venv` (keyring) y
+  `TBVG_REAL_CREDENTIALS=1`.
+- `BEAT_CHANNELS` se completa al cargar el perfil en Dropbox (antes, el worker daría
+  `channel_missing_in_config`).
+- Piloto local aprobado por el usuario: "Fighting Myself" (TK18826988), render real con
+  assets de Dropbox y audio HLS, estado en memoria (sin escribir producción). 145 s 1080p30,
+  intro + clips fixed_bars, miniatura variante `logo` (subida #1),
+  título `[FREE] Polo G Type Beat 2026 "Fighting Myself"`.
+
 ## Campos de la ficha que dependen de fases siguientes
 
 | Campo | Fase |
