@@ -29,8 +29,17 @@ def normalize_filter(fit):
     return sizing + ',setsar=1,fps=30,format=yuv420p,setpts=PTS-STARTPTS'
 
 
+# Grade por clip: oscuro y desaturado, viñeta y grano suave con semilla fija (determinista).
+GRADES = {
+    'none': '',
+    'dark': (',eq=brightness=-0.05:contrast=1.1:saturation=0.75:gamma=0.9,'
+             "curves=all='0/0 0.5/0.4 1/0.88',vignette=angle=PI/4.5,"
+             'noise=alls=5:allf=t+u:all_seed=17'),
+}
+
+
 def filters(spec, root):
-    normal = normalize_filter(spec.get('video_fit', 'cover'))
+    normal = normalize_filter(spec.get('video_fit', 'cover')) + GRADES[spec.get('grade', 'none')]
     if spec.get('film_overlay', 'none') == 'none':
         return [], ['-map', '0:v:0', '-vf', normal]
     path = root / 'film-gate.png'

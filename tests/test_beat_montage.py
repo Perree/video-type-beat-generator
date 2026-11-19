@@ -17,6 +17,7 @@ from core.beat_montage import render_montage, loop_plan, video_info, verify_outp
 from core.beat_render import MediaTools
 from core.beat_video import render_reserved
 from core.beat_visual import options, video_catalog
+from core.beat_title_overlay import create_title, title_options
 from core.beat_state import BeatState
 from core.ffmpeg_util import resolve_tool
 from test_beat_video import fixture, AssetsClient, HLS, Resolver, Processes, TS
@@ -271,6 +272,86 @@ class MontageTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 options({'visual': raw})
 
+    def test_grade_and_title_overlay_validation(self):
+        self.assertNotIn('title_overlay', options({}))
+        self.assertEqual(options({'visual': {'grade': 'dark'}})['grade'], 'dark')
+        self.assertEqual(options({'visual': {'title_overlay': {'font': 'great_vibes'}}})['title_overlay'],
+                         {'font': 'great_vibes', 'size': 96, 'y': 60})
+        for value in ('bright', 1, [], None):
+            with self.assertRaisesRegex(ValueError, 'invalid_grade'):
+                options({'visual': {'grade': value}})
+        for raw in ({}, {'size': 90}, {'font': 'comic_sans'}, {'font': 'great_vibes', 'size': 20},
+                    {'font': 'great_vibes', 'size': 96.0}, {'font': 'great_vibes', 'size': True},
+                    {'font': 'great_vibes', 'y': 900}, {'font': 'great_vibes', 'color': 'red'}, 'great_vibes'):
+            with self.assertRaisesRegex(ValueError, 'invalid_title_overlay'):
+                options({'visual': {'title_overlay': raw}})
+
+    def test_title_png_is_centered_on_top_and_shrinks_long_names(self):
+        with tempfile.TemporaryDirectory() as folder:
+            spec = title_options({'font': 'dancing_script', 'size': 110, 'y': 60})
+            path = create_title('  Powers  ', spec, Path(folder) / 't.png')
+            with Image.open(path) as image:
+                self.assertEqual((image.mode, image.size), ('RGBA', (1920, 1080)))
+                left, top, right, bottom = image.getchannel('A').getbbox()
+                self.assertLess(abs((left + right) / 2 - 960), 20)
+                self.assertLess(top, 80)
+                self.assertLess(bottom, 260)
+                self.assertEqual(image.getpixel((960, 700))[3], 0)
+            create_title('Very Long Beat Name ' * 6, spec, path)
+            with Image.open(path) as image:
+                left, _, right, _ = image.getchannel('A').getbbox()
+                self.assertLessEqual(right - left, 1700 + 40)  # sombra difuminada incluida
+            with self.assertRaises(ValueError):
+                create_title('   ', spec, path)
+
+    def test_grade_and_title_reach_ffmpeg_arguments(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            resources = root / 'resources'
+            resources.mkdir()
+            spec = self.setup_resources(resources)
+            spec.update(grade='dark', title_overlay=title_options({'font': 'great_vibes'}))
+            audio = root / 'audio.bin'
+            audio.write_bytes(TS)
+            process = MontageProcesses(output_seconds=2.375)
+            tools = MediaTools('fakeffmpeg', 'fakeprobe', process)
+            render_montage(audio, root / 'video.mp4', 2.375, video_catalog(spec, None), spec, root,
+                           None, tools, 'job', title='Powers')
+            for cmd in (cmd for cmd in process.calls if '-vf' in cmd):
+                graph = cmd[cmd.index('-vf') + 1]
+                self.assertIn('eq=', graph)
+                self.assertIn('vignette', graph)
+                self.assertIn('noise=', graph)
+            final = next(cmd for cmd in process.calls if '-stream_loop' in cmd)
+            self.assertTrue((root / 'title.png').is_file())
+            self.assertEqual(final[final.index('-loop') + 1], '1')
+            self.assertEqual(final[final.index('-loop') + 11], str(root / 'title.png'))
+            graph = final[final.index('-filter_complex') + 1]
+            self.assertIn('[2:v:0]format=rgba,fade=t=in:st=0:d=1:alpha=1', graph)
+            self.assertIn('fade=t=out:st=1.375', graph)
+            self.assertIn('[0:v:0][title]overlay=0:0', graph)
+            maps = [final[i + 1] for i, value in enumerate(final) if value == '-map']
+            self.assertEqual(maps, ['[v]', '1:a:0'])
+            # Con intro: el título arranca cuando termina la intro y es la cuarta entrada.
+            process.calls.clear()
+            intro = root / 'intro.mp4'
+            intro.write_bytes(MP4)
+            render_montage(audio, root / 'video.mp4', 2.375, video_catalog(spec, None), spec, root,
+                           None, tools, 'job', intro={'path': intro, 'seconds': 1}, title='Powers')
+            final = next(cmd for cmd in process.calls if '-filter_complex' in cmd and str(intro) in cmd)
+            graph = final[final.index('-filter_complex') + 1]
+            self.assertIn('format=yuv420p[pre];[3:v:0]format=rgba,fade=t=in:st=1:d=1', graph)
+            self.assertTrue(graph.endswith('[v]'))
+            # Sin title_overlay o sin nombre, la pasada final queda como antes.
+            for title, overlay in (('Powers', None), (None, spec['title_overlay'])):
+                process.calls.clear()
+                plain = dict(spec, title_overlay=overlay)
+                render_montage(audio, root / 'video.mp4', 2.375, video_catalog(plain, None), plain, root,
+                               None, tools, 'job', title=title)
+                final = next(cmd for cmd in process.calls if '-stream_loop' in cmd)
+                self.assertNotIn('-loop', final)
+                self.assertNotIn('-filter_complex', final)
+
     def test_lease_renewal_keeps_long_montage_fenced(self):
         cloud, key, track, channel = fixture()
         channel['visual'] = dict(mode='video', video_source='dropbox', videos_folder='/videos',
@@ -390,6 +471,43 @@ class MontageTests(unittest.TestCase):
                 '-map', '0:a:0', '-f', 's16le', '-'], capture_output=True, timeout=30, check=True)
             self.assertTrue(result.stdout)
             self.assertFalse(any(result.stdout))  # only the silent beat, no source sine
+
+
+    @unittest.skipUnless(os.environ.get('BEAT_REAL_FFMPEG_SMOKE') == '1' and resolve_tool('ffmpeg')
+                         and resolve_tool('ffprobe'), 'Set BEAT_REAL_FFMPEG_SMOKE=1 to run the real FFmpeg check')
+    def test_real_ffmpeg_grade_and_title_fade_in(self):
+        ffmpeg = resolve_tool('ffmpeg')
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            resources = root / 'resources'
+            resources.mkdir()
+            for name, color in (('a', 'gray'), ('b', 'silver')):
+                subprocess.run([ffmpeg, '-nostdin', '-v', 'error', '-y', '-f', 'lavfi',
+                    '-i', f'color=c={color}:s=640x360:r=30:d=2', '-c:v', 'libx264', str(resources / f'{name}.mp4')],
+                    capture_output=True, timeout=30, check=True)
+            audio, output = root / 'audio.wav', root / 'video.mp4'
+            with wave.open(str(audio), 'wb') as stream:
+                stream.setparams((1, 2, 48000, 0, 'NONE', ''))
+                stream.writeframes(bytes(2 * 48000 * 3))
+            spec = options({'visual': {'mode': 'video', 'videos_folder': str(resources), 'grade': 'dark',
+                                      'clip_min_seconds': 1, 'clip_max_seconds': 1,
+                                      'title_overlay': {'font': 'great_vibes', 'size': 140, 'y': 40}}})
+            render_montage(audio, output, 3, video_catalog(spec, None), spec, root, None,
+                           MediaTools(), 'real-title', title='Powers')
+            verify_output(output, 3, MediaTools())
+
+            def frame(second):
+                target = root / f'f{second}.png'
+                subprocess.run([ffmpeg, '-nostdin', '-v', 'error', '-y', '-ss', str(second), '-i', str(output),
+                    '-frames:v', '1', str(target)], capture_output=True, timeout=30, check=True)
+                with Image.open(target) as image:
+                    return image.convert('L')
+            start, middle = frame(0), frame(1.5)
+            title_box, corner, center = (660, 30, 1260, 230), (0, 0, 200, 200), (860, 600, 1060, 800)
+            self.assertLess(max(start.crop(title_box).get_flattened_data()), 200)  # fundido: aun sin titulo
+            self.assertGreater(max(middle.crop(title_box).get_flattened_data()), 235)  # titulo blanco
+            # Grade oscuro con vineta: la esquina queda mas oscura que el centro.
+            self.assertLess(sum(middle.crop(corner).get_flattened_data()), sum(middle.crop(center).get_flattened_data()))
 
 
 if __name__ == '__main__':

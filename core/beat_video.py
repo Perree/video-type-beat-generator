@@ -11,6 +11,7 @@ from core.beat_download import acquire_audio
 from core.beat_render import MediaTools, compose
 from core.beat_visual import options, image_resource, video_catalog, fetch, thumbnail_resource
 from core.beat_montage import render_montage, thumbnail_frame
+from core.beat_names import clean_name
 from core.beat_intro import cached_intro
 from core.beat_thumb_logo import apply_logo, plan as thumbnail_plan
 from core.beat_rotation import image_digest, previous_publication, publication_visual
@@ -125,7 +126,8 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
                     intro = {'path': cached_intro(channel['id'], logo, spec['intro']['seconds'], tools),
                              'seconds': spec['intro']['seconds']}
                 montage = render_montage(audio, video, seconds, videos, spec, root, dropbox, tools, job_id,
-                                         checkpoint=lambda: store.renew(owner, ttl=3600), intro=intro)
+                                         checkpoint=lambda: store.renew(owner, ttl=3600), intro=intro,
+                                         title=clean_name(track['title']) if track.get('title') else None)
                 if not custom_thumbnail and not image:
                     thumbnail_frame(montage['first_clip'], source_image, tools)
                     compose(source_image, track.get('title'), frame, thumbnail)

@@ -8,6 +8,7 @@ from core.beat_download import audio_type, duration
 from core.beat_http import BeatError
 from core.beat_visual import fetch, MAX_VIDEO_BYTES
 from core.beat_film_overlay import filters
+from core.beat_title_overlay import create_title, overlay_chain, overlay_inputs
 
 FPS = 30
 
@@ -73,9 +74,10 @@ def loop_plan(clips, seconds):
 
 
 def render_montage(audio, output, seconds, rows, spec, root, dropbox, tools, job_id,
-                   checkpoint=lambda: None, intro=None):
+                   checkpoint=lambda: None, intro=None, title=None):
     """``intro={'path', 'seconds'}`` va antes del montaje; el audio arranca en 0 sobre ella
-    y la duración total sigue siendo ``seconds``."""
+    y la duración total sigue siendo ``seconds``. Con ``spec['title_overlay']`` y ``title``,
+    el nombre del beat va arriba todo el video (después de la intro)."""
     duration(seconds)
     if intro and seconds - intro['seconds'] < 1:
         intro = None  # beat demasiado corto: sin intro antes que un montaje vacío
@@ -131,24 +133,30 @@ def render_montage(audio, output, seconds, rows, spec, root, dropbox, tools, job
     with audio.open('rb') as stream:
         demuxer = audio_type(stream.read(512))
     checkpoint()
+    layer = []
+    if spec.get('title_overlay') and title:
+        layer = overlay_inputs(create_title(title, spec['title_overlay'], root / 'title.png'))
     common = ['-r', '30', '-af', f'atrim=duration={seconds},asetpts=PTS-STARTPTS', '-c:v', 'libx264',
               '-preset', 'fast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-movflags', '+faststart']
     if intro:
         body = seconds - intro['seconds']
         graph = (f'[1:v:0]trim=duration={body},setpts=PTS-STARTPTS[m];'
-                 '[0:v:0][m]concat=n=2:v=1:a=0,setsar=1,fps=30,format=yuv420p[v]')
+                 '[0:v:0][m]concat=n=2:v=1:a=0,setsar=1,fps=30,format=yuv420p')
+        graph += ('[pre];' + overlay_chain('pre', 3, intro['seconds'], seconds)) if layer else '[v]'
         tools._call([tools.ffmpeg, '-nostdin', '-v', 'error', '-y',
             '-protocol_whitelist', 'file', '-f', 'mov', '-i', str(intro['path']),
             '-stream_loop', '-1', '-protocol_whitelist', 'file', '-f', 'mov', '-i', str(sequence),
-            '-protocol_whitelist', 'file', '-f', demuxer, '-i', str(audio),
+            '-protocol_whitelist', 'file', '-f', demuxer, '-i', str(audio), *layer,
             '-filter_complex', graph, '-map', '[v]', '-map', '2:a:0', '-t', str(seconds),
             *common, str(output)], 1200)
     else:
         body = seconds
+        video = (['-filter_complex', overlay_chain('0:v:0', 2, 0, seconds), '-map', '[v]'] if layer
+                 else ['-map', '0:v:0'])
         tools._call([tools.ffmpeg, '-nostdin', '-v', 'error', '-y', '-stream_loop', '-1',
             '-protocol_whitelist', 'file', '-f', 'mov', '-i', str(sequence),
-            '-protocol_whitelist', 'file', '-f', demuxer, '-i', str(audio),
-            '-map', '0:v:0', '-map', '1:a:0', '-t', str(seconds), *common, str(output)], 1200)
+            '-protocol_whitelist', 'file', '-f', demuxer, '-i', str(audio), *layer,
+            *video, '-map', '1:a:0', '-t', str(seconds), *common, str(output)], 1200)
     if not output.is_file() or not output.stat().st_size:
         raise BeatError('render_output_missing')
     verify_output(output, seconds, tools)

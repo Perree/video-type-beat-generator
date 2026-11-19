@@ -28,6 +28,12 @@ def options(channel):
         result['thumbnail_logo'] = logo_options(result['thumbnail_logo'])
     if result.get('film_overlay', 'none') not in ('none', 'film_gate_red_v1'):
         raise ValueError('invalid_film_overlay')
+    from core.beat_film_overlay import GRADES
+    if type(result.get('grade', 'none')) is not str or result.get('grade', 'none') not in GRADES:
+        raise ValueError('invalid_grade')
+    if 'title_overlay' in result:
+        from core.beat_title_overlay import title_options
+        result['title_overlay'] = title_options(result['title_overlay'])
     if 'video_groups' in result:
         from core.beat_video_groups import validate
         validate(result['video_groups'])
