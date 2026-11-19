@@ -24,6 +24,7 @@ from core import beat_emotional_house_seo_v2
 from core import beat_murray_seo
 from core import beat_wyrelatin_seo
 from core import beat_ssj_seo
+from core import beat_ey_mat_seo
 from core.beat_seo_report import fields, text, texts, moment, parse_report, validate_report
 
 
@@ -32,7 +33,8 @@ def digest(value):
         separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
 
 
-PLACEHOLDERS = ('{name}', '{url}', '{music_info}')
+# {url} and {chapters} stay in the snapshot and are filled at upload (beat_daily).
+PLACEHOLDERS = ('{name}', '{url}', '{music_info}', '{chapters}')
 # Opt-in title modes: module and the placeholders its title template must contain.
 MODES = {beat_latin_seo.MODE: (beat_latin_seo, ('{artists}', '{style}')),
          beat_wyrelatin_seo.MODE: (beat_wyrelatin_seo, ('{style}', '{detail}')),
@@ -56,6 +58,7 @@ MODES = {beat_latin_seo.MODE: (beat_latin_seo, ('{artists}', '{style}')),
          beat_murray_seo.MODE: (beat_murray_seo, ()),
          beat_murray_seo.EXPIRING_MODE: (beat_murray_seo, ()),
          beat_ssj_seo.MODE: (beat_ssj_seo, beat_ssj_seo.REQUIRED),
+         beat_ey_mat_seo.MODE: (beat_ey_mat_seo, beat_ey_mat_seo.REQUIRED),
          beat_rnb_seo.MODE: (beat_rnb_seo, ('{style}',)),
          beat_rnb_seo_v2.MODE: (beat_rnb_seo_v2, ('{style}',)),
          beat_matwyre_seo.MODE: (beat_matwyre_seo, ('{style}',))}
@@ -79,13 +82,14 @@ def manual_profile(channel):
     # title_template is optional so snapshots created before it existed stay valid.
     fields(profile, ('tags', 'description') + (('title_template',) if 'title_template' in profile else ())
            + (('title_mode',) if 'title_mode' in profile else ())
-           + (beat_ssj_seo.EXTRA_FIELDS if profile.get('title_mode') == beat_ssj_seo.MODE else ()))
+           + (beat_ssj_seo.EXTRA_FIELDS if profile.get('title_mode') == beat_ssj_seo.MODE else ())
+           + (beat_ey_mat_seo.EXTRA_FIELDS if profile.get('title_mode') == beat_ey_mat_seo.MODE else ()))
     if 'title_mode' in profile and (profile['title_mode'] not in MODES
             or not all(token in profile.get('title_template', '')
                        for token in MODES[profile['title_mode']][1])):
         raise ValueError('seo_title_mode_invalid')
-    if _mode(profile) is beat_ssj_seo:
-        beat_ssj_seo.validate(profile)
+    if _mode(profile) in (beat_ssj_seo, beat_ey_mat_seo):
+        _mode(profile).validate(profile)
     texts(profile['tags'])
     description = profile['description']
     if description != '':
@@ -140,7 +144,7 @@ def track_input(track):
 
 def candidates(track, profile, scores, job):
     mode = _mode(profile)
-    if mode is beat_ssj_seo:
+    if mode in (beat_ssj_seo, beat_ey_mat_seo):
         return mode.variants(track, profile, job['slot'])
     if mode and mode is not beat_murray_seo:
         return mode.variants(track, profile)
@@ -184,6 +188,17 @@ def _with_music_info(value, track):
         value = re.sub(r'\n\n\{music_info\}(?=\n\n)', '', value)
         value = re.sub(r'^\{music_info\}\n+|\n*\{music_info\}$', '', value)
     return value.replace('{music_info}', info)
+
+
+def fill_chapters(value, chapters=None):
+    """Fill {chapters} at upload; without chapters (Phase 4 pending) drop the token and its blank line."""
+    if '{chapters}' not in value:
+        return value
+    if not chapters:
+        value = re.sub(r'\n\n\{chapters\}(?=\n\n)', '', value)
+        value = re.sub(r'^\{chapters\}\n+|\n*\{chapters\}$', '', value)
+        chapters = ''
+    return value.replace('{chapters}', chapters)
 
 
 def _with_collaborators(value, track):
@@ -247,8 +262,8 @@ def build_snapshot(job, track, channel, now, payload=None, cached=None, *, previ
         'selected': dict(eligible[0], description=description(profile, track, eligible[0]))}
     if _mode(profile) in (beat_rnb_seo, beat_rnb_seo_v2, beat_matwyre_seo):
         snapshot['experiment'] = _mode(profile).experiment(track, profile, snapshot['selected'])
-    elif _mode(profile) is beat_ssj_seo:
-        snapshot['experiment'] = beat_ssj_seo.experiment(track, profile, job['slot'])
+    elif _mode(profile) in (beat_ssj_seo, beat_ey_mat_seo):
+        snapshot['experiment'] = _mode(profile).experiment(track, profile, job['slot'])
     snapshot['sha256'] = digest(snapshot)
     cache = {'manual_hash': fingerprint, 'report': deepcopy(report)} if source == 'report' else None
     return snapshot, cache
@@ -311,8 +326,8 @@ def validate_snapshot(snapshot, job):
         options = {'legacy': True} if legacy else {}
         if snapshot.get('experiment') != mode.experiment(track, profile, snapshot['selected'], **options):
             raise ValueError('seo_experiment_invalid')
-    elif mode is beat_ssj_seo:
-        if snapshot.get('experiment') != beat_ssj_seo.experiment(track, profile, job['slot']):
+    elif mode in (beat_ssj_seo, beat_ey_mat_seo):
+        if snapshot.get('experiment') != mode.experiment(track, profile, job['slot']):
             raise ValueError('seo_experiment_invalid')
     elif 'experiment' in snapshot:
         raise ValueError('seo_experiment_invalid')
