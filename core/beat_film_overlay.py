@@ -18,6 +18,9 @@ def normalize_filter(fit):
     if fit == 'square':
         sizing = ('scale=1080:1080:force_original_aspect_ratio=increase:force_divisible_by=2,'
                   'crop=1080:1080,pad=1920:1080:420:0:color=black')
+    elif fit == 'fixed_bars':
+        sizing = ('scale=1232:1080:force_original_aspect_ratio=increase,crop=1232:1080,'
+                  'pad=1920:1080:344:0:color=black')
     elif fit == 'contain':
         sizing = ('scale=1920:1080:force_original_aspect_ratio=decrease,'
                   'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black')

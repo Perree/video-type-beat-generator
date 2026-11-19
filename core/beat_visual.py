@@ -17,8 +17,12 @@ def options(channel):
                   clip_min_seconds=3, clip_max_seconds=6,
                   thumbnail_source='auto', thumbnail_path='')
     result.update(raw)
-    if result.get('video_fit', 'cover') not in ('cover', 'contain', 'square'):
+    # fixed_bars: cada clip recortado al centro a 1232x1080 entre franjas negras de 344 px.
+    if result.get('video_fit', 'cover') not in ('cover', 'contain', 'square', 'fixed_bars'):
         raise ValueError('invalid_video_fit')
+    if 'intro' in result:
+        from core.beat_intro import intro_options
+        result['intro'] = intro_options(result['intro'])
     if result.get('film_overlay', 'none') not in ('none', 'film_gate_red_v1'):
         raise ValueError('invalid_film_overlay')
     if 'video_groups' in result:

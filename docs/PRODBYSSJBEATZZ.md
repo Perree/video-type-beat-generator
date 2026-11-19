@@ -37,11 +37,19 @@ Carpetas Dropbox bajo `/Soft Projects/Type Beat Generator/contenido/canales/prod
 `clips/`, `miniaturas/`, `logo/`. Cada archivo se subió sin sobrescribir y se descargó de
 vuelta para comparar byte por byte.
 
+## Decisiones de la Fase B
+
+- Intro `core/beat_intro.py`: 3,5 s, logo al 43 % del ancho sobre negro puro (el fondo gris
+  texturado del PNG se lleva a negro por niveles), desenfocado → nítido, zoom + pulso y corte.
+  Cacheada por canal + hash del logo. El audio del beat suena desde el segundo 0 sobre la intro.
+- `video_fit = fixed_bars`: clips recortados al centro a 1232×1080 con franjas negras de 344 px.
+- `source_trim_seconds` pasó a 0: los segmentos ya excluyen los primeros/últimos 10 s del video.
+
 ## Campos de la ficha que dependen de fases siguientes
 
 | Campo | Fase |
 |---|---|
-| `visual.intro` (logo animado) y `visual.video_fit = fixed_bars` para video | B |
+| `visual.intro` (logo animado) y `visual.video_fit = fixed_bars` para video | B ✅ |
 | `seo.title_mode = ssj_v1`, `main_rotation`, descripción | C |
 | `visual.thumbnail_logo.cycle = [7, 7]` | D |
 | `youtube_channel_id`, `active`, alta en config/registro Dropbox | E |

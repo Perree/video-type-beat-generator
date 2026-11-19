@@ -72,8 +72,13 @@ def loop_plan(clips, seconds):
     return result
 
 
-def render_montage(audio, output, seconds, rows, spec, root, dropbox, tools, job_id, checkpoint=lambda: None):
+def render_montage(audio, output, seconds, rows, spec, root, dropbox, tools, job_id,
+                   checkpoint=lambda: None, intro=None):
+    """``intro={'path', 'seconds'}`` va antes del montaje; el audio arranca en 0 sobre ella
+    y la duración total sigue siendo ``seconds``."""
     duration(seconds)
+    if intro and seconds - intro['seconds'] < 1:
+        intro = None  # beat demasiado corto: sin intro antes que un montaje vacío
     rng = random.Random(int.from_bytes(hashlib.sha256(job_id.encode()).digest()[:8], 'big'))
     rows = list({row['path']: row for row in rows}.values())
     rng.shuffle(rows)
@@ -126,17 +131,29 @@ def render_montage(audio, output, seconds, rows, spec, root, dropbox, tools, job
     with audio.open('rb') as stream:
         demuxer = audio_type(stream.read(512))
     checkpoint()
-    tools._call([tools.ffmpeg, '-nostdin', '-v', 'error', '-y', '-stream_loop', '-1',
-        '-protocol_whitelist', 'file', '-f', 'mov', '-i', str(sequence),
-        '-protocol_whitelist', 'file', '-f', demuxer, '-i', str(audio),
-        '-map', '0:v:0', '-map', '1:a:0', '-t', str(seconds), '-r', '30',
-        '-af', f'atrim=duration={seconds},asetpts=PTS-STARTPTS', '-c:v', 'libx264',
-        '-preset', 'fast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-movflags', '+faststart',
-        str(output)], 1200)
+    common = ['-r', '30', '-af', f'atrim=duration={seconds},asetpts=PTS-STARTPTS', '-c:v', 'libx264',
+              '-preset', 'fast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-movflags', '+faststart']
+    if intro:
+        body = seconds - intro['seconds']
+        graph = (f'[1:v:0]trim=duration={body},setpts=PTS-STARTPTS[m];'
+                 '[0:v:0][m]concat=n=2:v=1:a=0,setsar=1,fps=30,format=yuv420p[v]')
+        tools._call([tools.ffmpeg, '-nostdin', '-v', 'error', '-y',
+            '-protocol_whitelist', 'file', '-f', 'mov', '-i', str(intro['path']),
+            '-stream_loop', '-1', '-protocol_whitelist', 'file', '-f', 'mov', '-i', str(sequence),
+            '-protocol_whitelist', 'file', '-f', demuxer, '-i', str(audio),
+            '-filter_complex', graph, '-map', '[v]', '-map', '2:a:0', '-t', str(seconds),
+            *common, str(output)], 1200)
+    else:
+        body = seconds
+        tools._call([tools.ffmpeg, '-nostdin', '-v', 'error', '-y', '-stream_loop', '-1',
+            '-protocol_whitelist', 'file', '-f', 'mov', '-i', str(sequence),
+            '-protocol_whitelist', 'file', '-f', demuxer, '-i', str(audio),
+            '-map', '0:v:0', '-map', '1:a:0', '-t', str(seconds), *common, str(output)], 1200)
     if not output.is_file() or not output.stat().st_size:
         raise BeatError('render_output_missing')
     verify_output(output, seconds, tools)
-    return {'clips': loop_plan(clips, seconds), 'skipped_videos': skipped, 'first_clip': clips[0]['path']}
+    return {'clips': loop_plan(clips, body), 'skipped_videos': skipped, 'first_clip': clips[0]['path'],
+            'intro_seconds': intro['seconds'] if intro else 0}
 
 
 def verify_output(output, seconds, tools, silent=False):

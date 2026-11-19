@@ -87,7 +87,7 @@
     "videos_folder": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips",
     "clip_min_seconds": 3,
     "clip_max_seconds": 6,
-    "source_trim_seconds": 12,
+    "source_trim_seconds": 0,
     "video_fit": "fixed_bars",
     "intro": {
       "logo": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/logo/ssj-logo.png",

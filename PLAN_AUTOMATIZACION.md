@@ -1,5 +1,21 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## prodbySSJBeatzz — Fase B: intro con logo y barras en video ✅ COMPLETADA (2026-11-19)
+
+- `core/beat_intro.py`: intro de 3,5 s (1920×1080/30, sin audio) con el logo SSJ BEATZ sobre
+  negro: fondo gris del PNG llevado a negro puro, logo al 43 % del ancho, entra desenfocado y
+  oscuro → nítido en 0,9 s, zoom lento + dos pulsos y corte. Cuadros con Pillow, FFmpeg codifica.
+  Caché en `%LOCALAPPDATA%/TypeBeat/cache/intros/<canal>-<sha16 logo>-<cuadros>f-v1.mp4`.
+- Perfil: `visual.intro = {logo, seconds}` (Dropbox, 1,5–8 s, redondeado a cuadros) validado en
+  `beat_visual.options`; `video_fit = fixed_bars` recorta cada clip al centro a 1232×1080 entre
+  franjas negras de 344 px (misma geometría que `image_fit=fixed_bars`).
+- `beat_montage.render_montage(intro=…)`: intro + montaje en loop recortado a
+  `duración − intro`; el audio arranca en 0 y el total es la duración del beat.
+  `beat_video` baja el logo de Dropbox y usa la intro cacheada.
+- Ficha: `source_trim_seconds` 12 → 0 (los segmentos de 12 s ya vienen sin bordes; con 12
+  se descartaban todos). Tests: `tests/test_beat_intro.py`. Preview real revisado
+  (beat "summer love" 3:12 con 12 segmentos: duración exacta, franjas negras).
+
 ## prodbySSJBeatzz — Fase A: assets y ficha del canal ✅ COMPLETADA (2026-11-19)
 
 - Canal nuevo estilo prodbyDSI con logo propio SSJ BEATZ. Fases siguientes: B intro con
