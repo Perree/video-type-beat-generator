@@ -14,6 +14,7 @@ from core.beat_montage import render_montage, thumbnail_frame
 from core.beat_names import clean_name
 from core.beat_intro import cached_intro
 from core.beat_thumb_logo import apply_logo, plan as thumbnail_plan
+from core.beat_thumb_badges import apply_badges
 from core.beat_rotation import image_digest, previous_publication, publication_visual
 from core.beat_selection import require_track
 from core.beat_visual_schedule import job_options
@@ -116,6 +117,11 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
                     logo = root / 'thumbnail-logo.bin'
                     dropbox.download(spec['thumbnail_logo']['logo'], logo, 20 * 1024 * 1024)
                     apply_logo(thumbnail, logo, spec['thumbnail_logo']['corner'])
+            if spec.get('thumbnail_badges') and image and not custom_thumbnail:
+                # Estilo Taigen (ey mat); el snapshot congela los badges para los reintentos.
+                badges = (job.get('thumbnail_snapshot') or {}).get('badges') or spec['thumbnail_badges']
+                apply_badges(thumbnail, badges)
+                thumb = dict(thumb or {'image': image['path']}, badges=badges)
             if spec['mode'] == 'image':
                 tools.render(audio, frame, video, seconds)
             else:
@@ -157,7 +163,7 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
                    'before_upload': lambda: store.renew(owner, ttl=3600),
                    'thumbnail': thumbnail, 'seconds': seconds, 'audio_source': provider,
                    'visual_mode': spec['mode'], 'skipped_videos': montage.get('skipped_videos', 0),
-                   'thumbnail_variant': thumb['variant'] if thumb else None,
+                   'thumbnail_variant': thumb.get('variant') if thumb else None,
                    'uploads': False}
     finally:
         if owner is not None:

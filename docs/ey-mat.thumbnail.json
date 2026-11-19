@@ -1,0 +1,13 @@
+{
+  "custom_thumbnail": true,
+  "thumbnail_source": "auto",
+  "image_fit": "fixed_bars",
+  "plain_image": true,
+  "thumbnail_badges": {
+    "advisory": true,
+    "signature": "ey mat",
+    "font": "great_vibes",
+    "grain": 0.035,
+    "vignette": 0.35
+  }
+}

@@ -26,6 +26,9 @@ def options(channel):
     if 'thumbnail_logo' in result:
         from core.beat_thumb_logo import logo_options
         result['thumbnail_logo'] = logo_options(result['thumbnail_logo'])
+    if 'thumbnail_badges' in result:
+        from core.beat_thumb_badges import badge_options
+        result['thumbnail_badges'] = badge_options(result['thumbnail_badges'])
     if result.get('film_overlay', 'none') not in ('none', 'film_gate_red_v1'):
         raise ValueError('invalid_film_overlay')
     from core.beat_film_overlay import GRADES

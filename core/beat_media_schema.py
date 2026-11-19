@@ -18,11 +18,22 @@ def validate_media_state(state):
                 raise ValueError('invalid_visual_snapshot')
         thumb = job.get('thumbnail_snapshot')
         if thumb is not None:
-            if (not isinstance(thumb, dict) or set(thumb) - {'variant', 'upload_index', 'image'}
-                    or thumb.get('variant') not in ('logo', 'sin_logo')
-                    or type(thumb.get('upload_index')) is not int or not 0 <= thumb['upload_index'] < 10**6
+            if (not isinstance(thumb, dict) or set(thumb) - {'variant', 'upload_index', 'image', 'badges'}
+                    or not {'variant', 'badges'} & set(thumb)
                     or not isinstance(thumb.get('image', ''), str) or len(thumb.get('image', '')) > 4096):
                 raise ValueError('invalid_thumbnail_snapshot')
+            if ({'variant', 'upload_index'} & set(thumb)
+                    and (thumb.get('variant') not in ('logo', 'sin_logo')
+                         or type(thumb.get('upload_index')) is not int
+                         or not 0 <= thumb['upload_index'] < 10**6)):
+                raise ValueError('invalid_thumbnail_snapshot')
+            if 'badges' in thumb:
+                from core.beat_thumb_badges import badge_options
+                try:
+                    if badge_options(thumb['badges']) != thumb['badges']:
+                        raise ValueError
+                except ValueError:
+                    raise ValueError('invalid_thumbnail_snapshot') from None
     associations = state.get('audio_associations', {})
     rotation = state.get('image_rotation', {})
     if not isinstance(associations, dict) or len(associations) > 10000 or not isinstance(rotation, dict):
