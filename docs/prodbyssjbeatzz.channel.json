@@ -1,0 +1,122 @@
+{
+  "id": "prodbyssjbeatzz",
+  "actions_slug": "prodbyssjbeatzz",
+  "active": false,
+  "priority": 10,
+  "youtube_channel_id": "",
+  "genres": [
+    "melodic"
+  ],
+  "images_folder": "",
+  "dropbox_images": {
+    "melodic": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas"
+  },
+  "tags": [],
+  "selection_tags": [
+    "iann dior",
+    "iann dior type beat",
+    "ianndior",
+    "ianndior type beat",
+    "juice wrld",
+    "juice wrld type beat",
+    "juicewrld",
+    "juicewrld type beat",
+    "kid laroi",
+    "kid laroi type beat",
+    "laroi",
+    "laroi type beat",
+    "lil tjay",
+    "lil tjay type beat",
+    "liltjay",
+    "liltjay type beat",
+    "polo g",
+    "polo g type beat",
+    "polog",
+    "polog type beat",
+    "scorey",
+    "scorey type beat",
+    "the kid laroi",
+    "the kid laroi type beat",
+    "toosii",
+    "toosii type beat"
+  ],
+  "slots": [
+    {
+      "weekday": 0,
+      "hour": 18,
+      "minute": 0
+    },
+    {
+      "weekday": 1,
+      "hour": 18,
+      "minute": 0
+    },
+    {
+      "weekday": 2,
+      "hour": 18,
+      "minute": 0
+    },
+    {
+      "weekday": 3,
+      "hour": 18,
+      "minute": 0
+    },
+    {
+      "weekday": 4,
+      "hour": 18,
+      "minute": 0
+    },
+    {
+      "weekday": 5,
+      "hour": 18,
+      "minute": 0
+    },
+    {
+      "weekday": 6,
+      "hour": 18,
+      "minute": 0
+    }
+  ],
+  "upload_spread": {
+    "min_days": 2,
+    "max_days": 4
+  },
+  "visual": {
+    "mode": "video",
+    "video_source": "dropbox",
+    "videos_folder": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips",
+    "clip_min_seconds": 3,
+    "clip_max_seconds": 6,
+    "source_trim_seconds": 12,
+    "video_fit": "fixed_bars",
+    "intro": {
+      "logo": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/logo/ssj-logo.png",
+      "seconds": 3.5
+    },
+    "custom_thumbnail": true,
+    "thumbnail_source": "dropbox_images",
+    "thumbnail_logo": {
+      "logo": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/logo/ssj-logo.png",
+      "cycle": [
+        7,
+        7
+      ]
+    },
+    "plain_image": true
+  },
+  "seo": {
+    "title_mode": "ssj_v1",
+    "title_template": "[FREE] {main} x {second} Type Beat{year} \"{name}\"",
+    "main_rotation": [
+      "Polo G",
+      "Lil Tjay"
+    ],
+    "tags": [
+      "free type beat",
+      "type beat",
+      "prodbyssjbeatzz",
+      "ssj beatz",
+      "matwyre"
+    ]
+  }
+}

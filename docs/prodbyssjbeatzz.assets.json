@@ -1,0 +1,1201 @@
+{
+  "channel": "prodbyssjbeatzz",
+  "download_date": "2026-11-19",
+  "source_videos": [
+    {
+      "index": 1,
+      "source": "Polo G - 21 (Official Music Video).mp4",
+      "width": 1920,
+      "height": 1080,
+      "seconds": 186.33
+    },
+    {
+      "index": 2,
+      "source": "Polo G - Dope Spot (Official Video).mp4",
+      "width": 1920,
+      "height": 1080,
+      "seconds": 186.73
+    },
+    {
+      "index": 3,
+      "source": "Polo G - Heartless (feat. Mustard) [Official Video].mp4",
+      "width": 1920,
+      "height": 1080,
+      "seconds": 192.27
+    },
+    {
+      "index": 4,
+      "source": "Polo G - RAPSTAR (Official Video).mp4",
+      "width": 1920,
+      "height": 1080,
+      "seconds": 168.3
+    },
+    {
+      "index": 5,
+      "source": "Polo G - Still Standing (Official Video).mp4",
+      "width": 1920,
+      "height": 1080,
+      "seconds": 130.33
+    },
+    {
+      "index": 6,
+      "source": "Scorey & Sleepy Hallow - Wildlife (Official Video).mp4",
+      "width": 2046,
+      "height": 1080,
+      "seconds": 174.5
+    },
+    {
+      "index": 7,
+      "source": "Scorey - Dead Roses (Official Video).mp4",
+      "width": 1552,
+      "height": 1080,
+      "seconds": 122.33
+    },
+    {
+      "index": 8,
+      "source": "Scorey jump in crowd on tour.mp4",
+      "width": 1920,
+      "height": 1080,
+      "seconds": 44.37
+    }
+  ],
+  "segments": [
+    {
+      "file": "seg-001.mp4",
+      "source": "Polo G - 21 (Official Music Video).mp4",
+      "start": 10,
+      "seconds": 12,
+      "bytes": 3082273,
+      "sha256": "02d80fa8545930c4c284c29c3867a864ba0c28ff3bd0d5d328a6338ff7302609",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-001.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-002.mp4",
+      "source": "Polo G - 21 (Official Music Video).mp4",
+      "start": 22,
+      "seconds": 12,
+      "bytes": 3304373,
+      "sha256": "f2b4cf198dbc2f67b6ef72d73d8b345f3a6752f02c2008dfa07fd439ca99ec18",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-002.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-003.mp4",
+      "source": "Polo G - 21 (Official Music Video).mp4",
+      "start": 34,
+      "seconds": 12,
+      "bytes": 3440600,
+      "sha256": "cb34fa0026deb09072d208be15803ae71aaaa2d6b19d3f8adb038223ac05b364",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-003.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-004.mp4",
+      "source": "Polo G - 21 (Official Music Video).mp4",
+      "start": 46,
+      "seconds": 12,
+      "bytes": 4136618,
+      "sha256": "73933374bf6e5f15c63458c48506fc3e4202bde3a2cd58d19409bc729e0bb5df",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-004.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-005.mp4",
+      "source": "Polo G - 21 (Official Music Video).mp4",
+      "start": 58,
+      "seconds": 12,
+      "bytes": 3720814,
+      "sha256": "765a55a90e0986f737bc3b765328077fff262cfd90ed7d17ba8b76457891fc49",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-005.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-006.mp4",
+      "source": "Polo G - 21 (Official Music Video).mp4",
+      "start": 70,
+      "seconds": 12,
+      "bytes": 3631999,
+      "sha256": "30674e6c3d951f68ef7b05972b897a9ad5125a4668b74be87ae78d54b6f8fe50",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-006.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-007.mp4",
+      "source": "Polo G - 21 (Official Music Video).mp4",
+      "start": 82,
+      "seconds": 12,
+      "bytes": 3782274,
+      "sha256": "f346e3bc51b6f29e5b99977756292bb8cece91fa63c2c0b671a32e09531c7764",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-007.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-008.mp4",
+      "source": "Polo G - 21 (Official Music Video).mp4",
+      "start": 94,
+      "seconds": 12,
+      "bytes": 3020848,
+      "sha256": "a348ba4bea1185c8249b6d6dd1809a81cd525d05c1aaeda296ec488d63a0f529",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-008.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-009.mp4",
+      "source": "Polo G - 21 (Official Music Video).mp4",
+      "start": 106,
+      "seconds": 12,
+      "bytes": 3560784,
+      "sha256": "f1e84c4d9e97ff38d24cbaefc1810d54f487d3a5311b94571e5a8fff66564e44",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-009.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-010.mp4",
+      "source": "Polo G - 21 (Official Music Video).mp4",
+      "start": 118,
+      "seconds": 12,
+      "bytes": 3780297,
+      "sha256": "0577e486f763ef10006887942260c9b667e7c14c52d1e5d1bcad30014336d1c8",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-010.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-011.mp4",
+      "source": "Polo G - 21 (Official Music Video).mp4",
+      "start": 130,
+      "seconds": 12,
+      "bytes": 3084839,
+      "sha256": "219a3f6aac4e07e6e57aed89bf2c69a8456006e5ddcc2115c605911c3748c197",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-011.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-012.mp4",
+      "source": "Polo G - 21 (Official Music Video).mp4",
+      "start": 142,
+      "seconds": 12,
+      "bytes": 2922690,
+      "sha256": "434ee3c1edc11d1e374bc1edef5f0e3071c81bda0315a9022e4f37620ca51e04",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-012.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-013.mp4",
+      "source": "Polo G - 21 (Official Music Video).mp4",
+      "start": 154,
+      "seconds": 12,
+      "bytes": 2327177,
+      "sha256": "e5bdf69b5ef868483cd9dcae3a6bfdbe785ac28f5bc7442e54f4dae43a852232",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-013.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-014.mp4",
+      "source": "Polo G - Dope Spot (Official Video).mp4",
+      "start": 10,
+      "seconds": 12,
+      "bytes": 6252955,
+      "sha256": "da3d46296c8b52f8ce06a5fdf02fec3d9e12801f1d7457c1dc9b31278a8d7e3a",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-014.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-015.mp4",
+      "source": "Polo G - Dope Spot (Official Video).mp4",
+      "start": 22,
+      "seconds": 12,
+      "bytes": 5206273,
+      "sha256": "68f71341f3a7e5631274762cc19c38defd35e20e8b521b28e3d596ebc2f2bb74",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-015.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-016.mp4",
+      "source": "Polo G - Dope Spot (Official Video).mp4",
+      "start": 34,
+      "seconds": 12,
+      "bytes": 3619897,
+      "sha256": "502a0d8934afb56d3ffd081d73fd2b30cb71d8419dfa5fc376b1a2f9c0c06c2b",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-016.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-017.mp4",
+      "source": "Polo G - Dope Spot (Official Video).mp4",
+      "start": 46,
+      "seconds": 12,
+      "bytes": 5844411,
+      "sha256": "47083326a2fbc1a278a2a77809d8971dbc1fe6fac2f045a59d5bc52cf3aa3a95",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-017.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-018.mp4",
+      "source": "Polo G - Dope Spot (Official Video).mp4",
+      "start": 58,
+      "seconds": 12,
+      "bytes": 5837382,
+      "sha256": "cce3a305255ccdd697d956891b6c6d7029ea5688acc0d0bfc10e2774baf206f1",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-018.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-019.mp4",
+      "source": "Polo G - Dope Spot (Official Video).mp4",
+      "start": 70,
+      "seconds": 12,
+      "bytes": 5204136,
+      "sha256": "d541a2bf97391b98a4c606332c35d183a0831edc80ee35ad61c0d2ad727a8b28",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-019.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-020.mp4",
+      "source": "Polo G - Dope Spot (Official Video).mp4",
+      "start": 82,
+      "seconds": 12,
+      "bytes": 6047640,
+      "sha256": "1198db4045c80caa0a56d558dbc4668687bec474dcdf6cf604694685095d0aaf",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-020.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-021.mp4",
+      "source": "Polo G - Dope Spot (Official Video).mp4",
+      "start": 94,
+      "seconds": 12,
+      "bytes": 5145110,
+      "sha256": "67d195eeddb6d11b6afb79615240ec612effd99fb61a6aa3fc28c1c34c86f880",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-021.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-022.mp4",
+      "source": "Polo G - Dope Spot (Official Video).mp4",
+      "start": 106,
+      "seconds": 12,
+      "bytes": 5875435,
+      "sha256": "3aa311f2a477e504bca48a063c4a06fe772c27b8a3a94383202747cefe8ba895",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-022.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-023.mp4",
+      "source": "Polo G - Dope Spot (Official Video).mp4",
+      "start": 118,
+      "seconds": 12,
+      "bytes": 4972925,
+      "sha256": "ab2d75d84a57cdcce25069297d98bdff6033e4ead644ef6d483fb4da2b9dbc96",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-023.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-024.mp4",
+      "source": "Polo G - Dope Spot (Official Video).mp4",
+      "start": 130,
+      "seconds": 12,
+      "bytes": 6455773,
+      "sha256": "7bdb92fd02bc0b6f3a714ec0e7eef0f97f628a5a560df2d694e7229bafdd2b63",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-024.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-025.mp4",
+      "source": "Polo G - Dope Spot (Official Video).mp4",
+      "start": 142,
+      "seconds": 12,
+      "bytes": 5113172,
+      "sha256": "56254956775b520536d0f3038862bd01e8c27099e61729bd79a2a7ba82c3c760",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-025.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-026.mp4",
+      "source": "Polo G - Dope Spot (Official Video).mp4",
+      "start": 154,
+      "seconds": 12,
+      "bytes": 6349277,
+      "sha256": "ea5276c95254ec5e37b4367e9c77ffb8bf4c56a5be52ea0d936d85ddafe361bf",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-026.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-027.mp4",
+      "source": "Polo G - Heartless (feat. Mustard) [Official Video].mp4",
+      "start": 10,
+      "seconds": 12,
+      "bytes": 4941081,
+      "sha256": "de391c93a9706e3ff44bd1fc0ef03d3e4b4e090ab95f6cc69d4d22bebdd5f81e",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-027.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-028.mp4",
+      "source": "Polo G - Heartless (feat. Mustard) [Official Video].mp4",
+      "start": 22,
+      "seconds": 12,
+      "bytes": 7529871,
+      "sha256": "0091e0c2827c3ebea61e737a0231571b328ad6f41399f45ca157b6fb14209c2c",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-028.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-029.mp4",
+      "source": "Polo G - Heartless (feat. Mustard) [Official Video].mp4",
+      "start": 34,
+      "seconds": 12,
+      "bytes": 6230053,
+      "sha256": "749c90cc811888e6aeb22e5814eefb9da3c661fdf6bc9bd42efa15303b5bc8c0",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-029.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-030.mp4",
+      "source": "Polo G - Heartless (feat. Mustard) [Official Video].mp4",
+      "start": 46,
+      "seconds": 12,
+      "bytes": 7612110,
+      "sha256": "c1f1eb778cfb0771dd5d365b248e71dddf572f6b697d65160c011eb742e6efeb",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-030.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-031.mp4",
+      "source": "Polo G - Heartless (feat. Mustard) [Official Video].mp4",
+      "start": 58,
+      "seconds": 12,
+      "bytes": 7359100,
+      "sha256": "0a5d3fcc6cfd45b6c60bf61b21f5bbd3c18da83ef431c0537ddf9f4be2052c27",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-031.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-032.mp4",
+      "source": "Polo G - Heartless (feat. Mustard) [Official Video].mp4",
+      "start": 70,
+      "seconds": 12,
+      "bytes": 7085155,
+      "sha256": "04c38e0f622293dec320d27d9ab2bd8bc8303b215a8c7a28c1e0b1383d3e6778",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-032.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-033.mp4",
+      "source": "Polo G - Heartless (feat. Mustard) [Official Video].mp4",
+      "start": 82,
+      "seconds": 12,
+      "bytes": 6866642,
+      "sha256": "685193af4d47f8e09af1bd90edc75b3c5d8b74e364ca959fa78983fac112e941",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-033.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-034.mp4",
+      "source": "Polo G - Heartless (feat. Mustard) [Official Video].mp4",
+      "start": 94,
+      "seconds": 12,
+      "bytes": 6632463,
+      "sha256": "7baaf5a46f34913da11bd689c938eb12baa2691877fc58e24ed013b773933fdf",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-034.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-035.mp4",
+      "source": "Polo G - Heartless (feat. Mustard) [Official Video].mp4",
+      "start": 106,
+      "seconds": 12,
+      "bytes": 6356609,
+      "sha256": "d01463ce05bde7c906947b46bd295636d474b73d8682576bc38b9996ee792ddd",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-035.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-036.mp4",
+      "source": "Polo G - Heartless (feat. Mustard) [Official Video].mp4",
+      "start": 118,
+      "seconds": 12,
+      "bytes": 6862171,
+      "sha256": "205309b62efb8901c7e090213b4d4d586ff724908cbaf0312eec82c47b27a486",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-036.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-037.mp4",
+      "source": "Polo G - Heartless (feat. Mustard) [Official Video].mp4",
+      "start": 130,
+      "seconds": 12,
+      "bytes": 7172172,
+      "sha256": "dba6b2a71546f162eedb0f45821b70f33b4ff8c67e63345f0c96f93d07943b88",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-037.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-038.mp4",
+      "source": "Polo G - Heartless (feat. Mustard) [Official Video].mp4",
+      "start": 142,
+      "seconds": 12,
+      "bytes": 7139017,
+      "sha256": "4f42cf8e9aa99403d7c0f17d6f9c02f7be54d566ade933bf684066a64d7d8b3c",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-038.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-039.mp4",
+      "source": "Polo G - Heartless (feat. Mustard) [Official Video].mp4",
+      "start": 154,
+      "seconds": 12,
+      "bytes": 6912616,
+      "sha256": "68c1dcb8b56f345ff45c00ae6ee4b4c366948b613c6623c69dca7a5b0c1a62fa",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-039.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-041.mp4",
+      "source": "Polo G - RAPSTAR (Official Video).mp4",
+      "start": 10,
+      "seconds": 12,
+      "bytes": 6417725,
+      "sha256": "847106cbeb25eb2bb2fea52b6812bd521c7b5e861712fdfb13473193b555685d",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-041.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-042.mp4",
+      "source": "Polo G - RAPSTAR (Official Video).mp4",
+      "start": 22,
+      "seconds": 12,
+      "bytes": 4989337,
+      "sha256": "0b535dd7ecbb68a197068aa0d3560f469ab8ef9e723d9f424dd2f18a1380fb6c",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-042.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-043.mp4",
+      "source": "Polo G - RAPSTAR (Official Video).mp4",
+      "start": 34,
+      "seconds": 12,
+      "bytes": 6239270,
+      "sha256": "288994da09a9e09478571d1246675454277d599699104f71a2288a1c906122b7",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-043.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-044.mp4",
+      "source": "Polo G - RAPSTAR (Official Video).mp4",
+      "start": 46,
+      "seconds": 12,
+      "bytes": 3345393,
+      "sha256": "a08a56a72df1592ab1268f488830a2b7a34bce7b28be8c83390f34acc33a676c",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-044.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-045.mp4",
+      "source": "Polo G - RAPSTAR (Official Video).mp4",
+      "start": 58,
+      "seconds": 12,
+      "bytes": 8639979,
+      "sha256": "b0270f91e7f8164a8b854a591776e3c6a3cfee0c0de64fb2ee56a7d61fd45909",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-045.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-046.mp4",
+      "source": "Polo G - RAPSTAR (Official Video).mp4",
+      "start": 70,
+      "seconds": 12,
+      "bytes": 3812101,
+      "sha256": "a6f4bad631120e3d08c1a749a468b50115a35797dbd1bbc360e44f81ff443845",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-046.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-047.mp4",
+      "source": "Polo G - RAPSTAR (Official Video).mp4",
+      "start": 82,
+      "seconds": 12,
+      "bytes": 4584691,
+      "sha256": "d50eb94962f43f912c4da3b5b871f14ba8b92256a8089fc242f6aaf339c12a3c",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-047.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-048.mp4",
+      "source": "Polo G - RAPSTAR (Official Video).mp4",
+      "start": 94,
+      "seconds": 12,
+      "bytes": 5510773,
+      "sha256": "225554d15efdb1c83814c64cdd785c209fb9d8b316a9f52e9cbe475eadefb986",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-048.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-049.mp4",
+      "source": "Polo G - RAPSTAR (Official Video).mp4",
+      "start": 106,
+      "seconds": 12,
+      "bytes": 3283589,
+      "sha256": "010cb82707db811dbac9c2eceb40685246b11921a135b91e2df9d49830f54e7c",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-049.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-050.mp4",
+      "source": "Polo G - RAPSTAR (Official Video).mp4",
+      "start": 118,
+      "seconds": 12,
+      "bytes": 4677933,
+      "sha256": "11bbfc189a6ac07c8df0bebed3f93bd43ff4cca0fdd3292cd7da85441803a1cb",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-050.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-051.mp4",
+      "source": "Polo G - RAPSTAR (Official Video).mp4",
+      "start": 130,
+      "seconds": 12,
+      "bytes": 8511710,
+      "sha256": "863a73567a3bfb4e09391e480b39fe555b7433418687a0c37e2b421c35487926",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-051.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-052.mp4",
+      "source": "Polo G - RAPSTAR (Official Video).mp4",
+      "start": 142,
+      "seconds": 12,
+      "bytes": 6038071,
+      "sha256": "8dc258248ba50c36c95d0c874fa58488a4ef232d74ba4b1eb7536b4f6cfacfc1",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-052.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-053.mp4",
+      "source": "Polo G - Still Standing (Official Video).mp4",
+      "start": 10,
+      "seconds": 12,
+      "bytes": 2912828,
+      "sha256": "fcc2fefae14fa1f7dedcf9cd1d4c106e61cd419cb74fd175b42bbe78c7919437",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-053.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-054.mp4",
+      "source": "Polo G - Still Standing (Official Video).mp4",
+      "start": 22,
+      "seconds": 12,
+      "bytes": 2781084,
+      "sha256": "0a936970529127a4b17e5d65d82a6b266cfb5aad2676e13d82abc6d3aa70dd0d",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-054.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-055.mp4",
+      "source": "Polo G - Still Standing (Official Video).mp4",
+      "start": 34,
+      "seconds": 12,
+      "bytes": 3101745,
+      "sha256": "c3b1a8272146d3e35351725f045eb8321327d767a95a25b9bdc78777b75e4501",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-055.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-056.mp4",
+      "source": "Polo G - Still Standing (Official Video).mp4",
+      "start": 46,
+      "seconds": 12,
+      "bytes": 2644831,
+      "sha256": "267deda1721db36519e71b44cccb72146fab0392a716446e882d80ee8764d6be",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-056.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-057.mp4",
+      "source": "Polo G - Still Standing (Official Video).mp4",
+      "start": 58,
+      "seconds": 12,
+      "bytes": 1954705,
+      "sha256": "615d2001ce3dbe97737af01540e80e7b877d1b0e41597314aa3043b0c786d1f4",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-057.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-058.mp4",
+      "source": "Polo G - Still Standing (Official Video).mp4",
+      "start": 70,
+      "seconds": 12,
+      "bytes": 2310999,
+      "sha256": "8acaf71f6a9f101874732c73fbea873d4be80622417640d85c62dcbdc9049e05",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-058.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-059.mp4",
+      "source": "Polo G - Still Standing (Official Video).mp4",
+      "start": 82,
+      "seconds": 12,
+      "bytes": 2150408,
+      "sha256": "18b573f0a4c909f176f045f2450e4c28f05b53cafd97c1aef6e1382e43843d79",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-059.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-060.mp4",
+      "source": "Polo G - Still Standing (Official Video).mp4",
+      "start": 94,
+      "seconds": 12,
+      "bytes": 1913771,
+      "sha256": "d85fddf8904e5122400fa9c2746d8938c4e1e8410697cb834fe82781e74f1a4d",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-060.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-061.mp4",
+      "source": "Polo G - Still Standing (Official Video).mp4",
+      "start": 106,
+      "seconds": 12,
+      "bytes": 2337518,
+      "sha256": "56c487b71fe97a3006b0d5dd176ec6a75f9289d69849ca466a144ab579480a47",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-061.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-062.mp4",
+      "source": "Scorey & Sleepy Hallow - Wildlife (Official Video).mp4",
+      "start": 10,
+      "seconds": 12,
+      "bytes": 5432951,
+      "sha256": "d89f931d478fed8b2dd461ee78ac5cd4eda05095374428744f6027bb500412b2",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-062.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-063.mp4",
+      "source": "Scorey & Sleepy Hallow - Wildlife (Official Video).mp4",
+      "start": 22,
+      "seconds": 12,
+      "bytes": 5253200,
+      "sha256": "ead9e11c4f78c5d57970942a4a8f356a6500acf485d1d7ff4e3130e9f8d77e63",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-063.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-064.mp4",
+      "source": "Scorey & Sleepy Hallow - Wildlife (Official Video).mp4",
+      "start": 34,
+      "seconds": 12,
+      "bytes": 5491158,
+      "sha256": "cf79184ce8d71a94938c98c7d380d1d8b862405f137236a91b19f886b2e27d25",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-064.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-065.mp4",
+      "source": "Scorey & Sleepy Hallow - Wildlife (Official Video).mp4",
+      "start": 46,
+      "seconds": 12,
+      "bytes": 6744363,
+      "sha256": "ec13363a8d0c13956333657fa2576d57126e1851f9a93f976ac0c4617c3bd214",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-065.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-066.mp4",
+      "source": "Scorey & Sleepy Hallow - Wildlife (Official Video).mp4",
+      "start": 58,
+      "seconds": 12,
+      "bytes": 5682374,
+      "sha256": "01ece4a397b0a9423693bc9d69771a3777b43275c3e7eb020c66b178f2dbb457",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-066.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-067.mp4",
+      "source": "Scorey & Sleepy Hallow - Wildlife (Official Video).mp4",
+      "start": 70,
+      "seconds": 12,
+      "bytes": 5559672,
+      "sha256": "80966f64df3ed51dcb453084a6c08d5cbbfd744e53989361cb726fbc494c5a7e",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-067.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-068.mp4",
+      "source": "Scorey & Sleepy Hallow - Wildlife (Official Video).mp4",
+      "start": 82,
+      "seconds": 12,
+      "bytes": 5334288,
+      "sha256": "43af9c21ad53ee81915d6e11c2becf97e58bc8f8cee3a584959fcfa911857098",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-068.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-069.mp4",
+      "source": "Scorey & Sleepy Hallow - Wildlife (Official Video).mp4",
+      "start": 94,
+      "seconds": 12,
+      "bytes": 5381769,
+      "sha256": "b4f555a8048ef97c6c500b12cdd63afa7016cfba17e3881466f71eb4b8413bdf",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-069.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-070.mp4",
+      "source": "Scorey & Sleepy Hallow - Wildlife (Official Video).mp4",
+      "start": 106,
+      "seconds": 12,
+      "bytes": 4486896,
+      "sha256": "a6d4f70136b324c314d94cb5b36f165f7e99f9a4d8a234c297cceada9df12400",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-070.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-071.mp4",
+      "source": "Scorey & Sleepy Hallow - Wildlife (Official Video).mp4",
+      "start": 118,
+      "seconds": 12,
+      "bytes": 5709060,
+      "sha256": "a1e67011222948ae3909333f085d02a481267005fc09458797eb7fea671a6c3d",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-071.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-072.mp4",
+      "source": "Scorey & Sleepy Hallow - Wildlife (Official Video).mp4",
+      "start": 130,
+      "seconds": 12,
+      "bytes": 5378061,
+      "sha256": "f58350d27b3fd9146ea24ab51d9d9a9f086b7ce97eb1f80d77c16f2decbe3e9c",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-072.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-073.mp4",
+      "source": "Scorey & Sleepy Hallow - Wildlife (Official Video).mp4",
+      "start": 142,
+      "seconds": 12,
+      "bytes": 6198238,
+      "sha256": "640243b90334ebfb0c8a219297ee3332244576b3056628f9775803d2256060f3",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-073.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-074.mp4",
+      "source": "Scorey - Dead Roses (Official Video).mp4",
+      "start": 10,
+      "seconds": 12,
+      "bytes": 3012265,
+      "sha256": "0d520e38fba5299696dd319cbde171a8aa12a6d40bda084c567a17c215bf52cd",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-074.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-075.mp4",
+      "source": "Scorey - Dead Roses (Official Video).mp4",
+      "start": 22,
+      "seconds": 12,
+      "bytes": 2763231,
+      "sha256": "b14c2bd2dfb3a50fcb673ffa5010804a65685c001e22f5a2bac1582f56f67e86",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-075.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-076.mp4",
+      "source": "Scorey - Dead Roses (Official Video).mp4",
+      "start": 34,
+      "seconds": 12,
+      "bytes": 4356696,
+      "sha256": "f836999433077fbda937a71704838c0d89f99e93f76761861a0b72b3fa3da70f",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-076.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-077.mp4",
+      "source": "Scorey - Dead Roses (Official Video).mp4",
+      "start": 46,
+      "seconds": 12,
+      "bytes": 2730046,
+      "sha256": "a836f89dd9fde65ce88a5996fab314ca65646c575f36c5c63fd7f38333e817fc",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-077.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-078.mp4",
+      "source": "Scorey - Dead Roses (Official Video).mp4",
+      "start": 58,
+      "seconds": 12,
+      "bytes": 2748473,
+      "sha256": "8797b6f6a0d2fa8c0e9237f48fe52b52e320275637b4d4dfaf68c775f8ae34a6",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-078.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-079.mp4",
+      "source": "Scorey - Dead Roses (Official Video).mp4",
+      "start": 70,
+      "seconds": 12,
+      "bytes": 2919403,
+      "sha256": "2a53eb741941cfb6e2a1e810e76c46854ed58a30e8f1c535d7c5b86c9bb3356b",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-079.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-080.mp4",
+      "source": "Scorey - Dead Roses (Official Video).mp4",
+      "start": 82,
+      "seconds": 12,
+      "bytes": 2989618,
+      "sha256": "d37f51eb18d4993d68a48c8eb9a5d1524a7cb954168a2dab3d46ffde15a2d671",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-080.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-081.mp4",
+      "source": "Scorey - Dead Roses (Official Video).mp4",
+      "start": 94,
+      "seconds": 12,
+      "bytes": 2738213,
+      "sha256": "a62e96dc534ff01f9444005c81231665d8effd657527109a498fa658bd0814ee",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-081.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-082.mp4",
+      "source": "Scorey jump in crowd on tour.mp4",
+      "start": 2,
+      "seconds": 12,
+      "bytes": 4585451,
+      "sha256": "c5a04382da0d98eeedc861e18cb538bc7637b283c45f5ee250e419f6f8198d23",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-082.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-083.mp4",
+      "source": "Scorey jump in crowd on tour.mp4",
+      "start": 14,
+      "seconds": 12,
+      "bytes": 4774099,
+      "sha256": "9e006125a1dc37a6faf21bdde8918bc724ff0ad96beda8fdbaf505c966841f48",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-083.mp4",
+      "remote_verified": true
+    },
+    {
+      "file": "seg-084.mp4",
+      "source": "Scorey jump in crowd on tour.mp4",
+      "start": 26,
+      "seconds": 12,
+      "bytes": 4715291,
+      "sha256": "97e44cc0e0ee37d3b4615541f0c24f716144f2022badf4bc33c8631ad91c86c1",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/clips/seg-084.mp4",
+      "remote_verified": true
+    }
+  ],
+  "discarded": [
+    {
+      "file": "seg-040.mp4",
+      "motivo": "tramo negro (blackdetect)"
+    }
+  ],
+  "thumbnails": [
+    {
+      "file": "foto-01.jpg",
+      "source": "descargar (1).jfif",
+      "width": 736,
+      "height": 920,
+      "bytes": 229827,
+      "sha256": "c9ef8df5d53b3cae38e79eac89c22e0353bf4ee251fd775b7a26459e491c5e63",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-01.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-02.jpg",
+      "source": "descargar (10).jfif",
+      "width": 735,
+      "height": 909,
+      "bytes": 142951,
+      "sha256": "cc7d707a6adf8b66eaafe3a7992a9c61632d7a2b87de0c0fb03c15e831f7f4e9",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-02.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-03.jpg",
+      "source": "descargar (11).jfif",
+      "width": 720,
+      "height": 900,
+      "bytes": 146075,
+      "sha256": "0ad02c0dd621e94140292534f2b21fe8a4b9e0043ceb06fccf338581ad8bda56",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-03.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-04.jpg",
+      "source": "descargar (12).jfif",
+      "width": 720,
+      "height": 900,
+      "bytes": 223754,
+      "sha256": "e75db95b426e6f1f212606d282a6e80979438d3d834c6dd129fc5e7fde2d940e",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-04.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-05.jpg",
+      "source": "descargar (13).jfif",
+      "width": 736,
+      "height": 917,
+      "bytes": 73461,
+      "sha256": "7c39ac2b67af35600ac6d435449847415068a7aef18d95539d63c07f947641d5",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-05.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-06.jpg",
+      "source": "descargar (2).jfif",
+      "width": 736,
+      "height": 981,
+      "bytes": 121531,
+      "sha256": "10ee685265ce484a8788ce07b27f98ced9910bc9301401543a7876acf6e37915",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-06.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-07.jpg",
+      "source": "descargar (3).jfif",
+      "width": 736,
+      "height": 981,
+      "bytes": 168838,
+      "sha256": "05c2e686546a67068c4a68d943a758ed464a315237e295567194370f719323d2",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-07.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-08.jpg",
+      "source": "descargar (4).jfif",
+      "width": 736,
+      "height": 920,
+      "bytes": 288065,
+      "sha256": "e7254539b7f08cc2fda4b56126a61064244d1890f0b8a77850c146a65ed0cf9e",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-08.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-09.jpg",
+      "source": "descargar (5).jfif",
+      "width": 736,
+      "height": 917,
+      "bytes": 138293,
+      "sha256": "95adcdb526d5a16ab2e3f33723d9802c23c56727b8026e8ecb3769dba10347fa",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-09.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-10.jpg",
+      "source": "descargar (6).jfif",
+      "width": 736,
+      "height": 941,
+      "bytes": 152225,
+      "sha256": "77a488e931a65735a3e610948cdc9719f66456018b52fdfb220b49a2efe4c81a",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-10.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-11.jpg",
+      "source": "descargar (7).jfif",
+      "width": 735,
+      "height": 986,
+      "bytes": 83248,
+      "sha256": "331f14a87711ca013e17e55d731ca2dd40a17fe0d002e1591300aaebeb980dd4",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-11.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-12.jpg",
+      "source": "descargar (8).jfif",
+      "width": 640,
+      "height": 794,
+      "bytes": 140913,
+      "sha256": "90b11c2f0f79122e8d1247b116d9737a55a52bc98a3c40e14ebf91a50972ea65",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-12.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-13.jpg",
+      "source": "descargar (9).jfif",
+      "width": 495,
+      "height": 619,
+      "bytes": 31596,
+      "sha256": "9995ca6ab8233eca44b1a3a955115862ec20fc7ace0b0a279d4de31ca51410ca",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-13.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-14.jpg",
+      "source": "descargar.jfif",
+      "width": 736,
+      "height": 981,
+      "bytes": 180016,
+      "sha256": "4b7b59ff388829670482a952a186229cb20d5aada972344fb28ce0ee4c48919b",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-14.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-15.jpg",
+      "source": "Festival Hall '26 (1).jfif",
+      "width": 736,
+      "height": 981,
+      "bytes": 49064,
+      "sha256": "3db55588c973d8cdc841ebdd37313388462d677c7cb4f60208548e9bc01b1f37",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-15.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-16.jpg",
+      "source": "Festival Hall '26 (2).jfif",
+      "width": 736,
+      "height": 981,
+      "bytes": 120277,
+      "sha256": "2eadb4f224e5c4a64498de65668b7938e713365ffe4f04415704444b781f98df",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-16.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-17.jpg",
+      "source": "Festival Hall '26 (3).jfif",
+      "width": 736,
+      "height": 981,
+      "bytes": 95794,
+      "sha256": "9e076d855703fab526c93415b0247e74c4d1ce5145f79fd2b51e916848456ee0",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-17.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-18.jpg",
+      "source": "Festival Hall '26 (4).jfif",
+      "width": 736,
+      "height": 981,
+      "bytes": 96321,
+      "sha256": "e8d574a476632416ca5f8083ddaf7b9d7c58b043412ab390ba21558b490ca002",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-18.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-19.jpg",
+      "source": "Festival Hall '26 (5).jfif",
+      "width": 736,
+      "height": 981,
+      "bytes": 47711,
+      "sha256": "04f89ca1bba414efe68b011d72fb2fdff79585b7eaa15233424aee86cf554ba5",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-19.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-20.jpg",
+      "source": "Festival Hall '26.jfif",
+      "width": 736,
+      "height": 981,
+      "bytes": 93542,
+      "sha256": "87e871b791f8207e376136f5f458dd0a4b62a3a8ba4f51b9f17cc4b7388b3d78",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-20.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-21.jpg",
+      "source": "Force Fest '25 (1).jfif",
+      "width": 736,
+      "height": 920,
+      "bytes": 111353,
+      "sha256": "98aa85d1f179ea9cb2e123c951cd8e81f5be60f33037226f2c4d99e6cca3bba1",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-21.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-22.jpg",
+      "source": "Force Fest '25.jfif",
+      "width": 736,
+      "height": 920,
+      "bytes": 198602,
+      "sha256": "17e1fbcf635332b1912121285d4126b11c244dfbe35a755d40c88d005cb08274",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-22.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-23.jpg",
+      "source": "Glokk40Spaz.jfif",
+      "width": 736,
+      "height": 736,
+      "bytes": 62213,
+      "sha256": "4217bdad67f1e6382ea6b27e2995e7f2348d26c27fe6d4b54dea20b741d2c647",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-23.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-24.jpg",
+      "source": "Lil Tjay.jfif",
+      "width": 736,
+      "height": 1104,
+      "bytes": 102893,
+      "sha256": "306074be7763958351258d51245a576cf38f2e001224c72dd5eafd408cbdda9f",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-24.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-25.jpg",
+      "source": "O2 Arena in London.jfif",
+      "width": 736,
+      "height": 917,
+      "bytes": 288678,
+      "sha256": "3f8fe4d8c2a00c2ddcf1a588a8718bba34a69e32e221c4f77e5ddd25f75d1a70",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-25.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-26.jpg",
+      "source": "Polo G - No Return (Lyrics) in 2021 _ Baby polo, Rappers, Cute rappers _ Rappers, Baby polo, Cute rappers.jfif",
+      "width": 735,
+      "height": 821,
+      "bytes": 114701,
+      "sha256": "e0147f2dd7054b74ee73669ace32a6473c59d176558c7d7c3b8c0b0221eb5ccc",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-26.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-27.jpg",
+      "source": "tjay.jfif",
+      "width": 736,
+      "height": 1104,
+      "bytes": 160827,
+      "sha256": "293347a39f808d67659f4bc58274a4f9846b56697b07ad10fd2906c9d559f405",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-27.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-28.jpg",
+      "source": "Toosii ❤️📌🤘.jfif",
+      "width": 720,
+      "height": 1280,
+      "bytes": 310785,
+      "sha256": "3449927e4cde16bae1fd5bb886e8c941e323a3a074be9a8afef200edc6b53e00",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-28.jpg",
+      "remote_verified": true
+    },
+    {
+      "file": "foto-29.jpg",
+      "source": "💙.jfif",
+      "width": 735,
+      "height": 726,
+      "bytes": 102168,
+      "sha256": "23276b5af96656e4752454496aa27c0e2ee6352f5a287399eb4ed2e4c3405b88",
+      "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/miniaturas/foto-29.jpg",
+      "remote_verified": true
+    }
+  ],
+  "logo": {
+    "file": "ssj-logo.png",
+    "width": 1672,
+    "height": 941,
+    "bytes": 861029,
+    "sha256": "1dbdfa8902c720ce710e3a0809e5d913a5c3dc168e30ed4c47fc55616d2b4b63",
+    "dropbox_path": "/Soft Projects/Type Beat Generator/contenido/canales/prodbyssjbeatzz/logo/ssj-logo.png",
+    "remote_verified": true
+  }
+}

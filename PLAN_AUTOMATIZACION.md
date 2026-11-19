@@ -1,5 +1,17 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## prodbySSJBeatzz — Fase A: assets y ficha del canal ✅ COMPLETADA (2026-11-19)
+
+- Canal nuevo estilo prodbyDSI con logo propio SSJ BEATZ. Fases siguientes: B intro con
+  logo y barras en video, C títulos `ssj_v1` (Polo G mes 1, Lil Tjay mes 2, siempre dos
+  artistas, 2026/2027), D miniaturas 7 con logo / 7 sin logo, E OAuth, piloto y activación.
+- Catálogo matwyre: 1.151 beats, 583 elegibles por 26 tags de los 7 artistas pedidos
+  (Polo G 3, Lil Tjay 1, Toosii 0: el principal va fijo en el título, no por tag).
+- 83 segmentos de 12 s (8 videos de Polo G/Scorey, 1080p sin audio, uno negro descartado),
+  29 fotos y el logo subidos a Dropbox `canales/prodbyssjbeatzz/` y verificados byte por byte.
+- Ficha borrador pausada `docs/prodbyssjbeatzz.channel.json`, sin cargar en la config activa;
+  otros canales intactos. Detalle: `docs/PRODBYSSJBEATZZ.md`.
+
 ## WyreLatinBeatz — títulos de la captura y 16 fondos ✅ COMPLETADA (2026-11-11)
 
 - Modo `wyrelatin_v1` activo y releído: `Bad Bunny x Feid Type Beat - "NOMBRE" |
