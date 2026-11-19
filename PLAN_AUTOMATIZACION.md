@@ -2103,3 +2103,24 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
 - Asignación estable por ID de beat; `rnb_test_v1` y snapshots existentes intactos.
 - Activado el 2026-11-11: código publicado en master y `title_mode` de Lovesickk cambiado a `rnb_test_v2`
   en Dropbox por CAS y releído (afecta solo trabajos sin snapshot; 505 pruebas OK).
+
+## Rediseño ey mat (canal de Juice WRLD) ⏳ PLANIFICADO (2026-11-19)
+Objetivo: estética y títulos tipo Taigen / Taylee Rose con toque propio, y 4 videos por semana.
+Cada fase se hace en un chat (sesión) distinto, en su propia rama. Si los tests y la verificación pasan:
+commit, merge a `master` y push. Si no, no se mergea. Orden: 1 y 5 en paralelo; 3 → 2; 3 → 4; 6 al final.
+
+- [ ] **Fase 1 – Imágenes de miniaturas (unas 40, Pinterest).** 9 aprobadas en `tokens/ey_mat_miniaturas_nuevas/`
+  (git-ignored). Buscar más (≥1000 px, casi cuadradas, sin duplicados) → hoja de contactos → aprobación del usuario.
+  Archivar las viejas de `contenido/canales/ey mat/miniaturas` en `_archivo/ey mat/miniaturas_viejas` y subir las nuevas.
+- [ ] **Fase 2 – Miniatura estilo Taigen.** `image_fit: fixed_bars` como SSJ; nuevo `core/beat_thumb_badges.py`
+  (Parental Advisory abajo a la izquierda, firma «ey mat» en cursiva arriba a la derecha, grano/viñeta), clave `thumbnail_badges`.
+- [ ] **Fase 3 – Estética del video.** Subir los videoclips «Righteous» y «Empty Out Your Pockets» a `fondos`
+  (mezcla con los de siempre, `source_trim_seconds`); `grade: dark` en `beat_film_overlay`; nombre del beat
+  en cursiva todo el video (PNG con PIL superpuesto en la pasada final, fade 1 s); elegir fuente OFL entre 3 muestras.
+- [ ] **Fase 4 – Partes del beat.** `core/beat_sections.py` (energía por compás con BPM de BeatStars): Intro,
+  Pre-chorus, Chorus, Verse, Outro → token `{chapters}` en la descripción y cambio de clip al inicio de cada parte.
+- [ ] **Fase 5 – Títulos y año.** `core/beat_year.py` (`years_for`: nov–dic año actual + siguiente; desde el 1/1 solo
+  el actual) y modo `ey_mat_v1`: rota `[FREE] Juice WRLD x Melodic Type Beat {año} "{name}"` y
+  `[FREE] Juice WRLD Type Beat {año} - "{name}"`, tags con año; `{music_info}` (BPM/Key) en la descripción.
+- [ ] **Fase 6 – Horario y activación.** Martes, jueves, sábado y domingo 20:00 (Buenos Aires); script de
+  activación por CAS con copia previa; dry-run, un video real y primera semana.
