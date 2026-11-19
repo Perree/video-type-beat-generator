@@ -2114,7 +2114,7 @@ commit, merge a `master` y push. Si no, no se mergea. Orden: 1 y 5 en paralelo; 
   Archivar las viejas de `contenido/canales/ey mat/miniaturas` en `_archivo/ey mat/miniaturas_viejas` y subir las nuevas.
 - [ ] **Fase 2 – Miniatura estilo Taigen.** `image_fit: fixed_bars` como SSJ; nuevo `core/beat_thumb_badges.py`
   (Parental Advisory abajo a la izquierda, firma «ey mat» en cursiva arriba a la derecha, grano/viñeta), clave `thumbnail_badges`.
-- [x] **Fase 3 – Estética del video.** ✅ COMPLETADA (2026-11-19, muestra aprobada; faltan subir los 2 videoclips a Dropbox).
+- [x] **Fase 3 – Estética del video.** ✅ COMPLETADA (2026-11-19, muestra aprobada; los 2 videoclips ya están en `fondos`, subidos sin sobrescribir y verificados por tamaño).
   Subir los videoclips «Righteous» y «Empty Out Your Pockets» a `fondos`
   (mezcla con los de siempre, `source_trim_seconds`); `grade: dark` en `beat_film_overlay`; nombre del beat
   en cursiva todo el video (PNG con PIL superpuesto en la pasada final, fade 1 s); elegir fuente OFL entre 3 muestras.
@@ -2124,7 +2124,7 @@ commit, merge a `master` y push. Si no, no se mergea. Orden: 1 y 5 en paralelo; 
     `clean_name(track['title'])`; con intro, el título entra al terminar la intro; fundido de salida en el último segundo.
   - Clips: «Righteous» (228 s, créditos a los 4-8 s y desde ~207 s) y «Empty Out Your Pockets» (140,6 s, 1920x818,
     texto final desde ~119 s) → `source_trim_seconds: 22` (es simétrico y vale para toda la carpeta; el fondo de siempre
-    `videos stock juice wrld.mp4`, de 213 MB, es largo, así que no le afecta). Muestra local: «Powers», 167,87 s, OK.
+    `videos stock juice wrld.mp4`, de 213 MB y 239 s, no se ve afectado). Muestra local: «Powers», 167,87 s, OK.
   - Bloque para la Fase 6 (fusionar con el `visual` actual de ey mat, sin tocar el resto):
     `"source_trim_seconds": 22, "grade": "dark", "title_overlay": {"font": "great_vibes", "size": 120, "y": "center"}`
     (fuente y posición elegidas por Matías el 2026-11-19: Great Vibes, centrada en el medio del cuadro).
