@@ -2,7 +2,7 @@
 
 Canal nuevo inspirado en prodbyDSI (@prodbydsix), con identidad propia (logo SSJ BEATZ).
 Ficha: `docs/prodbyssjbeatzz.channel.json` (activa desde el 19/11/2026; antes borrador pausado,
-todavía no cargada en la configuración de Dropbox). Inventario: `docs/prodbyssjbeatzz.assets.json`.
+cargada en la config y el registro de Dropbox). Inventario: `docs/prodbyssjbeatzz.assets.json`.
 
 ## Referencia del usuario (2026-11-19)
 
