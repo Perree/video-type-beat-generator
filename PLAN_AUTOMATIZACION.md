@@ -2118,14 +2118,15 @@ commit, merge a `master` y push. Si no, no se mergea. Orden: 1 y 5 en paralelo; 
   (mezcla con los de siempre, `source_trim_seconds`); `grade: dark` en `beat_film_overlay`; nombre del beat
   en cursiva todo el video (PNG con PIL superpuesto en la pasada final, fade 1 s); elegir fuente OFL entre 3 muestras.
   - Código (sin activar): `grade: none|dark` (`GRADES` en `core/beat_film_overlay.py`: eq + curves + vignette + noise
-    con semilla fija); `core/beat_title_overlay.py` (`title_overlay: {font, size, y}`, fuentes `great_vibes`,
+    con semilla fija); `core/beat_title_overlay.py` (`title_overlay: {font, size, y}`, `y` en px o `"center"`, fuentes `great_vibes`,
     `dancing_script`, `kaushan_script` en `assets/fonts/` con su OFL). `render_montage(..., title=)` recibe
     `clean_name(track['title'])`; con intro, el título entra al terminar la intro; fundido de salida en el último segundo.
   - Clips: «Righteous» (228 s, créditos a los 4-8 s y desde ~207 s) y «Empty Out Your Pockets» (140,6 s, 1920x818,
     texto final desde ~119 s) → `source_trim_seconds: 22` (es simétrico y vale para toda la carpeta; el fondo de siempre
     `videos stock juice wrld.mp4`, de 213 MB, es largo, así que no le afecta). Muestra local: «Powers», 167,87 s, OK.
   - Bloque para la Fase 6 (fusionar con el `visual` actual de ey mat, sin tocar el resto):
-    `"source_trim_seconds": 22, "grade": "dark", "title_overlay": {"font": "great_vibes", "size": 120, "y": 60}`
+    `"source_trim_seconds": 22, "grade": "dark", "title_overlay": {"font": "great_vibes", "size": 120, "y": "center"}`
+    (fuente y posición elegidas por Matías el 2026-11-19: Great Vibes, centrada en el medio del cuadro).
 - [ ] **Fase 4 – Partes del beat.** `core/beat_sections.py` (energía por compás con BPM de BeatStars): Intro,
   Pre-chorus, Chorus, Verse, Outro → token `{chapters}` en la descripción y cambio de clip al inicio de cada parte.
 - [ ] **Fase 5 – Títulos y año.** `core/beat_year.py` (`years_for`: nov–dic año actual + siguiente; desde el 1/1 solo

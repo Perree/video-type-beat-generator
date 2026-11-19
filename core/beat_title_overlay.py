@@ -12,13 +12,15 @@ FADE = 1
 
 
 def title_options(raw):
-    """``{font, size, y}``: ``y`` es el borde superior del texto en un cuadro de 1920x1080."""
+    """``{font, size, y}``: ``y`` es el borde superior del texto en un cuadro de 1920x1080,
+    o ``'center'`` para centrarlo también en vertical."""
     if type(raw) is not dict or not set(raw) <= {'font', 'size', 'y'} or 'font' not in raw:
         raise ValueError('invalid_title_overlay')
     result = {'size': 96, 'y': 60, **raw}
     if (type(result['font']) is not str or result['font'] not in FONTS
             or type(result['size']) is not int or not 32 <= result['size'] <= 220
-            or type(result['y']) is not int or not 0 <= result['y'] <= 800):
+            or not (result['y'] == 'center' if type(result['y']) is str
+                    else type(result['y']) is int and 0 <= result['y'] <= 800)):
         raise ValueError('invalid_title_overlay')
     return result
 
@@ -36,7 +38,7 @@ def create_title(text, options, path):
             break
         size -= 4
     x = (1920 - (right - left)) // 2 - left
-    y = options['y'] - top
+    y = (1080 - (bottom - top)) // 2 - top if options['y'] == 'center' else options['y'] - top
     shadow = Image.new('RGBA', (1920, 1080), (0, 0, 0, 0))
     ImageDraw.Draw(shadow).text((x + 3, y + 5), text, font=font, fill=(0, 0, 0, 190))
     layer = shadow.filter(ImageFilter.GaussianBlur(7))

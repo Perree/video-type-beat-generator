@@ -282,7 +282,7 @@ class MontageTests(unittest.TestCase):
                 options({'visual': {'grade': value}})
         for raw in ({}, {'size': 90}, {'font': 'comic_sans'}, {'font': 'great_vibes', 'size': 20},
                     {'font': 'great_vibes', 'size': 96.0}, {'font': 'great_vibes', 'size': True},
-                    {'font': 'great_vibes', 'y': 900}, {'font': 'great_vibes', 'color': 'red'}, 'great_vibes'):
+                    {'font': 'great_vibes', 'y': 900}, {'font': 'great_vibes', 'y': 'top'}, {'font': 'great_vibes', 'color': 'red'}, 'great_vibes'):
             with self.assertRaisesRegex(ValueError, 'invalid_title_overlay'):
                 options({'visual': {'title_overlay': raw}})
 
@@ -303,6 +303,11 @@ class MontageTests(unittest.TestCase):
                 self.assertLessEqual(right - left, 1700 + 40)  # sombra difuminada incluida
             with self.assertRaises(ValueError):
                 create_title('   ', spec, path)
+            create_title('Powers', title_options({'font': 'great_vibes', 'size': 120, 'y': 'center'}), path)
+            with Image.open(path) as image:
+                left, top, right, bottom = image.getchannel('A').getbbox()
+                self.assertLess(abs((left + right) / 2 - 960), 20)
+                self.assertLess(abs((top + bottom) / 2 - 540), 20)
 
     def test_grade_and_title_reach_ffmpeg_arguments(self):
         with tempfile.TemporaryDirectory() as folder:
