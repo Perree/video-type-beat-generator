@@ -2138,8 +2138,19 @@ commit, merge a `master` y push. Si no, no se mergea. Orden: 1 y 5 en paralelo; 
   - Bloque para la Fase 6 (fusionar con el `visual` actual de ey mat, sin tocar el resto):
     `"source_trim_seconds": 22, "grade": "dark", "title_overlay": {"font": "great_vibes", "size": 120, "y": "center"}`
     (fuente y posición elegidas por Matías el 2026-11-19: Great Vibes, centrada en el medio del cuadro).
-- [ ] **Fase 4 – Partes del beat.** `core/beat_sections.py` (energía por compás con BPM de BeatStars): Intro,
+- [x] **Fase 4 – Partes del beat.** ✅ COMPLETADA (2026-11-19, capítulos de 2 beats reales aprobados por Matías).
+  `core/beat_sections.py` (energía por compás con BPM de BeatStars): Intro,
   Pre-chorus, Chorus, Verse, Outro → token `{chapters}` en la descripción y cambio de clip al inicio de cada parte.
+  - Detección: FFmpeg → mono 11025 Hz; RMS por compás (240/BPM, sin BPM ventanas de 2 s), grilla desde el primer
+    sonido; frase = mediana de 4 compases. Chorus = frases a ≤2,5 dB del percentil 90 (contraste ≥1,5 dB o sin
+    capítulos). Intro/Verse/Outro = lo bajo antes/entre/después; Pre-Chorus solo si la cola antes del chorus difiere
+    ≥1,5 dB. Reglas YouTube: 0:00, ≥3, cada uno ≥10 s; si no, `[]`. Límite: hook y verso con igual energía se juntan.
+  - `beat_video` calcula `media['sections']` solo si `seo.description` tiene `{chapters}` o `visual.section_cuts`;
+    `beat_daily` pasa `chapters_text(...)` a `fill_chapters` (el snapshot guardado conserva el token).
+  - Montaje: `visual.section_cuts: true` → `section_plan` corta exactamente en cada parte, clips rotando fuentes
+    (nunca la misma dos veces seguidas); sin secciones, largos al azar en bucle como antes.
+  - **Para la Fase 6:** agregar `"section_cuts": true` al `visual` de ey mat (los capítulos salen solos con la `seo` de la Fase 5).
+  - Tests: `tests/test_beat_sections.py` (audio sintético) + montage/video/daily/ey_mat_seo.
 - [x] **Fase 5 – Títulos y año.** ✅ COMPLETADA (2026-11-19). `core/beat_year.py` (`years_for`: nov–dic año actual + siguiente; desde el 1/1 solo
   el actual) y modo `ey_mat_v1`: rota `[FREE] Juice WRLD x Melodic Type Beat {año} "{name}"` y
   `[FREE] Juice WRLD Type Beat {año} - "{name}"`, tags con año; `{music_info}` (BPM/Key) en la descripción.
