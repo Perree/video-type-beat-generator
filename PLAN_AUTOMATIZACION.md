@@ -2109,9 +2109,12 @@ Objetivo: estética y títulos tipo Taigen / Taylee Rose con toque propio, y 4 v
 Cada fase se hace en un chat (sesión) distinto, en su propia rama. Si los tests y la verificación pasan:
 commit, merge a `master` y push. Si no, no se mergea. Orden: 1 y 5 en paralelo; 3 → 2; 3 → 4; 6 al final.
 
-- [ ] **Fase 1 – Imágenes de miniaturas (unas 40, Pinterest).** 9 aprobadas en `tokens/ey_mat_miniaturas_nuevas/`
-  (git-ignored). Buscar más (≥1000 px, casi cuadradas, sin duplicados) → hoja de contactos → aprobación del usuario.
-  Archivar las viejas de `contenido/canales/ey mat/miniaturas` en `_archivo/ey mat/miniaturas_viejas` y subir las nuevas.
+- [x] **Fase 1 – Imágenes de miniaturas (unas 40, Pinterest).** ✅ COMPLETADA (2026-11-19). 5 búsquedas en Pinterest
+  (con la sesión del usuario en Chrome) → 703 imágenes → 174 pasan filtros (≥1000 px, proporción 0,85–1,2, sin
+  duplicados por SHA ni aHash contra las 9 previas) → 51 elegidas a ojo → aprobadas todas por el usuario.
+  Las 12 viejas (`Beat-Miiniaturas*.jpg`) se movieron a `_archivo/ey mat/miniaturas_viejas` (content_hash verificado);
+  las 60 nuevas (9 + 51) están en `contenido/canales/ey mat/miniaturas` como `ey_mat_01..60.jpg`, verificadas.
+  `dropbox_images.melodic` del canal sigue apuntando ahí. Local (git-ignored): `tokens/ey_mat_pinterest_fase1/`.
 - [ ] **Fase 2 – Miniatura estilo Taigen.** `image_fit: fixed_bars` como SSJ; nuevo `core/beat_thumb_badges.py`
   (Parental Advisory abajo a la izquierda, firma «ey mat» en cursiva arriba a la derecha, grano/viñeta), clave `thumbnail_badges`.
 - [ ] **Fase 3 – Estética del video.** Subir los videoclips «Righteous» y «Empty Out Your Pockets» a `fondos`
