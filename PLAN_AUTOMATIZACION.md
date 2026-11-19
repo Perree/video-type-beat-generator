@@ -2119,8 +2119,18 @@ commit, merge a `master` y push. Si no, no se mergea. Orden: 1 y 5 en paralelo; 
   en cursiva todo el video (PNG con PIL superpuesto en la pasada final, fade 1 s); elegir fuente OFL entre 3 muestras.
 - [ ] **Fase 4 – Partes del beat.** `core/beat_sections.py` (energía por compás con BPM de BeatStars): Intro,
   Pre-chorus, Chorus, Verse, Outro → token `{chapters}` en la descripción y cambio de clip al inicio de cada parte.
-- [ ] **Fase 5 – Títulos y año.** `core/beat_year.py` (`years_for`: nov–dic año actual + siguiente; desde el 1/1 solo
+- [x] **Fase 5 – Títulos y año.** ✅ COMPLETADA (2026-11-19). `core/beat_year.py` (`years_for`: nov–dic año actual + siguiente; desde el 1/1 solo
   el actual) y modo `ey_mat_v1`: rota `[FREE] Juice WRLD x Melodic Type Beat {año} "{name}"` y
   `[FREE] Juice WRLD Type Beat {año} - "{name}"`, tags con año; `{music_info}` (BPM/Key) en la descripción.
+  Hecho: `core/beat_ey_mat_seo.py` (índice = días desde `test_start`, día de Buenos Aires; slots pares formato propio
+  `title_template`, impares competencia `alt_title_template`; en nov–dic propio/Y, competencia/Y+1, propio/Y+1,
+  competencia/Y). Los años de los tags del canal se reescriben al año del título y se agregan
+  `juice wrld type beat {año}`, `free juice wrld type beat {año}`, `type beat {año}` (≤450). Descripción con
+  `{year}`, `{title}`, `{music_info}` y `{chapters}`: este último queda en el snapshot y `beat_daily` lo resuelve
+  con `beat_seo.fill_chapters` junto a `{url}` (sin la Fase 4 se quita limpio; la Fase 4 le pasa los capítulos).
+  `experiment` guarda formato, año, años válidos, slot y día. Tests: `tests/test_beat_year.py`, `tests/test_beat_ey_mat_seo.py`.
+  **Para la Fase 6:** el bloque `seo` listo está en `docs/ey-mat.seo.json` (reemplaza `channels[id="ey mat"].seo`);
+  poner `test_start` = primer día de publicación. Pendiente aparte: 6 tests de `tests/test_beat_ssj_seo.py` ya
+  fallaban en `master` (el doc de SSJ pasó a `test_start` 2026-11-19 y los tests suponen 2026-12-01).
 - [ ] **Fase 6 – Horario y activación.** Martes, jueves, sábado y domingo 20:00 (Buenos Aires); script de
   activación por CAS con copia previa; dry-run, un video real y primera semana.
