@@ -12,6 +12,7 @@ from core.beat_state import BeatState, BudgetExhausted
 from core.beat_schedule import plan, apply_plan
 from core.beat_seo_store import prepare_seo
 from core.beat_seo import fill_chapters
+from core.beat_sections import chapters_text
 from core.beat_share import publication_link
 from core.beat_video import render_reserved
 from core.beat_publish import publish
@@ -254,7 +255,7 @@ def run_daily(cloud, channel_id, assets, uploader, receipts, *, dry_run=False,
                     link = share_links.get(track['id'], config.get('beatstars_profile_url')) if share_links else None
                     link = publication_link(channel, track, link)
                     seo = dict(seo, selected=dict(selected, description=fill_chapters(
-                        selected['description'].replace('{url}', link))))
+                        selected['description'].replace('{url}', link), chapters_text(media.get('sections')))))
                     outcome = publish(cloud, job, media, seo, uploader, receipts, clock,
                                       thumbnailer=channel_thumbnailer(channel, thumbnailer),
                                       private_pilot=private_pilot,

@@ -73,53 +73,152 @@ def loop_plan(clips, seconds):
     return result
 
 
+def section_plan(starts, body, clip_min, clip_max, cap=None):
+    """Whole-frame clip lengths for ``body`` seconds that cut exactly at each part start.
+
+    ``starts`` are part starts in montage time; each gap is split evenly into clips of
+    about the middle length, never longer than ``cap`` (the longest usable source)."""
+    total = math.ceil(body * FPS)
+    points = sorted({round(t * FPS) for t in starts if 0 < round(t * FPS) < total})
+    longest = math.floor(min(clip_max, cap or clip_max) * FPS)
+    if longest < 1:
+        raise BeatError('video_too_short')
+    target = (clip_min + clip_max) / 2 * FPS
+    lengths, previous = [], 0
+    for point in points + [total]:
+        gap = point - previous
+        pieces = max(1, math.ceil(gap / longest), round(gap / target))
+        base, extra = divmod(gap, pieces)
+        lengths += [base + (index < extra) for index in range(pieces)]
+        previous = point
+    return lengths
+
+
+def _cut(source, demuxer, start, frames, spec, root, clip, tools):
+    length = frames / FPS
+    extra_inputs, filtering = filters(spec, root)
+    tools._call([tools.ffmpeg, '-nostdin', '-v', 'error', '-xerror', '-y',
+        '-protocol_whitelist', 'file', '-f', demuxer, '-i', str(source),
+        *extra_inputs, '-ss', str(start), '-t', str(length), '-an', '-sn', '-dn',
+        *filtering, '-frames:v', str(frames), '-c:v', 'libx264',
+        '-preset', 'fast', '-map_metadata', '-1', str(clip)], 180)
+    if not clip.is_file() or not clip.stat().st_size:
+        raise BeatError('video_decode_failed')
+    verify_output(clip, length, tools, silent=True)
+
+
+def _sources(rows, spec, root, dropbox, tools, checkpoint):
+    """Download + probe up to 12 resources inside the byte budget; yields usable ones."""
+    total_bytes = 0
+    for index, row in enumerate(rows[:12]):
+        checkpoint()
+        if total_bytes + row['size'] > 512 * 1024 * 1024:
+            continue
+        source = root / f'source-{index}.bin'
+        total_bytes += row['size']
+        fetch(row, source, MAX_VIDEO_BYTES, dropbox)
+        try:
+            available, demuxer = video_info(source, tools)
+            usable = available - 2 * spec.get('source_trim_seconds', 0)
+            if usable < spec['clip_min_seconds']:
+                raise BeatError('video_too_short')
+            yield index, {'path': source, 'available': available, 'demuxer': demuxer,
+                          'usable': usable, 'resource': row['path']}
+        except BeatError as exc:
+            if str(exc) in {'media_tool_missing', 'media_process_failed'}:
+                raise
+            yield index, None
+
+
+def _random_clips(rows, spec, root, dropbox, tools, rng, checkpoint):
+    """One random-length cut per source; the sequence loops over the beat."""
+    clips, skipped = [], 0
+    margin = spec.get('source_trim_seconds', 0)
+    for index, row in _sources(rows, spec, root, dropbox, tools, checkpoint):
+        if row is None:
+            skipped += 1
+            continue
+        clip = root / f'clip-{index}.mp4'
+        try:
+            # Whole frames avoid concat boundary gaps from fractional clip lengths.
+            minimum = math.ceil(spec['clip_min_seconds'] * FPS)
+            maximum = math.floor(min(row['usable'], spec['clip_max_seconds']) * FPS)
+            if maximum < minimum:
+                raise BeatError('video_too_short')
+            frames = rng.randint(minimum, maximum)
+            length = frames / FPS
+            start = rng.uniform(margin, max(margin, row['available'] - margin - length))
+            _cut(row['path'], row['demuxer'], start, frames, spec, root, clip, tools)
+            clips.append({'path': clip, 'seconds': length, 'resource': row['resource']})
+        except BeatError as exc:
+            if str(exc) in {'media_tool_missing', 'media_process_failed'}:
+                raise
+            skipped += 1
+    return clips, skipped
+
+
+def _section_clips(rows, spec, root, dropbox, tools, rng, checkpoint, starts, body):
+    """Clips covering the whole beat that change exactly where each part starts."""
+    sources, skipped = [], 0
+    for _, row in _sources(rows, spec, root, dropbox, tools, checkpoint):
+        if row is None:
+            skipped += 1
+        else:
+            sources.append(row)
+    if not sources:
+        return [], skipped
+    margin = spec.get('source_trim_seconds', 0)
+    plan = section_plan(starts, body, spec['clip_min_seconds'], spec['clip_max_seconds'],
+                        max(row['usable'] for row in sources))
+    clips, turn, last = [], 0, None
+    for index, frames in enumerate(plan):
+        checkpoint()
+        clip, length = root / f'clip-{index}.mp4', frames / FPS
+        tries = len(sources)
+        while tries and sources:
+            tries -= 1
+            row = sources[turn % len(sources)]
+            turn += 1
+            # Rotate sources so consecutive clips (and every part start) change picture.
+            if row['usable'] < length or (row is last and len(sources) > 1):
+                continue
+            start = rng.uniform(margin, max(margin, row['available'] - margin - length))
+            try:
+                _cut(row['path'], row['demuxer'], start, frames, spec, root, clip, tools)
+            except BeatError as exc:
+                if str(exc) in {'media_tool_missing', 'media_process_failed'}:
+                    raise
+                sources.remove(row)
+                skipped += 1
+                tries = len(sources)
+                continue
+            clips.append({'path': clip, 'seconds': length, 'resource': row['resource']})
+            last = row
+            break
+        if len(clips) != index + 1:
+            return [], skipped
+    return clips, skipped
+
+
 def render_montage(audio, output, seconds, rows, spec, root, dropbox, tools, job_id,
-                   checkpoint=lambda: None, intro=None, title=None):
+                   checkpoint=lambda: None, intro=None, title=None, sections=None):
     """``intro={'path', 'seconds'}`` va antes del montaje; el audio arranca en 0 sobre ella
     y la duración total sigue siendo ``seconds``. Con ``spec['title_overlay']`` y ``title``,
-    el nombre del beat va arriba todo el video (después de la intro)."""
+    el nombre del beat va arriba todo el video (después de la intro). Con ``sections``
+    (``[{'start', 'label'}]`` en segundos del audio) cada parte arranca con un clip nuevo;
+    sin secciones, largos al azar en bucle como siempre."""
     duration(seconds)
     if intro and seconds - intro['seconds'] < 1:
         intro = None  # beat demasiado corto: sin intro antes que un montaje vacío
     rng = random.Random(int.from_bytes(hashlib.sha256(job_id.encode()).digest()[:8], 'big'))
     rows = list({row['path']: row for row in rows}.values())
     rng.shuffle(rows)
-    clips, skipped, total_bytes = [], 0, 0
-    for index, row in enumerate(rows[:12]):
-        checkpoint()
-        if total_bytes + row['size'] > 512 * 1024 * 1024:
-            continue
-        source, clip = root / f'source-{index}.bin', root / f'clip-{index}.mp4'
-        total_bytes += row['size']
-        fetch(row, source, MAX_VIDEO_BYTES, dropbox)
-        try:
-            available, demuxer = video_info(source, tools)
-            margin = spec.get('source_trim_seconds', 0)
-            usable = available - 2 * margin
-            if usable < spec['clip_min_seconds']:
-                raise BeatError('video_too_short')
-            # Whole frames avoid concat boundary gaps from fractional clip lengths.
-            minimum = math.ceil(spec['clip_min_seconds'] * FPS)
-            maximum = math.floor(min(usable, spec['clip_max_seconds']) * FPS)
-            if maximum < minimum:
-                raise BeatError('video_too_short')
-            frames = rng.randint(minimum, maximum)
-            length = frames / FPS
-            start = rng.uniform(margin, max(margin, available - margin - length))
-            extra_inputs, filtering = filters(spec, root)
-            tools._call([tools.ffmpeg, '-nostdin', '-v', 'error', '-xerror', '-y',
-                '-protocol_whitelist', 'file', '-f', demuxer, '-i', str(source),
-                *extra_inputs, '-ss', str(start), '-t', str(length), '-an', '-sn', '-dn',
-                *filtering, '-frames:v', str(frames), '-c:v', 'libx264',
-                '-preset', 'fast', '-map_metadata', '-1', str(clip)], 180)
-            if not clip.is_file() or not clip.stat().st_size:
-                raise BeatError('video_decode_failed')
-            verify_output(clip, length, tools, silent=True)
-            clips.append({'path': clip, 'seconds': length, 'resource': row['path']})
-        except BeatError as exc:
-            if str(exc) in {'media_tool_missing', 'media_process_failed'}:
-                raise
-            skipped += 1
+    lead = intro['seconds'] if intro else 0
+    if sections:
+        clips, skipped = _section_clips(rows, spec, root, dropbox, tools, rng, checkpoint,
+                                        [row['start'] - lead for row in sections], seconds - lead)
+    else:
+        clips, skipped = _random_clips(rows, spec, root, dropbox, tools, rng, checkpoint)
     if not clips:
         raise BeatError('no_compatible_videos')
     # Unique resources appear once in a cycle, so its end/start cannot repeat

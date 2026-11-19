@@ -45,6 +45,9 @@ def options(channel):
         if result['video_source'] == 'dropbox':
             for group in result['video_groups']:
                 dropbox_path(group['folder'])
+    # section_cuts: el montaje cambia de clip al empezar cada parte del beat (Fase 4 ey mat).
+    if type(result.get('section_cuts', False)) is not bool:
+        raise ValueError('invalid_section_cuts')
     if type(result.get('plain_image', False)) is not bool:
         raise ValueError('invalid_plain_image')
     # custom_thumbnail: False → no se sube miniatura; YouTube usa un cuadro del video

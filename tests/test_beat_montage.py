@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from PIL import Image
 from core.beat_assets import DropboxAssets
 from core.beat_http import BeatError
-from core.beat_montage import render_montage, loop_plan, video_info, verify_output
+from core.beat_montage import render_montage, loop_plan, section_plan, video_info, verify_output
 from core.beat_render import MediaTools
 from core.beat_video import render_reserved
 from core.beat_visual import options, video_catalog
@@ -103,6 +103,68 @@ class MontageTests(unittest.TestCase):
         self.assertEqual(sequence[-1]['seconds'], .375)
         self.assertTrue(all(a['resource'] != b['resource'] for a, b in zip(sequence, sequence[1:])))
         self.assertEqual(len(loop_plan(clips[:1], 2)), 4)
+
+    def test_section_plan_cuts_exactly_at_each_part_start(self):
+        # 60 s beat, parts at 0 / 14.5 / 38 (chorus): cuts land on those frames.
+        plan = section_plan([0, 14.5, 38], 60, 3, 6)
+        edges = [sum(plan[:i]) for i in range(len(plan) + 1)]
+        self.assertEqual(edges[-1], 60 * 30)
+        self.assertIn(round(14.5 * 30), edges)
+        self.assertIn(38 * 30, edges)
+        self.assertTrue(all(3 * 30 <= frames <= 6 * 30 for frames in plan))
+        # Short sources cap the clip length; a part shorter than the minimum stays one clip.
+        self.assertTrue(all(frames <= 60 for frames in section_plan([0, 30], 60, 1, 6, cap=2)))
+        self.assertEqual(section_plan([0, 1, 20], 20, 3, 6)[0], 30)
+        # Starts outside the montage (before the intro ends, after the end) are ignored.
+        self.assertEqual(sum(section_plan([-4, 0, 70], 60, 3, 6)), 1800)
+        with self.assertRaises(BeatError):
+            section_plan([0], 10, .5, .5, cap=.01)
+
+    def test_sections_switch_clip_at_each_part_and_cover_the_beat(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            resources = root / 'resources'
+            resources.mkdir()
+            spec = self.setup_resources(resources)
+            audio = root / 'audio.bin'
+            audio.write_bytes(TS)
+            process = MontageProcesses(output_seconds=3)
+            result = render_montage(audio, root / 'video.mp4', 3,
+                video_catalog(spec, None), spec, root, None,
+                MediaTools('fakeffmpeg', 'fakeprobe', process), 'job',
+                sections=[{'start': 0, 'label': 'Intro'}, {'start': 1.5, 'label': 'Chorus'}])
+            cuts = [cmd for cmd in process.calls if '-xerror' in cmd]
+            self.assertEqual(len(cuts), 6)  # 3 s of .5 s clips, not 2 looped ones
+            self.assertEqual({cmd[cmd.index('-frames:v') + 1] for cmd in cuts}, {'15'})
+            resources_used = [row['resource'] for row in result['clips']]
+            self.assertEqual(len(resources_used), 6)
+            self.assertTrue(all(a != b for a, b in zip(resources_used, resources_used[1:])))
+            manifest = (root / 'clips.txt').read_text().splitlines()
+            self.assertEqual(len(manifest), 6)
+            self.assertEqual(sum(Decimal(str(row['seconds'])) for row in result['clips']), Decimal('3'))
+
+    def test_sections_shift_by_the_intro(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            resources = root / 'resources'
+            resources.mkdir()
+            spec = self.setup_resources(resources)
+            audio, intro = root / 'audio.bin', root / 'intro.mp4'
+            audio.write_bytes(TS)
+            intro.write_bytes(MP4)
+            with patch('core.beat_montage.section_plan', wraps=section_plan) as planner:
+                render_montage(audio, root / 'video.mp4', 3, video_catalog(spec, None), spec, root, None,
+                    MediaTools('fakeffmpeg', 'fakeprobe', MontageProcesses(output_seconds=3)), 'job',
+                    intro={'path': intro, 'seconds': 1},
+                    sections=[{'start': 0, 'label': 'Intro'}, {'start': 2, 'label': 'Chorus'}])
+            starts, body = planner.call_args[0][:2]
+            self.assertEqual((starts, body), ([-1, 1], 2))
+
+    def test_section_cuts_option_is_boolean(self):
+        self.assertFalse(options({'visual': {}}).get('section_cuts', False))
+        self.assertTrue(options({'visual': {'section_cuts': True}})['section_cuts'])
+        with self.assertRaises(ValueError):
+            options({'visual': {'section_cuts': 'yes'}})
 
     def test_normalize_strip_source_audio_concat_and_loop(self):
         with tempfile.TemporaryDirectory() as folder:

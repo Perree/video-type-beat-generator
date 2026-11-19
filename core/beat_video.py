@@ -18,6 +18,7 @@ from core.beat_thumb_badges import apply_badges
 from core.beat_rotation import image_digest, previous_publication, publication_visual
 from core.beat_selection import require_track
 from core.beat_visual_schedule import job_options
+from core.beat_sections import sections as beat_sections, wants_sections
 
 
 BAD_IMAGE_CODES = {'image_rejected', 'image_decode_failed'}
@@ -82,6 +83,9 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
                 resolver or PreviewResolver(), dropbox, http)
             tools = tools or MediaTools()
             seconds = tools.verify_audio(audio, expected)
+            # Beat parts -> YouTube chapters (and clip cuts); [] when unclear.
+            parts = (beat_sections(audio, tools, track.get('bpm'), seconds)
+                     if wants_sections(channel, spec) else [])
             montage = {}
             rejected = set()
             while image:
@@ -133,7 +137,8 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
                              'seconds': spec['intro']['seconds']}
                 montage = render_montage(audio, video, seconds, videos, spec, root, dropbox, tools, job_id,
                                          checkpoint=lambda: store.renew(owner, ttl=3600), intro=intro,
-                                         title=clean_name(track['title']) if track.get('title') else None)
+                                         title=clean_name(track['title']) if track.get('title') else None,
+                                         sections=parts if spec.get('section_cuts') else None)
                 if not custom_thumbnail and not image:
                     thumbnail_frame(montage['first_clip'], source_image, tools)
                     compose(source_image, track.get('title'), frame, thumbnail)
@@ -164,7 +169,7 @@ def render_reserved(cloud, job_id, track, channel, genre, profile_url, dropbox,
                    'thumbnail': thumbnail, 'seconds': seconds, 'audio_source': provider,
                    'visual_mode': spec['mode'], 'skipped_videos': montage.get('skipped_videos', 0),
                    'thumbnail_variant': thumb.get('variant') if thumb else None,
-                   'uploads': False}
+                   'sections': parts, 'uploads': False}
     finally:
         if owner is not None:
             original_error = sys.exc_info()[1]

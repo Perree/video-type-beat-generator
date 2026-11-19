@@ -137,6 +137,19 @@ class EyMatSnapshotTests(unittest.TestCase):
         self.assertEqual(fill_chapters('A\n\n{chapters}'), 'A')
         self.assertEqual(fill_chapters('A'), 'A')
 
+    def test_detected_chapters_fill_the_ey_mat_description(self):
+        from core.beat_sections import chapters_text
+        planned = job(TRACK, slot('2026-11-20'))
+        snapshot, _ = build_snapshot(planned, TRACK, CHANNEL, NOW)
+        validate_snapshot(snapshot, planned)  # stored with the {chapters} token
+        chapters = chapters_text([{'start': 0, 'label': 'Intro'}, {'start': 36, 'label': 'Chorus'},
+                                  {'start': 60, 'label': 'Verse'}, {'start': 96, 'label': 'Chorus'}])
+        final = fill_chapters(snapshot['selected']['description'].replace('{url}', 'https://bsta.rs/x'),
+                              chapters)
+        self.assertIn('contact@matwyre.com\n\n0:00 Intro\n0:36 Chorus\n1:00 Verse\n1:36 Chorus\n\n❗️Free',
+                      final)
+        self.assertNotIn('{', final)
+
     def test_snapshot_records_experiment_and_replays(self):
         when = slot('2026-12-31')
         snapshot, _ = build_snapshot(job(TRACK, when), TRACK, CHANNEL, NOW)

@@ -25,6 +25,7 @@ from core.beat_render import MediaTools
 from core.beat_schema import instant, migrate
 from core.beat_schedule import plan, apply_plan
 from core.beat_selection import TrackNotMatching
+from core.beat_seo import validate_snapshot
 from core.beat_seo_store import prepare_seo
 from core.beat_source import BeatStarsSource
 from core.beat_state import BeatState
@@ -111,6 +112,43 @@ class DailyTests(unittest.TestCase):
         again = self.run_worker()
         self.assertEqual(again['uploaded'], 0)
         self.assertEqual(len(self.calls), 14)
+
+    def test_sections_from_render_become_chapters_in_the_uploaded_description(self):
+        parts = [{'start': 0, 'label': 'Intro'}, {'start': 21, 'label': 'Chorus'},
+                 {'start': 45, 'label': 'Verse'}]
+        text = 'Link: {url}\n\n{chapters}\n\nEnd'
+
+        def seo(*args, **kwargs):
+            result = prepare_seo(*args, **kwargs)
+            return dict(result, selected=dict(result['selected'], description=text))
+
+        def renderer_for(sections):
+            @contextmanager
+            def renderer(*args, **kwargs):
+                with self.renderer(*args, **kwargs) as media:
+                    yield dict(media, sections=sections)
+            return renderer
+
+        for sections, expected in ((parts, '\n\n0:00 Intro\n0:21 Chorus\n0:45 Verse\n\n'),
+                                   (parts[:2], None), ([], None)):
+            self.setUp()
+            with patch('core.beat_daily.prepare_seo', side_effect=seo):
+                run_daily(self.cloud, 'channel', DropboxAssets(self.assets_client), self.upload,
+                          self.receipts, source=self.source, renderer=renderer_for(sections),
+                          clock=lambda: NOW)
+            description = self.calls[0]['description']
+            self.assertNotIn('{', description)
+            if expected:
+                self.assertIn(expected, description)
+            else:
+                self.assertNotIn('0:00', description)
+                self.assertTrue(description.endswith('fixture-trap-101\n\nEnd'), description)
+            # Chapters are filled only for the upload: stored snapshots still validate.
+            state, _ = self.cloud.read('state')
+            stored = [j for j in state['jobs'].values() if j.get('seo_snapshot')]
+            self.assertTrue(stored)
+            for job in stored:
+                validate_snapshot(job['seo_snapshot'], job)
 
     def test_loops_spend_shared_budget_before_beats_and_pending_jobs_survive(self):
         from core.upload_budget import UploadBudget, initialize

@@ -151,6 +151,23 @@ class VideoTests(unittest.TestCase):
         self.assertEqual(visual['path'], '/images/trap/a.png')
         self.assertEqual(len(visual['sha256']), 64)
 
+    def test_sections_only_for_channels_with_chapters(self):
+        parts = [{'start': 0, 'label': 'Intro'}, {'start': 20, 'label': 'Chorus'},
+                 {'start': 45, 'label': 'Verse'}]
+        for description, expected in (('{url}\n\n{chapters}', parts), ('{url}', [])):
+            cloud, key, track, channel = fixture()
+            channel['seo'] = {'description': description}
+            track['bpm'] = 160
+            with patch('core.beat_video.beat_sections', return_value=parts) as detect, \
+                    render_reserved(cloud, key, track, channel, 'trap', 'https://www.beatstars.com/fixture',
+                                    DropboxAssets(AssetsClient()), resolver=Resolver(), http=HLS(),
+                                    tools=MediaTools('fakeffmpeg', 'fakeprobe', Processes())) as result:
+                self.assertEqual(result['sections'], expected)
+            if expected:
+                self.assertEqual(detect.call_args[0][2:], (160, result['seconds']))
+            else:
+                detect.assert_not_called()
+
     def test_visual_snapshot_persisted_after_lost_write_response(self):
         cloud, client, process, context = self.run_video()
         original = cloud.transport.write
