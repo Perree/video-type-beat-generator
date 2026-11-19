@@ -1,0 +1,28 @@
+{
+  "_note": "Bloque seo de «ey mat» para la Fase 6 (rediseño). Reemplaza channels[id=ey mat].seo en datos/beats/config.json; test_start = primer día de publicación.",
+  "channel_id": "ey mat",
+  "seo": {
+    "title_mode": "ey_mat_v1",
+    "title_template": "[FREE] Juice WRLD x Melodic Type Beat {year} \"{name}\"",
+    "alt_title_template": "[FREE] Juice WRLD Type Beat {year} - \"{name}\"",
+    "test_start": "2026-11-24",
+    "tags": [
+      "juice wrld type beat",
+      "juice wrld type beat 2026",
+      "free juice wrld type beat",
+      "free juice wrld type beat 2026",
+      "melodic type beat",
+      "free for profit type beat",
+      "dro kenji type beat",
+      "iann dior type beat",
+      "the kid laroi type beat",
+      "guitar type beat",
+      "sad type beat",
+      "type beat 2026",
+      "eymat",
+      "taigen",
+      "jkeibeats"
+    ],
+    "description": "🆓 Free Download Link: {url}\n\n⬇️ Get 4 free beats (tagged, only for non-profit use):\nhttps://wyre-collective.kit.com/a7958f365e\n\n{music_info}\n\n💰 Purchase link (untagged, for profit use): {url}\n\n💥 Buy 2 Get 2 Free!\n\n💻 Beatstore: https://www.beatstars.com/matwyre\n📲 Instagram: https://www.instagram.com/matwyreoff/\n🎸 Send guitar & melodic loops: matwyreloops@gmail.com\n📩 Business email: contact@matwyre.com\n\n{chapters}\n\n❗️Free for Non-Profit Only on YouTube/SoundCloud.\n- Mandatory credit: \"Prod. MatWyre\".\n-Collaborations: You must credit me and any other producer listed in the beat.\n- Streaming: A lease is required for Spotify, Apple Music, etc.\n- Content ID: ⛔ STRICTLY PROHIBITED. DO NOT use Content ID unless you bought exclusive rights.\n\nIgnore Tags:\njuice wrld type beat, juice wrld type beat {year}, free juice wrld type beat, free juice wrld type beat {year}, melodic type beat, free for profit type beat, dro kenji type beat, iann dior type beat, the kid laroi type beat, guitar type beat, sad type beat, type beat {year}, eymat, taigen, jkeibeats\n#melodictypebeat #juicewrldtypebeat{year} #eymat\n\n{title}"
+  }
+}
