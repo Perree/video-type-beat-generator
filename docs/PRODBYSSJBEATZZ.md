@@ -1,7 +1,7 @@
 # prodbySSJBeatzz — canal de type beats melódicos
 
 Canal nuevo inspirado en prodbyDSI (@prodbydsix), con identidad propia (logo SSJ BEATZ).
-Ficha borrador: `docs/prodbyssjbeatzz.channel.json` (pausada, sin YouTube conectado,
+Ficha: `docs/prodbyssjbeatzz.channel.json` (activa desde el 19/11/2026; antes borrador pausado,
 todavía no cargada en la configuración de Dropbox). Inventario: `docs/prodbyssjbeatzz.assets.json`.
 
 ## Referencia del usuario (2026-11-19)
@@ -66,6 +66,29 @@ vuelta para comparar byte por byte.
   intro + clips fixed_bars, miniatura variante `logo` (subida #1),
   título `[FREE] Polo G Type Beat 2026 "Fighting Myself"`.
 
+## Fase E — activación (2026-11-19)
+
+- Código de C, D y E en master por fast-forward (`5a35a11`), a pedido del usuario; 160 tests
+  locales de Beats OK antes del push.
+- Perfil (`docs/prodbyssjbeatzz.channel.json`) y fila del registro cargados pausados por CAS y
+  releídos; los otros 16 canales de la config quedaron idénticos.
+- Dry-run remoto [44584847779](https://github.com/Perree/video-type-beat-generator/actions/runs/44584847779)
+  con `include_paused`: success, planned=14, eligible=4, uploaded y errores en 0.
+- Con OK explícito del usuario: config `active=true`, `seo.test_start = 2026-11-19` (día del primer
+  video, arranca el mes de Polo G) y registro `activo=true`, por CAS y releídos.
+- Corrida real [44587379270](https://github.com/Perree/video-type-beat-generator/actions/runs/44587379270):
+  success, planned=14, eligible=4, uploaded=4; failed/blocked/orphan/unknown/thumbnail_failed/budget=0.
+
+| Publicación (AR) | Título | Video | Miniatura |
+|---|---|---|---|
+| 19/11 18:00 | `[FREE] Polo G Type Beat 2026 "Not Me"` | `SWEnmYYDowk` | logo |
+| 20/11 18:00 | `[FREE] Polo G x Lil Tjay Type Beat "Burnout"` | `BA5fyHiIdQE` | logo |
+| 21/11 18:00 | `[FREE] Polo G Type Beat 2027 "Gente Nueva"` | `y2Zh6LR2Dac` | logo |
+| 22/11 18:00 | `[FREE] Polo G x Scorey Type Beat "I miss u too much"` | `v_tjpVQWu1s` | logo |
+
+Recibos `scheduled` confirmados en el estado de Dropbox; 10 turnos más planificados. El cron
+diario (19:00 AR nominal) mantiene el búfer. No se leyó el status desde la API de YouTube.
+
 ## Campos de la ficha que dependen de fases siguientes
 
 | Campo | Fase |
@@ -73,4 +96,4 @@ vuelta para comparar byte por byte.
 | `visual.intro` (logo animado) y `visual.video_fit = fixed_bars` para video | B ✅ |
 | `seo.title_mode = ssj_v1`, `main_rotation`, `second_rotation`, `second_every`, `test_start`, descripción | C ✅ |
 | `visual.thumbnail_logo.cycle = [7, 7]`, `image_fit = fixed_bars`, `thumbnail_source = auto` | D ✅ |
-| `youtube_channel_id`, `active`, alta en config/registro Dropbox | E |
+| `youtube_channel_id`, `active`, alta en config/registro Dropbox | E ✅ |

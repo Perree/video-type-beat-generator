@@ -1,5 +1,16 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## prodbySSJBeatzz — Fase E: conexión, piloto y activación ✅ COMPLETADA (2026-11-19)
+
+- OAuth verificó `prodbySSJBeatzz` / `UCqXxj8NtAk35YE4Q2DXBTSg`; token directo a GitHub Secrets
+  por slug (`kit-weekly`), sin disco. `BEAT_CHANNELS` suma `prodbyssjbeatzz` (16 previos intactos).
+- Piloto local aprobado por el usuario ("Fighting Myself": intro, clips fixed_bars, miniatura con
+  logo, `ssj_v1`). Fases C–E mergeadas a master (fast-forward `5a35a11`, pedido del usuario).
+- Perfil y registro cargados pausados por CAS (otros 16 canales idénticos); dry-run remoto
+  44584847779 OK (planned=14, eligible=4, errores 0). Con OK del usuario: activo, `test_start`
+  = 2026-11-19 (primer video), corrida real 44587379270 OK: uploaded=4, errores 0.
+- Programados 19–22/11 a las 18:00 AR; cron diario mantiene el búfer. Detalle: `docs/PRODBYSSJBEATZZ.md`.
+
 ## prodbySSJBeatzz — Fase D: miniaturas A/B con y sin logo ✅ COMPLETADA (2026-11-19)
 
 - Miniatura por video con las 29 fotos de `canales/prodbyssjbeatzz/miniaturas/`: la ficha usa
