@@ -2130,7 +2130,7 @@ commit, merge a `master` y push. Si no, no se mergea. Orden: 1 y 5 en paralelo; 
   con `beat_seo.fill_chapters` junto a `{url}` (sin la Fase 4 se quita limpio; la Fase 4 le pasa los capítulos).
   `experiment` guarda formato, año, años válidos, slot y día. Tests: `tests/test_beat_year.py`, `tests/test_beat_ey_mat_seo.py`.
   **Para la Fase 6:** el bloque `seo` listo está en `docs/ey-mat.seo.json` (reemplaza `channels[id="ey mat"].seo`);
-  poner `test_start` = primer día de publicación. Pendiente aparte: 6 tests de `tests/test_beat_ssj_seo.py` ya
-  fallaban en `master` (el doc de SSJ pasó a `test_start` 2026-11-19 y los tests suponen 2026-12-01).
+  poner `test_start` = primer día de publicación. Los 6 tests de `tests/test_beat_ssj_seo.py` que fallaban (el doc de SSJ pasó a
+  `test_start` 2026-11-19) ahora fijan su propio inicio 2026-12-01 en el canal de prueba.
 - [ ] **Fase 6 – Horario y activación.** Martes, jueves, sábado y domingo 20:00 (Buenos Aires); script de
   activación por CAS con copia previa; dry-run, un video real y primera semana.
