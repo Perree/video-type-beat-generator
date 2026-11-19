@@ -117,6 +117,8 @@
       "prodbyssjbeatzz",
       "ssj beatz",
       "matwyre"
-    ]
+    ],
+    "test_start": "2026-12-01",
+    "description": "{main} x {second} Type Beat{year} - \"{name}\"\n\n💿 Buy / Download this beat (untagged WAV & stems):\n➔ {url}\n\n🛒 Full beat catalog:\n➔ https://www.beatstars.com/matwyre\n\n{music_info}\n\nProd. MatWyre\n\n📝 USAGE TERMS:\n- FREE FOR NON-PROFIT USE: songs on YouTube, SoundCloud or socials without monetization. Credit \"Prod. MatWyre\" (and any co-producers) in your title or description.\n- RELEASING IT? Spotify, Apple Music or any paid/monetized platform needs a lease from the link above.\n- NO CONTENT ID: do not register this beat, or a song made with it, in Content ID.\n\nAll Rights Reserved © MatWyre / prodbySSJBeatzz\n\n🔎 Tags:\n{artist_tags}\n\n{hashtags}"
   }
 }
