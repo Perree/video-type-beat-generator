@@ -2177,3 +2177,23 @@ commit, merge a `master` y push. Si no, no se mergea. Orden: 1 y 5 en paralelo; 
     `request_failed` (BeatStars no respondió, antes de planificar: sin cambios); reintento `44640979838` verde → «Jackboy»
     `QE8u5lu0q88` privado (turno del sáb 21, `private_pilot`; publicarlo a mano en Studio). Agenda: 22, 24, 26, 28, 29/11, 1 y 3/12.
   - Queda mirar la primera semana (títulos A/B, capítulos y miniaturas en YouTube Studio).
+
+## Seen 3AM — Canal plugg / pluggnb / new jazz / west coast (2026-11-20)
+
+Canal nuevo de Matías: Seen 3AM, `UCe3utrcuj3-rrn75BINHiMQ` (se confirma con el OAuth), clave `seen3am`.
+Competencia de referencia: Gerome Beatz (`(FREE) plugg x suei type beat - "nombre"`, foto vertical con franjas negras).
+
+- [x] **Preparación** ✅ COMPLETADA (2026-11-20). Modo `seen3am_v1` (`core/beat_seen3am_seo.py`): título fijo
+  `(FREE) plugg x suei type beat {year} - "{name}"`, nombre en minúscula, año más nuevo válido el día de publicación
+  (`beat_year`: nov–dic → año siguiente). Descripción del usuario con `{url}`, `{music}` (BPM/KEY de BeatStars),
+  `Prod. by {producers}` (seen3am + colaboradores de la ficha, nunca MatWyre) y el bloque de tags (142 palabras, 3372 car.).
+  `beat_seo.SLOT_MODES` reúne los modos que dependen del turno (SSJ, ey mat, Seen 3AM).
+  Perfil `docs/seen3am.channel.json` en pausa: todos los días 10:00 Argentina, selección OR por tags exactos
+  (plugg, pluggnb, plugnb, new jazz, west coast y sus «type beat»), excluido «Destino» (`TK26644857`, subido a mano).
+  Catálogo real: 10 beats elegibles. Imagen fija `contain` (foto entera, franjas negras), miniatura = cuadro del video.
+  51 fotos de `Downloads\plugg` (sin el logo `descargar.jfif` ni `plugg_ref_26`, casi igual a la 23) subidas a
+  `/Soft Projects/Type Beat Generator/contenido/canales/seen3am/fondos` y verificadas byte por byte.
+  Tests: `tests/test_beat_seen3am_seo.py`; suite completa 966 OK.
+- [ ] **Conexión y activación.** Perfil en pausa en config/registro remotos → OAuth (Matías elige Seen 3AM) →
+  secretos en kit-weekly → dry-run → activar y agregar `seen3am` a BEAT_CHANNELS.
+- Ojo: con 10 beats alcanza para 10 días; los beats nuevos tienen que llevar en BeatStars alguno de esos tags.

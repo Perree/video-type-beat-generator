@@ -44,6 +44,8 @@ def apply_channel_templates(channel, saved):
             allowed.update(('style', 'title', 'music_info', 'credits', 'guitar_hashtags'))
         elif profile.get('title_mode') == 'sad_melodic_v1':
             allowed.update(('style', 'title', 'music_info', 'sad_hashtags'))
+        elif profile.get('title_mode') == 'seen3am_v1':
+            allowed.update(('year', 'title', 'music', 'producers'))
         elif profile.get('title_mode') in ('rnb_test_v1', 'rnb_test_v2'):
             allowed.update(('style', 'context', 'music_info'))
         elif profile.get('title_mode') == 'matwyre_v1':

@@ -1,0 +1,103 @@
+{
+  "id": "seen3am",
+  "actions_slug": "seen3am",
+  "active": false,
+  "priority": 10,
+  "youtube_channel_id": "UCe3utrcuj3-rrn75BINHiMQ",
+  "genres": [
+    "plugg"
+  ],
+  "dropbox_images": {
+    "plugg": "/Soft Projects/Type Beat Generator/contenido/canales/seen3am/fondos"
+  },
+  "images_folder": "",
+  "tags": [],
+  "selection_tags": [
+    "plugg",
+    "pluggnb",
+    "plugnb",
+    "new jazz",
+    "west coast",
+    "plugg type beat",
+    "pluggnb type beat",
+    "new jazz type beat",
+    "west coast type beat"
+  ],
+  "excluded_track_ids": [
+    "TK26644857"
+  ],
+  "slots": [
+    {
+      "weekday": 0,
+      "hour": 10,
+      "minute": 0
+    },
+    {
+      "weekday": 1,
+      "hour": 10,
+      "minute": 0
+    },
+    {
+      "weekday": 2,
+      "hour": 10,
+      "minute": 0
+    },
+    {
+      "weekday": 3,
+      "hour": 10,
+      "minute": 0
+    },
+    {
+      "weekday": 4,
+      "hour": 10,
+      "minute": 0
+    },
+    {
+      "weekday": 5,
+      "hour": 10,
+      "minute": 0
+    },
+    {
+      "weekday": 6,
+      "hour": 10,
+      "minute": 0
+    }
+  ],
+  "upload_spread": {
+    "min_days": 2,
+    "max_days": 4
+  },
+  "visual": {
+    "mode": "image",
+    "image_fit": "contain",
+    "plain_image": true,
+    "custom_thumbnail": false,
+    "thumbnail_source": "auto"
+  },
+  "seo": {
+    "title_mode": "seen3am_v1",
+    "title_template": "(FREE) plugg x suei type beat {year} - \"{name}\"",
+    "tags": [
+      "plugg type beat",
+      "pluggnb type beat",
+      "suei type beat",
+      "plugg x suei type beat",
+      "new jazz type beat",
+      "west coast type beat",
+      "suei type beat plugg",
+      "plugg type beat suei",
+      "pluggnb type beat suei",
+      "underaiki type beat",
+      "nvscvr type beat",
+      "mnzr type beat",
+      "free plugg type beat",
+      "beat type suei",
+      "suei",
+      "plugg",
+      "pluggnb",
+      "rnb type beat",
+      "type beat"
+    ],
+    "description": "🛒 Buy this beat here (Download): {url}\n\n📸 Instagram: @matwyreoff\n🛒 Catalog: https://www.beatstars.com/matwyre\n📧 Contact: contact@matwyre.com\n\nSEND LOOPS: matwyreloops@gmail.com\n\n{music}\nProd. by {producers}\n\n❗ IMPORTANT ❗\n\nThis beat is FREE for non-commercial use only (YouTube/SoundCloud with NO monetization).\n\nFor commercial use (uploading to platforms like Spotify, Apple Music, etc.), you must purchase a license.\n\nTAGS IGNORE:\n\n#newjazz #suei #pluggnb\n#plugg #westcoast #rnb #nvscvr #mnzr #pluggnbtypebeat #plug #instrumental #trap #underaiki #flstudio #nasti\n\nflstudio, nvscvr, type beat, instrumental, suei, musica, beats, pista estilo plug, plugnb, pluggnb, trap, new jazz, instrumental tipo new jazz, zodiak, intrumental tipo trap, pista tipo suei, pistqa tipo rnb, rnb, lilshine, lil shine, instrumental tipo lil shine, underaiki, underaiki type beat, mnzr, intrumental tipo mnzr, pista tipo rnb, instrumental de rnb MNZR type beat free, MNZR type beat plug, nvscvr type beat sad, nvscvr type beat hell, nvscvr type beat free for profit, nvscvr type beat 777, nvscvr type beat road trip, beats type nvscvr, nvscvr type beat (plug beat), beat trap type nvscvr free, beat plug type nvscvr sad, beat reggaeton type nvscvr, beat trap type nvscvr, suei type beat, suei beat, sad suei type beat, suei type beat sad, aquihayaquihay, aquihayaquihay type beat, sad aquihayaquihay type beat, sad aquihayaquihay beat, big soto, big soto type beat, sad big soto type beat, big soto sad type beat, reggaeton sad type beat, plug type beat, plug sad type beat, nvscvr type beat free, nvscvr type beat plug, nvscvr type beat 666, abrildefresa, abrildefresa type beat, lofi abrildefresa type beat, abrildefresa lofi type beat, beat abrildefresa, trapsoul type beat, trapsoul beat, skisia2 type beat, opium g type beat type beat, rnb type beat, free type beat, free rnb type beat, rnb type beat free, beat typesuei type beat, reggaeton type beat, dancehall type beat, rels b type beat, bryson tiller type beat, suei type beat free for profit, rnb type beat free 2023, rnb type beat 2022 free, r&b type beat, type beat 2022, drake type beat, isaiah rashad type beat, type beat rnb, suei beat type suei type beat, type beat free, duki type beat free, ysy a type beat free, big soto type beat free, type beat suei, duki type beat sad, cro type beat, duki type beat, mesita type beat, big soto type beat trampa, duki type beat uso libre, beat type suei, suei beat type, rnb type beat 2023 suei type beat, suei dancehall type beat, mlshbts type beat, suei sad type beat, suei type beat triste, nvscvr type beat, suei triste type beat, funk brasin suei type beat, suei funk brasil type beat, royallive x suei type beat, abrildefresa type beat sad, plugg type beat, abrildefresa sad type beat rnb type beat, rnb type beat 2023, trap soul type beat, guitar rnb type beat, summer walker type beat free, drake type beat 2023, rnb type beats, summer walker type beat, rnb beat, smooth rnb type beat, rnb beats, tory lanez type beat 2023, free bryson tiller type beat 2023 suei, suei bye, suei 88, daf suei, suei no me dejes ir, type suei, suei café, suei letra, suei cliché, preview suei, suei japanese, suei arropado, adelanto suei, suei por idiota, suei y tú mi vida, suei & underaiki, suei bye type beat, no me dejes ir suei, suei café type beat, suei instrumental, suei cliché type beat"
+  }
+}

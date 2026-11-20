@@ -25,6 +25,7 @@ from core import beat_murray_seo
 from core import beat_wyrelatin_seo
 from core import beat_ssj_seo
 from core import beat_ey_mat_seo
+from core import beat_seen3am_seo
 from core.beat_seo_report import fields, text, texts, moment, parse_report, validate_report
 
 
@@ -59,10 +60,13 @@ MODES = {beat_latin_seo.MODE: (beat_latin_seo, ('{artists}', '{style}')),
          beat_murray_seo.EXPIRING_MODE: (beat_murray_seo, ()),
          beat_ssj_seo.MODE: (beat_ssj_seo, beat_ssj_seo.REQUIRED),
          beat_ey_mat_seo.MODE: (beat_ey_mat_seo, beat_ey_mat_seo.REQUIRED),
+         beat_seen3am_seo.MODE: (beat_seen3am_seo, beat_seen3am_seo.REQUIRED),
          beat_rnb_seo.MODE: (beat_rnb_seo, ('{style}',)),
          beat_rnb_seo_v2.MODE: (beat_rnb_seo_v2, ('{style}',)),
          beat_matwyre_seo.MODE: (beat_matwyre_seo, ('{style}',))}
 
+# Modes whose title depends on the publication slot (job['slot']).
+SLOT_MODES = (beat_ssj_seo, beat_ey_mat_seo, beat_seen3am_seo)
 
 def _mode(profile):
     entry = MODES.get(profile.get('title_mode'))
@@ -88,7 +92,7 @@ def manual_profile(channel):
             or not all(token in profile.get('title_template', '')
                        for token in MODES[profile['title_mode']][1])):
         raise ValueError('seo_title_mode_invalid')
-    if _mode(profile) in (beat_ssj_seo, beat_ey_mat_seo):
+    if _mode(profile) in SLOT_MODES:
         _mode(profile).validate(profile)
     texts(profile['tags'])
     description = profile['description']
@@ -144,7 +148,7 @@ def track_input(track):
 
 def candidates(track, profile, scores, job):
     mode = _mode(profile)
-    if mode in (beat_ssj_seo, beat_ey_mat_seo):
+    if mode in SLOT_MODES:
         return mode.variants(track, profile, job['slot'])
     if mode and mode is not beat_murray_seo:
         return mode.variants(track, profile)
@@ -262,7 +266,7 @@ def build_snapshot(job, track, channel, now, payload=None, cached=None, *, previ
         'selected': dict(eligible[0], description=description(profile, track, eligible[0]))}
     if _mode(profile) in (beat_rnb_seo, beat_rnb_seo_v2, beat_matwyre_seo):
         snapshot['experiment'] = _mode(profile).experiment(track, profile, snapshot['selected'])
-    elif _mode(profile) in (beat_ssj_seo, beat_ey_mat_seo):
+    elif _mode(profile) in SLOT_MODES:
         snapshot['experiment'] = _mode(profile).experiment(track, profile, job['slot'])
     snapshot['sha256'] = digest(snapshot)
     cache = {'manual_hash': fingerprint, 'report': deepcopy(report)} if source == 'report' else None
@@ -326,7 +330,7 @@ def validate_snapshot(snapshot, job):
         options = {'legacy': True} if legacy else {}
         if snapshot.get('experiment') != mode.experiment(track, profile, snapshot['selected'], **options):
             raise ValueError('seo_experiment_invalid')
-    elif mode in (beat_ssj_seo, beat_ey_mat_seo):
+    elif mode in SLOT_MODES:
         if snapshot.get('experiment') != mode.experiment(track, profile, job['slot']):
             raise ValueError('seo_experiment_invalid')
     elif 'experiment' in snapshot:
