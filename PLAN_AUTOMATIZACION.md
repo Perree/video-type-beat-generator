@@ -2104,7 +2104,7 @@ ender_beat(flat=True); sin lat conserva la carpeta por título (vista previa de
 - Activado el 2026-11-11: código publicado en master y `title_mode` de Lovesickk cambiado a `rnb_test_v2`
   en Dropbox por CAS y releído (afecta solo trabajos sin snapshot; 505 pruebas OK).
 
-## Rediseño ey mat (canal de Juice WRLD) ⏳ PLANIFICADO (2026-11-19)
+## Rediseño ey mat (canal de Juice WRLD) ✅ COMPLETADO (2026-11-19)
 Objetivo: estética y títulos tipo Taigen / Taylee Rose con toque propio, y 4 videos por semana.
 Cada fase se hace en un chat (sesión) distinto, en su propia rama. Si los tests y la verificación pasan:
 commit, merge a `master` y push. Si no, no se mergea. Orden: 1 y 5 en paralelo; 3 → 2; 3 → 4; 6 al final.
@@ -2164,5 +2164,16 @@ commit, merge a `master` y push. Si no, no se mergea. Orden: 1 y 5 en paralelo; 
   **Para la Fase 6:** el bloque `seo` listo está en `docs/ey-mat.seo.json` (reemplaza `channels[id="ey mat"].seo`);
   poner `test_start` = primer día de publicación. Los 6 tests de `tests/test_beat_ssj_seo.py` que fallaban (el doc de SSJ pasó a
   `test_start` 2026-11-19) ahora fijan su propio inicio 2026-12-01 en el canal de prueba.
-- [ ] **Fase 6 – Horario y activación.** Martes, jueves, sábado y domingo 20:00 (Buenos Aires); script de
-  activación por CAS con copia previa; dry-run, un video real y primera semana.
+- [x] **Fase 6 – Horario y activación.** ✅ COMPLETADA (2026-11-19, activo en vivo).
+  `tokens/ey_mat_activate.py` (git-ignored; `--check` / `--apply` / `--restore <copia>`): copia local de config, state y
+  registro (`tokens/ey_mat_*_before.json`), CAS solo sobre `channels[id="ey mat"]`, los otros 16 canales verificados iguales.
+  - `slots`: martes, jueves, sábado y domingo 20:00 (weekday 1/3/5/6); `seo` = `docs/ey-mat.seo.json` con
+    `test_start: 2026-11-21` (primer día con formato nuevo); `visual` += Fase 3 (`source_trim_seconds: 22`, `grade: dark`,
+    `title_overlay` Great Vibes 120 centrado) + `docs/ey-mat.thumbnail.json` + `section_cuts: true`.
+  - Prueba previa: `build_snapshot`/`validate_snapshot` con los 465 beats Juice WRLD × 10 días (ambos formatos, años 2026/2027).
+  - State: se cancelaron los 2 trabajos de lunes sin intento (23 y 30/11); el del jueves 26 quedó. Registro: `title_template` nuevo.
+  - Render local enviado a Matías («Propect», 130 BPM: grade, título, cortes por parte, miniatura con badges, capítulos).
+  - Actions: dry-run `44637223274` verde (7 planificados, 1 elegible); piloto privado `44639752605` falló por
+    `request_failed` (BeatStars no respondió, antes de planificar: sin cambios); reintento `44640979838` verde → «Jackboy»
+    `QE8u5lu0q88` privado (turno del sáb 21, `private_pilot`; publicarlo a mano en Studio). Agenda: 22, 24, 26, 28, 29/11, 1 y 3/12.
+  - Queda mirar la primera semana (títulos A/B, capítulos y miniaturas en YouTube Studio).
