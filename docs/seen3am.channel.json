@@ -1,7 +1,7 @@
 {
   "id": "seen3am",
   "actions_slug": "seen3am",
-  "active": false,
+  "active": true,
   "priority": 10,
   "youtube_channel_id": "UCe3utrcuj3-rrn75BINHiMQ",
   "genres": [

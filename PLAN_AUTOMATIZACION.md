@@ -2194,6 +2194,10 @@ Competencia de referencia: Gerome Beatz (`(FREE) plugg x suei type beat - "nombr
   51 fotos de `Downloads\plugg` (sin el logo `descargar.jfif` ni `plugg_ref_26`, casi igual a la 23) subidas a
   `/Soft Projects/Type Beat Generator/contenido/canales/seen3am/fondos` y verificadas byte por byte.
   Tests: `tests/test_beat_seen3am_seo.py`; suite completa 966 OK.
-- [ ] **Conexión y activación.** Perfil en pausa en config/registro remotos → OAuth (Matías elige Seen 3AM) →
-  secretos en kit-weekly → dry-run → activar y agregar `seen3am` a BEAT_CHANNELS.
+- [x] **Conexión y activación** ✅ COMPLETADA (2026-11-20, activo en vivo). Perfil agregado en pausa a config y registro
+  remotos (17 canales de config y 21 del registro verificados iguales). OAuth: Seen 3AM, `UCe3utrcuj3-rrn75BINHiMQ`;
+  secretos `BEAT_CHANNEL_ID_SEEN3AM` / `BEAT_YT_TOKEN_JSON_SEEN3AM` en kit-weekly; `seen3am` agregado a BEAT_CHANNELS
+  (los otros 17 conservados). Dry-run `44796624449` verde: planned=10, eligible=3, failed=0.
+  Activado en config y registro (`tokens/seen3am_activate.py`, copia previa en `tokens/seen3am_activation_before.json`).
+  La corrida diaria de las 19:00 sube por anticipado (escalonado 2–4 días) para publicar a las 10:00.
 - Ojo: con 10 beats alcanza para 10 días; los beats nuevos tienen que llevar en BeatStars alguno de esos tags.

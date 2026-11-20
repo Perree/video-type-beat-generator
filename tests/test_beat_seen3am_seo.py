@@ -24,7 +24,7 @@ class Seen3amTests(unittest.TestCase):
     def job(self, slot, cycle=1):
         return dict(id='job', channel='seen3am', track_id=self.track['id'], cycle=cycle, slot=slot)
 
-    def test_profile_is_valid_paused_and_daily_at_ten(self):
+    def test_profile_is_valid_and_daily_at_ten(self):
         migrate(dict(channels=[self.channel]), 'config')
         beat_seo.manual_profile(self.channel)
         self.assertEqual([(s['weekday'], s['hour'], s['minute']) for s in self.channel['slots']],
@@ -83,7 +83,7 @@ class Seen3amTests(unittest.TestCase):
     def test_paused_has_no_jobs_and_active_schedules_ten_am(self):
         tracks = [dict(id='TK5', title='Waska', tags=['new jazz'])]
         now = '2026-11-20T15:00:00-03:00'
-        self.assertEqual(simulate(dict(channels=[self.channel]), tracks, now=now)['jobs'], [])
+        self.assertEqual(simulate(dict(channels=[dict(self.channel, active=False)]), tracks, now=now)['jobs'], [])
         active = dict(channels=[dict(self.channel, active=True)])
         jobs = simulate(active, tracks, now=now)['jobs']
         self.assertTrue(jobs)
