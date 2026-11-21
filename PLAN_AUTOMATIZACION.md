@@ -1,5 +1,13 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## Mat produced this one — barras negras laterales ✅ COMPLETADA (2026-11-21)
+
+- Foto y montaje usan `fixed_bars`: recorte central 1232×1080 con franjas negras de 344 px.
+  Antes los montajes llenaban el cuadro y las fotos usaban `contain`.
+- Config activa de Dropbox actualizada por CAS y releída; solo cambió este canal (17 intactos).
+- Miniaturas: mismo encuadre de la foto. Las 35 fotos eran verticales o cuadradas,
+  así que ya tenían barras. 967 pruebas OK, 4 omitidas.
+
 ## prodbySSJBeatzz — Fase E: conexión, piloto y activación ✅ COMPLETADA (2026-11-19)
 
 - OAuth verificó `prodbySSJBeatzz` / `UCqXxj8NtAk35YE4Q2DXBTSg`; token directo a GitHub Secrets

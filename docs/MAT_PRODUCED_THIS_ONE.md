@@ -17,7 +17,8 @@ token enviado en memoria directamente a GitHub Secrets, sin guardarlo en disco.
 - 35 imágenes locales de `images/mat produced this one/Principal` verificadas
   con Pillow y copiadas a Dropbox sin modificar sus bytes. Originales intactos.
   Carpeta: `/Soft Projects/Type Beat Generator/contenido/canales/mat-produced-this-one/fondos`.
-- Foto completa en 16:9, con bandas negras y sin texto. Las primeras publicaciones
+- Desde el 21/11/2026, foto y montaje usan `fixed_bars`: franjas negras fijas de 344 px
+  a cada lado (recorte central 1232×1080), sin texto. Antes: foto completa con bandas. Las primeras publicaciones
   usaron miniatura automática.
 
 ## Prueba de fondos desde el 8/11/2026
