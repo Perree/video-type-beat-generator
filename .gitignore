@@ -104,3 +104,5 @@ config/manual_beatstars_history.json.lock
 # WyreScapes: estado local de uso de tracks
 config/wyrescapes_state.json
 config/wyrescapes_state.json.tmp
+config/wyrescapes_images.json
+config/wyrescapes_images.json.tmp

@@ -20,9 +20,19 @@ modo manual sin API. Código nuevo en `core/` (módulos chicos), sin tocar la nu
   [--dry-run]` → `Desktop\WyreScapes\Videos`; el estado se guarda solo si el render sale bien.
   Render real: 8 tracks, 31:33, 1893,0 s vs 1892,94 s de suma, en ~1,5 min.
   `tests/test_mixtape.py` 13 OK; suite 980 OK, 4 omitidas.
-- [ ] **Fase 2 – Imágenes.** Solo imágenes propias (IA). Las descargas de Pinterest (`nowayout_*`,
-  `descargar*`) van a `Imagenes/Refes` y nunca a un video. Rotación sin repetir hasta usar todas;
-  avisar cuando queden pocas.
+- [x] **Fase 2 – Imágenes.** Regla corregida por el usuario: se usan **todas** las imágenes de
+  `Imagenes` (incluidas `nowayout_16x9_*`, `descargar*`, `.jfif` y `.png`), **excepto** las de la
+  subcarpeta `Imagenes\Refes`, que nunca van a un video. No se mueven ni borran archivos. Rotación sin
+  repetir hasta usar todas; la vuelta nueva no arranca con la última; avisar cuando queden pocas.
+  ✅ COMPLETADA (2026-11-21): `core/image_rotation.py` lee la carpeta en cada corrida sin
+  subcarpetas (jpg/jpeg/png/jfif/webp; saltea `.gif` y lo que ffmpeg no decodifica, con aviso),
+  aviso con ≤3 sin usar, estado en `config/wyrescapes_images.json` (git-ignored, vecino del de
+  tracks). El CLI elige la imagen de la rotación si no se pasa `--image`; `--no-record` renderiza
+  sin tocar estados (pruebas). Encuadre cover 1920×1080 (recorte central) del render de la Fase 1.
+  El CLI tolera nombres con emoji (`🌊.jfif`) en consola cp1252. 36 imágenes válidas hoy.
+  Render real de prueba con `--no-record` (imagen de la rotación `nowayout_16x9_01_nodog.jpg`):
+  1920×1080, 31:33, estados intactos para el primer día real. `tests/test_image_rotation.py`
+  12 OK; suite 991 OK, 4 omitidas.
 - [ ] **Fase 3 – Subida.** OAuth del canal (una vez, lo hace Matías), token en `tokens/` (git-ignored).
   Reusar `core/youtube.py` / `core/publish_at.py`: subida privada programada 12:00 Argentina con título,
   descripción (Spotify en la primera línea), tags y miniatura = la imagen. El comentario fijado no se
