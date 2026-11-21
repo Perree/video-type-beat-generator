@@ -1,5 +1,30 @@
 # Plan: automatizar publicación de type beats (biblioteca + BPM/key + YouTube + Dropbox)
 
+## WyreScapes — Mixtapes ambient diarias en AllusionBeatz (2026-11-21)
+
+Canal de música propia (no venta de beats), nicho dormir/calmarse. YouTube AllusionBeatz
+(@AllusionBeatz, `UCrC-LCmo-IccKZaTOmGI4ig`), artista WyreScapes en Spotify; link fijo
+`https://open.spotify.com/playlist/1GqQd4yh4r79yH0zrkib6p`. Material en `Desktop\WyreScapes`
+(`Tracks/`, `Imagenes/`, `Videos/`). Primer video subido a mano: «someone is still beside you.» (31:34).
+**Corre local** en la PC de Matías (prendida) y **sube por API**: excepción pedida por el usuario al
+modo manual sin API. Código nuevo en `core/` (módulos chicos), sin tocar la nube ni otros canales.
+
+- [ ] **Fase 1 – Mixtape.** Lee `Tracks/` cada vez (`.wav`/`.mp3`, ignora `.asd`): los tracks nuevos
+  entran solos. Cada track **una sola vez** por video, nunca repetido; orden al azar distinto del
+  video anterior. Duración = suma de los tracks (30 min con 8 está bien). Objetivo 2 h solo como tope:
+  si la música supera ~2 h, elige una parte priorizando los menos usados. Render con imagen fija 1080p
+  (rápido aunque dure horas). Estado de uso en un JSON local; tests con audio sintético.
+- [ ] **Fase 2 – Imágenes.** Solo imágenes propias (IA). Las descargas de Pinterest (`nowayout_*`,
+  `descargar*`) van a `Imagenes/Refes` y nunca a un video. Rotación sin repetir hasta usar todas;
+  avisar cuando queden pocas.
+- [ ] **Fase 3 – Subida.** OAuth del canal (una vez, lo hace Matías), token en `tokens/` (git-ignored).
+  Reusar `core/youtube.py` / `core/publish_at.py`: subida privada programada 12:00 Argentina con título,
+  descripción (Spotify en la primera línea), tags y miniatura = la imagen. El comentario fijado no se
+  puede por API: queda escrito en un `.txt` para fijarlo a mano.
+- [ ] **Fase 4 – Tarea diaria.** Tarea programada local (PC prendida): render → Claude mira la imagen y
+  escribe título en minúscula estilo «someone is still beside you.», descripción, comentario fijado y
+  tags → sube programado 12:00 (Seen 3AM usa las 10:00). Registro de lo publicado para no repetir títulos.
+
 ## Mat produced this one — barras negras laterales ✅ COMPLETADA (2026-11-21)
 
 - Foto y montaje usan `fixed_bars`: recorte central 1232×1080 con franjas negras de 344 px.
