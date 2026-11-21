@@ -48,14 +48,14 @@ modo manual sin API. Código nuevo en `core/` (módulos chicos), sin tocar la nu
   OAuth real hecho por Matías, `--check` OK. Aún no se subió ningún video por API.
   `tests/test_wyrescapes_upload.py` 11 OK; suite 1003 OK, 4 omitidas.
 - [x] **Fase 4 – Tarea diaria.** Tarea programada local (PC prendida): render → Claude mira la imagen y
-  escribe título en minúscula estilo «someone is still beside you.», descripción, comentario fijado y
+  escribe título en minúscula estilo «someone is still beside you.», descripción y
   tags → sube programado 12:00 (Seen 3AM usa las 10:00). Registro de lo publicado para no repetir títulos.
   ✅ COMPLETADA (2026-11-21): `core/wyrescapes_daily.py` + CLI `scripts/wyrescapes_daily.py
   prepare|publish [--date] [--no-record|--dry-run]`. `prepare` deja `Videos/<AAAA-MM-DD>/` con
   `wyrescapes_<AAAAMMDD>.mp4` (+ `.json`), `imagen.txt`, `info.json` (minutos reales, títulos usados)
   y `metadata.json` con los tags base precargados; si el video del día ya existe no re-renderiza.
   `publish` valida (título ≤100, minúscula con punto, no repetido contra el registro + el título
-  manual del 21/11; descripción; tags ≤500 contados como YouTube; comentario; sin «nowayout») y
+  manual del 21/11; descripción; tags ≤500 contados como YouTube; sin «nowayout») y
   sube con la Fase 3 a las 12:00 AR de ese día; si ya pasó (margen 45 min) no sube para otro horario.
   Idempotente: un día ya subido no se vuelve a subir. Tarea programada `wyrescapes-daily` 09:00 local
   (prepare → Claude mira la imagen y escribe metadata → publish → `log.txt` del día). Corrida de
@@ -72,6 +72,9 @@ modo manual sin API. Código nuevo en `core/` (módulos chicos), sin tocar la nu
   `0 9-23 * * *` (cada hora hasta las 23). La app de escritorio corre las tareas solo con la app
   abierta; una ejecución vencida con la app cerrada se corre al volver a abrirla (según la
   herramienta de tareas). Las corridas horarias cubren además una PC prendida tarde.
+  **Sin comentario fijado (pedido de Matías):** «no automatices los comentarios»: no hay
+  `pinned_comment` en `metadata.json` ni `.comentario.txt` (si llega uno viejo, se ignora). La
+  pregunta para comentarios dentro de la descripción se mantiene.
   `tests/test_wyrescapes_daily.py` 29 OK; suite 1032 OK, 4 omitidas.
 
 ## Mat produced this one — barras negras laterales ✅ COMPLETADA (2026-11-21)

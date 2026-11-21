@@ -5,7 +5,8 @@
   - ``wyrescapes_<AAAAMMDD>.mp4`` y su ``.json`` (imagen, tracks, segundos) — Fases 1 y 2;
   - ``imagen.txt`` con la ruta absoluta de la imagen (para mirarla);
   - ``info.json`` (minutos reales, títulos ya usados, tags base);
-  - ``metadata.json`` por llenar: title, description, tags (base precargados), pinned_comment.
+  - ``metadata.json`` por llenar: title, description, tags (base precargados).
+Sin comentario fijado: Matías no quiere comentarios automáticos (no hay .txt).
 Si el video del día ya existe, no se vuelve a renderizar.
 
 ``publish(day)`` valida ``metadata.json`` y sube programado a las 12:00 AR de ese mismo día
@@ -91,19 +92,17 @@ def validate_metadata(meta, log=()):
         problems.append('faltan los tags')
     if tags_length(tags) > TAGS_MAX_CHARS:
         problems.append(f'tags de {tags_length(tags)} caracteres (máx. {TAGS_MAX_CHARS})')
-    text = ' '.join([title, str(meta.get('description') or ''), ' '.join(tags),
-                     str(meta.get('pinned_comment') or '')]).lower()
+    text = ' '.join([title, str(meta.get('description') or ''), ' '.join(tags)]).lower()
     for word in BANNED_WORDS:
         if word in text:
             problems.append(f'no nombrar otros canales («{word}»)')
-    if not str(meta.get('pinned_comment') or '').strip():
-        problems.append('falta el comentario fijado')
     if problems:
         raise DailyError('metadata.json inválido: ' + '; '.join(problems))
     try:
-        clean = wu.validate_meta(dict(meta, title=title, tags=tags))
+        clean = wu.validate_meta(dict(meta, title=title, tags=tags, pinned_comment=''))
     except wu.UploadError as exc:
         raise DailyError(str(exc)) from exc
+    clean.pop('pinned_comment', None)  # nunca comentario automático
     return clean
 
 
@@ -191,7 +190,7 @@ def _write_json(path, data):
 
 
 def empty_metadata():
-    return {'title': '', 'description': '', 'tags': list(BASE_TAGS), 'pinned_comment': ''}
+    return {'title': '', 'description': '', 'tags': list(BASE_TAGS)}
 
 
 def prepare(day, base=BASE, track_state=mixtape.DEFAULT_STATE_PATH,

@@ -69,8 +69,6 @@ def main(argv=None):
         print(f'Subido (privado, se publica {detail["publish_at"]}): {detail["url"]}')
         if detail.get('thumbnail_error'):
             print(f'Aviso: {detail["thumbnail_error"]}')
-        if detail.get('pinned_comment_file'):
-            print(f'Comentario para fijar a mano: {detail["pinned_comment_file"]}')
     return 0
 
 

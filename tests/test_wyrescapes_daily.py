@@ -12,7 +12,7 @@ from core import wyrescapes_upload as wu
 DAY = date(2026, 11, 22)
 GOOD = {'title': 'the one who never leaves your side.',
         'description': '31 minutes of calm, original music to rest, think, or fall asleep to.',
-        'tags': list(wd.BASE_TAGS), 'pinned_comment': 'who would you sit with here?'}
+        'tags': list(wd.BASE_TAGS)}
 
 
 def _base(tmp_path, tracks=3, images=2):
@@ -80,6 +80,13 @@ def test_prepare_no_record_leaves_states(tmp_path):
 def test_validate_metadata_ok_and_spotify_first():
     clean = wd.validate_metadata(GOOD)
     assert clean['description'].splitlines()[0] == wu.SPOTIFY_URL
+    assert 'pinned_comment' not in clean
+
+
+def test_no_pinned_comment_ever():
+    assert 'pinned_comment' not in wd.empty_metadata()
+    clean = wd.validate_metadata(dict(GOOD, pinned_comment='hola'))  # viejo: se ignora
+    assert 'pinned_comment' not in clean
     assert wd.tags_length(wd.BASE_TAGS) <= wd.TAGS_MAX_CHARS
 
 
@@ -93,7 +100,6 @@ def test_validate_metadata_ok_and_spotify_first():
     ({'tags': ['a' * 300, 'b' * 300]}, 'máx. 500'),
     ({'tags': []}, 'faltan los tags'),
     ({'tags': ['nowayout']}, 'otros canales'),
-    ({'pinned_comment': ''}, 'comentario'),
 ])
 def test_validate_metadata_rejects(change, fragment):
     with pytest.raises(wd.DailyError, match=fragment):
