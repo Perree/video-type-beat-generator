@@ -9,6 +9,7 @@ Uso:
 El estado de uso (tracks e imagen) se guarda solo si el render sale bien.
 """
 import argparse
+import json
 import os
 import sys
 from datetime import datetime
@@ -85,6 +86,9 @@ def main(argv=None):
     except MixtapeRenderError as exc:
         print(f'Error: {exc}')
         return 1
+    with open(os.path.splitext(out)[0] + '.json', 'w', encoding='utf-8') as fh:
+        json.dump({'image': os.path.abspath(image), 'tracks': order,
+                   'seconds': round(total, 3)}, fh, ensure_ascii=False, indent=2)
     if args.no_record:
         print(f'Listo (prueba, estado sin cambios): {out}')
         return 0

@@ -3,7 +3,7 @@
 ## WyreScapes — Mixtapes ambient diarias en AllusionBeatz (2026-11-21)
 
 Canal de música propia (no venta de beats), nicho dormir/calmarse. YouTube AllusionBeatz
-(@AllusionBeatz, `UCrC-LCmo-IccKZaTOmGI4ig`), artista WyreScapes en Spotify; link fijo
+(@AllusionBeatz, `UCrC-LCmo-lccKZaTOmGI4ig`), artista WyreScapes en Spotify; link fijo
 `https://open.spotify.com/playlist/1GqQd4yh4r79yH0zrkib6p`. Material en `Desktop\WyreScapes`
 (`Tracks/`, `Imagenes/`, `Videos/`). Primer video subido a mano: «someone is still beside you.» (31:34).
 **Corre local** en la PC de Matías (prendida) y **sube por API**: excepción pedida por el usuario al
@@ -33,10 +33,20 @@ modo manual sin API. Código nuevo en `core/` (módulos chicos), sin tocar la nu
   Render real de prueba con `--no-record` (imagen de la rotación `nowayout_16x9_01_nodog.jpg`):
   1920×1080, 31:33, estados intactos para el primer día real. `tests/test_image_rotation.py`
   12 OK; suite 991 OK, 4 omitidas.
-- [ ] **Fase 3 – Subida.** OAuth del canal (una vez, lo hace Matías), token en `tokens/` (git-ignored).
+- [x] **Fase 3 – Subida.** OAuth del canal (una vez, lo hace Matías), token en `tokens/` (git-ignored).
   Reusar `core/youtube.py` / `core/publish_at.py`: subida privada programada 12:00 Argentina con título,
   descripción (Spotify en la primera línea), tags y miniatura = la imagen. El comentario fijado no se
   puede por API: queda escrito en un `.txt` para fijarlo a mano.
+  ✅ COMPLETADA (2026-11-21): `core/wyrescapes_upload.py` + CLI `scripts/wyrescapes_upload.py`
+  (`--connect`, `--check`, `--video V.mp4 --meta meta.json [--dry-run]`). OAuth en memoria con la
+  llave del llavero; el token se guarda en `tokens/wyrescapes.json` solo si el canal es
+  `UCrC-LCmo-lccKZaTOmGI4ig` (el id tenía una «I» mal tipeada en este plan: es «l» minúscula), y
+  antes de cada subida se re-verifica el canal. Próximo 12:00 AR (UTC−3) con ≥45 min de margen,
+  si no al día siguiente. Miniatura 1280×720 cover < 2 MB (`<video>.miniatura.jpg`), comentario en
+  `<video>.comentario.txt`, registro `config/wyrescapes_published.json` (git-ignored; títulos para la
+  Fase 4 y bloqueo de doble subida). El render deja `<video>.json` con la imagen y los tracks.
+  OAuth real hecho por Matías, `--check` OK. Aún no se subió ningún video por API.
+  `tests/test_wyrescapes_upload.py` 11 OK; suite 1003 OK, 4 omitidas.
 - [ ] **Fase 4 – Tarea diaria.** Tarea programada local (PC prendida): render → Claude mira la imagen y
   escribe título en minúscula estilo «someone is still beside you.», descripción, comentario fijado y
   tags → sube programado 12:00 (Seen 3AM usa las 10:00). Registro de lo publicado para no repetir títulos.

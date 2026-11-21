@@ -106,3 +106,5 @@ config/wyrescapes_state.json
 config/wyrescapes_state.json.tmp
 config/wyrescapes_images.json
 config/wyrescapes_images.json.tmp
+config/wyrescapes_published.json
+config/wyrescapes_published.json.tmp
