@@ -100,3 +100,7 @@ shorts_cache/
 config/manual_mode.json
 config/manual_beatstars_history.json
 config/manual_beatstars_history.json.lock
+
+# WyreScapes: estado local de uso de tracks
+config/wyrescapes_state.json
+config/wyrescapes_state.json.tmp

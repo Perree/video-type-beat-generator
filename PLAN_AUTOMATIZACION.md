@@ -9,11 +9,17 @@ Canal de música propia (no venta de beats), nicho dormir/calmarse. YouTube Allu
 **Corre local** en la PC de Matías (prendida) y **sube por API**: excepción pedida por el usuario al
 modo manual sin API. Código nuevo en `core/` (módulos chicos), sin tocar la nube ni otros canales.
 
-- [ ] **Fase 1 – Mixtape.** Lee `Tracks/` cada vez (`.wav`/`.mp3`, ignora `.asd`): los tracks nuevos
+- [x] **Fase 1 – Mixtape.** Lee `Tracks/` cada vez (`.wav`/`.mp3`, ignora `.asd`): los tracks nuevos
   entran solos. Cada track **una sola vez** por video, nunca repetido; orden al azar distinto del
   video anterior. Duración = suma de los tracks (30 min con 8 está bien). Objetivo 2 h solo como tope:
   si la música supera ~2 h, elige una parte priorizando los menos usados. Render con imagen fija 1080p
   (rápido aunque dure horas). Estado de uso en un JSON local; tests con audio sintético.
+  ✅ COMPLETADA (2026-11-21): `core/mixtape.py` (selección y estado en
+  `config/wyrescapes_state.json`, git-ignored), `core/mixtape_render.py` (concat + imagen fija
+  1 fps `stillimage`, cover 1920×1080, AAC 320k), CLI `scripts/wyrescapes_render.py --image …
+  [--dry-run]` → `Desktop\WyreScapes\Videos`; el estado se guarda solo si el render sale bien.
+  Render real: 8 tracks, 31:33, 1893,0 s vs 1892,94 s de suma, en ~1,5 min.
+  `tests/test_mixtape.py` 13 OK; suite 980 OK, 4 omitidas.
 - [ ] **Fase 2 – Imágenes.** Solo imágenes propias (IA). Las descargas de Pinterest (`nowayout_*`,
   `descargar*`) van a `Imagenes/Refes` y nunca a un video. Rotación sin repetir hasta usar todas;
   avisar cuando queden pocas.
