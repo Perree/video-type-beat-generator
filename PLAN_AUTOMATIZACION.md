@@ -47,9 +47,21 @@ modo manual sin API. Código nuevo en `core/` (módulos chicos), sin tocar la nu
   Fase 4 y bloqueo de doble subida). El render deja `<video>.json` con la imagen y los tracks.
   OAuth real hecho por Matías, `--check` OK. Aún no se subió ningún video por API.
   `tests/test_wyrescapes_upload.py` 11 OK; suite 1003 OK, 4 omitidas.
-- [ ] **Fase 4 – Tarea diaria.** Tarea programada local (PC prendida): render → Claude mira la imagen y
+- [x] **Fase 4 – Tarea diaria.** Tarea programada local (PC prendida): render → Claude mira la imagen y
   escribe título en minúscula estilo «someone is still beside you.», descripción, comentario fijado y
   tags → sube programado 12:00 (Seen 3AM usa las 10:00). Registro de lo publicado para no repetir títulos.
+  ✅ COMPLETADA (2026-11-21): `core/wyrescapes_daily.py` + CLI `scripts/wyrescapes_daily.py
+  prepare|publish [--date] [--no-record|--dry-run]`. `prepare` deja `Videos/<AAAA-MM-DD>/` con
+  `wyrescapes_<AAAAMMDD>.mp4` (+ `.json`), `imagen.txt`, `info.json` (minutos reales, títulos usados)
+  y `metadata.json` con los tags base precargados; si el video del día ya existe no re-renderiza.
+  `publish` valida (título ≤100, minúscula con punto, no repetido contra el registro + el título
+  manual del 21/11; descripción; tags ≤500 contados como YouTube; comentario; sin «nowayout») y
+  sube con la Fase 3 a las 12:00 AR de ese día; si ya pasó (margen 45 min) no sube para otro horario.
+  Idempotente: un día ya subido no se vuelve a subir. Tarea programada `wyrescapes-daily` 09:00 local
+  (prepare → Claude mira la imagen y escribe metadata → publish → `log.txt` del día). Corrida de
+  prueba sin subir (render `--no-record` + metadata + `publish --dry-run`) en
+  `Videos/prueba-2026-11-22`. Primera subida real por API: la tarea del 2026-11-22.
+  `tests/test_wyrescapes_daily.py` 21 OK; suite 1024 OK, 4 omitidas.
 
 ## Mat produced this one — barras negras laterales ✅ COMPLETADA (2026-11-21)
 
