@@ -762,6 +762,13 @@ modo manual sin API. Código nuevo en `core/` (módulos chicos), sin tocar la nu
 - Tests viejos suben todo el búfer (conftest y smoke_beat_hardening); nuevos: test_upload_spread y
   test_human_schedule. Suite 709 ok; las 4 fallas previas son del entorno (llavero/CLI).
 
+## Loop kits — Kit nuevo ESTAMOS BIEN en WyreSounds y WyreAfro ✅ COMPLETADA (2026-11-21)
+- Carpeta ya en la tienda: `Individual Kits/ESTAMOS BIEN - Emotional Melodic Reggaeton (Loop Kit)` con `LOOPS/`
+  (8 loops WAV+MP3). Link de venta https://wyresounds.com/b/OCQqb (9,99 US$).
+- Sumado activo, género `reggaeton house`, al `kits.json` de WyreSounds (canal por defecto, nombre completo)
+  y de WyreAfro (nombre corto `ESTAMOS BIEN`, como el resto de su catálogo). Guardado con CAS y releído.
+- Entra en las próximas corridas semanales de cada canal; no se renderizó ni subió nada.
+
 ## Configuración y activación de WyreAfro ✅ COMPLETADA
 - Canal @wyreafro, configuración y catálogo propios en datos/loop_kits/wyreafro, registro e índice.
   Solo kits de reguetón/house por nombre y catálogo: excluidas guitarras mal etiquetadas. Tres activos
