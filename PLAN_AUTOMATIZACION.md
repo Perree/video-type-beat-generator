@@ -62,6 +62,17 @@ modo manual sin API. Código nuevo en `core/` (módulos chicos), sin tocar la nu
   prueba sin subir (render `--no-record` + metadata + `publish --dry-run`) en
   `Videos/prueba-2026-11-22`. Primera subida real por API: la tarea del 2026-11-22.
   `tests/test_wyrescapes_daily.py` 21 OK; suite 1024 OK, 4 omitidas.
+  **Reintentos si la PC estuvo apagada (pedido de Matías, 2026-11-21):** paso `status`
+  (uploaded/prepared/rendered/pending, sin render) para que una corrida termine enseguida si hoy
+  ya se subió y reuse lo preparado sin re-renderizar ni reescribir el texto; `prepare` no hace nada
+  si el día ya se subió. Pasadas las 12:00 AR se sube igual y se publica a `max(12:00, ahora+15 min)`;
+  un día ya terminado nunca se publica. Si la subida falla, no se registra y la corrida siguiente
+  reintenta. Días sin video (PC apagada todo el día) se anotan una vez en el registro
+  (`missed: true`) y no se recuperan: nunca dos videos el mismo día. Cron objetivo de la tarea:
+  `0 9-23 * * *` (cada hora hasta las 23). La app de escritorio corre las tareas solo con la app
+  abierta; una ejecución vencida con la app cerrada se corre al volver a abrirla (según la
+  herramienta de tareas). Las corridas horarias cubren además una PC prendida tarde.
+  `tests/test_wyrescapes_daily.py` 29 OK; suite 1032 OK, 4 omitidas.
 
 ## Mat produced this one — barras negras laterales ✅ COMPLETADA (2026-11-21)
 

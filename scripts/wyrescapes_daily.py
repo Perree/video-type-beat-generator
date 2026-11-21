@@ -1,12 +1,14 @@
 """WyreScapes: flujo diario (prepare → metadata.json → publish a las 12:00 AR).
 
 Uso:
+    python scripts/wyrescapes_daily.py status  [--date AAAA-MM-DD]   # uploaded/prepared/rendered/pending
     python scripts/wyrescapes_daily.py prepare [--date AAAA-MM-DD] [--no-record]
     python scripts/wyrescapes_daily.py publish [--date AAAA-MM-DD] [--dry-run]
 
 prepare: elige imagen, renderiza la mixtape y deja Videos/<día>/ con el .mp4, imagen.txt,
 info.json y metadata.json vacío. publish: valida metadata.json y sube programado para las
-12:00 AR de ese día (si ya pasó, no sube). Si el día ya se subió, no vuelve a subir.
+12:00 AR de ese día (si ya pasó, publica ~15 min después). Si el día ya se subió, no vuelve a
+subir. Los días sin video (PC apagada todo el día) se anotan en el registro y no se recuperan.
 """
 import argparse
 import json
@@ -33,7 +35,7 @@ def _safe_console():
 def main(argv=None):
     _safe_console()
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('step', choices=('prepare', 'publish'))
+    parser.add_argument('step', choices=('status', 'prepare', 'publish'))
     parser.add_argument('--date', help='Día (AAAA-MM-DD); por defecto hoy')
     parser.add_argument('--base', default=wd.BASE, help='Carpeta WyreScapes')
     parser.add_argument('--no-record', action='store_true',
@@ -42,6 +44,12 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         day = wd.parse_day(args.date)
+        if not args.date:
+            for missed in wd.record_missed_days(day):
+                print(f'Aviso: el {missed.isoformat()} no tuvo video (PC apagada); no se recupera.')
+        if args.step == 'status':
+            print(json.dumps(wd.status(day, base=args.base), ensure_ascii=False, indent=2))
+            return 0
         if args.step == 'prepare':
             info = wd.prepare(day, base=args.base, record=not args.no_record)
             for warning in info['warnings']:
