@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*wyrescapes_daily.py status*)",
+      "Bash(*wyrescapes_daily.py prepare*)",
+      "Bash(*wyrescapes_daily.py publish*)",
+      "PowerShell(*wyrescapes_daily.py status*)",
+      "PowerShell(*wyrescapes_daily.py prepare*)",
+      "PowerShell(*wyrescapes_daily.py publish*)",
+      "Bash(*python.exe -c *PIL*Image.open*)",
+      "PowerShell(*python.exe -c *PIL*Image.open*)",
+      "Read(//C:/Users/matia/Desktop/WyreScapes/**)",
+      "Edit(//C:/Users/matia/Desktop/WyreScapes/**)",
+      "Write(//C:/Users/matia/Desktop/WyreScapes/**)",
+      "Read(//E:/Proyectos/SaaS/video-type-beat-generator/**)",
+      "PushNotification"
+    ]
+  }
+}
